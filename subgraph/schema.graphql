@@ -1,0 +1,171 @@
+################################################################################
+# Vault Entity
+################################################################################
+
+type Vault @entity {
+  id: ID! # address
+  currencyToken: Bytes! # address
+  maxDuration: BigInt! # uint64 (in seconds)
+  collateralToken: Bytes! # address
+  collateralFilter: Bytes! # address
+  interestRateModel: Bytes! # address
+  liquidationStrategy: Bytes! # address
+  noteTokens: [NoteToken!]! @derivedFrom(field: "vault")
+  lendPlatforms: [LendPlatform!]! @derivedFrom(field: "vault")
+
+  loansPurchasedCount: BigInt! # uint256
+  loansRepaidCount: BigInt! # uint256
+  loansDefaultedCount: BigInt! # uint256
+  loansLiquidatedCount: BigInt! # uint256
+  totalValueLocked: BigInt! # uint256
+
+  ticks: [Tick!]! @derivedFrom(field: "vault")
+  loans: [Loan!]! @derivedFrom(field: "vault")
+  deposits: [Deposit!]! @derivedFrom(field: "vault")
+}
+
+type NoteToken @entity {
+  id: ID! # <vault>-notetoken-<address>
+  noteAdapter: Bytes! # address
+  vault: Vault!
+}
+
+type LendPlatform @entity {
+  id: ID! # <vault>-lendplatform-<address>
+  lendAdapter: Bytes! # address
+  vault: Vault!
+}
+
+################################################################################
+# Tick Entity
+################################################################################
+
+type Tick @entity {
+  id: ID! # <vault>-tick-<depth>
+  vault: Vault!
+  depth: BigInt! # uint256
+  amount: BigInt! # uint256
+  available: BigInt! # uint256
+  pending: BigInt! # uint256
+  shares: BigInt! # uint256
+  redemptionPending: BigInt! # uint256
+  redemptionProcessed: BigInt! # uint256
+}
+
+################################################################################
+# Deposit Entity
+################################################################################
+
+type Deposit @entity {
+  id: ID! # <vault>-deposit-<depositId>
+  vault: Vault!
+  depositId: BigInt! # uint256
+  account: Bytes! # address
+  tick: Tick!
+  shares: BigInt! # uint256
+}
+
+################################################################################
+# Loan Entity
+################################################################################
+
+enum LoanStatus {
+  Active
+  Liquidated
+  Repaid
+  CollateralLiquidated
+}
+
+type LoanTick @entity {
+  id: ID! # <vault>-loan-<loanId>-tick-<depth>
+  loan: Loan!
+  depth: BigInt! # uint256
+  amount: BigInt! # uint256
+  return: BigInt! # uint256
+}
+
+type Loan @entity {
+  id: ID! # <vault>-loan-<loanId>
+  vault: Vault!
+  loanId: BigInt! # uint256
+  status: LoanStatus!
+
+  # Decoded Loan Receipt
+  borrower: Bytes! # address
+  maturity: BigInt! # uint64 (in seconds since epoch)
+  principal: BigInt! # uint256
+  repayment: BigInt! # uint256
+  duration: BigInt! # uint64 (in seconds)
+  collateralToken: Bytes! # address
+  collateralTokenId: Bytes! # uint256
+  loanTicks: [LoanTick!]! @derivedFrom(field: "loan")
+
+  # Raw Loan Receipt
+  loanReceipt: Bytes!
+}
+
+################################################################################
+# Vault Events
+################################################################################
+
+enum VaultEventType {
+  LoanOriginated
+  NotePurchased
+  LoanRepaid
+  LoanLiquidated
+  CollateralLiquidated
+  Deposited
+  Redeemed
+  Withdrawn
+}
+
+interface EventMetadata {
+  transactionHash: Bytes!
+  timestamp: BigInt! # uint64
+}
+
+type LoanOriginated implements EventMetadata @entity {
+  id: ID! # <vault>-loanoriginated-<tx hash>
+  loan: Loan!
+}
+
+type NotePurchased implements EventMetadata @entity {
+  id: ID! # <vault>-notepurchased-<tx hash>
+  loan: Loan!
+}
+
+type LoanRepaid implements EventMetadata @entity {
+  id: ID! # <vault>-loanrepaid-<tx hash>
+  loan: Loan!
+}
+
+type LoanLiquidated implements EventMetadata @entity {
+  id: ID! # <vault>-loanliquidated-<tx hash>
+  loan: Loan!
+}
+
+type CollateralLiquidated implements EventMetadata @entity {
+  id: ID! # <vault>-collateralliquidated-<tx hash>
+  loan: Loan!
+  proceeds: BigInt! # uint256
+}
+
+type Deposited implements EventMetadata @entity {
+  id: ID! # <vault>-deposited-<tx hash>
+  deposit: Deposit!
+  amount: BigInt! # uint256
+  shares: BigInt! # uint256
+}
+
+type Redeemed implements EventMetadata @entity {
+  id: ID! # <vault>-redeemed-<tx hash>
+  deposit: Deposit!
+  shares: BigInt! # uint256
+  amount: BigInt! # uint256
+}
+
+type Withdrawn implements EventMetadata @entity {
+  id: ID! # <vault>-withdrawn-<tx hash>
+  deposit: Deposit!
+  amount: BigInt! # uint256
+}
