@@ -1,12 +1,12 @@
-# Vault v2 Design Document
+# Pool v2 Design Document
 
 ## Goals
 
-The main goals of MetaStreet Vault v2 is to improve on three shortcomings of v1:
+The main goals of MetaStreet Pool v2 is to improve on three shortcomings of v1:
 
 * **Oracleless**: Remove the dependency on a centralized price oracle for loan to value limits
 * **Dynamic Rates**: Replace a fixed, governance-driven interest rate model with a dynamic, automated one
-* **Permissionless**: Allow users to instantiate a debt purchasing Vault for any collection permissionlessly
+* **Permissionless**: Allow users to instantiate a debt purchasing Pool for any collection permissionlessly
 
 In addition, v2 includes some implementation subgoals:
 
@@ -14,13 +14,15 @@ In addition, v2 includes some implementation subgoals:
 * **Lending Platform Integration**: Add support for integrating directly with lending platforms to originate loans (i.e. no promissory note required)
 * **Token ID Whitelisting**: Add support for whitelisting arbitrary token IDs within a collection for loan collateral (e.g. for rare collections)
 
+Finally, Vault has been renamed to Pool in v2.
+
 ## Design
 
-The external API of MetaStreet Vault v2 is intended to be very similar to that of v1, with a few parameter changes. However, the internal architecture has been redesigned to achieve the design goals above. The subsections below summarize the major design changes.
+The external API of MetaStreet Pool v2 is intended to be very similar to that of v1, with a few parameter changes. However, the internal architecture has been redesigned to achieve the design goals above. The subsections below summarize the major design changes.
 
 ### Fixed Duration Loans
 
-For simplified accounting, v2 will use a fixed duration for all loans (e.g. 30 days), which is specified at Vault instantiation time. Different Vaults may provide different loan durations for the same collections.
+For simplified accounting, v2 will use a fixed duration for all loans (e.g. 30 days), which is specified at Pool instantiation time. Different Pools may provide different loan durations for the same collections.
 
 ### Liquidity Management
 
@@ -28,9 +30,9 @@ MetaStreet Vault v1 managed liquidity across two tranches: the senior tranche an
 
 v2 replaces the concept of tranches with "loan limit ticks", which are like tranches at arbitrary loan limits. Capital from a tick can only be used for the principal (or purchase price) of a loan up to its loan limit. For example, if there is a 5 ETH tick with 100 ETH of deposits, capital drawn from that tick can only be used to fund the 0-5 ETH portion of a loan, or an intermediate portion, like 2-5 ETH.
 
-When a v2 Vault funds (or buys) a loan, it sources the capital from multiple, subsequent ticks up to the principal (or purchase price) of the loan. As an example, a v2 Vault might use five ticks at limits 10, 20, 30, 45, 60 ETH to fill a loan from 0-10, 10-20, 20-25, 25-40, 40-50 ETH. More aggressive ticks receive greater a interest rate on their capital, in exchange for insuring less aggressive ticks against default.
+When a v2 Pool funds (or buys) a loan, it sources the capital from multiple, subsequent ticks up to the principal (or purchase price) of the loan. As an example, a v2 Pool might use five ticks at limits 10, 20, 30, 45, 60 ETH to fill a loan from 0-10, 10-20, 20-25, 25-40, 40-50 ETH. More aggressive ticks receive greater a interest rate on their capital, in exchange for insuring less aggressive ticks against default.
 
-Enabling depositors to attach an arbitrary loan limit to their capital is what allows the v2 design to eliminate a price oracle and LTV-based parameters. Now, the maximum LTV supported by a Vault is simply the capital available up to the highest loan limit. This approach also gives depositors more flexibility with the risk they would like to take, instead of being limited to two tranches and slow, governance-driven LTV limits. However, it also requires more active position management by depositors at the higher loan limits.
+Enabling depositors to attach an arbitrary loan limit to their capital is what allows the v2 design to eliminate a price oracle and LTV-based parameters. Now, the maximum LTV supported by a Pool is simply the capital available up to the highest loan limit. This approach also gives depositors more flexibility with the risk they would like to take, instead of being limited to two tranches and slow, governance-driven LTV limits. However, it also requires more active position management by depositors at the higher loan limits.
 
 In order to balance the flexibility of arbitrary loan limits with gas efficiency, the number of ticks used to fund a loan needs to be finite and limited to about 10 on L1. This is achieved by imposing a minimum spacing requirement between the ticks. When a deposit is made into a new tick, it must be at least a fixed percentage away from an adjacent tick (for example, 25%). By making the spacing requirement a relative percentage, ticks for both low and high collateral value assets can be seamlessly supported. For example, both sets of ticks below are spaced 25% apart, but are 10x apart in value:
 
@@ -54,7 +56,7 @@ The main difference with depositing in v2 is that there is now a loan limit atta
 
 ### Dynamic Interest Rates
 
-More aggressive ticks used in the funding of a loan receive higher interest rates, in exchange for insuring the less aggressive ticks. The actual interest rates assigned to ticks follows a dynamic interest rate model, based on the overall utilization of the Vault. Each Vault has a "base interest rate" that is driven up or down over time by a proportional controller, depending on how close the Vault is to achieving a utilization target (e.g. 80%). If the Vault is underutilized, the base interest rate decays. If the Vault is overutilized, the base interest rate grows. If the Vault is within a hysteresis threshold of the utilization target, e.g. +/-10% of 80%, the base interest rate remains unchanged.
+More aggressive ticks used in the funding of a loan receive higher interest rates, in exchange for insuring the less aggressive ticks. The actual interest rates assigned to ticks follows a dynamic interest rate model, based on the overall utilization of the Pool. Each Pool has a "base interest rate" that is driven up or down over time by a proportional controller, depending on how close the Pool is to achieving a utilization target (e.g. 80%). If the Pool is underutilized, the base interest rate decays. If the Pool is overutilized, the base interest rate grows. If the Pool is within a hysteresis threshold of the utilization target, e.g. +/-10% of 80%, the base interest rate remains unchanged.
 
 In the preliminary implementation, the first tick will receive the base interest rate, while subsequent ticks will receive a fixed multiplier of the base interest rate. For example, if the dynamic base interest rate is 0.5%, and the tick multiplier is 1.5x, then the interest rates for 10 ticks are:
 
@@ -64,15 +66,15 @@ In the preliminary implementation, the first tick will receive the base interest
 >>>
 ```
 
-This interest rate model is a starting point and will likely be refined over time. The interest rate model will be a modular component in the v2 design, so there is the possibility for allowing the use of different interest rate models -- potentially even user-defined ones -- for different Vaults.
+This interest rate model is a starting point and will likely be refined over time. The interest rate model will be a modular component in the v2 design, so there is the possibility for allowing the use of different interest rate models -- potentially even user-defined ones -- for different Pools.
 
 ### Offchain Loan Metadata
 
 The most expensive operation in the v1 Vault is `sellNote()`, which can make note arbitrage financially impractical and loan origination too expensive. Much of the cost comes from storing a copy of all the loan state onchain, including metadata like the collateral token, collateral token ID, purchase price, repayment, duration, etc. One benefit of this is that the v1 Vault can use an automated service like Chainlink Automation (formerly Keepers) to update Vault accounting on events like loan repayment, expiration, or liquidation, without requiring any external input data. In practice, this advantage is outweighed by the greater costs of storing all the loan metadata onchain, which impairs the Vault from performing its primary purpose of purchasing debt.
 
-In the v2 Vault design, all metadata associated with the loan is stored trustlessly offchain, while only a status enum and metadata hash are stored onchain, which can both fit into a single 256-bit slot. When a loan is purchased, the associated metadata is emitted in an event. When a loan is repaid or expired, this original metadata is presented in the calldata for the loan service handler, e.g. `onLoanRepaid()` or `onLoanExpired()`, and verified against the hash onchain.
+In the v2 Pool design, all metadata associated with the loan is stored trustlessly offchain, while only a status enum and metadata hash are stored onchain, which can both fit into a single 256-bit slot. When a loan is purchased, the associated metadata is emitted in an event. When a loan is repaid or expired, this original metadata is presented in the calldata for the loan service handler, e.g. `onLoanRepaid()` or `onLoanExpired()`, and verified against the hash onchain.
 
-This leads to substantial gas savings, and enables low cost storage of additional metadata or other accounting details. The loan metadata can be retrieved from event logs -- or, more realistically, a subgraph. In the short term, Chainlink Automation won't be usable for Vault accounting automation and a custom solution will be required, but it's likely there will be an onchain automation service in the near future with more flexible triggers and input data.
+This leads to substantial gas savings, and enables low cost storage of additional metadata or other accounting details. The loan metadata can be retrieved from event logs -- or, more realistically, a subgraph. In the short term, Chainlink Automation won't be usable for Pool accounting automation and a custom solution will be required, but it's likely there will be an onchain automation service in the near future with more flexible triggers and input data.
 
 ## State
 
@@ -298,7 +300,7 @@ withdraw(uint256 depositId, uint256 maxAmount) returns (uint256 amount)
 
 ## Design Alternatives
 
-Vault accounting can be implemented in a number of different ways. The approach described here uses share-based accounting similar to that of v1, which automatically compounds by design -- interest from loans is returned to the tick after repayment and can be reused in new loans. Some other choices include:
+Pool accounting can be implemented in a number of different ways. The approach described here uses share-based accounting similar to that of v1, which automatically compounds by design -- interest from loans is returned to the tick after repayment and can be reused in new loans. Some other choices include:
 
 * Using native currency for all accounting, i.e. no shares or share pricing
 * Storing accrued interest from loans separately from the capital
