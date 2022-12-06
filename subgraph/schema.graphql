@@ -1,8 +1,8 @@
 ################################################################################
-# Vault Entity
+# Pool Entity
 ################################################################################
 
-type Vault @entity {
+type Pool @entity {
   id: ID! # address
   currencyToken: Bytes! # address
   maxDuration: BigInt! # uint64 (in seconds)
@@ -10,8 +10,8 @@ type Vault @entity {
   collateralFilter: Bytes! # address
   interestRateModel: Bytes! # address
   liquidationStrategy: Bytes! # address
-  noteTokens: [NoteToken!]! @derivedFrom(field: "vault")
-  lendPlatforms: [LendPlatform!]! @derivedFrom(field: "vault")
+  noteTokens: [NoteToken!]! @derivedFrom(field: "pool")
+  lendPlatforms: [LendPlatform!]! @derivedFrom(field: "pool")
 
   loansPurchasedCount: BigInt! # uint256
   loansRepaidCount: BigInt! # uint256
@@ -19,21 +19,21 @@ type Vault @entity {
   loansLiquidatedCount: BigInt! # uint256
   totalValueLocked: BigInt! # uint256
 
-  ticks: [Tick!]! @derivedFrom(field: "vault")
-  loans: [Loan!]! @derivedFrom(field: "vault")
-  deposits: [Deposit!]! @derivedFrom(field: "vault")
+  ticks: [Tick!]! @derivedFrom(field: "pool")
+  loans: [Loan!]! @derivedFrom(field: "pool")
+  deposits: [Deposit!]! @derivedFrom(field: "pool")
 }
 
 type NoteToken @entity {
-  id: ID! # <vault>-notetoken-<address>
+  id: ID! # <pool>-notetoken-<address>
   noteAdapter: Bytes! # address
-  vault: Vault!
+  pool: Pool!
 }
 
 type LendPlatform @entity {
-  id: ID! # <vault>-lendplatform-<address>
+  id: ID! # <pool>-lendplatform-<address>
   lendAdapter: Bytes! # address
-  vault: Vault!
+  pool: Pool!
 }
 
 ################################################################################
@@ -41,8 +41,8 @@ type LendPlatform @entity {
 ################################################################################
 
 type Tick @entity {
-  id: ID! # <vault>-tick-<depth>
-  vault: Vault!
+  id: ID! # <pool>-tick-<depth>
+  pool: Pool!
   depth: BigInt! # uint256
   amount: BigInt! # uint256
   available: BigInt! # uint256
@@ -57,8 +57,8 @@ type Tick @entity {
 ################################################################################
 
 type Deposit @entity {
-  id: ID! # <vault>-deposit-<depositId>
-  vault: Vault!
+  id: ID! # <pool>-deposit-<depositId>
+  pool: Pool!
   depositId: BigInt! # uint256
   account: Bytes! # address
   tick: Tick!
@@ -77,7 +77,7 @@ enum LoanStatus {
 }
 
 type LoanTick @entity {
-  id: ID! # <vault>-loan-<loanId>-tick-<depth>
+  id: ID! # <pool>-loan-<loanId>-tick-<depth>
   loan: Loan!
   depth: BigInt! # uint256
   amount: BigInt! # uint256
@@ -85,8 +85,8 @@ type LoanTick @entity {
 }
 
 type Loan @entity {
-  id: ID! # <vault>-loan-<loanId>
-  vault: Vault!
+  id: ID! # <pool>-loan-<loanId>
+  pool: Pool!
   loanId: BigInt! # uint256
   status: LoanStatus!
 
@@ -105,10 +105,10 @@ type Loan @entity {
 }
 
 ################################################################################
-# Vault Events
+# Pool Events
 ################################################################################
 
-enum VaultEventType {
+enum PoolEventType {
   LoanOriginated
   NotePurchased
   LoanRepaid
@@ -125,47 +125,47 @@ interface EventMetadata {
 }
 
 type LoanOriginated implements EventMetadata @entity {
-  id: ID! # <vault>-loanoriginated-<tx hash>
+  id: ID! # <pool>-loanoriginated-<tx hash>
   loan: Loan!
 }
 
 type NotePurchased implements EventMetadata @entity {
-  id: ID! # <vault>-notepurchased-<tx hash>
+  id: ID! # <pool>-notepurchased-<tx hash>
   loan: Loan!
 }
 
 type LoanRepaid implements EventMetadata @entity {
-  id: ID! # <vault>-loanrepaid-<tx hash>
+  id: ID! # <pool>-loanrepaid-<tx hash>
   loan: Loan!
 }
 
 type LoanLiquidated implements EventMetadata @entity {
-  id: ID! # <vault>-loanliquidated-<tx hash>
+  id: ID! # <pool>-loanliquidated-<tx hash>
   loan: Loan!
 }
 
 type CollateralLiquidated implements EventMetadata @entity {
-  id: ID! # <vault>-collateralliquidated-<tx hash>
+  id: ID! # <pool>-collateralliquidated-<tx hash>
   loan: Loan!
   proceeds: BigInt! # uint256
 }
 
 type Deposited implements EventMetadata @entity {
-  id: ID! # <vault>-deposited-<tx hash>
+  id: ID! # <pool>-deposited-<tx hash>
   deposit: Deposit!
   amount: BigInt! # uint256
   shares: BigInt! # uint256
 }
 
 type Redeemed implements EventMetadata @entity {
-  id: ID! # <vault>-redeemed-<tx hash>
+  id: ID! # <pool>-redeemed-<tx hash>
   deposit: Deposit!
   shares: BigInt! # uint256
   amount: BigInt! # uint256
 }
 
 type Withdrawn implements EventMetadata @entity {
-  id: ID! # <vault>-withdrawn-<tx hash>
+  id: ID! # <pool>-withdrawn-<tx hash>
   deposit: Deposit!
   amount: BigInt! # uint256
 }
