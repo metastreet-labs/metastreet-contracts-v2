@@ -8,9 +8,9 @@ import "./INoteAdapter.sol";
 import "./ILendAdapter.sol";
 
 /**
- * @title Interface to a Vault
+ * @title Interface to a Pool
  */
-interface IVault {
+interface IPool {
     event LoanOriginated(uint256 indexed loanId, bytes loanReceipt);
     event LoanPurchased(uint256 indexed loanId, bytes loanReceipt);
     event LoanRepaid(uint256 indexed loanId);
