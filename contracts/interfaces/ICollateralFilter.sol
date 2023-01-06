@@ -12,17 +12,14 @@ interface ICollateralFilter {
     function name() external view returns (string memory);
 
     /**
-     * Get collateral token
-     * @return Collateral token
+     * Get collateral tokens
+     * @return Collateral tokens
      */
-    function token() external view returns (address);
+    function tokens() external view returns (address[] memory);
 
     /**
-     * Query if token ID is supported
+     * Query if collateral token is supported
      * @return True if supported, otherwise false
      */
-    function tokenIdSupported(
-        uint256 tokenId,
-        bytes memory tokenIdSpec
-    ) external view returns (bool);
+    function supported(address token, uint256 tokenId, bytes memory tokenIdSpec) external view returns (bool);
 }

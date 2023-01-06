@@ -14,7 +14,7 @@ interface ILendAdapter is ILoan {
     function name() external view returns (string memory);
 
     /**
-     * Create a loan
+     * Originate a loan
      * @param borrower Borrower
      * @param principal Principal amount
      * @param repayment Repayment amount
@@ -22,15 +22,17 @@ interface ILendAdapter is ILoan {
      * @param currencyToken Currency token address
      * @param collateralToken Collateral token address
      * @param collateralTokenId Collateral token ID
+     * @param collateralTokenIdSpec Collateral token ID specification
      * @return Loan info
      */
-    function createLoan(
+    function originateLoan(
         address borrower,
         uint256 principal,
         uint256 repayment,
-        uint256 duration,
+        uint64 duration,
         address currencyToken,
         address collateralToken,
-        uint256 collateralTokenId
+        uint256 collateralTokenId,
+        bytes[] calldata collateralTokenIdSpec
     ) external view returns (LoanInfo memory);
 }

@@ -79,10 +79,7 @@ interface ILoan {
      * @param loanReceipt Loan receipt
      * @return Loan information
      */
-    function getLoanInfo(
-        uint256 loanId,
-        bytes memory loanReceipt
-    ) external view returns (LoanInfo memory);
+    function getLoanInfo(uint256 loanId, bytes memory loanReceipt) external view returns (LoanInfo memory);
 
     /**
      * Get loan status
@@ -90,10 +87,7 @@ interface ILoan {
      * @param loanReceipt Loan receipt
      * @return Loan status
      */
-    function getLoanStatus(
-        uint256 loanId,
-        bytes memory loanReceipt
-    ) external view returns (LoanStatus);
+    function getLoanStatus(uint256 loanId, bytes memory loanReceipt) external view returns (LoanStatus);
 
     /**
      * Get liquidation calldata

@@ -14,17 +14,27 @@ interface IInterestRateModel {
     function name() external view returns (string memory);
 
     /**
-     * Price liquidity for a loan
-     * @param nodes Liquidity nodes used
-     * @param amount Loan amount
-     * @param duration Loan duration
-     * @param maxDuration Pool max duration
-     * @return interest Interest for each liquidity node
+     * Calculate interest rate for liquidity
+     * @param amount Amount
+     * @param ticks Number of ticks used
+     * @return interestRate Interest per second
      */
-    function priceLiquidity(
-        ILiquidityManager.LiquidityNode[] memory nodes,
-        uint256 amount,
-        uint256 duration,
-        uint256 maxDuration
-    ) external view returns (uint256[] memory interest);
+    function calculateRate(uint128 amount, uint16 ticks) external view returns (uint256 interestRate);
+
+    /**
+     * Distribute interest for liquidity
+     * @param interest Interest to distribute
+     * @param trail Liquidity trail
+     * @return Liquidty trail with interest
+     */
+    function distributeInterest(
+        uint128 interest,
+        ILiquidityManager.LiquiditySource[] memory trail
+    ) external view returns (ILiquidityManager.LiquiditySource[] memory);
+
+    /**
+     * Utilization updated handler
+     * @param utilization Utilization as a fixed-point, 18 decimal fraction
+     */
+    function onUtilizationUpdated(uint256 utilization) external;
 }

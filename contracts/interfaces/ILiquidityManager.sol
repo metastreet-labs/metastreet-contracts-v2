@@ -10,23 +10,35 @@ interface ILiquidityManager {
     /**************************************************************************/
 
     /**
-     * @notice Liquidity node
-     * @param amount Total liquidity amount
+     * @notice Liquidity source
+     * @param depth Sourced depth
+     * @param used Sourced amount
+     * @param pending Pending amount
+     */
+    struct LiquiditySource {
+        uint128 depth;
+        uint128 used;
+        uint128 pending;
+    }
+
+    /**
+     * @notice Flattened liquidity node returned by getter
+     * @param depth Depth
+     * @param value Total liquidity value
      * @param shares Total liquidity shares outstanding
      * @param available Liquidity available
      * @param pending Liquidity pending (with interest)
-     * @param redemptionPending Redemption pending amount
-     * @param redemptionProcessed Redemption processed counter
+     * @param redemptions Total pending redemptions
      * @param prev Previous liquidity node
      * @param next Next liquidity node
      */
-    struct LiquidityNode {
-        uint128 amount;
+    struct LiquidityNodeInfo {
+        uint128 depth;
+        uint128 value;
         uint128 shares;
         uint128 available;
         uint128 pending;
-        uint128 redemptionPending;
-        uint128 redemptionProcessed;
+        uint128 redemptions;
         uint128 prev;
         uint128 next;
     }
@@ -36,28 +48,17 @@ interface ILiquidityManager {
     /**************************************************************************/
 
     /**
-     * Get utilization
+     * Get utilization of liquidity
      * @return Utilization (fixed-point)
      */
     function utilization() external view returns (uint256);
 
     /**
-     * Get liquidity available at depth
-     * @param depth Loan limit depth
-     * @return Amount available
+     * Get liquidity available
+     * @param maxDepth Max depth
+     * @return Liquidity available
      */
-    function liquidityAvailableAtDepth(
-        uint256 depth
-    ) external view returns (uint256 amount);
-
-    /**
-     * Get liquidity node at depth
-     * @param depth Loan limit depth
-     * @return Liquidity node
-     */
-    function liquidityNodeAtDepth(
-        uint256 depth
-    ) external view returns (LiquidityNode memory);
+    function liquidityAvailable(uint256 maxDepth) external view returns (uint256);
 
     /**
      * Get liquidity nodes across [beginDepth, endDepth] range
@@ -65,8 +66,19 @@ interface ILiquidityManager {
      * @param endDepth Loan limit end depth
      * @return Liquidity nodes
      */
-    function liquidityNodes(
-        uint256 beginDepth,
-        uint256 endDepth
-    ) external view returns (LiquidityNode[] memory);
+    function liquidityNodes(uint256 beginDepth, uint256 endDepth) external view returns (LiquidityNodeInfo[] memory);
+
+    /**
+     * Get liquidity solvency at depth
+     * @param depth Depth
+     * @return True if liquidity is solvent, false otherwise
+     */
+    function liquidityIsSolvent(uint256 depth) external view returns (bool);
+
+    /**
+     * Get liquidity active at depth
+     * @param depth Depth
+     * @return True if liquidity is active, false otherwise
+     */
+    function liquidityIsActive(uint256 depth) external view returns (bool);
 }
