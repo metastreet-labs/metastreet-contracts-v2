@@ -1,0 +1,11 @@
+{
+  "name": "metastreet-v2",
+  "license": "UNLICENSED",
+  "scripts": {
+    "codegen-local": "rm -rf generated && graph codegen subgraph.local.yml"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "0.27.0",
+    "@graphprotocol/graph-ts": "0.24.1"
+  }
+}

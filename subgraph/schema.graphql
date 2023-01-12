@@ -17,10 +17,12 @@ type Pool @entity {
   loansDefaultedCount: BigInt! # uint
   loansLiquidatedCount: BigInt! # uint
   totalValueLocked: BigInt! # uint
-
   ticks: [Tick!]! @derivedFrom(field: "pool")
   deposits: [Deposit!]! @derivedFrom(field: "pool")
   loans: [Loan!]! @derivedFrom(field: "pool")
+
+  collateralToken: Bytes! # address
+  collateralTokenName: String!
 }
 
 type NoteToken @entity {
@@ -112,7 +114,6 @@ type Loan @entity {
   liquidityTrail: [LiquiditySource!]! @derivedFrom(field: "loan")
   principal: BigInt! # uint256
   repayment: BigInt! # uint256
-
   # Raw Loan Receipt
   loanReceipt: Bytes!
 }

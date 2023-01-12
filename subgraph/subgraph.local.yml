@@ -1,0 +1,29 @@
+specVersion: 0.0.4
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: PoolFactory
+    network: mainnet
+    source:
+      address: "0xe1DA8919f262Ee86f9BE05059C9280142CF23f48" # TODO: add contract address
+      abi: IPoolFactory
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      entities:
+        - Pool
+      abis:
+        - name: IPoolFactory
+          file: ../artifacts/contracts/interfaces/IPoolFactory.sol/IPoolFactory.json
+        - name: IPool
+          file: ../artifacts/contracts/interfaces/IPool.sol/IPool.json
+        - name: ICollateralFilter
+          file: ../artifacts/contracts/interfaces/ICollateralFilter.sol/ICollateralFilter.json
+        - name: ERC721
+          file: extra-abis/ERC721.json
+      eventHandlers:
+        - event: PoolCreated(indexed address)
+          handler: handlePoolCreated
+      file: ./src/poolFactory.ts

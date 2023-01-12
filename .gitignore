@@ -5,3 +5,5 @@ coverage.json
 typechain
 cache
 artifacts
+subgraph/node_modules
+subgraph/generated
