@@ -17,10 +17,14 @@ type Pool @entity {
   loansDefaultedCount: BigInt! # uint
   loansLiquidatedCount: BigInt! # uint
   totalValueLocked: BigInt! # uint
-
   ticks: [Tick!]! @derivedFrom(field: "pool")
   deposits: [Deposit!]! @derivedFrom(field: "pool")
   loans: [Loan!]! @derivedFrom(field: "pool")
+
+  collateralToken: Bytes! # address
+  collateralTokenName: String!
+  maxBorrow: BigInt! # uint256
+  utilization: BigInt! # uint256
 }
 
 type NoteToken @entity {
@@ -75,6 +79,11 @@ type Deposit @entity {
   redemptionPending: BigInt! # uint128
   redemptionIndex: BigInt! # uint128
   redemptionTarget: BigInt! # uint128
+  updatedAt: BigInt # uint64
+  # below fields already exist in the related Pool and Tick entities, but are needed here for filtering/sorting
+  collateralToken: Bytes! # address
+  maxLoanDuration: BigInt! # uint64
+  depth: BigInt! # uint128
 }
 
 ################################################################################
@@ -112,7 +121,6 @@ type Loan @entity {
   liquidityTrail: [LiquiditySource!]! @derivedFrom(field: "loan")
   principal: BigInt! # uint256
   repayment: BigInt! # uint256
-
   # Raw Loan Receipt
   loanReceipt: Bytes!
 }
@@ -120,6 +128,23 @@ type Loan @entity {
 ################################################################################
 # Pool Events
 ################################################################################
+
+type PoolEvent @entity {
+  id: ID! # <pool>-<tx hash>
+  transactionHash: Bytes!
+  timestamp: BigInt! # uint64
+  account: Bytes # address (set only for user events, e.g Deposited, Withdrawn... etc)
+  type: PoolEventType!
+  pool: Pool!
+  loanOriginated: LoanOriginated
+  loanPurchased: LoanPurchased
+  LoanRepaid: LoanRepaid
+  loanLiquidated: LoanLiquidated
+  collateralLiquidated: CollateralLiquidated
+  deposited: Deposited
+  redeemed: Redeemed
+  withdrawn: Withdrawn
+}
 
 enum PoolEventType {
   LoanOriginated
@@ -132,53 +157,51 @@ enum PoolEventType {
   Withdrawn
 }
 
-interface EventMetadata {
-  transactionHash: Bytes!
-  timestamp: BigInt! # uint64
-}
-
-type LoanOriginated implements EventMetadata @entity {
-  id: ID! # <pool>-loanoriginated-<tx hash>
+type LoanOriginated @entity {
+  id: ID! # <pool>-<tx hash>
   loan: Loan!
 }
 
-type LoanPurchased implements EventMetadata @entity {
-  id: ID! # <pool>-loanpurchased-<tx hash>
+type LoanPurchased @entity {
+  id: ID! # <pool>-<tx hash>
   loan: Loan!
 }
 
-type LoanRepaid implements EventMetadata @entity {
-  id: ID! # <pool>-loanrepaid-<tx hash>
+type LoanRepaid @entity {
+  id: ID! # <pool>-<tx hash>
   loan: Loan!
 }
 
-type LoanLiquidated implements EventMetadata @entity {
-  id: ID! # <pool>-loanliquidated-<tx hash>
+type LoanLiquidated @entity {
+  id: ID! # <pool>-<tx hash>
   loan: Loan!
 }
 
-type CollateralLiquidated implements EventMetadata @entity {
-  id: ID! # <pool>-collateralliquidated-<tx hash>
+type CollateralLiquidated @entity {
+  id: ID! # <pool>-<tx hash>
   loan: Loan!
   proceeds: BigInt! # uint256
 }
 
-type Deposited implements EventMetadata @entity {
-  id: ID! # <pool>-deposited-<tx hash>
-  deposit: Deposit!
+type Deposited @entity {
+  id: ID! # <pool>-<tx hash>
+  account: Bytes! # address
+  depth: BigInt! # uint256
   amount: BigInt! # uint256
   shares: BigInt! # uint256
 }
 
-type Redeemed implements EventMetadata @entity {
-  id: ID! # <pool>-redeemed-<tx hash>
-  deposit: Deposit!
+type Redeemed @entity {
+  id: ID! # <pool>-<tx hash>
+  account: Bytes! # address
+  depth: BigInt! # uint256
   shares: BigInt! # uint256
 }
 
-type Withdrawn implements EventMetadata @entity {
-  id: ID! # <pool>-withdrawn-<tx hash>
-  deposit: Deposit!
+type Withdrawn @entity {
+  id: ID! # <pool>-<tx hash>
+  account: Bytes! # address
+  depth: BigInt! # uint256
   shares: BigInt! # uint256
   amount: BigInt! # uint256
 }

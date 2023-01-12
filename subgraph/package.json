@@ -1,0 +1,14 @@
+{
+  "name": "metastreet-v2",
+  "license": "UNLICENSED",
+  "scripts": {
+    "codegen-local": "rm -rf generated && graph codegen subgraph.local.yml",
+    "build-local": "graph build subgraph.local.yml",
+    "create-local": "graph create --node http://localhost:8020/ metastreet-v2-subgraph subgraph.local.yml",
+    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 metastreet-v2-subgraph subgraph.local.yml"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "0.27.0",
+    "@graphprotocol/graph-ts": "0.24.1"
+  }
+}
