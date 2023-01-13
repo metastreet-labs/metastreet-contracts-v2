@@ -5,23 +5,22 @@
 type Pool @entity {
   id: ID! # address
   currencyToken: Bytes! # address
-  maxDuration: BigInt! # uint64 (in seconds)
-  collateralToken: Bytes! # address
+  maxLoanDuration: BigInt! # uint64 (in seconds)
   collateralFilter: Bytes! # address
   interestRateModel: Bytes! # address
-  liquidationStrategy: Bytes! # address
+  collateralLiquidator: Bytes! # address
   noteTokens: [NoteToken!]! @derivedFrom(field: "pool")
   lendPlatforms: [LendPlatform!]! @derivedFrom(field: "pool")
 
-  loansPurchasedCount: BigInt! # uint256
-  loansRepaidCount: BigInt! # uint256
-  loansDefaultedCount: BigInt! # uint256
-  loansLiquidatedCount: BigInt! # uint256
-  totalValueLocked: BigInt! # uint256
+  loansPurchasedCount: BigInt! # uint
+  loansRepaidCount: BigInt! # uint
+  loansDefaultedCount: BigInt! # uint
+  loansLiquidatedCount: BigInt! # uint
+  totalValueLocked: BigInt! # uint
 
   ticks: [Tick!]! @derivedFrom(field: "pool")
-  loans: [Loan!]! @derivedFrom(field: "pool")
   deposits: [Deposit!]! @derivedFrom(field: "pool")
+  loans: [Loan!]! @derivedFrom(field: "pool")
 }
 
 type NoteToken @entity {
@@ -43,13 +42,24 @@ type LendPlatform @entity {
 type Tick @entity {
   id: ID! # <pool>-tick-<depth>
   pool: Pool!
-  depth: BigInt! # uint256
-  amount: BigInt! # uint256
-  available: BigInt! # uint256
-  pending: BigInt! # uint256
-  shares: BigInt! # uint256
-  redemptionPending: BigInt! # uint256
-  redemptionProcessed: BigInt! # uint256
+  depth: BigInt! # uint128
+  value: BigInt! # uint128
+  shares: BigInt! # uint128
+  available: BigInt! # uint128
+  pending: BigInt! # uint128
+  redemptionPending: BigInt! # uint128
+  redemptionIndex: BigInt! # uint128
+  fulfilledRedemptions: [FulfilledRedemption!]! @derivedFrom(field: "tick")
+
+  prev: BigInt! # uint128
+  next: BigInt! # uint128
+}
+
+type FulfilledRedemption @entity {
+  id: ID! # <pool>-redemption-<depth>-<uid>
+  tick: Tick!
+  shares: BigInt! # uint128
+  amount: BigInt! # uint128
 }
 
 ################################################################################
@@ -57,12 +67,14 @@ type Tick @entity {
 ################################################################################
 
 type Deposit @entity {
-  id: ID! # <pool>-deposit-<depositId>
+  id: ID! # <pool>-deposit-<account>-<depth>
   pool: Pool!
-  depositId: BigInt! # uint256
   account: Bytes! # address
   tick: Tick!
-  shares: BigInt! # uint256
+  shares: BigInt! # uint128
+  redemptionPending: BigInt! # uint128
+  redemptionIndex: BigInt! # uint128
+  redemptionTarget: BigInt! # uint128
 }
 
 ################################################################################
@@ -76,12 +88,12 @@ enum LoanStatus {
   CollateralLiquidated
 }
 
-type LoanTick @entity {
+type LiquiditySource @entity {
   id: ID! # <pool>-loan-<loanId>-tick-<depth>
   loan: Loan!
-  depth: BigInt! # uint256
-  amount: BigInt! # uint256
-  return: BigInt! # uint256
+  depth: BigInt! # uint128
+  used: BigInt! # uint128
+  pending: BigInt! # uint128
 }
 
 type Loan @entity {
@@ -91,14 +103,15 @@ type Loan @entity {
   status: LoanStatus!
 
   # Decoded Loan Receipt
+  platform: Bytes! # address
   borrower: Bytes! # address
   maturity: BigInt! # uint64 (in seconds since epoch)
-  principal: BigInt! # uint256
-  repayment: BigInt! # uint256
   duration: BigInt! # uint64 (in seconds)
   collateralToken: Bytes! # address
   collateralTokenId: Bytes! # uint256
-  loanTicks: [LoanTick!]! @derivedFrom(field: "loan")
+  liquidityTrail: [LiquiditySource!]! @derivedFrom(field: "loan")
+  principal: BigInt! # uint256
+  repayment: BigInt! # uint256
 
   # Raw Loan Receipt
   loanReceipt: Bytes!
@@ -110,7 +123,7 @@ type Loan @entity {
 
 enum PoolEventType {
   LoanOriginated
-  NotePurchased
+  LoanPurchased
   LoanRepaid
   LoanLiquidated
   CollateralLiquidated
@@ -129,8 +142,8 @@ type LoanOriginated implements EventMetadata @entity {
   loan: Loan!
 }
 
-type NotePurchased implements EventMetadata @entity {
-  id: ID! # <pool>-notepurchased-<tx hash>
+type LoanPurchased implements EventMetadata @entity {
+  id: ID! # <pool>-loanpurchased-<tx hash>
   loan: Loan!
 }
 
@@ -161,11 +174,11 @@ type Redeemed implements EventMetadata @entity {
   id: ID! # <pool>-redeemed-<tx hash>
   deposit: Deposit!
   shares: BigInt! # uint256
-  amount: BigInt! # uint256
 }
 
 type Withdrawn implements EventMetadata @entity {
   id: ID! # <pool>-withdrawn-<tx hash>
   deposit: Deposit!
+  shares: BigInt! # uint256
   amount: BigInt! # uint256
 }
