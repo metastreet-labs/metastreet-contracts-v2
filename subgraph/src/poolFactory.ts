@@ -1,11 +1,13 @@
 import { BigInt } from "@graphprotocol/graph-ts";
-import { ERC721 } from "../../subgraph/generated/PoolFactory/ERC721";
-import { ICollateralFilter } from "../../subgraph/generated/PoolFactory/ICollateralFilter";
-import { IPool } from "../../subgraph/generated/PoolFactory/IPool";
-import { PoolCreated } from "../../subgraph/generated/PoolFactory/IPoolFactory";
-import { Pool } from "../../subgraph/generated/schema";
+import { ERC721 } from "../generated/PoolFactory/ERC721";
+import { ICollateralFilter } from "../generated/PoolFactory/ICollateralFilter";
+import { IPool } from "../generated/PoolFactory/IPool";
+import { PoolCreated } from "../generated/PoolFactory/IPoolFactory";
+import { Pool } from "../generated/schema";
+import { Pool as PoolTemplate } from "../generated/templates";
 
 export function handlePoolCreated(event: PoolCreated) {
+  /* create pool entity */
   const poolContract = IPool.bind(event.params.pool);
   const collateralFilterContract = ICollateralFilter.bind(poolContract.collateralFilter());
   const poolEntity = new Pool(event.params.pool.toHexString());
@@ -23,4 +25,6 @@ export function handlePoolCreated(event: PoolCreated) {
   const erc721Contract = ERC721.bind(poolEntity.collateralToken);
   poolEntity.collateralTokenName = erc721Contract.name();
   poolEntity.save();
+  /* create pool data source */
+  PoolTemplate.create(event.params.pool);
 }

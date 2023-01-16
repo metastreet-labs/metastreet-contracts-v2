@@ -26,4 +26,29 @@ dataSources:
       eventHandlers:
         - event: PoolCreated(indexed address)
           handler: handlePoolCreated
-      file: ./src/poolFactory.ts
+      file: src/poolFactory.ts
+templates:
+  - kind: ethereum
+    name: Pool
+    network: mainnet
+    source:
+      abi: Pool
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      entities:
+        - Pool
+      abis:
+        - name: Pool
+          file: ../artifacts/contracts/Pool.sol/Pool.json
+        - name: ILiquidityManager
+          file: ../artifacts/contracts/interfaces/ILiquidityManager.sol/ILiquidityManager.json
+      eventHandlers:
+        - event: Deposited(indexed address,indexed uint256,uint256,uint256)
+          handler: handleDeposited
+        - event: Redeemed(indexed address,indexed uint256,uint256)
+          handler: handleRedeemed
+        - event: Withdrawn(indexed address,indexed uint256,uint256,uint256)
+          handler: handleWithdrawn
+      file: src/pool.ts

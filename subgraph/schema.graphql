@@ -23,6 +23,7 @@ type Pool @entity {
 
   collateralToken: Bytes! # address
   collateralTokenName: String!
+  maxBorrow: BigInt! # uint256
 }
 
 type NoteToken @entity {
