@@ -123,6 +123,21 @@ type Loan @entity {
 # Pool Events
 ################################################################################
 
+type PoolEvent @entity {
+  id: ID! # <pool>-<tx hash>
+  transactionHash: Bytes!
+  timestamp: BigInt! # uint64
+  type: PoolEventType!
+  loanOriginated: LoanOriginated
+  loanPurchased: LoanPurchased
+  LoanRepaid: LoanRepaid
+  loanLiquidated: LoanLiquidated
+  collateralLiquidated: CollateralLiquidated
+  deposited: Deposited
+  redeemed: Redeemed
+  withdrawn: Withdrawn
+}
+
 enum PoolEventType {
   LoanOriginated
   LoanPurchased
@@ -134,52 +149,47 @@ enum PoolEventType {
   Withdrawn
 }
 
-interface EventMetadata {
-  transactionHash: Bytes!
-  timestamp: BigInt! # uint64
-}
-
-type LoanOriginated implements EventMetadata @entity {
-  id: ID! # <pool>-loanoriginated-<tx hash>
+type LoanOriginated @entity {
+  id: ID! # <pool>-<tx hash>
   loan: Loan!
 }
 
-type LoanPurchased implements EventMetadata @entity {
-  id: ID! # <pool>-loanpurchased-<tx hash>
+type LoanPurchased @entity {
+  id: ID! # <pool>-<tx hash>
   loan: Loan!
 }
 
-type LoanRepaid implements EventMetadata @entity {
-  id: ID! # <pool>-loanrepaid-<tx hash>
+type LoanRepaid @entity {
+  id: ID! # <pool>-<tx hash>
   loan: Loan!
 }
 
-type LoanLiquidated implements EventMetadata @entity {
-  id: ID! # <pool>-loanliquidated-<tx hash>
+type LoanLiquidated @entity {
+  id: ID! # <pool>-<tx hash>
   loan: Loan!
 }
 
-type CollateralLiquidated implements EventMetadata @entity {
-  id: ID! # <pool>-collateralliquidated-<tx hash>
+type CollateralLiquidated @entity {
+  id: ID! # <pool>-<tx hash>
   loan: Loan!
   proceeds: BigInt! # uint256
 }
 
-type Deposited implements EventMetadata @entity {
-  id: ID! # <pool>-deposited-<tx hash>
+type Deposited @entity {
+  id: ID! # <pool>-<tx hash>
   deposit: Deposit!
   amount: BigInt! # uint256
   shares: BigInt! # uint256
 }
 
-type Redeemed implements EventMetadata @entity {
-  id: ID! # <pool>-redeemed-<tx hash>
+type Redeemed @entity {
+  id: ID! # <pool>-<tx hash>
   deposit: Deposit!
   shares: BigInt! # uint256
 }
 
-type Withdrawn implements EventMetadata @entity {
-  id: ID! # <pool>-withdrawn-<tx hash>
+type Withdrawn @entity {
+  id: ID! # <pool>-<tx hash>
   deposit: Deposit!
   shares: BigInt! # uint256
   amount: BigInt! # uint256
