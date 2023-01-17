@@ -39,6 +39,7 @@ templates:
       language: wasm/assemblyscript
       entities:
         - Pool
+        - Tick
       abis:
         - name: Pool
           file: ../artifacts/contracts/Pool.sol/Pool.json

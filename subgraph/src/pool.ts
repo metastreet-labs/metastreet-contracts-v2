@@ -1,12 +1,17 @@
-import { BigInt, dataSource, ethereum, log } from "@graphprotocol/graph-ts";
+import { Address, BigInt, dataSource, ethereum, log } from "@graphprotocol/graph-ts";
 import {
+  Deposit as DepositEntity,
   Deposited as DepositedEntity,
   Pool as PoolEntity,
   PoolEvent,
   Redeemed as RedeemedEntity,
+  Tick,
   Withdrawn as WithdrawnEntity,
 } from "../generated/schema";
 import { Deposited, Pool, Redeemed, Withdrawn } from "../generated/templates/Pool/Pool";
+
+const poolContract = Pool.bind(dataSource.address());
+const poolAddress = dataSource.address().toHexString();
 
 /**************************************************************************/
 /* constants */
@@ -29,21 +34,8 @@ class PoolEventType {
 /* helper functions */
 /**************************************************************************/
 
-function updatePoolMaxBorrow() {
-  const poolAddress = dataSource.address();
-  const poolContract = Pool.bind(poolAddress);
-  const poolEntity = PoolEntity.load(poolAddress.toHexString());
-  if (!poolEntity) {
-    log.error("No Pool entity for this event", []);
-    return;
-  }
-  const maxBorrow = poolContract.liquidityAvailable(MAX_UINT256);
-  poolEntity.maxBorrow = maxBorrow;
-  poolEntity.save();
-}
-
 function createPoolEvent(event: ethereum.Event, type: string) {
-  const id = `${dataSource.address()}-${event.transaction.hash.toHexString()}`;
+  const id = `${poolAddress}-${event.transaction.hash.toHexString()}`;
   const eventEntity = new PoolEvent(id);
   eventEntity.transactionHash = event.transaction.hash;
   eventEntity.timestamp = event.block.timestamp;
@@ -60,38 +52,86 @@ function createPoolEvent(event: ethereum.Event, type: string) {
   return id;
 }
 
+function updatePoolEntity() {
+  const poolEntity = PoolEntity.load(poolAddress);
+  if (!poolEntity) {
+    log.error("No Pool entity for this event", []);
+    return;
+  }
+  const maxBorrow = poolContract.liquidityAvailable(MAX_UINT256);
+  poolEntity.maxBorrow = maxBorrow;
+  poolEntity.save();
+}
+
+function createOrUpdateTickEntity(depth: BigInt) {
+  const node = poolContract.liquidityNodes(depth, depth)[0];
+  const tickID = `${poolAddress}-tick-${depth}`;
+  let tickEntity = Tick.load(tickID);
+  if (!tickEntity) tickEntity = new Tick(tickID);
+  tickEntity.pool = poolAddress;
+  tickEntity.depth = depth;
+  tickEntity.value = node.value;
+  tickEntity.shares = node.shares;
+  tickEntity.available = node.available;
+  tickEntity.pending = node.pending;
+  tickEntity.redemptionPending = node.redemptions;
+  // TODO: redemptionIndex
+  tickEntity.prev = node.prev;
+  tickEntity.next = node.next;
+  tickEntity.save();
+}
+
+function createOrUpdateDepositEntity(account: Address, depth: BigInt) {
+  const depositEntityID = `${poolAddress}-pool-${account}-${depth}`;
+  let depositEntity = DepositEntity.load(depositEntityID);
+  if (!depositEntity) depositEntity = new DepositEntity(depositEntityID);
+  depositEntity.pool = poolAddress;
+  depositEntity.account = account;
+  depositEntity.tick = `${poolAddress}-tick-${depth}`;
+  const deposit = poolContract.deposits(account, depth);
+  depositEntity.shares = deposit.shares;
+  depositEntity.redemptionPending = deposit.redemptionPending;
+  depositEntity.redemptionIndex = deposit.redemptionIndex;
+  depositEntity.redemptionTarget = deposit.redemptionTarget;
+  depositEntity.save();
+  return depositEntityID;
+}
+
 /**************************************************************************/
 /* mappings */
 /**************************************************************************/
 
 export function handleDeposited(event: Deposited) {
-  updatePoolMaxBorrow();
-  const id = createPoolEvent(event, PoolEventType.Deposited);
-  const depositedEntity = new DepositedEntity(id);
-  // TODO: create the deposit entity and store its ID below
-  depositedEntity.deposit = "";
+  updatePoolEntity();
+  createOrUpdateTickEntity(event.params.depth);
+  const depositEntityID = createOrUpdateDepositEntity(event.params.account, event.params.depth);
+  const poolEventID = createPoolEvent(event, PoolEventType.Deposited);
+  const depositedEntity = new DepositedEntity(poolEventID);
+  depositedEntity.deposit = depositEntityID;
   depositedEntity.amount = event.params.amount;
   depositedEntity.shares = event.params.shares;
   depositedEntity.save();
 }
 
 export function handleRedeemed(event: Redeemed) {
-  updatePoolMaxBorrow();
-  const id = createPoolEvent(event, PoolEventType.Redeemed);
-  const depositedEntity = new RedeemedEntity(id);
-  // TODO: update the deposit entity and store its id below
-  depositedEntity.deposit = "";
-  depositedEntity.shares = event.params.shares;
-  depositedEntity.save();
+  updatePoolEntity();
+  createOrUpdateTickEntity(event.params.depth);
+  const depositEntityID = createOrUpdateDepositEntity(event.params.account, event.params.depth);
+  const poolEventID = createPoolEvent(event, PoolEventType.Redeemed);
+  const redeemedEntity = new RedeemedEntity(poolEventID);
+  redeemedEntity.deposit = depositEntityID;
+  redeemedEntity.shares = event.params.shares;
+  redeemedEntity.save();
 }
 
 export function handleWithdrawn(event: Withdrawn) {
-  updatePoolMaxBorrow();
-  const id = createPoolEvent(event, PoolEventType.Withdrawn);
-  const depositedEntity = new WithdrawnEntity(id);
-  // TODO: update the deposit entity and store its id below
-  depositedEntity.deposit = "";
-  depositedEntity.amount = event.params.amount;
-  depositedEntity.shares = event.params.shares;
-  depositedEntity.save();
+  updatePoolEntity();
+  createOrUpdateTickEntity(event.params.depth);
+  const depositEntityID = createOrUpdateDepositEntity(event.params.account, event.params.depth);
+  const poolEventID = createPoolEvent(event, PoolEventType.Withdrawn);
+  const withdrawnEntity = new WithdrawnEntity(poolEventID);
+  withdrawnEntity.deposit = depositEntityID;
+  withdrawnEntity.amount = event.params.amount;
+  withdrawnEntity.shares = event.params.shares;
+  withdrawnEntity.save();
 }
