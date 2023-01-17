@@ -19,6 +19,13 @@ contract TestLoanReceipt {
     }
 
     /**
+     * @dev External wrapper function for LoanReceipt.hash()
+     */
+    function hash(bytes calldata encodedReceipt) external view returns (bytes32) {
+        return LoanReceipt.hash(encodedReceipt);
+    }
+
+    /**
      * @dev External wrapper function for LoanReceipt.encode()
      */
     function encode(LoanReceipt.LoanReceiptV1 memory receipt) external pure returns (bytes memory) {

@@ -11,6 +11,12 @@ describe("LoanReceipt", function () {
     const testLoanReceiptFactory = await ethers.getContractFactory("TestLoanReceipt");
 
     loanReceiptLibrary = await testLoanReceiptFactory.deploy();
+
+    /* Monkey patch contract interface for hash() overload with structure */
+    loanReceiptLibrary.hash =
+      loanReceiptLibrary[
+        "hash((uint8,address,uint256,address,uint64,uint64,address,uint256,(uint128,uint128,uint128)[]))"
+      ];
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -62,6 +68,9 @@ describe("LoanReceipt", function () {
   describe("#hash", async function () {
     it("matches expected hash", async function () {
       expect(await loanReceiptLibrary.hash(loanReceipt)).to.equal(
+        "0xd89e16dd1faedd436522205914b556d10df2a2ffdcc2839ebb8f3bece33265e9"
+      );
+      expect(await loanReceiptLibrary["hash(bytes)"](await loanReceiptLibrary.encode(loanReceipt))).to.equal(
         "0xd89e16dd1faedd436522205914b556d10df2a2ffdcc2839ebb8f3bece33265e9"
       );
     });
