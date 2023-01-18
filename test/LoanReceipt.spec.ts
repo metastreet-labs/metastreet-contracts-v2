@@ -10,7 +10,9 @@ describe("LoanReceipt", function () {
   before("deploy fixture", async () => {
     const testLoanReceiptFactory = await ethers.getContractFactory("TestLoanReceipt");
 
+    /* Deploy loan receipt library */
     loanReceiptLibrary = await testLoanReceiptFactory.deploy();
+    await loanReceiptLibrary.deployed();
 
     /* Monkey patch contract interface for hash() overload with structure */
     loanReceiptLibrary.hash =
