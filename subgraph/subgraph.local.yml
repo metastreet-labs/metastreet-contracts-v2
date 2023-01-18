@@ -6,7 +6,7 @@ dataSources:
     name: PoolFactory
     network: mainnet
     source:
-      address: "0xe1DA8919f262Ee86f9BE05059C9280142CF23f48" # TODO: add contract address
+      address: "0x8ce361602B935680E8DeC218b820ff5056BeB7af"
       abi: IPoolFactory
     mapping:
       kind: ethereum/events

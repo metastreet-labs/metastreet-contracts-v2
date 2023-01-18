@@ -1,4 +1,4 @@
-import { BigInt } from "@graphprotocol/graph-ts";
+import { Address, BigInt } from "@graphprotocol/graph-ts";
 import { ERC721 } from "../generated/PoolFactory/ERC721";
 import { ICollateralFilter } from "../generated/PoolFactory/ICollateralFilter";
 import { IPool } from "../generated/PoolFactory/IPool";
@@ -6,7 +6,7 @@ import { PoolCreated } from "../generated/PoolFactory/IPoolFactory";
 import { Pool } from "../generated/schema";
 import { Pool as PoolTemplate } from "../generated/templates";
 
-export function handlePoolCreated(event: PoolCreated) {
+export function handlePoolCreated(event: PoolCreated): void {
   /* create pool entity */
   const poolContract = IPool.bind(event.params.pool);
   const collateralFilterContract = ICollateralFilter.bind(poolContract.collateralFilter());
@@ -22,7 +22,7 @@ export function handlePoolCreated(event: PoolCreated) {
   poolEntity.loansLiquidatedCount = BigInt.zero();
   poolEntity.totalValueLocked = BigInt.zero();
   poolEntity.collateralToken = collateralFilterContract.tokens()[0];
-  const erc721Contract = ERC721.bind(poolEntity.collateralToken);
+  const erc721Contract = ERC721.bind(Address.fromString(poolEntity.collateralToken.toHexString()));
   poolEntity.collateralTokenName = erc721Contract.name();
   poolEntity.save();
   /* create pool data source */

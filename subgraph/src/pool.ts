@@ -17,7 +17,9 @@ const poolAddress = dataSource.address().toHexString();
 /* constants */
 /**************************************************************************/
 
-const MAX_UINT256 = BigInt.fromI32(2).pow(256).minus(BigInt.fromI32(1));
+const MAX_UINT256 = BigInt.fromI32(2)
+  .pow(256 as u8)
+  .minus(BigInt.fromI32(1));
 
 class PoolEventType {
   static LoanOriginated: string = "LoanOriginated";
@@ -34,7 +36,7 @@ class PoolEventType {
 /* helper functions */
 /**************************************************************************/
 
-function createPoolEvent(event: ethereum.Event, type: string, account: Address | null) {
+function createPoolEvent(event: ethereum.Event, type: string, account: Address | null): string {
   const id = `${poolAddress}-${event.transaction.hash.toHexString()}`;
   const eventEntity = new PoolEvent(id);
   eventEntity.transactionHash = event.transaction.hash;
@@ -53,7 +55,7 @@ function createPoolEvent(event: ethereum.Event, type: string, account: Address |
   return id;
 }
 
-function updatePoolEntity() {
+function updatePoolEntity(): void {
   const poolEntity = PoolEntity.load(poolAddress);
   if (!poolEntity) {
     log.error("No Pool entity for this event", []);
@@ -65,7 +67,7 @@ function updatePoolEntity() {
   poolEntity.save();
 }
 
-function createOrUpdateTickEntity(depth: BigInt) {
+function createOrUpdateTickEntity(depth: BigInt): void {
   const node = poolContract.liquidityNodes(depth, depth)[0];
   const tickID = `${poolAddress}-tick-${depth}`;
   let tickEntity = Tick.load(tickID);
@@ -83,7 +85,7 @@ function createOrUpdateTickEntity(depth: BigInt) {
   tickEntity.save();
 }
 
-function createOrUpdateDepositEntity(account: Address, depth: BigInt) {
+function createOrUpdateDepositEntity(account: Address, depth: BigInt): string {
   const depositEntityID = `${poolAddress}-pool-${account}-${depth}`;
   let depositEntity = DepositEntity.load(depositEntityID);
   if (!depositEntity) depositEntity = new DepositEntity(depositEntityID);
@@ -103,7 +105,7 @@ function createOrUpdateDepositEntity(account: Address, depth: BigInt) {
 /* mappings */
 /**************************************************************************/
 
-export function handleDeposited(event: Deposited) {
+export function handleDeposited(event: Deposited): void {
   updatePoolEntity();
   createOrUpdateTickEntity(event.params.depth);
   const depositEntityID = createOrUpdateDepositEntity(event.params.account, event.params.depth);
@@ -115,7 +117,7 @@ export function handleDeposited(event: Deposited) {
   depositedEntity.save();
 }
 
-export function handleRedeemed(event: Redeemed) {
+export function handleRedeemed(event: Redeemed): void {
   updatePoolEntity();
   createOrUpdateTickEntity(event.params.depth);
   const depositEntityID = createOrUpdateDepositEntity(event.params.account, event.params.depth);
@@ -126,7 +128,7 @@ export function handleRedeemed(event: Redeemed) {
   redeemedEntity.save();
 }
 
-export function handleWithdrawn(event: Withdrawn) {
+export function handleWithdrawn(event: Withdrawn): void {
   updatePoolEntity();
   createOrUpdateTickEntity(event.params.depth);
   const depositEntityID = createOrUpdateDepositEntity(event.params.account, event.params.depth);
