@@ -58,8 +58,9 @@ function updatePoolEntity() {
     log.error("No Pool entity for this event", []);
     return;
   }
-  const maxBorrow = poolContract.liquidityAvailable(MAX_UINT256);
-  poolEntity.maxBorrow = maxBorrow;
+  poolEntity.totalValueLocked = poolContract.liquidityTotals().value0;
+  poolEntity.utilization = poolContract.utilization();
+  poolEntity.maxBorrow = poolContract.liquidityAvailable(MAX_UINT256);
   poolEntity.save();
 }
 
