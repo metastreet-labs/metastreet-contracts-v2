@@ -125,6 +125,13 @@ contract LiquidityManager is ILiquidityManager {
     /**
      * @inheritdoc ILiquidityManager
      */
+    function liquidityTotals() public view returns (uint256, uint256) {
+        return (_liquidity.value, _liquidity.used);
+    }
+
+    /**
+     * @inheritdoc ILiquidityManager
+     */
     function liquidityAvailable(uint256 maxDepth) external view returns (uint256) {
         uint256 amount = 0;
 

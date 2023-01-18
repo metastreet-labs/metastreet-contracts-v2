@@ -54,6 +54,13 @@ interface ILiquidityManager {
     function utilization() external view returns (uint256);
 
     /**
+     * Get total liquidity statistics
+     * @return value Total liquidity value
+     * @return used Total liquidity used
+     */
+    function liquidityTotals() external view returns (uint256 value, uint256 used);
+
+    /**
      * Get liquidity available
      * @param maxDepth Max depth
      * @return Liquidity available
