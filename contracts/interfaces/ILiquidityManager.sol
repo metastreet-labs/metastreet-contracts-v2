@@ -69,16 +69,16 @@ interface ILiquidityManager {
     function liquidityNodes(uint256 beginDepth, uint256 endDepth) external view returns (LiquidityNodeInfo[] memory);
 
     /**
-     * Get liquidity solvency at depth
+     * Get liquidity solvency status at depth
      * @param depth Depth
      * @return True if liquidity is solvent, false otherwise
      */
-    function liquidityIsSolvent(uint256 depth) external view returns (bool);
+    function liquidityNodeIsSolvent(uint256 depth) external view returns (bool);
 
     /**
-     * Get liquidity active at depth
+     * Get liquidity active status at depth
      * @param depth Depth
      * @return True if liquidity is active, false otherwise
      */
-    function liquidityIsActive(uint256 depth) external view returns (bool);
+    function liquidityNodeIsActive(uint256 depth) external view returns (bool);
 }

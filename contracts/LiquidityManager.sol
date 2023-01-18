@@ -179,14 +179,14 @@ contract LiquidityManager is ILiquidityManager {
     /**
      * @inheritdoc ILiquidityManager
      */
-    function liquidityIsActive(uint256 depth) external view returns (bool) {
+    function liquidityNodeIsActive(uint256 depth) external view returns (bool) {
         return _isActive(_liquidity.nodes[depth]);
     }
 
     /**
      * @inheritdoc ILiquidityManager
      */
-    function liquidityIsSolvent(uint256 depth) external view returns (bool) {
+    function liquidityNodeIsSolvent(uint256 depth) external view returns (bool) {
         return _isSolvent(_liquidity.nodes[depth]);
     }
 
