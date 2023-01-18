@@ -128,6 +128,7 @@ type PoolEvent @entity {
   id: ID! # <pool>-<tx hash>
   transactionHash: Bytes!
   timestamp: BigInt! # uint64
+  account: Bytes # address (set only for user events, e.g Deposited, Withdrawn... etc)
   type: PoolEventType!
   loanOriginated: LoanOriginated
   loanPurchased: LoanPurchased

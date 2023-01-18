@@ -34,11 +34,12 @@ class PoolEventType {
 /* helper functions */
 /**************************************************************************/
 
-function createPoolEvent(event: ethereum.Event, type: string) {
+function createPoolEvent(event: ethereum.Event, type: string, account: Address | null) {
   const id = `${poolAddress}-${event.transaction.hash.toHexString()}`;
   const eventEntity = new PoolEvent(id);
   eventEntity.transactionHash = event.transaction.hash;
   eventEntity.timestamp = event.block.timestamp;
+  eventEntity.account = account;
   eventEntity.type = type;
   if (type == PoolEventType.LoanOriginated) eventEntity.loanOriginated = id;
   else if (type == PoolEventType.LoanPurchased) eventEntity.loanPurchased = id;
@@ -106,7 +107,7 @@ export function handleDeposited(event: Deposited) {
   updatePoolEntity();
   createOrUpdateTickEntity(event.params.depth);
   const depositEntityID = createOrUpdateDepositEntity(event.params.account, event.params.depth);
-  const poolEventID = createPoolEvent(event, PoolEventType.Deposited);
+  const poolEventID = createPoolEvent(event, PoolEventType.Deposited, event.params.account);
   const depositedEntity = new DepositedEntity(poolEventID);
   depositedEntity.deposit = depositEntityID;
   depositedEntity.amount = event.params.amount;
@@ -118,7 +119,7 @@ export function handleRedeemed(event: Redeemed) {
   updatePoolEntity();
   createOrUpdateTickEntity(event.params.depth);
   const depositEntityID = createOrUpdateDepositEntity(event.params.account, event.params.depth);
-  const poolEventID = createPoolEvent(event, PoolEventType.Redeemed);
+  const poolEventID = createPoolEvent(event, PoolEventType.Redeemed, event.params.account);
   const redeemedEntity = new RedeemedEntity(poolEventID);
   redeemedEntity.deposit = depositEntityID;
   redeemedEntity.shares = event.params.shares;
@@ -129,7 +130,7 @@ export function handleWithdrawn(event: Withdrawn) {
   updatePoolEntity();
   createOrUpdateTickEntity(event.params.depth);
   const depositEntityID = createOrUpdateDepositEntity(event.params.account, event.params.depth);
-  const poolEventID = createPoolEvent(event, PoolEventType.Withdrawn);
+  const poolEventID = createPoolEvent(event, PoolEventType.Withdrawn, event.params.account);
   const withdrawnEntity = new WithdrawnEntity(poolEventID);
   withdrawnEntity.deposit = depositEntityID;
   withdrawnEntity.amount = event.params.amount;
