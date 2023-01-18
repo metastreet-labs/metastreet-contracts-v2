@@ -21,6 +21,7 @@ module.exports = {
       "error",
       { ignores: ["modules"] },
     ],
+    "node/no-extraneous-import": "off",
     "node/no-missing-import": [
       "error",
       { tryExtensions: [".ts", ".js", ".json"] },
