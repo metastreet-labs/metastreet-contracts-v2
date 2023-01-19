@@ -17,9 +17,13 @@ const poolAddress = dataSource.address().toHexString();
 /* constants */
 /**************************************************************************/
 
-const MAX_UINT256 = BigInt.fromI32(2)
-  .pow(256 as u8)
-  .minus(BigInt.fromI32(1));
+/*
+ * MAX_UINT256 = 2**256 - 1 = 4**255 - 1
+ * pow takes a u8, max u8 is 255, so we can't use .pow(256)
+ * but using 4**255 - 1 throws the following error when indexing: assertion failed: 4 * 8 >= slice.len()
+ * so we'll use 2*255 for now
+ */
+const MAX_UINT256 = BigInt.fromI32(2).pow(255).minus(BigInt.fromI32(2));
 
 class PoolEventType {
   static LoanOriginated: string = "LoanOriginated";
