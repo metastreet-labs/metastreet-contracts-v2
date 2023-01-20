@@ -9,6 +9,13 @@ import "../LiquidityManager.sol";
  */
 contract TestLiquidityManager is LiquidityManager {
     /**
+     * @dev External wrapper function for LiquidityManager.liquidityForecast()
+     */
+    function liquidityForecast(uint128 startDepth, uint128 amount) external view returns (uint16, uint16) {
+        return _liquidityForecast(startDepth, amount);
+    }
+
+    /**
      * @dev External wrapper function for LiquidityManager.liquiditySource()
      */
     function liquiditySource(uint128 startDepth, uint128 amount) external view returns (LiquiditySource[] memory) {

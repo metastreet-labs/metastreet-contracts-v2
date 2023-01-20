@@ -227,6 +227,29 @@ contract LiquidityManager is ILiquidityManager {
     }
 
     /**
+     * @notice Forecast liquidity nodes needed for amount
+     * @param amount Amount
+     * @return Number of nodes, total number of nodes
+     */
+    function _liquidityForecast(uint128 startDepth, uint128 amount) internal view returns (uint16, uint16) {
+        uint128 taken = 0;
+        uint16 i = 0;
+        uint128 d = (startDepth == 0) ? _liquidity.nodes[0].next : startDepth;
+        while (taken < amount && d != 0 && i < MAX_NUM_NODES) {
+            LiquidityNode storage node = _liquidity.nodes[d];
+
+            taken += uint128(Math.min(Math.min(d - taken, node.available), amount - taken));
+            i++;
+
+            d = node.next;
+        }
+
+        if (taken < amount) revert InsufficientLiquidity();
+
+        return (i, _liquidity.numNodes);
+    }
+
+    /**
      * @notice Source liquidity from nodes
      * @param startDepth Start depth
      * @param amount Total amount
