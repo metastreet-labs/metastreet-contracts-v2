@@ -473,7 +473,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
         dep.redemptionTarget = redemptionTarget;
 
         /* Process redemptions from available cash */
-        (, uint128 amountRedeemed) = _liquidityProcessRedemptions(uint128(depth));
+        _liquidityProcessRedemptions(uint128(depth));
 
         /* Update utilization tracking */
         _interestRateModel.onUtilizationUpdated(utilization());
@@ -522,6 +522,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
             dep.redemptionTarget
         );
 
+        /* If the entire redemption is ready */
         if (shares == dep.redemptionPending) {
             dep.shares -= shares;
             dep.redemptionPending = 0;
