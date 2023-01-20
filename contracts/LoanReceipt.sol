@@ -98,16 +98,6 @@ library LoanReceipt {
 
     /**
      * @dev Compute loan receipt hash
-     * @param receipt Loan Receipt
-     * @return Loan Receipt hash
-     */
-    function hash(LoanReceiptV1 memory receipt) internal view returns (bytes32) {
-        /* Take hash of chain ID (32 bytes) concatenated with encoded loan receipt */
-        return keccak256(bytes.concat(abi.encodePacked(block.chainid), LoanReceipt.encode(receipt)));
-    }
-
-    /**
-     * @dev Compute loan receipt hash
      * @param encodedReceipt Encoded loan receipt
      * @return Loan Receipt hash
      */
