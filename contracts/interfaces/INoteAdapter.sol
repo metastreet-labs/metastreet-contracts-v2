@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./ILoan.sol";
+import "./ILoanAdapter.sol";
 
 /**
  * @title Interface to a Note Adapter
  */
-interface INoteAdapter is ILoan {
+interface INoteAdapter is ILoanAdapter {
     /**
      * Get note adapter name
      * @return Note adapter name

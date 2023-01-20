@@ -75,18 +75,11 @@ interface IPool {
     event CollateralLiquidated(uint256 indexed loanId, uint256 proceeds);
 
     /**
-     * @notice Emitted when a note adapter is updated
-     * @param noteToken Note token contract
-     * @param noteAdapter Note adapter contract
+     * @notice Emitted when a loan adapter is updated
+     * @param platform Note token or lend platform contract
+     * @param loanAdapter Loan adapter contract
      */
-    event NoteAdapterUpdated(address indexed noteToken, address noteAdapter);
-
-    /**
-     * @notice Emitted when a lend adapter is updated
-     * @param lendPlatform Lend platform contract
-     * @param lendAdapter Lend adapter contract
-     */
-    event LendAdapterUpdated(address indexed lendAdapter, address lendPlatform);
+    event LoanAdapterUpdated(address indexed platform, address loanAdapter);
 
     /**************************************************************************/
     /* Getters */
@@ -123,30 +116,17 @@ interface IPool {
     function collateralLiquidator() external view returns (ICollateralLiquidator);
 
     /**
-     * @notice Get note adapter contract
-     * @param noteToken Note token contract
-     * @return Note adapter contract
+     * @notice Get loan adapter contract
+     * @param platform Note token or lend platform contract
+     * @return Loan adapter contract
      */
-    function noteAdapters(address noteToken) external view returns (INoteAdapter);
+    function loanAdapters(address platform) external view returns (ILoanAdapter);
 
     /**
-     * @notice Get list of supported note tokens
-     * @return Note token addresses
+     * @notice Get list of supported platforms
+     * @return Platform addresses
      */
-    function supportedNoteTokens() external view returns (address[] memory);
-
-    /**
-     * @notice Get lend adapter contract
-     * @param lendPlatform Lend platform contract
-     * @return Lend adapter contract
-     */
-    function lendAdapters(address lendPlatform) external view returns (ILendAdapter);
-
-    /**
-     * @notice Get list of supported lend platforms
-     * @return Lend platform addresses
-     */
-    function supportedLendPlatforms() external view returns (address[] memory);
+    function supportedPlatforms() external view returns (address[] memory);
 
     /**************************************************************************/
     /* Note API */

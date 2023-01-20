@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
-import "../interfaces/ILoan.sol";
+import "../interfaces/ILoanAdapter.sol";
 import "../interfaces/ILiquidityManager.sol";
 
 import "../LoanReceipt.sol";
@@ -44,7 +44,7 @@ contract TestLoanReceipt {
      */
     function fromLoanInfo(
         address platform,
-        ILoan.LoanInfo memory loanInfo,
+        ILoanAdapter.LoanInfo memory loanInfo,
         ILiquidityManager.LiquiditySource[] memory trail
     ) external pure returns (LoanReceipt.LoanReceiptV1 memory) {
         return LoanReceipt.fromLoanInfo(platform, loanInfo, trail);

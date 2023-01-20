@@ -20,7 +20,7 @@ import "./LiquidityManager.sol";
  */
 contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable, IPool {
     using SafeERC20 for IERC20;
-    using EnumerableMap for EnumerableMap.UintToAddressMap;
+    using EnumerableMap for EnumerableMap.AddressToUintMap;
     using LoanReceipt for LoanReceipt.LoanReceiptV1;
 
     /**************************************************************************/
@@ -54,6 +54,11 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
      * @notice Invalid shares
      */
     error InvalidShares();
+
+    /**
+     * @notice Unsupported platform
+     */
+    error UnsupportedPlatform();
 
     /**
      * @notice Redemption in progress
@@ -138,19 +143,9 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
     ICollateralLiquidator internal _collateralLiquidator;
 
     /**
-     * @notice Set of supported note tokens
+     * @notice Set of supported loan adapters
      */
-    EnumerableMap.UintToAddressMap internal _noteAdapters;
-
-    /**
-     * @notice Set of supported lend platforms
-     */
-    EnumerableMap.UintToAddressMap internal _lendAdapters;
-
-    /**
-     * @notice Loan ID
-     */
-    uint256 internal _loanId;
+    EnumerableMap.AddressToUintMap internal _loanAdapters;
 
     /**************************************************************************/
     /* Constructor */
@@ -221,39 +216,20 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
     /**
      * @inheritdoc IPool
      */
-    function noteAdapters(address noteToken) external view returns (INoteAdapter) {
-        return INoteAdapter(_noteAdapters.get(uint160(noteToken)));
+    function loanAdapters(address platform) external view returns (ILoanAdapter) {
+        if (!_loanAdapters.contains(platform)) revert UnsupportedPlatform();
+        return ILoanAdapter(address(uint160(_loanAdapters.get(platform))));
     }
 
     /**
      * @inheritdoc IPool
      */
-    function supportedNoteTokens() external view returns (address[] memory) {
-        address[] memory noteTokens = new address[](_noteAdapters.length());
-        for (uint256 i; i < noteTokens.length; i++) {
-            (uint256 noteToken, ) = _noteAdapters.at(i);
-            noteTokens[i] = address(uint160(noteToken));
+    function supportedPlatforms() external view returns (address[] memory) {
+        address[] memory platforms = new address[](_loanAdapters.length());
+        for (uint256 i; i < platforms.length; i++) {
+            (platforms[i], ) = _loanAdapters.at(i);
         }
-        return noteTokens;
-    }
-
-    /**
-     * @inheritdoc IPool
-     */
-    function lendAdapters(address lendPlatform) external view returns (ILendAdapter) {
-        return ILendAdapter(_lendAdapters.get(uint160(lendPlatform)));
-    }
-
-    /**
-     * @inheritdoc IPool
-     */
-    function supportedLendPlatforms() external view returns (address[] memory) {
-        address[] memory lendPlatforms = new address[](_lendAdapters.length());
-        for (uint256 i; i < lendPlatforms.length; i++) {
-            (uint256 lendPlatform, ) = _lendAdapters.at(i);
-            lendPlatforms[i] = address(uint160(lendPlatform));
-        }
-        return lendPlatforms;
+        return platforms;
     }
 
     /**
@@ -276,6 +252,32 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
     }
 
     /**************************************************************************/
+    /* Helper Functions */
+    /**************************************************************************/
+
+    /**
+     * @dev Helper function to safely get a note adapter
+     * @param noteToken Note token
+     * @return Note adapter
+     */
+    function _getNoteAdapter(address noteToken) internal view returns (INoteAdapter) {
+        ILoanAdapter loanAdapter = this.loanAdapters(noteToken);
+        if (loanAdapter.getAdapterType() != ILoanAdapter.AdapterType.Note) revert UnsupportedPlatform();
+        return INoteAdapter(address(loanAdapter));
+    }
+
+    /**
+     * @dev Helper function to safely get a lend adapter
+     * @param lendPlatform Lend platform
+     * @return Lend adapter
+     */
+    function _getLendAdapter(address lendPlatform) internal view returns (ILendAdapter) {
+        ILoanAdapter loanAdapter = this.loanAdapters(lendPlatform);
+        if (loanAdapter.getAdapterType() != ILoanAdapter.AdapterType.Lend) revert UnsupportedPlatform();
+        return ILendAdapter(address(loanAdapter));
+    }
+
+    /**************************************************************************/
     /* Note API */
     /**************************************************************************/
 
@@ -293,7 +295,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
         uint256 principal,
         uint256 repayment,
         uint64 duration,
-        ILoan.AssetInfo[] memory assets,
+        ILoanAdapter.AssetInfo[] memory assets,
         bytes[] calldata collateralTokenIdSpec
     ) internal view returns (uint256 purchasePrice, ILiquidityManager.LiquiditySource[] memory trail) {
         principal;
@@ -341,7 +343,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
     function _priceLoan(
         uint256 principal,
         uint64 duration,
-        ILoan.AssetInfo[] memory assets,
+        ILoanAdapter.AssetInfo[] memory assets,
         bytes[] calldata collateralTokenIdSpec
     ) internal view returns (uint256 repayment, ILiquidityManager.LiquiditySource[] memory trail) {
         principal;
@@ -545,39 +547,21 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
     /**************************************************************************/
 
     /**
-     * @notice Set note adapter contract
+     * @notice Set loan adapter contract
      *
-     * Emits a {NoteAdapterUpdated} event.
+     * Emits a {LoanAdapterUpdated} event.
      *
-     * @param noteToken Note token contract
-     * @param noteAdapter Note adapter contract
+     * @param platform Note token or lend platform contract
+     * @param loanAdapter Loan adapter contract
      */
-    function setNoteAdapter(address noteToken, address noteAdapter) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (noteAdapter != address(0)) {
-            _noteAdapters.set(uint160(noteToken), noteAdapter);
+    function setLoanAdapter(address platform, address loanAdapter) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (loanAdapter != address(0)) {
+            _loanAdapters.set(platform, uint160(loanAdapter));
         } else {
-            _noteAdapters.remove(uint160(noteToken));
+            _loanAdapters.remove(platform);
         }
 
-        emit NoteAdapterUpdated(noteToken, noteAdapter);
-    }
-
-    /**
-     * @notice Set lend adapter contract
-     *
-     * Emits a {LendAdapterUpdated} event.
-     *
-     * @param lendPlatform Lend platform contract
-     * @param lendAdapter Lend adapter contract
-     */
-    function setLendAdapter(address lendPlatform, address lendAdapter) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (lendAdapter != address(0)) {
-            _lendAdapters.set(uint160(lendPlatform), lendAdapter);
-        } else {
-            _lendAdapters.remove(uint160(lendPlatform));
-        }
-
-        emit LendAdapterUpdated(lendPlatform, lendAdapter);
+        emit LoanAdapterUpdated(platform, loanAdapter);
     }
 
     /**

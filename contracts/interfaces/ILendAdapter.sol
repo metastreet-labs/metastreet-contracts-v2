@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./ILoan.sol";
+import "./ILoanAdapter.sol";
 
 /**
  * @title Interface to a Lend Adapter
  */
-interface ILendAdapter is ILoan {
+interface ILendAdapter is ILoanAdapter {
     /**
      * Get lend adapter name
      * @return Lend adapter name

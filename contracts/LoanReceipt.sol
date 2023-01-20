@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
-import "./interfaces/ILoan.sol";
+import "./interfaces/ILoanAdapter.sol";
 import "./interfaces/ILiquidityManager.sol";
 
 /**
@@ -197,7 +197,7 @@ library LoanReceipt {
      */
     function fromLoanInfo(
         address platform,
-        ILoan.LoanInfo memory loanInfo,
+        ILoanAdapter.LoanInfo memory loanInfo,
         ILiquidityManager.LiquiditySource[] memory trail
     ) internal pure returns (LoanReceiptV1 memory) {
         LoanReceiptV1 memory receipt = LoanReceiptV1({

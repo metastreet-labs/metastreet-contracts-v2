@@ -2,12 +2,20 @@
 pragma solidity ^0.8.0;
 
 /**
- * @title Interface to a loan
+ * @title Interface to a Loan Adapter
  */
-interface ILoan {
+interface ILoanAdapter {
     /**************************************************************************/
     /* Enums */
     /**************************************************************************/
+
+    /**
+     * @notice Adapter type
+     */
+    enum AdapterType {
+        Note,
+        Lend
+    }
 
     /**
      * @notice Asset type
@@ -72,6 +80,12 @@ interface ILoan {
     /**************************************************************************/
     /* API */
     /**************************************************************************/
+
+    /**
+     * Get adapter type
+     * @return Adapter type
+     */
+    function getAdapterType() external view returns (AdapterType);
 
     /**
      * Get loan information
