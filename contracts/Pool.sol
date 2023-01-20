@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
@@ -46,6 +47,11 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
     /**************************************************************************/
 
     /**
+     * @notice Invalid address
+     */
+    error InvalidAddress();
+
+    /**
      * @notice Invalid caller
      */
     error InvalidCaller();
@@ -56,14 +62,50 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
     error InvalidShares();
 
     /**
+     * @notice Invalid loan receipt
+     */
+    error InvalidLoanReceipt();
+
+    /**
+     * @notice Invalid loan status
+     */
+    error InvalidLoanStatus();
+
+    /**
+     * @notice Unsupported collateral
+     * @param index Index of unsupported asset
+     */
+    error UnsupportedCollateral(uint256 index);
+
+    /**
+     * @notice Unsupported loan duration
+     */
+    error UnsupportedLoanDuration();
+
+    /**
+     * @notice Unsupported currency token
+     */
+    error UnsupportedCurrencyToken();
+
+    /**
      * @notice Unsupported platform
      */
     error UnsupportedPlatform();
 
     /**
+     * @notice Purchase price too low
+     */
+    error PurchasePriceTooLow();
+
+    /**
      * @notice Redemption in progress
      */
     error RedemptionInProgress();
+
+    /**
+     * @notice Call failed
+     */
+    error CallFailed();
 
     /**************************************************************************/
     /* Structures */
@@ -90,17 +132,8 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
         Uninitialized,
         Active,
         Repaid,
-        Liquidated
-    }
-
-    /**
-     * @notice Loan
-     * @param status Loan status
-     * @param receiptHash Loan receipt hash
-     */
-    struct Loan {
-        LoanStatus status;
-        bytes31 receiptHash;
+        Liquidated,
+        CollateralLiquidated
     }
 
     /**************************************************************************/
@@ -123,9 +156,9 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
     mapping(address => mapping(uint128 => Deposit)) internal _deposits;
 
     /**
-     * @notice Mapping of loan ID to Loan
+     * @notice Mapping of loan receipt hash to loan status
      */
-    mapping(uint256 => Loan) internal _loans;
+    mapping(bytes32 => LoanStatus) internal _loans;
 
     /**
      * @notice Collateral filter contract
@@ -243,12 +276,12 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
     }
 
     /**
-     * @notice Get loan
-     * @param loanId Loan ID
-     * @return Loan information
+     * @notice Get loan status
+     * @param receiptHash Loan receipt hash
+     * @return Loan status
      */
-    function loans(uint256 loanId) external view returns (Loan memory) {
-        return _loans[loanId];
+    function loans(bytes32 receiptHash) external view returns (LoanStatus) {
+        return _loans[receiptHash];
     }
 
     /**************************************************************************/
@@ -285,7 +318,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
      * @dev Helper function to price a note
      * @param principal Principal
      * @param repayment Repayment
-     * @param duration Duration
+     * @param maturity Maturity
      * @param assets Collateral assets
      * @param collateralTokenIdSpec Collateral token ID specification
      * @return purchasePrice Purchase price
@@ -294,16 +327,40 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
     function _priceNote(
         uint256 principal,
         uint256 repayment,
-        uint64 duration,
+        uint64 maturity,
         ILoanAdapter.AssetInfo[] memory assets,
         bytes[] calldata collateralTokenIdSpec
-    ) internal view returns (uint256 purchasePrice, ILiquidityManager.LiquiditySource[] memory trail) {
-        principal;
-        repayment;
-        duration;
-        assets;
-        collateralTokenIdSpec;
-        revert("Not implemented");
+    ) internal view returns (uint256, ILiquidityManager.LiquiditySource[] memory) {
+        /* FIXME implement bundle support */
+        require(assets.length == 1, "Bundles not yet supported");
+
+        /* Verify collateral is supported */
+        if (!_collateralFilter.supported(assets[0].token, assets[0].tokenId, collateralTokenIdSpec[0]))
+            revert UnsupportedCollateral(0);
+
+        /* Calculate number of ticks needed for repayment */
+        (uint16 nodesUsed, uint16 nodesTotal) = _liquidityForecast(0, uint128(repayment));
+
+        /* FIXME verify num nodes to ensure sufficient tranching */
+        /* if (nodesUsed < MIN_NUM_NODES) revert InsufficientTranching(); */
+
+        /* Calculate overall interest rate */
+        uint256 rate = _interestRateModel.calculateRate(nodesUsed, nodesTotal);
+
+        /* Calculate purchase price from repayment, rate, and remaining duration */
+        uint256 purchasePrice = Math.mulDiv(
+            repayment,
+            FIXED_POINT_SCALE,
+            Math.mulDiv(rate, maturity - uint64(block.timestamp), FIXED_POINT_SCALE)
+        );
+
+        /* Source liquidity */
+        LiquiditySource[] memory trail = _liquiditySource(0, uint128(purchasePrice));
+
+        /* Distribute interest */
+        _interestRateModel.distributeInterest(uint128(repayment - purchasePrice), trail);
+
+        return (purchasePrice, trail);
     }
 
     /**
@@ -313,11 +370,29 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
         address noteToken,
         uint256 noteTokenId,
         bytes[] calldata collateralTokenIdSpec
-    ) external view returns (uint256 purchasePrice) {
-        noteToken;
-        noteTokenId;
-        collateralTokenIdSpec;
-        revert("Not implemented");
+    ) external view returns (uint256) {
+        /* Get note adapter */
+        INoteAdapter noteAdapter = _getNoteAdapter(noteToken);
+
+        /* Get loan info */
+        ILoanAdapter.LoanInfo memory loanInfo = noteAdapter.getLoanInfo(noteAdapter.getLoanId(noteTokenId), "");
+
+        /* Validate currency token */
+        if (loanInfo.currencyToken != address(_currencyToken)) revert UnsupportedCurrencyToken();
+
+        /* Validate loan duration */
+        if (loanInfo.duration > _maxLoanDuration) revert UnsupportedLoanDuration();
+
+        /* Price the note */
+        (uint256 purchasePrice, ) = _priceNote(
+            loanInfo.principal,
+            loanInfo.repayment,
+            loanInfo.maturity,
+            loanInfo.assets,
+            collateralTokenIdSpec
+        );
+
+        return purchasePrice;
     }
 
     /**
@@ -328,12 +403,57 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
         uint256 noteTokenId,
         uint256 minPurchasePrice,
         bytes[] calldata collateralTokenIdSpec
-    ) external returns (uint256 purchasePrice) {
-        noteToken;
-        noteTokenId;
-        minPurchasePrice;
-        collateralTokenIdSpec;
-        revert("Not implemented");
+    ) external returns (uint256) {
+        /* Get note adapter */
+        INoteAdapter noteAdapter = _getNoteAdapter(noteToken);
+
+        /* Get loan info */
+        ILoanAdapter.LoanInfo memory loanInfo = noteAdapter.getLoanInfo(noteAdapter.getLoanId(noteTokenId), "");
+
+        /* Validate currency token */
+        if (loanInfo.currencyToken != address(_currencyToken)) revert UnsupportedCurrencyToken();
+
+        /* Validate loan duration */
+        if (loanInfo.duration > _maxLoanDuration) revert UnsupportedLoanDuration();
+
+        /* Price the note */
+        (uint256 purchasePrice, LiquiditySource[] memory trail) = _priceNote(
+            loanInfo.principal,
+            loanInfo.repayment,
+            loanInfo.maturity,
+            loanInfo.assets,
+            collateralTokenIdSpec
+        );
+
+        /* Validate purchase price */
+        if (purchasePrice < minPurchasePrice) revert PurchasePriceTooLow();
+
+        /* Use nodes in liquidity trail */
+        for (uint256 i; trail[i].depth != 0; i++) {
+            _liquidityUse(trail[i].depth, trail[i].used, trail[i].pending);
+        }
+
+        /* Update utilization tracking */
+        _interestRateModel.onUtilizationUpdated(utilization());
+
+        /* Build loan receipt */
+        LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.fromLoanInfo(noteToken, loanInfo, trail);
+        bytes memory encodedLoanReceipt = loanReceipt.encode();
+        bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
+
+        /* Store loan status */
+        _loans[loanReceiptHash] = LoanStatus.Active;
+
+        /* Transfer collateral */
+        IERC721(loanInfo.collateralToken).safeTransferFrom(msg.sender, address(this), loanInfo.collateralTokenId);
+
+        /* Transafer cash */
+        _currencyToken.safeTransferFrom(address(this), msg.sender, purchasePrice);
+
+        /* Emit Loan Receipt */
+        emit LoanPurchased(loanReceiptHash, encodedLoanReceipt);
+
+        return purchasePrice;
     }
 
     /**************************************************************************/
@@ -345,7 +465,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
         uint64 duration,
         ILoanAdapter.AssetInfo[] memory assets,
         bytes[] calldata collateralTokenIdSpec
-    ) internal view returns (uint256 repayment, ILiquidityManager.LiquiditySource[] memory trail) {
+    ) internal view returns (uint256, ILiquidityManager.LiquiditySource[] memory) {
         principal;
         duration;
         assets;
@@ -363,7 +483,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
         address collateralToken,
         uint256 collateralTokenId,
         bytes[] calldata collateralTokenIdSpec
-    ) external view returns (uint256 repayment) {
+    ) external view returns (uint256) {
         lendPlatform;
         principal;
         duration;
@@ -384,7 +504,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
         uint256 collateralTokenId,
         uint256 maxRepayment,
         bytes[] calldata collateralTokenIdSpec
-    ) external returns (uint256 loanId) {
+    ) external returns (uint256) {
         lendPlatform;
         principal;
         duration;
@@ -403,26 +523,121 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
     /**
      * @inheritdoc IPool
      */
-    function onLoanRepaid(bytes calldata loanReceipt) external {
-        loanReceipt;
-        revert("Not implemented");
+    function onLoanRepaid(bytes calldata encodedLoanReceipt) external {
+        /* Compute loan receipt hash */
+        bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
+
+        /* Validate loan status is active */
+        if (_loans[loanReceiptHash] != LoanStatus.Active) revert InvalidLoanReceipt();
+
+        /* Decode loan receipt */
+        LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
+
+        /* Look up loan adapter */
+        ILoanAdapter loanAdapter = this.loanAdapters(loanReceipt.platform);
+
+        /* Validate loan is repaid with note adapter */
+        if (loanAdapter.getLoanStatus(loanReceipt.loanId, encodedLoanReceipt) != ILoanAdapter.LoanStatus.Repaid)
+            revert InvalidLoanStatus();
+
+        /* Restore nodes in liquidity trail */
+        for (uint256 i; i < loanReceipt.liquidityTrail.length; i++) {
+            _liquidityRestore(
+                loanReceipt.liquidityTrail[i].depth,
+                loanReceipt.liquidityTrail[i].used,
+                loanReceipt.liquidityTrail[i].pending,
+                loanReceipt.liquidityTrail[i].pending
+            );
+        }
+
+        /* Update utilization tracking */
+        _interestRateModel.onUtilizationUpdated(utilization());
+
+        /* Mark loan status repaid */
+        _loans[loanReceiptHash] = LoanStatus.Repaid;
+
+        /* Emit Loan Repaid */
+        emit LoanRepaid(loanReceiptHash);
     }
 
     /**
      * @inheritdoc IPool
      */
-    function onLoanExpired(bytes calldata loanReceipt) external {
-        loanReceipt;
-        revert("Not implemented");
+    function onLoanExpired(bytes calldata encodedLoanReceipt) external {
+        /* Compute loan receipt hash */
+        bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
+
+        /* Validate loan status is active */
+        if (_loans[loanReceiptHash] != LoanStatus.Active) revert InvalidLoanReceipt();
+
+        /* Decode loan receipt */
+        LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
+
+        /* Look up loan adapter */
+        ILoanAdapter loanAdapter = this.loanAdapters(loanReceipt.platform);
+
+        /* Validate loan is repaid with note adapter */
+        if (loanAdapter.getLoanStatus(loanReceipt.loanId, encodedLoanReceipt) != ILoanAdapter.LoanStatus.Expired)
+            revert InvalidLoanStatus();
+
+        /* Liquidate loan with platform */
+        (address target, bytes memory data) = loanAdapter.getLiquidateCalldata(loanReceipt.loanId, encodedLoanReceipt);
+        if (target == address(0x0)) revert InvalidAddress();
+        (bool success, ) = target.call(data);
+        if (!success) revert CallFailed();
+
+        /* Transfer collateral to _collateralLiquidator */
+        IERC721(loanReceipt.collateralToken).safeTransferFrom(
+            address(this),
+            address(_collateralLiquidator),
+            loanReceipt.collateralTokenId,
+            encodedLoanReceipt
+        );
+
+        /* Mark loan status liquidated */
+        _loans[loanReceiptHash] = LoanStatus.Liquidated;
+
+        /* Emit Loan Liquidated */
+        emit LoanLiquidated(loanReceiptHash);
     }
 
     /**
      * @inheritdoc IPool
      */
-    function onCollateralLiquidated(bytes calldata loanReceipt, uint256 proceeds) external {
-        loanReceipt;
-        proceeds;
-        revert("Not implemented");
+    function onCollateralLiquidated(bytes calldata encodedLoanReceipt, uint256 proceeds) external {
+        /* Validate caller is collateral liquidator */
+        if (msg.sender != address(_collateralLiquidator)) revert InvalidCaller();
+
+        /* Compute loan receipt hash */
+        bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
+
+        /* Validate loan status is active */
+        if (_loans[loanReceiptHash] != LoanStatus.Liquidated) revert InvalidLoanReceipt();
+
+        /* Decode loan receipt */
+        LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
+
+        /* Restore nodes in liquidity trail */
+        uint256 proceedsRemaining = proceeds;
+        for (uint256 i; i < loanReceipt.liquidityTrail.length; i++) {
+            uint128 restored = uint128(Math.min(loanReceipt.liquidityTrail[i].pending, proceedsRemaining));
+            _liquidityRestore(
+                loanReceipt.liquidityTrail[i].depth,
+                loanReceipt.liquidityTrail[i].used,
+                loanReceipt.liquidityTrail[i].pending,
+                restored
+            );
+            proceedsRemaining -= restored;
+        }
+
+        /* Update utilization tracking */
+        _interestRateModel.onUtilizationUpdated(utilization());
+
+        /* Mark loan status collateral liquidated */
+        _loans[loanReceiptHash] = LoanStatus.CollateralLiquidated;
+
+        /* Emit Collateral Liquidated */
+        emit CollateralLiquidated(loanReceiptHash, proceeds);
     }
 
     /**************************************************************************/

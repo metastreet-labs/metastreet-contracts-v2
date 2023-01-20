@@ -43,36 +43,36 @@ interface IPool {
 
     /**
      * @notice Emitted when a loan is purchased
-     * @param loanId Loan ID
+     * @param loanReceiptHash Loan receipt hash
      * @param loanReceipt Loan receipt
      */
-    event LoanPurchased(uint256 indexed loanId, bytes loanReceipt);
+    event LoanPurchased(bytes32 indexed loanReceiptHash, bytes loanReceipt);
 
     /**
      * @notice Emitted when a loan is originated
-     * @param loanId Loan ID
+     * @param loanReceiptHash Loan receipt hash
      * @param loanReceipt Loan receipt
      */
-    event LoanOriginated(uint256 indexed loanId, bytes loanReceipt);
+    event LoanOriginated(bytes32 indexed loanReceiptHash, bytes loanReceipt);
 
     /**
      * @notice Emitted when a loan is repaid
-     * @param loanId Loan ID
+     * @param loanReceiptHash Loan receipt hash
      */
-    event LoanRepaid(uint256 indexed loanId);
+    event LoanRepaid(bytes32 indexed loanReceiptHash);
 
     /**
      * @notice Emitted when a loan is liquidated
-     * @param loanId Loan ID
+     * @param loanReceiptHash Loan receipt hash
      */
-    event LoanLiquidated(uint256 indexed loanId);
+    event LoanLiquidated(bytes32 indexed loanReceiptHash);
 
     /**
      * @notice Emitted when loan collateral is liquidated
-     * @param loanId Loan ID
+     * @param loanReceiptHash Loan receipt hash
      * @param proceeds Liquidation proceeds in currency tokens
      */
-    event CollateralLiquidated(uint256 indexed loanId, uint256 proceeds);
+    event CollateralLiquidated(bytes32 indexed loanReceiptHash, uint256 proceeds);
 
     /**
      * @notice Emitted when a loan adapter is updated
