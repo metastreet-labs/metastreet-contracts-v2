@@ -92,13 +92,15 @@ contract LiquidityManager is ILiquidityManager {
 
     /**
      * @notice Liquidity state
-     * @param total Total value
+     * @param value Total value
      * @param used Total used
+     * @param numNodes Total number of nodes
      * @param nodes Liquidity nodes
      */
     struct Liquidity {
         uint128 value;
         uint128 used;
+        uint16 numNodes;
         mapping(uint256 => LiquidityNode) nodes;
     }
 
@@ -278,6 +280,7 @@ contract LiquidityManager is ILiquidityManager {
         node.next = prevNode.next;
         if (prevNode.next != 0) _liquidity.nodes[prevNode.next].prev = depth;
         prevNode.next = depth;
+        _liquidity.numNodes++;
     }
 
     /**
@@ -382,6 +385,7 @@ contract LiquidityManager is ILiquidityManager {
             _liquidity.nodes[node.next].prev = node.prev;
             node.next = 0;
             node.prev = 0;
+            _liquidity.numNodes--;
         }
 
         _liquidityProcessRedemptions(depth);
