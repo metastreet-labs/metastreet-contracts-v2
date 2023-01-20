@@ -67,19 +67,19 @@ contract TestInterestRateModel is IInterestRateModel {
     /**
      * @inheritdoc IInterestRateModel
      */
-    function distributeInterest(
-        uint128 interest,
-        ILiquidityManager.LiquiditySource[] memory trail
-    ) external pure returns (ILiquidityManager.LiquiditySource[] memory) {
-        uint128 interestPerTick = uint128(Math.mulDiv(interest, FIXED_POINT_SCALE, trail.length));
-
-        for (uint256 i; i < trail.length - 1; i++) {
-            trail[i].pending += interestPerTick;
-            interest -= interestPerTick;
+    function distributeInterest(uint128 interest, ILiquidityManager.LiquiditySource[] memory trail) external pure {
+        uint256 numNodes;
+        while (trail[numNodes].depth != 0) {
+            numNodes++;
         }
-        trail[trail.length - 1].pending += interest;
 
-        return trail;
+        uint128 interestPerNode = uint128(Math.mulDiv(interest, FIXED_POINT_SCALE, numNodes));
+
+        for (uint256 i; i < numNodes - 1; i++) {
+            trail[i].pending += interestPerNode;
+            interest -= interestPerNode;
+        }
+        trail[numNodes - 1].pending += interest;
     }
 
     /**

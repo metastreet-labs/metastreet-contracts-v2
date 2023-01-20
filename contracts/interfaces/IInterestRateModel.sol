@@ -25,12 +25,8 @@ interface IInterestRateModel {
      * Distribute interest for liquidity
      * @param interest Interest to distribute
      * @param trail Liquidity trail
-     * @return Liquidty trail with interest
      */
-    function distributeInterest(
-        uint128 interest,
-        ILiquidityManager.LiquiditySource[] memory trail
-    ) external view returns (ILiquidityManager.LiquiditySource[] memory);
+    function distributeInterest(uint128 interest, ILiquidityManager.LiquiditySource[] memory trail) external view;
 
     /**
      * Utilization updated handler

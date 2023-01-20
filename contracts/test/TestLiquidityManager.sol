@@ -11,12 +11,8 @@ contract TestLiquidityManager is LiquidityManager {
     /**
      * @dev External wrapper function for LiquidityManager.liquiditySource()
      */
-    function liquiditySource(
-        uint128 startDepth,
-        uint128 amount,
-        uint16 numNodes
-    ) external view returns (LiquiditySource[] memory) {
-        return _liquiditySource(startDepth, amount, numNodes);
+    function liquiditySource(uint128 startDepth, uint128 amount) external view returns (LiquiditySource[] memory) {
+        return _liquiditySource(startDepth, amount);
     }
 
     /**

@@ -212,7 +212,7 @@ library LoanReceipt {
             liquidityTrail: new ILiquidityManager.LiquiditySource[](trail.length)
         });
 
-        for (uint256 i = 0; i < trail.length; i++) {
+        for (uint256 i = 0; i < trail.length && trail[i].depth != 0; i++) {
             receipt.liquidityTrail[i].depth = trail[i].depth;
             receipt.liquidityTrail[i].used = trail[i].used;
             receipt.liquidityTrail[i].pending = trail[i].pending;

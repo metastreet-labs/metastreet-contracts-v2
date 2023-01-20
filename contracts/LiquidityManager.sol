@@ -20,6 +20,11 @@ contract LiquidityManager is ILiquidityManager {
      */
     uint256 public constant TICK_SPACING_BASIS_POINTS = 12500;
 
+    /**
+     * @notice Maximum number of nodes that can be sourced at once
+     */
+    uint256 public constant MAX_NUM_NODES = 16;
+
     /**************************************************************************/
     /* Errors */
     /**************************************************************************/
@@ -225,20 +230,15 @@ contract LiquidityManager is ILiquidityManager {
      * @notice Source liquidity from nodes
      * @param startDepth Start depth
      * @param amount Total amount
-     * @param numNodes Number of nodes to use
      * @return Liquidity trail
      */
-    function _liquiditySource(
-        uint128 startDepth,
-        uint128 amount,
-        uint16 numNodes
-    ) internal view returns (LiquiditySource[] memory) {
-        LiquiditySource[] memory trail = new LiquiditySource[](numNodes);
+    function _liquiditySource(uint128 startDepth, uint128 amount) internal view returns (LiquiditySource[] memory) {
+        LiquiditySource[] memory trail = new LiquiditySource[](MAX_NUM_NODES);
 
         uint128 taken = 0;
         uint16 i = 0;
         uint128 d = (startDepth == 0) ? _liquidity.nodes[0].next : startDepth;
-        while (taken < amount) {
+        while (taken < amount && d != 0 && i < MAX_NUM_NODES) {
             LiquidityNode storage node = _liquidity.nodes[d];
 
             uint128 take = uint128(Math.min(Math.min(d - taken, node.available), amount - taken));
@@ -247,6 +247,8 @@ contract LiquidityManager is ILiquidityManager {
             taken += take;
             d = node.next;
         }
+
+        if (taken < amount) revert InsufficientLiquidity();
 
         return trail;
     }
