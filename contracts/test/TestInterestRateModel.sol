@@ -60,7 +60,7 @@ contract TestInterestRateModel is IInterestRateModel {
     /**
      * @inheritdoc IInterestRateModel
      */
-    function calculateRate(uint128, uint16) external view returns (uint256) {
+    function calculateRate(uint16, uint16) external view returns (uint256) {
         return fixedInterestRate;
     }
 
