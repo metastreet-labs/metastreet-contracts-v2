@@ -28,7 +28,7 @@ interface ILoanAdapter {
      * @notice Loan status
      */
     enum LoanStatus {
-        Uninitialized,
+        Unknown,
         Active,
         Repaid,
         Expired,
