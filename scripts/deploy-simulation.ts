@@ -6,7 +6,7 @@ async function main() {
 
   const TestERC20 = await ethers.getContractFactory("TestERC20", accounts[9]);
   const TestERC721 = await ethers.getContractFactory("TestERC721", accounts[9]);
-  const TestCollateralFilter = await ethers.getContractFactory("TestCollateralFilter", accounts[9]);
+  const AllowCollateralFilter = await ethers.getContractFactory("AllowCollateralFilter", accounts[9]);
   const TestInterestRateModel = await ethers.getContractFactory("TestInterestRateModel", accounts[9]);
   const PoolFactory = await ethers.getContractFactory("PoolFactory", accounts[9]);
 
@@ -33,8 +33,8 @@ async function main() {
   console.log("");
 
   /* Deploy Test Collateral Filter */
-  const testCollateralFilter = await TestCollateralFilter.deploy([baycTokenContract.address]);
-  console.log("Test Collateral Filter:   ", testCollateralFilter.address);
+  const allowCollateralFilter = await AllowCollateralFilter.deploy([baycTokenContract.address]);
+  console.log("Allow Collateral Filter:   ", allowCollateralFilter.address);
 
   /* Deploy Test Interest Rate Model */
   const testInterestRateModel = await TestInterestRateModel.deploy(ethers.utils.parseEther("0.02"));
@@ -46,7 +46,7 @@ async function main() {
     [
       wethTokenContract.address,
       30 * 86400,
-      testCollateralFilter.address,
+      allowCollateralFilter.address,
       testInterestRateModel.address,
       ethers.constants.AddressZero,
     ]
