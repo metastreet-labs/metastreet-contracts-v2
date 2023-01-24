@@ -6,8 +6,25 @@ async function main() {
 
   const TestERC20 = await ethers.getContractFactory("TestERC20", accounts[9]);
   const TestERC721 = await ethers.getContractFactory("TestERC721", accounts[9]);
+  const LiquidityManager = await ethers.getContractFactory("LiquidityManager");
+  const AllowCollateralFilter = await ethers.getContractFactory("AllowCollateralFilter", accounts[9]);
   const FixedInterestRateModel = await ethers.getContractFactory("FixedInterestRateModel", accounts[9]);
-  const Pool = await ethers.getContractFactory("Pool", accounts[9]);
+
+  /* Deploy liquidity manager library */
+  const liquidityManagerLib = await LiquidityManager.deploy();
+  await liquidityManagerLib.deployed();
+
+  /* Create Pool Factory */
+  const PoolFactory = await ethers.getContractFactory("PoolFactory", {
+    signer: accounts[9],
+    libraries: { LiquidityManager: liquidityManagerLib.address },
+  });
+
+  /* Deploy Pool Factory */
+  const poolFactory = await PoolFactory.deploy();
+  console.log("Pool Factory:               ", poolFactory.address);
+
+  console.log("");
 
   /* Deploy WETH */
   const wethTokenContract = await TestERC20.deploy("WETH", "WETH", 18, ethers.utils.parseEther("1000000"));
@@ -25,19 +42,29 @@ async function main() {
 
   console.log("");
 
+  /* Deploy Allow Collateral Filter */
+  const allowCollateralFilter = await AllowCollateralFilter.deploy([baycTokenContract.address]);
+  console.log("Allow Collateral Filter     ", allowCollateralFilter.address);
+
   /* Deploy Fixed Interest Rate Model */
   const fixedInterestRateModel = await FixedInterestRateModel.deploy(ethers.utils.parseEther("0.02"));
   console.log("Fixed Interest Rate Model:  ", fixedInterestRateModel.address);
 
-  /* Deploy WETH Pool */
-  const wethTestPool = await Pool.deploy(
-    wethTokenContract.address,
-    30 * 86400,
-    ethers.constants.AddressZero,
-    fixedInterestRateModel.address,
-    ethers.constants.AddressZero
+  /* Create WETH Pool */
+  const calldata = ethers.utils.defaultAbiCoder.encode(
+    ["address", "uint64", "address", "address", "address"],
+    [
+      wethTokenContract.address,
+      30 * 86400,
+      allowCollateralFilter.address,
+      fixedInterestRateModel.address,
+      ethers.constants.AddressZero,
+    ]
   );
-  console.log("WETH Test Pool:             ", wethTestPool.address);
+  const wethTestPoolCreationTx = await poolFactory.createPool(calldata);
+  const wethTestPoolCreationReceipt = await wethTestPoolCreationTx.wait();
+  const wethTestPoolAddress = wethTestPoolCreationReceipt.events?.[0].args?.[0] as string;
+  console.log("WETH Test Pool:             ", wethTestPoolAddress);
 
   console.log("");
 
@@ -58,10 +85,10 @@ async function main() {
   await baycTokenContract.mint(accounts[1].address, 768);
   console.log("Minted BAYC #123, #456, #768 to account #1");
 
-  await baycTokenContract.connect(accounts[1]).setApprovalForAll(wethTestPool.address, true);
+  await baycTokenContract.connect(accounts[1]).setApprovalForAll(wethTestPoolAddress, true);
   console.log("Approved BAYC transfer for WETH Pool for account #1");
 
-  await wethTokenContract.connect(accounts[1]).approve(wethTestPool.address, ethers.constants.MaxUint256);
+  await wethTokenContract.connect(accounts[1]).approve(wethTestPoolAddress, ethers.constants.MaxUint256);
   console.log("Approved WETH transfer for WETH Pool for account #1");
 }
 
