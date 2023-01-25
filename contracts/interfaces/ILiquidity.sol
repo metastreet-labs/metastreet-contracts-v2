@@ -2,9 +2,9 @@
 pragma solidity ^0.8.0;
 
 /**
- * @title Interface to the Liquidity Manager
+ * @title Interface to Liquidity state
  */
-interface ILiquidityManager {
+interface ILiquidity {
     /**************************************************************************/
     /* Structures */
     /**************************************************************************/
@@ -68,12 +68,12 @@ interface ILiquidityManager {
     function liquidityAvailable(uint256 maxDepth) external view returns (uint256);
 
     /**
-     * Get liquidity nodes across [beginDepth, endDepth] range
-     * @param beginDepth Loan limit begin depth
+     * Get liquidity nodes across [startDepth, endDepth] range
+     * @param startDepth Loan limit start depth
      * @param endDepth Loan limit end depth
      * @return Liquidity nodes
      */
-    function liquidityNodes(uint256 beginDepth, uint256 endDepth) external view returns (LiquidityNodeInfo[] memory);
+    function liquidityNodes(uint256 startDepth, uint256 endDepth) external view returns (LiquidityNodeInfo[] memory);
 
     /**
      * Get liquidity solvency status at depth

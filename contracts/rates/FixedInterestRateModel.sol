@@ -68,7 +68,7 @@ contract FixedInterestRateModel is IInterestRateModel {
     /**
      * @inheritdoc IInterestRateModel
      */
-    function distributeInterest(uint128 interest, ILiquidityManager.LiquiditySource[] memory trail) external pure {
+    function distributeInterest(uint128 interest, ILiquidity.LiquiditySource[] memory trail) external pure {
         uint256 numNodes;
         while (trail[numNodes].depth != 0) {
             numNodes++;

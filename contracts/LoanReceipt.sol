@@ -2,7 +2,7 @@
 pragma solidity 0.8.17;
 
 import "./interfaces/ILoanAdapter.sol";
-import "./interfaces/ILiquidityManager.sol";
+import "./interfaces/ILiquidity.sol";
 
 /**
  * @title LoanReceipt
@@ -67,7 +67,7 @@ library LoanReceipt {
         uint64 duration;
         address collateralToken;
         uint256 collateralTokenId;
-        ILiquidityManager.LiquiditySource[] liquidityTrail;
+        ILiquidity.LiquiditySource[] liquidityTrail;
     }
 
     /**************************************************************************/
@@ -167,7 +167,7 @@ library LoanReceipt {
         /* Decode liquidity trail */
         uint256 numLiquiditySources = (encodedReceipt.length - LOAN_RECEIPT_V1_HEADER_SIZE) /
             LOAN_RECEIPT_V1_PAYLOAD_ELEMENT_SIZE;
-        receipt.liquidityTrail = new ILiquidityManager.LiquiditySource[](numLiquiditySources);
+        receipt.liquidityTrail = new ILiquidity.LiquiditySource[](numLiquiditySources);
         for (uint256 i; i < numLiquiditySources; i++) {
             uint256 offset = LOAN_RECEIPT_V1_HEADER_SIZE + i * LOAN_RECEIPT_V1_PAYLOAD_ELEMENT_SIZE;
             receipt.liquidityTrail[i].depth = uint128(bytes16(encodedReceipt[offset:offset + 16]));
@@ -188,7 +188,7 @@ library LoanReceipt {
     function fromLoanInfo(
         address platform,
         ILoanAdapter.LoanInfo memory loanInfo,
-        ILiquidityManager.LiquiditySource[] memory trail
+        ILiquidity.LiquiditySource[] memory trail
     ) internal pure returns (LoanReceiptV1 memory) {
         LoanReceiptV1 memory receipt = LoanReceiptV1({
             version: 1,
@@ -199,7 +199,7 @@ library LoanReceipt {
             duration: loanInfo.duration,
             collateralToken: loanInfo.collateralToken,
             collateralTokenId: loanInfo.collateralTokenId,
-            liquidityTrail: new ILiquidityManager.LiquiditySource[](trail.length)
+            liquidityTrail: new ILiquidity.LiquiditySource[](trail.length)
         });
 
         for (uint256 i = 0; i < trail.length && trail[i].depth != 0; i++) {

@@ -2,7 +2,7 @@
 pragma solidity 0.8.17;
 
 import "../interfaces/ILoanAdapter.sol";
-import "../interfaces/ILiquidityManager.sol";
+import "../interfaces/ILiquidity.sol";
 
 import "../LoanReceipt.sol";
 
@@ -38,7 +38,7 @@ contract TestLoanReceipt {
     function fromLoanInfo(
         address platform,
         ILoanAdapter.LoanInfo memory loanInfo,
-        ILiquidityManager.LiquiditySource[] memory trail
+        ILiquidity.LiquiditySource[] memory trail
     ) external pure returns (LoanReceipt.LoanReceiptV1 memory) {
         return LoanReceipt.fromLoanInfo(platform, loanInfo, trail);
     }

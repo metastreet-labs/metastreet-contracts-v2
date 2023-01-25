@@ -3,9 +3,9 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "./interfaces/ILiquidityManager.sol";
+import "./interfaces/ILiquidity.sol";
 
-contract LiquidityManager is ILiquidityManager {
+library LiquidityManager {
     /**************************************************************************/
     /* Constants */
     /**************************************************************************/
@@ -110,41 +110,21 @@ contract LiquidityManager is ILiquidityManager {
     }
 
     /**************************************************************************/
-    /* State */
+    /* Getters */
     /**************************************************************************/
 
     /**
-     * @notice Liquidity state
+     * Get liquidity available
+     * @param liquidity Liquidity state
+     * @param maxDepth Max depth
+     * @return Liquidity available
      */
-    Liquidity internal _liquidity;
-
-    /**************************************************************************/
-    /* Public Getters */
-    /**************************************************************************/
-
-    /**
-     * @inheritdoc ILiquidityManager
-     */
-    function utilization() public view returns (uint256) {
-        return Math.mulDiv(_liquidity.used, FIXED_POINT_SCALE, _liquidity.value);
-    }
-
-    /**
-     * @inheritdoc ILiquidityManager
-     */
-    function liquidityTotals() public view returns (uint256, uint256) {
-        return (_liquidity.value, _liquidity.used);
-    }
-
-    /**
-     * @inheritdoc ILiquidityManager
-     */
-    function liquidityAvailable(uint256 maxDepth) external view returns (uint256) {
+    function liquidityAvailable(Liquidity storage liquidity, uint256 maxDepth) external view returns (uint256) {
         uint256 amount = 0;
 
-        uint256 d = _liquidity.nodes[0].next;
+        uint256 d = liquidity.nodes[0].next;
         while (d != 0 && d <= maxDepth) {
-            LiquidityNode storage node = _liquidity.nodes[d];
+            LiquidityNode storage node = liquidity.nodes[d];
             amount += Math.min(d - amount, node.available);
             d = node.next;
         }
@@ -153,28 +133,36 @@ contract LiquidityManager is ILiquidityManager {
     }
 
     /**
-     * @inheritdoc ILiquidityManager
+     * Get liquidity nodes across [startDepth, endDepth] range
+     * @param liquidity Liquidity state
+     * @param startDepth Loan limit begin depth
+     * @param endDepth Loan limit end depth
+     * @return Liquidity nodes
      */
-    function liquidityNodes(uint256 startDepth, uint256 endDepth) external view returns (LiquidityNodeInfo[] memory) {
-        startDepth = (startDepth == 0) ? _liquidity.nodes[0].next : startDepth;
+    function liquidityNodes(
+        Liquidity storage liquidity,
+        uint256 startDepth,
+        uint256 endDepth
+    ) external view returns (ILiquidity.LiquidityNodeInfo[] memory) {
+        startDepth = (startDepth == 0) ? liquidity.nodes[0].next : startDepth;
 
         /* Count nodes first to figure out how to size liquidity nodes array */
         uint256 i = 0;
         uint128 d = uint128(startDepth);
         while (d != 0 && d <= endDepth) {
-            LiquidityNode storage node = _liquidity.nodes[d];
+            LiquidityNode storage node = liquidity.nodes[d];
             i++;
             d = node.next;
         }
 
-        LiquidityNodeInfo[] memory nodes = new LiquidityNodeInfo[](i);
+        ILiquidity.LiquidityNodeInfo[] memory nodes = new ILiquidity.LiquidityNodeInfo[](i);
 
         /* Populate nodes */
         i = 0;
         d = uint128(startDepth);
         while (d != 0 && d <= endDepth) {
-            LiquidityNode storage node = _liquidity.nodes[d];
-            nodes[i++] = LiquidityNodeInfo({
+            LiquidityNode storage node = liquidity.nodes[d];
+            nodes[i++] = ILiquidity.LiquidityNodeInfo({
                 depth: d,
                 value: node.value,
                 shares: node.shares,
@@ -191,21 +179,72 @@ contract LiquidityManager is ILiquidityManager {
     }
 
     /**
-     * @inheritdoc ILiquidityManager
+     * Get liquidity active status at depth
+     * @param liquidity Liquidity state
+     * @param depth Depth
+     * @return True if liquidity is active, false otherwise
      */
-    function liquidityNodeIsActive(uint256 depth) external view returns (bool) {
-        return _isActive(_liquidity.nodes[depth]);
+    function liquidityNodeIsActive(Liquidity storage liquidity, uint256 depth) external view returns (bool) {
+        return _isActive(liquidity.nodes[depth]);
     }
 
     /**
-     * @inheritdoc ILiquidityManager
+     * Get liquidity solvency status at depth
+     * @param liquidity Liquidity state
+     * @param depth Depth
+     * @return True if liquidity is solvent, false otherwise
      */
-    function liquidityNodeIsSolvent(uint256 depth) external view returns (bool) {
-        return _isSolvent(_liquidity.nodes[depth]);
+    function liquidityNodeIsSolvent(Liquidity storage liquidity, uint256 depth) external view returns (bool) {
+        return _isSolvent(liquidity.nodes[depth]);
+    }
+
+    /**
+     * @notice Get redemption available amount
+     * @param liquidity Liquidity state
+     * @param depth Depth
+     * @param index Redemption index
+     * @param target Redemption target
+     * @param pending Redemption pending
+     * @return Redeemed shares, redeemed amount
+     */
+    function redemptionAvailable(
+        Liquidity storage liquidity,
+        uint128 depth,
+        uint128 pending,
+        uint128 index,
+        uint128 target
+    ) external view returns (uint128, uint128) {
+        LiquidityNode storage node = liquidity.nodes[depth];
+
+        uint128 processedShares = 0;
+        uint128 totalRedeemedShares = 0;
+        uint128 totalRedeemedAmount = 0;
+
+        for (; processedShares < target + pending; index++) {
+            FulfilledRedemption storage redemption = node.redemptions.fulfilled[index];
+            if (redemption.shares == type(uint128).max) {
+                /* Reached pending unfulfilled redemption  */
+                break;
+            }
+
+            processedShares += redemption.shares;
+            if (processedShares < target) {
+                continue;
+            } else {
+                uint128 shares = (processedShares > target + pending ? pending : processedShares - target) -
+                    totalRedeemedShares;
+                uint256 price = Math.mulDiv(redemption.amount, FIXED_POINT_SCALE, node.shares);
+
+                totalRedeemedShares += shares;
+                totalRedeemedAmount += uint128(Math.mulDiv(shares, price, FIXED_POINT_SCALE));
+            }
+        }
+
+        return (totalRedeemedShares, totalRedeemedAmount);
     }
 
     /**************************************************************************/
-    /* Internal API */
+    /* Internal Helpers */
     /**************************************************************************/
 
     /**
@@ -226,17 +265,26 @@ contract LiquidityManager is ILiquidityManager {
         return node.shares == 0 || node.value != 0;
     }
 
+    /**************************************************************************/
+    /* Primary API */
+    /**************************************************************************/
+
     /**
      * @notice Forecast liquidity nodes needed for amount
+     * @param liquidity Liquidity state
      * @param amount Amount
      * @return Number of nodes, total number of nodes
      */
-    function _liquidityForecast(uint128 startDepth, uint128 amount) internal view returns (uint16, uint16) {
+    function forecast(
+        Liquidity storage liquidity,
+        uint128 startDepth,
+        uint128 amount
+    ) external view returns (uint16, uint16) {
         uint128 taken = 0;
         uint16 i = 0;
-        uint128 d = (startDepth == 0) ? _liquidity.nodes[0].next : startDepth;
+        uint128 d = (startDepth == 0) ? liquidity.nodes[0].next : startDepth;
         while (taken < amount && d != 0 && i < MAX_NUM_NODES) {
-            LiquidityNode storage node = _liquidity.nodes[d];
+            LiquidityNode storage node = liquidity.nodes[d];
 
             taken += uint128(Math.min(Math.min(d - taken, node.available), amount - taken));
             i++;
@@ -246,26 +294,31 @@ contract LiquidityManager is ILiquidityManager {
 
         if (taken < amount) revert InsufficientLiquidity();
 
-        return (i, _liquidity.numNodes);
+        return (i, liquidity.numNodes);
     }
 
     /**
      * @notice Source liquidity from nodes
+     * @param liquidity Liquidity state
      * @param startDepth Start depth
      * @param amount Total amount
      * @return Liquidity trail
      */
-    function _liquiditySource(uint128 startDepth, uint128 amount) internal view returns (LiquiditySource[] memory) {
-        LiquiditySource[] memory trail = new LiquiditySource[](MAX_NUM_NODES);
+    function source(
+        Liquidity storage liquidity,
+        uint128 startDepth,
+        uint128 amount
+    ) external view returns (ILiquidity.LiquiditySource[] memory) {
+        ILiquidity.LiquiditySource[] memory trail = new ILiquidity.LiquiditySource[](MAX_NUM_NODES);
 
         uint128 taken = 0;
         uint16 i = 0;
-        uint128 d = (startDepth == 0) ? _liquidity.nodes[0].next : startDepth;
+        uint128 d = (startDepth == 0) ? liquidity.nodes[0].next : startDepth;
         while (taken < amount && d != 0 && i < MAX_NUM_NODES) {
-            LiquidityNode storage node = _liquidity.nodes[d];
+            LiquidityNode storage node = liquidity.nodes[d];
 
             uint128 take = uint128(Math.min(Math.min(d - taken, node.available), amount - taken));
-            trail[i++] = LiquiditySource({depth: d, used: take, pending: take});
+            trail[i++] = ILiquidity.LiquiditySource({depth: d, used: take, pending: take});
 
             taken += take;
             d = node.next;
@@ -278,10 +331,11 @@ contract LiquidityManager is ILiquidityManager {
 
     /**
      * @notice Instantiate liquidity
+     * @param liquidity Liquidity state
      * @param depth Depth
      */
-    function _liquidityInstantiate(uint128 depth) internal {
-        LiquidityNode storage node = _liquidity.nodes[depth];
+    function instantiate(Liquidity storage liquidity, uint128 depth) external {
+        LiquidityNode storage node = liquidity.nodes[depth];
 
         /* If node exists, is active, return */
         if (_isActive(node)) return;
@@ -290,32 +344,34 @@ contract LiquidityManager is ILiquidityManager {
 
         /* Find prior node */
         uint128 prevDepth = 0;
-        LiquidityNode storage prevNode = _liquidity.nodes[prevDepth];
+        LiquidityNode storage prevNode = liquidity.nodes[prevDepth];
         while (prevNode.next < depth && prevNode.next != 0) {
             prevDepth = prevNode.next;
-            prevNode = _liquidity.nodes[prevDepth];
+            prevNode = liquidity.nodes[prevDepth];
         }
 
         /* Validate new node tick spacing */
         if (depth < (prevDepth * TICK_SPACING_BASIS_POINTS) / 10000) revert InsufficientTickSpacing();
-        if (prevNode.next < (depth * TICK_SPACING_BASIS_POINTS) / 10000) revert InsufficientTickSpacing();
+        if (prevNode.next > 0 && prevNode.next < (depth * TICK_SPACING_BASIS_POINTS) / 10000)
+            revert InsufficientTickSpacing();
 
         /* Link new node */
         node.prev = prevDepth;
         node.next = prevNode.next;
-        if (prevNode.next != 0) _liquidity.nodes[prevNode.next].prev = depth;
+        if (prevNode.next != 0) liquidity.nodes[prevNode.next].prev = depth;
         prevNode.next = depth;
-        _liquidity.numNodes++;
+        liquidity.numNodes++;
     }
 
     /**
      * @notice Deposit liquidity
+     * @param liquidity Liquidity state
      * @param depth Depth
      * @param amount Amount
      * @return Number of shares
      */
-    function _liquidityDeposit(uint128 depth, uint128 amount) internal returns (uint128) {
-        LiquidityNode storage node = _liquidity.nodes[depth];
+    function deposit(Liquidity storage liquidity, uint128 depth, uint128 amount) external returns (uint128) {
+        LiquidityNode storage node = liquidity.nodes[depth];
 
         /* If node is inactive */
         if (depth == 0 || !_isActive(node)) revert InactiveLiquidity();
@@ -331,19 +387,82 @@ contract LiquidityManager is ILiquidityManager {
         node.shares += shares;
         node.available += amount;
 
-        _liquidity.value += amount;
+        liquidity.value += amount;
 
         return shares;
     }
 
     /**
+     * @notice Use liquidity
+     * @param liquidity Liquidity state
+     * @param depth Depth
+     * @param amount Amount
+     * @param pending Pending Amount
+     */
+    function use(Liquidity storage liquidity, uint128 depth, uint128 amount, uint128 pending) external {
+        LiquidityNode storage node = liquidity.nodes[depth];
+
+        /* If node is inactive */
+        if (depth == 0 || !_isActive(node)) revert InactiveLiquidity();
+        /* If node has insufficient liquidity */
+        if (node.available < amount) revert InsufficientLiquidity();
+
+        node.available -= amount;
+        node.pending += pending;
+
+        liquidity.used += amount;
+    }
+
+    /**
+     * @notice Restore liquidity and process pending redemptions
+     * @param liquidity Liquidity state
+     * @param depth Depth
+     * @param used Used amount
+     * @param pending Pending amount
+     * @param restored Restored amount
+     */
+    function restore(
+        Liquidity storage liquidity,
+        uint128 depth,
+        uint128 used,
+        uint128 pending,
+        uint128 restored
+    ) external {
+        LiquidityNode storage node = liquidity.nodes[depth];
+
+        int256 delta = int256(uint256(restored)) - int256(uint256(used));
+
+        node.value = (delta > 0) ? node.value + uint128(uint256(delta)) : node.value - uint128(uint256(-delta));
+        node.available += restored;
+        node.pending -= pending;
+
+        liquidity.value = (delta > 0)
+            ? liquidity.value + uint128(uint256(delta))
+            : liquidity.value - uint128(uint256(-delta));
+        liquidity.used -= used;
+
+        /* If node became insolvent */
+        if (!_isSolvent(node)) {
+            /* Make node inactive by unlinking it */
+            liquidity.nodes[node.prev].next = node.next;
+            liquidity.nodes[node.next].prev = node.prev;
+            node.next = 0;
+            node.prev = 0;
+            liquidity.numNodes--;
+        }
+
+        processRedemptions(liquidity, depth);
+    }
+
+    /**
      * @notice Redeem liquidity
+     * @param liquidity Liquidity state
      * @param depth Depth
      * @param shares Shares
      * @return Redemption index, Redemption target
      */
-    function _liquidityRedeem(uint128 depth, uint128 shares) internal returns (uint128, uint128) {
-        LiquidityNode storage node = _liquidity.nodes[depth];
+    function redeem(Liquidity storage liquidity, uint128 depth, uint128 shares) external returns (uint128, uint128) {
+        LiquidityNode storage node = liquidity.nodes[depth];
 
         /* Redemption from inactive or insolvent liquidity node is allowed to
          * facilitate garbage collection of the node */
@@ -367,62 +486,13 @@ contract LiquidityManager is ILiquidityManager {
     }
 
     /**
-     * @notice Use liquidity
-     * @param depth Depth
-     * @param amount Amount
-     * @param pending Pending Amount
-     */
-    function _liquidityUse(uint128 depth, uint128 amount, uint128 pending) internal {
-        LiquidityNode storage node = _liquidity.nodes[depth];
-        if (node.available < amount) revert InsufficientLiquidity();
-
-        node.available -= amount;
-        node.pending += pending;
-
-        _liquidity.used += amount;
-    }
-
-    /**
-     * @notice Restore liquidity and process pending redemptions
-     * @param depth Depth
-     * @param used Used amount
-     * @param pending Pending amount
-     * @param restored Restored amount
-     */
-    function _liquidityRestore(uint128 depth, uint128 used, uint128 pending, uint128 restored) internal {
-        LiquidityNode storage node = _liquidity.nodes[depth];
-
-        int256 delta = int256(uint256(restored)) - int256(uint256(used));
-
-        node.value = (delta > 0) ? node.value + uint128(uint256(delta)) : node.value - uint128(uint256(-delta));
-        node.available += restored;
-        node.pending -= pending;
-
-        _liquidity.value = (delta > 0)
-            ? _liquidity.value + uint128(uint256(delta))
-            : _liquidity.value - uint128(uint256(-delta));
-        _liquidity.used -= used;
-
-        /* If node became insolvent */
-        if (!_isSolvent(node)) {
-            /* Make node inactive by unlinking it */
-            _liquidity.nodes[node.prev].next = node.next;
-            _liquidity.nodes[node.next].prev = node.prev;
-            node.next = 0;
-            node.prev = 0;
-            _liquidity.numNodes--;
-        }
-
-        _liquidityProcessRedemptions(depth);
-    }
-
-    /**
      * @notice Process redemptions from available liquidity
+     * @param liquidity Liquidity state
      * @param depth Depth
      * @return Shares redeemed, amount redeemed
      */
-    function _liquidityProcessRedemptions(uint128 depth) internal returns (uint128, uint128) {
-        LiquidityNode storage node = _liquidity.nodes[depth];
+    function processRedemptions(Liquidity storage liquidity, uint128 depth) public returns (uint128, uint128) {
+        LiquidityNode storage node = liquidity.nodes[depth];
 
         /* If there's no pending shares to redeem */
         if (node.redemptions.pending == 0) return (0, 0);
@@ -464,52 +534,9 @@ contract LiquidityManager is ILiquidityManager {
             node.redemptions.pending -= shares;
             node.redemptions.index += 1;
 
-            _liquidity.value -= amount;
+            liquidity.value -= amount;
 
             return (shares, amount);
         }
-    }
-
-    /**
-     * @notice Get redemption available amount
-     * @param depth Depth
-     * @param index Redemption index
-     * @param target Redemption target
-     * @param pending Redemption pending
-     * @return Redeemed shares, redeemed amount
-     */
-    function _liquidityRedemptionAvailable(
-        uint128 depth,
-        uint128 pending,
-        uint128 index,
-        uint128 target
-    ) internal view returns (uint128, uint128) {
-        LiquidityNode storage node = _liquidity.nodes[depth];
-
-        uint128 processedShares = 0;
-        uint128 totalRedeemedShares = 0;
-        uint128 totalRedeemedAmount = 0;
-
-        for (; processedShares < target + pending; index++) {
-            FulfilledRedemption storage redemption = node.redemptions.fulfilled[index];
-            if (redemption.shares == type(uint128).max) {
-                /* Reached pending unfulfilled redemption  */
-                break;
-            }
-
-            processedShares += redemption.shares;
-            if (processedShares < target) {
-                continue;
-            } else {
-                uint128 shares = (processedShares > target + pending ? pending : processedShares - target) -
-                    totalRedeemedShares;
-                uint256 price = Math.mulDiv(redemption.amount, FIXED_POINT_SCALE, node.shares);
-
-                totalRedeemedShares += shares;
-                totalRedeemedAmount += uint128(Math.mulDiv(shares, price, FIXED_POINT_SCALE));
-            }
-        }
-
-        return (totalRedeemedShares, totalRedeemedAmount);
     }
 }

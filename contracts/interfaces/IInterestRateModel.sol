@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./ILiquidityManager.sol";
+import "./ILiquidity.sol";
 
 /**
  * @title Interface to an Interest Rate Model
@@ -26,7 +26,7 @@ interface IInterestRateModel {
      * @param interest Interest to distribute
      * @param trail Liquidity trail
      */
-    function distributeInterest(uint128 interest, ILiquidityManager.LiquiditySource[] memory trail) external view;
+    function distributeInterest(uint128 interest, ILiquidity.LiquiditySource[] memory trail) external view;
 
     /**
      * Utilization updated handler

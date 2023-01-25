@@ -12,6 +12,7 @@ import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import "./interfaces/IPool.sol";
+import "./interfaces/ILiquidity.sol";
 import "./LoanReceipt.sol";
 import "./LiquidityManager.sol";
 
@@ -19,10 +20,11 @@ import "./LiquidityManager.sol";
  * @title Pool
  * @author MetaStreet Labs
  */
-contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable, IPool {
+contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, IPool, ILiquidity {
     using SafeERC20 for IERC20;
     using EnumerableMap for EnumerableMap.AddressToUintMap;
     using LoanReceipt for LoanReceipt.LoanReceiptV1;
+    using LiquidityManager for LiquidityManager.Liquidity;
 
     /**************************************************************************/
     /* Access Control Roles */
@@ -149,6 +151,11 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
      * @notice Maximum loan duration in seconds
      */
     uint64 internal _maxLoanDuration;
+
+    /**
+     * @notice Liquidity
+     */
+    LiquidityManager.Liquidity internal _liquidity;
 
     /**
      * @notice Mapping of account to loan limit depth to deposit
@@ -285,6 +292,52 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
     }
 
     /**************************************************************************/
+    /* ILiquidity Getters */
+    /**************************************************************************/
+
+    /**
+     * @inheritdoc ILiquidity
+     */
+    function utilization() public view returns (uint256) {
+        return Math.mulDiv(_liquidity.used, LiquidityManager.FIXED_POINT_SCALE, _liquidity.value);
+    }
+
+    /**
+     * @inheritdoc ILiquidity
+     */
+    function liquidityTotals() external view returns (uint256, uint256) {
+        return (_liquidity.value, _liquidity.used);
+    }
+
+    /**
+     * @inheritdoc ILiquidity
+     */
+    function liquidityAvailable(uint256 maxDepth) external view returns (uint256) {
+        return _liquidity.liquidityAvailable(maxDepth);
+    }
+
+    /**
+     * @inheritdoc ILiquidity
+     */
+    function liquidityNodes(uint256 startDepth, uint256 endDepth) external view returns (LiquidityNodeInfo[] memory) {
+        return _liquidity.liquidityNodes(startDepth, endDepth);
+    }
+
+    /**
+     * @inheritdoc ILiquidity
+     */
+    function liquidityNodeIsSolvent(uint256 depth) external view returns (bool) {
+        return _liquidity.liquidityNodeIsSolvent(depth);
+    }
+
+    /**
+     * @inheritdoc ILiquidity
+     */
+    function liquidityNodeIsActive(uint256 depth) external view returns (bool) {
+        return _liquidity.liquidityNodeIsActive(depth);
+    }
+
+    /**************************************************************************/
     /* Helper Functions */
     /**************************************************************************/
 
@@ -330,7 +383,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
         uint64 maturity,
         ILoanAdapter.AssetInfo[] memory assets,
         bytes[] calldata collateralTokenIdSpec
-    ) internal view returns (uint256, ILiquidityManager.LiquiditySource[] memory) {
+    ) internal view returns (uint256, ILiquidity.LiquiditySource[] memory) {
         /* FIXME implement bundle support */
         require(assets.length == 1, "Bundles not yet supported");
 
@@ -339,7 +392,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
             revert UnsupportedCollateral(0);
 
         /* Calculate number of ticks needed for repayment */
-        (uint16 nodesUsed, uint16 nodesTotal) = _liquidityForecast(0, uint128(repayment));
+        (uint16 nodesUsed, uint16 nodesTotal) = _liquidity.forecast(0, uint128(repayment));
 
         /* FIXME verify num nodes to ensure sufficient tranching */
         /* if (nodesUsed < MIN_NUM_NODES) revert InsufficientTranching(); */
@@ -350,12 +403,12 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
         /* Calculate purchase price from repayment, rate, and remaining duration */
         uint256 purchasePrice = Math.mulDiv(
             repayment,
-            FIXED_POINT_SCALE,
-            Math.mulDiv(rate, maturity - uint64(block.timestamp), FIXED_POINT_SCALE)
+            LiquidityManager.FIXED_POINT_SCALE,
+            Math.mulDiv(rate, maturity - uint64(block.timestamp), LiquidityManager.FIXED_POINT_SCALE)
         );
 
         /* Source liquidity */
-        LiquiditySource[] memory trail = _liquiditySource(0, uint128(purchasePrice));
+        LiquiditySource[] memory trail = _liquidity.source(0, uint128(purchasePrice));
 
         /* Distribute interest */
         _interestRateModel.distributeInterest(uint128(repayment - purchasePrice), trail);
@@ -430,7 +483,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
 
         /* Use nodes in liquidity trail */
         for (uint256 i; trail[i].depth != 0; i++) {
-            _liquidityUse(trail[i].depth, trail[i].used, trail[i].pending);
+            _liquidity.use(trail[i].depth, trail[i].used, trail[i].pending);
         }
 
         /* Update utilization tracking */
@@ -465,7 +518,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
         uint64 duration,
         ILoanAdapter.AssetInfo[] memory assets,
         bytes[] calldata collateralTokenIdSpec
-    ) internal view returns (uint256, ILiquidityManager.LiquiditySource[] memory) {
+    ) internal view returns (uint256, ILiquidity.LiquiditySource[] memory) {
         principal;
         duration;
         assets;
@@ -542,7 +595,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
 
         /* Restore nodes in liquidity trail */
         for (uint256 i; i < loanReceipt.liquidityTrail.length; i++) {
-            _liquidityRestore(
+            _liquidity.restore(
                 loanReceipt.liquidityTrail[i].depth,
                 loanReceipt.liquidityTrail[i].used,
                 loanReceipt.liquidityTrail[i].pending,
@@ -621,7 +674,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
         uint256 proceedsRemaining = proceeds;
         for (uint256 i; i < loanReceipt.liquidityTrail.length; i++) {
             uint128 restored = uint128(Math.min(loanReceipt.liquidityTrail[i].pending, proceedsRemaining));
-            _liquidityRestore(
+            _liquidity.restore(
                 loanReceipt.liquidityTrail[i].depth,
                 loanReceipt.liquidityTrail[i].used,
                 loanReceipt.liquidityTrail[i].pending,
@@ -649,10 +702,10 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
      */
     function deposit(uint256 depth, uint256 amount) external {
         /* Instantiate liquidity node */
-        _liquidityInstantiate(uint128(depth));
+        _liquidity.instantiate(uint128(depth));
 
         /* Deposit into liquidity node */
-        uint128 shares = _liquidityDeposit(uint128(depth), uint128(amount));
+        uint128 shares = _liquidity.deposit(uint128(depth), uint128(amount));
 
         /* Add to deposit */
         _deposits[msg.sender][uint128(depth)].shares += shares;
@@ -680,7 +733,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
         if (dep.redemptionPending != 0) revert RedemptionInProgress();
 
         /* Redeem shares in tick with liquidity manager */
-        (uint128 redemptionIndex, uint128 redemptionTarget) = _liquidityRedeem(uint128(depth), uint128(shares));
+        (uint128 redemptionIndex, uint128 redemptionTarget) = _liquidity.redeem(uint128(depth), uint128(shares));
 
         /* Update deposit state */
         dep.redemptionPending = uint128(shares);
@@ -688,7 +741,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
         dep.redemptionTarget = redemptionTarget;
 
         /* Process redemptions from available cash */
-        _liquidityProcessRedemptions(uint128(depth));
+        _liquidity.processRedemptions(uint128(depth));
 
         /* Update utilization tracking */
         _interestRateModel.onUtilizationUpdated(utilization());
@@ -711,7 +764,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
         if (dep.redemptionPending == 0) return (0, 0);
 
         return
-            _liquidityRedemptionAvailable(
+            _liquidity.redemptionAvailable(
                 uint128(depth),
                 dep.redemptionPending,
                 dep.redemptionIndex,
@@ -730,7 +783,7 @@ contract Pool is LiquidityManager, ERC165, ERC721Holder, AccessControl, Pausable
         if (dep.redemptionPending == 0) return 0;
 
         /* Look up redemption available */
-        (uint128 shares, uint128 amount) = _liquidityRedemptionAvailable(
+        (uint128 shares, uint128 amount) = _liquidity.redemptionAvailable(
             uint128(depth),
             dep.redemptionPending,
             dep.redemptionIndex,
