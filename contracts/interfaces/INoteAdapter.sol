@@ -8,12 +8,6 @@ import "./ILoanAdapter.sol";
  */
 interface INoteAdapter is ILoanAdapter {
     /**
-     * Get note adapter name
-     * @return Note adapter name
-     */
-    function name() external view returns (string memory);
-
-    /**
      * Get loan ID from note token ID
      * @param noteTokenId Note token ID
      * @return Loan ID

@@ -82,6 +82,12 @@ interface ILoanAdapter {
     /**************************************************************************/
 
     /**
+     * Get note adapter name
+     * @return Note adapter name
+     */
+    function name() external view returns (string memory);
+
+    /**
      * Get adapter type
      * @return Adapter type
      */

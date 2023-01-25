@@ -8,12 +8,6 @@ import "./ILoanAdapter.sol";
  */
 interface ILendAdapter is ILoanAdapter {
     /**
-     * Get lend adapter name
-     * @return Lend adapter name
-     */
-    function name() external view returns (string memory);
-
-    /**
      * Originate a loan
      * @param borrower Borrower
      * @param principal Principal amount
