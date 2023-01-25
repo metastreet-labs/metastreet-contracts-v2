@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
+import "@openzeppelin/contracts/utils/Multicall.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -20,7 +21,7 @@ import "./LiquidityManager.sol";
  * @title Pool
  * @author MetaStreet Labs
  */
-contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, IPool, ILiquidity {
+contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool, ILiquidity {
     using SafeERC20 for IERC20;
     using EnumerableMap for EnumerableMap.AddressToUintMap;
     using LoanReceipt for LoanReceipt.LoanReceiptV1;
