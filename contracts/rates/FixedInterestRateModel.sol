@@ -6,10 +6,11 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../interfaces/IInterestRateModel.sol";
 
 /**
- * @title Test Interest Rate Model with constant, fixed rate
+ * @title Fixed Interest Rate Model with a constant, fixed rate used for
+ * testing.
  * @author MetaStreet Labs
  */
-contract TestInterestRateModel is IInterestRateModel {
+contract FixedInterestRateModel is IInterestRateModel {
     /**************************************************************************/
     /* Constants */
     /**************************************************************************/
@@ -39,7 +40,7 @@ contract TestInterestRateModel is IInterestRateModel {
     /**************************************************************************/
 
     /**
-     * @notice TestInterestRateModel constructor
+     * @notice FixedInterestRateModel constructor
      * @param fixedInterestRate_ Fixed interest rate
      */
     constructor(uint256 fixedInterestRate_) {
@@ -54,7 +55,7 @@ contract TestInterestRateModel is IInterestRateModel {
      * @inheritdoc IInterestRateModel
      */
     function name() external pure returns (string memory) {
-        return "TestInterestRateModel";
+        return "FixedInterestRateModel";
     }
 
     /**

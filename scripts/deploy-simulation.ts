@@ -6,7 +6,7 @@ async function main() {
 
   const TestERC20 = await ethers.getContractFactory("TestERC20", accounts[9]);
   const TestERC721 = await ethers.getContractFactory("TestERC721", accounts[9]);
-  const TestInterestRateModel = await ethers.getContractFactory("TestInterestRateModel", accounts[9]);
+  const FixedInterestRateModel = await ethers.getContractFactory("FixedInterestRateModel", accounts[9]);
   const Pool = await ethers.getContractFactory("Pool", accounts[9]);
 
   /* Deploy WETH */
@@ -25,16 +25,16 @@ async function main() {
 
   console.log("");
 
-  /* Deploy Test Interest Rate Model */
-  const testInterestRateModel = await TestInterestRateModel.deploy(ethers.utils.parseEther("0.02"));
-  console.log("Test Interest Rate Model:   ", testInterestRateModel.address);
+  /* Deploy Fixed Interest Rate Model */
+  const fixedInterestRateModel = await FixedInterestRateModel.deploy(ethers.utils.parseEther("0.02"));
+  console.log("Fixed Interest Rate Model:  ", fixedInterestRateModel.address);
 
   /* Deploy WETH Pool */
   const wethTestPool = await Pool.deploy(
     wethTokenContract.address,
     30 * 86400,
     ethers.constants.AddressZero,
-    testInterestRateModel.address,
+    fixedInterestRateModel.address,
     ethers.constants.AddressZero
   );
   console.log("WETH Test Pool:             ", wethTestPool.address);

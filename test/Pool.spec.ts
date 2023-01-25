@@ -3,7 +3,7 @@ import { ethers, network } from "hardhat";
 
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
-import { TestERC20, TestERC721, TestInterestRateModel, Pool } from "../typechain";
+import { TestERC20, TestERC721, FixedInterestRateModel, Pool } from "../typechain";
 
 import { extractEvent, expectEvent } from "./helpers/EventUtilities";
 
@@ -11,7 +11,7 @@ describe("Pool", function () {
   let accounts: SignerWithAddress[];
   let tok1: TestERC20;
   let nft1: TestERC721;
-  let testInterestRateModel: TestInterestRateModel;
+  let interestRateModel: FixedInterestRateModel;
   let pool: Pool;
   let snapshotId: string;
   let accountDepositors: SignerWithAddress[3];
@@ -22,7 +22,7 @@ describe("Pool", function () {
 
     const testERC20Factory = await ethers.getContractFactory("TestERC20");
     const testERC721Factory = await ethers.getContractFactory("TestERC721");
-    const testInterestRateModelFactory = await ethers.getContractFactory("TestInterestRateModel");
+    const fixedInterestRateModelFactory = await ethers.getContractFactory("FixedInterestRateModel");
     const poolFactory = await ethers.getContractFactory("Pool");
 
     /* Deploy test currency token */
@@ -34,14 +34,14 @@ describe("Pool", function () {
     await nft1.deployed();
 
     /* Deploy test interest rate model */
-    testInterestRateModel = await testInterestRateModelFactory.deploy(ethers.utils.parseEther("0.02"));
+    interestRateModel = await fixedInterestRateModelFactory.deploy(ethers.utils.parseEther("0.02"));
 
     /* Deploy pool */
     pool = await poolFactory.deploy(
       tok1.address,
       30 * 86400,
       ethers.constants.AddressZero,
-      testInterestRateModel.address,
+      interestRateModel.address,
       ethers.constants.AddressZero
     );
 
