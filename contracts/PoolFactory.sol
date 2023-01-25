@@ -11,20 +11,29 @@ import "./Pool.sol";
 
 /*
  * @title PoolFactory
- * @author MetaStreet
+ * @author MetaStreet Labs
  */
 contract PoolFactory is IPoolFactory {
     using EnumerableSet for EnumerableSet.AddressSet;
 
+    /**************************************************************************/
+    /* State */
+    /**************************************************************************/
+
     /**
-     * @notice set of all deployed pools
+     * @notice Set of deployed pools
      */
     EnumerableSet.AddressSet private _pools;
+
+    /**************************************************************************/
+    /* Primary API */
+    /**************************************************************************/
 
     /*
      * @inheritdoc IPoolFactory
      */
     function createPool(bytes calldata params) external returns (address) {
+        /* Decode pool constructor arguments */
         (
             IERC20 currencyToken,
             uint64 maxLoanDuration,
@@ -32,10 +41,16 @@ contract PoolFactory is IPoolFactory {
             IInterestRateModel interestRateModel,
             ICollateralLiquidator collateralLiquidator
         ) = abi.decode(params, (IERC20, uint64, ICollateralFilter, IInterestRateModel, ICollateralLiquidator));
+
+        /* Create pool */
         Pool pool = new Pool(currencyToken, maxLoanDuration, collateralFilter, interestRateModel, collateralLiquidator);
         address poolAddress = address(pool);
+
+        /* Add pool to registry */
         _pools.add(poolAddress);
+
         emit PoolCreated(poolAddress);
+
         return poolAddress;
     }
 
