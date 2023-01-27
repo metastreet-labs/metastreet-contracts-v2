@@ -1,5 +1,7 @@
 import { ethers } from "hardhat";
 
+import { extractEvent } from "../test/helpers/EventUtilities";
+
 async function main() {
   const accounts = await ethers.getSigners();
   console.log("Deploying from account #9 (%s)\n", accounts[9].address);
@@ -62,8 +64,7 @@ async function main() {
     ]
   );
   const wethTestPoolCreationTx = await poolFactory.createPool(calldata);
-  const wethTestPoolCreationReceipt = await wethTestPoolCreationTx.wait();
-  const wethTestPoolAddress = wethTestPoolCreationReceipt.events?.[0].args?.[0] as string;
+  const wethTestPoolAddress = (await extractEvent(wethTestPoolCreationTx, poolFactory, "PoolCreated")).args.pool;
   console.log("WETH Test Pool:             ", wethTestPoolAddress);
 
   console.log("");
