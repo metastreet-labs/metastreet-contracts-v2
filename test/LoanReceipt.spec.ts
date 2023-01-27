@@ -32,7 +32,7 @@ describe("LoanReceipt", function () {
     duration: 2592000,
     collateralToken: "0x7616dF65742332F688e0E0b1D293a3162f0904EA",
     collateralTokenId: 456,
-    liquidityTrail: [
+    nodeReceipts: [
       {
         depth: ethers.BigNumber.from("1000000000000000000"),
         used: ethers.BigNumber.from("1000000000000000000"),
@@ -82,11 +82,11 @@ describe("LoanReceipt", function () {
       expect(decodedLoanReceipt.duration).to.equal(loanReceipt.duration);
       expect(decodedLoanReceipt.collateralToken).to.equal(loanReceipt.collateralToken);
       expect(decodedLoanReceipt.collateralTokenId).to.equal(loanReceipt.collateralTokenId);
-      expect(decodedLoanReceipt.liquidityTrail.length).to.equal(3);
-      for (let i = 0; i < loanReceipt.liquidityTrail.length; i++) {
-        expect(decodedLoanReceipt.liquidityTrail[i].depth).to.equal(loanReceipt.liquidityTrail[i].depth);
-        expect(decodedLoanReceipt.liquidityTrail[i].used).to.equal(loanReceipt.liquidityTrail[i].used);
-        expect(decodedLoanReceipt.liquidityTrail[i].pending).to.equal(loanReceipt.liquidityTrail[i].pending);
+      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(3);
+      for (let i = 0; i < loanReceipt.nodeReceipts.length; i++) {
+        expect(decodedLoanReceipt.nodeReceipts[i].depth).to.equal(loanReceipt.nodeReceipts[i].depth);
+        expect(decodedLoanReceipt.nodeReceipts[i].used).to.equal(loanReceipt.nodeReceipts[i].used);
+        expect(decodedLoanReceipt.nodeReceipts[i].pending).to.equal(loanReceipt.nodeReceipts[i].pending);
       }
       expect(await loanReceiptLibrary.hash(await loanReceiptLibrary.encode(decodedLoanReceipt))).to.equal(
         await loanReceiptLibrary.hash(encodedLoanReceipt)
@@ -99,7 +99,7 @@ describe("LoanReceipt", function () {
         "InvalidReceiptEncoding"
       );
     });
-    it("fails on invalid liquidity trail", async function () {
+    it("fails on invalid node receipts", async function () {
       const encodedLoanReceipt = ethers.utils.arrayify(await loanReceiptLibrary.encode(loanReceipt));
       await expect(loanReceiptLibrary.decode(encodedLoanReceipt.slice(0, 141 + 24))).to.be.revertedWithCustomError(
         loanReceiptLibrary,
@@ -133,7 +133,7 @@ describe("LoanReceipt", function () {
       const builtLoanReceipt = await loanReceiptLibrary.fromLoanInfo(
         loanReceipt.platform,
         loanInfo,
-        loanReceipt.liquidityTrail
+        loanReceipt.nodeReceipts
       );
 
       expect(builtLoanReceipt.version).to.equal(loanReceipt.version);
@@ -144,11 +144,11 @@ describe("LoanReceipt", function () {
       expect(builtLoanReceipt.duration).to.equal(loanReceipt.duration);
       expect(builtLoanReceipt.collateralToken).to.equal(loanReceipt.collateralToken);
       expect(builtLoanReceipt.collateralTokenId).to.equal(loanReceipt.collateralTokenId);
-      expect(builtLoanReceipt.liquidityTrail.length).to.equal(3);
-      for (let i = 0; i < loanReceipt.liquidityTrail.length; i++) {
-        expect(builtLoanReceipt.liquidityTrail[i].depth).to.equal(loanReceipt.liquidityTrail[i].depth);
-        expect(builtLoanReceipt.liquidityTrail[i].used).to.equal(loanReceipt.liquidityTrail[i].used);
-        expect(builtLoanReceipt.liquidityTrail[i].pending).to.equal(loanReceipt.liquidityTrail[i].pending);
+      expect(builtLoanReceipt.nodeReceipts.length).to.equal(3);
+      for (let i = 0; i < loanReceipt.nodeReceipts.length; i++) {
+        expect(builtLoanReceipt.nodeReceipts[i].depth).to.equal(loanReceipt.nodeReceipts[i].depth);
+        expect(builtLoanReceipt.nodeReceipts[i].used).to.equal(loanReceipt.nodeReceipts[i].used);
+        expect(builtLoanReceipt.nodeReceipts[i].pending).to.equal(loanReceipt.nodeReceipts[i].pending);
       }
     });
   });

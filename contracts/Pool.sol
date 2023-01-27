@@ -215,6 +215,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         _collateralLiquidator = collateralLiquidator_;
 
         _liquidity.initialize();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     /**************************************************************************/
@@ -371,7 +373,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
      * @param assets Collateral assets
      * @param collateralTokenIdSpec Collateral token ID specification
      * @return purchasePrice Purchase price
-     * @return trail Liquidity trail
+     * @return nodes Liquidity nodes
+     * @return count Liquidity nodes count
      */
     function _priceNote(
         uint256 principal,
@@ -379,37 +382,31 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         uint64 maturity,
         ILoanAdapter.AssetInfo[] memory assets,
         bytes[] calldata collateralTokenIdSpec
-    ) internal view returns (uint256, ILiquidity.LiquiditySource[] memory) {
+    ) internal view returns (uint256, ILiquidity.NodeSource[] memory, uint16) {
         /* FIXME implement bundle support */
         require(assets.length == 1, "Bundles not yet supported");
 
         /* Verify collateral is supported */
-        if (!_collateralFilter.supported(assets[0].token, assets[0].tokenId, collateralTokenIdSpec[0]))
-            revert UnsupportedCollateral(0);
+        if (!_collateralFilter.supported(assets[0].token, assets[0].tokenId, "")) revert UnsupportedCollateral(0);
 
-        /* Calculate number of ticks needed for repayment */
-        (uint16 nodesUsed, uint16 nodesTotal) = _liquidity.forecast(0, uint128(repayment));
+        /* Source nodes needed */
+        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(0, uint128(repayment));
 
-        /* FIXME verify num nodes to ensure sufficient tranching */
-        /* if (nodesUsed < MIN_NUM_NODES) revert InsufficientTranching(); */
-
-        /* Calculate overall interest rate */
-        uint256 rate = _interestRateModel.calculateRate(nodesUsed, nodesTotal);
+        /* Price overall interest rate */
+        uint256 rate = _interestRateModel.price(count, _liquidity.numNodes);
 
         /* Calculate purchase price from repayment, rate, and remaining duration */
         uint256 purchasePrice = Math.mulDiv(
             repayment,
             LiquidityManager.FIXED_POINT_SCALE,
-            Math.mulDiv(rate, maturity - uint64(block.timestamp), LiquidityManager.FIXED_POINT_SCALE)
+            LiquidityManager.FIXED_POINT_SCALE +
+                Math.mulDiv(rate, maturity - uint64(block.timestamp), LiquidityManager.FIXED_POINT_SCALE)
         );
 
-        /* Source liquidity */
-        LiquiditySource[] memory trail = _liquidity.source(0, uint128(purchasePrice));
+        /* Distribute liquidity */
+        (nodes, count) = _interestRateModel.distribute(purchasePrice, repayment - purchasePrice, nodes, count);
 
-        /* Distribute interest */
-        _interestRateModel.distributeInterest(uint128(repayment - purchasePrice), trail);
-
-        return (purchasePrice, trail);
+        return (purchasePrice, nodes, count);
     }
 
     /**
@@ -423,8 +420,14 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         /* Get note adapter */
         INoteAdapter noteAdapter = _getNoteAdapter(noteToken);
 
+        /* Get loan ID */
+        uint256 loanId = noteAdapter.getLoanId(noteTokenId);
+
         /* Get loan info */
-        ILoanAdapter.LoanInfo memory loanInfo = noteAdapter.getLoanInfo(noteAdapter.getLoanId(noteTokenId), "");
+        ILoanAdapter.LoanInfo memory loanInfo = noteAdapter.getLoanInfo(loanId, "");
+
+        /* Validate loan status */
+        if (noteAdapter.getLoanStatus(loanId, "") != ILoanAdapter.LoanStatus.Active) revert InvalidLoanStatus();
 
         /* Validate currency token */
         if (loanInfo.currencyToken != address(_currencyToken)) revert UnsupportedCurrencyToken();
@@ -433,7 +436,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         if (loanInfo.duration > _maxLoanDuration) revert UnsupportedLoanDuration();
 
         /* Price the note */
-        (uint256 purchasePrice, ) = _priceNote(
+        (uint256 purchasePrice, , ) = _priceNote(
             loanInfo.principal,
             loanInfo.repayment,
             loanInfo.maturity,
@@ -456,8 +459,14 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         /* Get note adapter */
         INoteAdapter noteAdapter = _getNoteAdapter(noteToken);
 
+        /* Get loan ID */
+        uint256 loanId = noteAdapter.getLoanId(noteTokenId);
+
         /* Get loan info */
-        ILoanAdapter.LoanInfo memory loanInfo = noteAdapter.getLoanInfo(noteAdapter.getLoanId(noteTokenId), "");
+        ILoanAdapter.LoanInfo memory loanInfo = noteAdapter.getLoanInfo(loanId, "");
+
+        /* Validate loan status */
+        if (noteAdapter.getLoanStatus(loanId, "") != ILoanAdapter.LoanStatus.Active) revert InvalidLoanStatus();
 
         /* Validate currency token */
         if (loanInfo.currencyToken != address(_currencyToken)) revert UnsupportedCurrencyToken();
@@ -466,7 +475,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         if (loanInfo.duration > _maxLoanDuration) revert UnsupportedLoanDuration();
 
         /* Price the note */
-        (uint256 purchasePrice, LiquiditySource[] memory trail) = _priceNote(
+        (uint256 purchasePrice, NodeSource[] memory nodes, uint16 count) = _priceNote(
             loanInfo.principal,
             loanInfo.repayment,
             loanInfo.maturity,
@@ -477,27 +486,25 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         /* Validate purchase price */
         if (purchasePrice < minPurchasePrice) revert PurchasePriceTooLow();
 
-        /* Use nodes in liquidity trail */
-        for (uint256 i; trail[i].depth != 0; i++) {
-            _liquidity.use(trail[i].depth, trail[i].used, trail[i].pending);
-        }
+        /* Update liquidity nodes */
+        NodeReceipt[] memory nodeReceipts = _liquidity.update(nodes, count);
 
         /* Update utilization tracking */
         _interestRateModel.onUtilizationUpdated(utilization());
 
         /* Build loan receipt */
-        LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.fromLoanInfo(noteToken, loanInfo, trail);
+        LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.fromLoanInfo(noteToken, loanInfo, nodeReceipts);
         bytes memory encodedLoanReceipt = loanReceipt.encode();
         bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
 
         /* Store loan status */
         _loans[loanReceiptHash] = LoanStatus.Active;
 
-        /* Transfer collateral */
-        IERC721(loanInfo.collateralToken).safeTransferFrom(msg.sender, address(this), loanInfo.collateralTokenId);
+        /* Transfer note token */
+        IERC721(noteToken).safeTransferFrom(msg.sender, address(this), noteTokenId);
 
         /* Transafer cash */
-        _currencyToken.safeTransferFrom(address(this), msg.sender, purchasePrice);
+        _currencyToken.safeTransfer(msg.sender, purchasePrice);
 
         /* Emit Loan Receipt */
         emit LoanPurchased(loanReceiptHash, encodedLoanReceipt);
@@ -514,7 +521,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         uint64 duration,
         ILoanAdapter.AssetInfo[] memory assets,
         bytes[] calldata collateralTokenIdSpec
-    ) internal view returns (uint256, ILiquidity.LiquiditySource[] memory) {
+    ) internal view returns (uint256, ILiquidity.NodeSource[] memory) {
         principal;
         duration;
         assets;
@@ -590,12 +597,12 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
             revert InvalidLoanStatus();
 
         /* Restore nodes in liquidity trail */
-        for (uint256 i; i < loanReceipt.liquidityTrail.length; i++) {
+        for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
             _liquidity.restore(
-                loanReceipt.liquidityTrail[i].depth,
-                loanReceipt.liquidityTrail[i].used,
-                loanReceipt.liquidityTrail[i].pending,
-                loanReceipt.liquidityTrail[i].pending
+                loanReceipt.nodeReceipts[i].depth,
+                loanReceipt.nodeReceipts[i].used,
+                loanReceipt.nodeReceipts[i].pending,
+                loanReceipt.nodeReceipts[i].pending
             );
         }
 
@@ -668,12 +675,12 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
 
         /* Restore nodes in liquidity trail */
         uint256 proceedsRemaining = proceeds;
-        for (uint256 i; i < loanReceipt.liquidityTrail.length; i++) {
-            uint128 restored = uint128(Math.min(loanReceipt.liquidityTrail[i].pending, proceedsRemaining));
+        for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
+            uint128 restored = uint128(Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining));
             _liquidity.restore(
-                loanReceipt.liquidityTrail[i].depth,
-                loanReceipt.liquidityTrail[i].used,
-                loanReceipt.liquidityTrail[i].pending,
+                loanReceipt.nodeReceipts[i].depth,
+                loanReceipt.nodeReceipts[i].used,
+                loanReceipt.nodeReceipts[i].pending,
                 restored
             );
             proceedsRemaining -= restored;

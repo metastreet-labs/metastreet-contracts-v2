@@ -95,7 +95,7 @@ describe("ExternalCollateralLiquidator", function () {
     duration: 2592000,
     collateralToken: ethers.constants.AddressZero /* To be populated */,
     collateralTokenId: 0 /* To be populated */,
-    liquidityTrail: [
+    nodeReceipts: [
       {
         depth: ethers.BigNumber.from("1000000000000000000"),
         used: ethers.BigNumber.from("1000000000000000000"),
@@ -122,7 +122,7 @@ describe("ExternalCollateralLiquidator", function () {
     it("succeeds from approved pool", async function () {
       /* Construct loan reciept */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 123));
-      const loanReceiptHash = await loanReceiptLibrary["hash(bytes)"](loanReceipt);
+      const loanReceiptHash = await loanReceiptLibrary.hash(loanReceipt);
 
       /* Transfer collateral to collateral liquidator */
       const transferTx = await testCollateralLiquidatorJig.transferCollateral(
@@ -173,7 +173,7 @@ describe("ExternalCollateralLiquidator", function () {
     beforeEach("transfer collateral", async function () {
       /* Construct loan reciept */
       loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 123));
-      loanReceiptHash = await loanReceiptLibrary["hash(bytes)"](loanReceipt);
+      loanReceiptHash = await loanReceiptLibrary.hash(loanReceipt);
 
       /* Transfer collateral to collateral liquidator */
       await testCollateralLiquidatorJig.transferCollateral(
@@ -236,7 +236,7 @@ describe("ExternalCollateralLiquidator", function () {
     beforeEach("transfer collateral", async function () {
       /* Construct loan reciept */
       loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 123));
-      loanReceiptHash = await loanReceiptLibrary["hash(bytes)"](loanReceipt);
+      loanReceiptHash = await loanReceiptLibrary.hash(loanReceipt);
 
       /* Transfer collateral to collateral liquidator */
       await testCollateralLiquidatorJig.transferCollateral(

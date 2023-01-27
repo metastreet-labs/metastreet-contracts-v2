@@ -56,7 +56,7 @@ library LoanReceipt {
      * @param duration Loan duration
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
-     * @param liquidityTrail Liquidity trail
+     * @param nodeReceipts Node receipts
      */
     struct LoanReceiptV1 {
         uint8 version;
@@ -67,7 +67,7 @@ library LoanReceipt {
         uint64 duration;
         address collateralToken;
         uint256 collateralTokenId;
-        ILiquidity.LiquiditySource[] liquidityTrail;
+        ILiquidity.NodeReceipt[] nodeReceipts;
     }
 
     /**************************************************************************/
@@ -85,10 +85,10 @@ library LoanReceipt {
           20  address collateralToken       89:109
           32  uint256 collateralTokenId     109:141
 
-      Liquidity Trail (48 * N bytes)
-          N   LiquiditySource[] liquidityTrail
+      Node Receipts (48 * N bytes)
+          N   NodeReceipts[] nodeReceipts
               16  uint128 depth
-              16  uint128 amount
+              16  uint128 used
               16  uint128 pending
     */
 
@@ -124,14 +124,14 @@ library LoanReceipt {
             receipt.collateralTokenId
         );
 
-        /* Encode liquidity trail */
-        for (uint256 i; i < receipt.liquidityTrail.length; i++) {
+        /* Encode node receipts */
+        for (uint256 i; i < receipt.nodeReceipts.length; i++) {
             encodedReceipt = bytes.concat(
                 encodedReceipt,
                 abi.encodePacked(
-                    receipt.liquidityTrail[i].depth,
-                    receipt.liquidityTrail[i].used,
-                    receipt.liquidityTrail[i].pending
+                    receipt.nodeReceipts[i].depth,
+                    receipt.nodeReceipts[i].used,
+                    receipt.nodeReceipts[i].pending
                 )
             );
         }
@@ -164,31 +164,31 @@ library LoanReceipt {
         receipt.collateralToken = address(uint160(bytes20(encodedReceipt[89:109])));
         receipt.collateralTokenId = uint256(bytes32(encodedReceipt[109:141]));
 
-        /* Decode liquidity trail */
-        uint256 numLiquiditySources = (encodedReceipt.length - LOAN_RECEIPT_V1_HEADER_SIZE) /
+        /* Decode node receipts */
+        uint256 numNodeReceipts = (encodedReceipt.length - LOAN_RECEIPT_V1_HEADER_SIZE) /
             LOAN_RECEIPT_V1_PAYLOAD_ELEMENT_SIZE;
-        receipt.liquidityTrail = new ILiquidity.LiquiditySource[](numLiquiditySources);
-        for (uint256 i; i < numLiquiditySources; i++) {
+        receipt.nodeReceipts = new ILiquidity.NodeReceipt[](numNodeReceipts);
+        for (uint256 i; i < numNodeReceipts; i++) {
             uint256 offset = LOAN_RECEIPT_V1_HEADER_SIZE + i * LOAN_RECEIPT_V1_PAYLOAD_ELEMENT_SIZE;
-            receipt.liquidityTrail[i].depth = uint128(bytes16(encodedReceipt[offset:offset + 16]));
-            receipt.liquidityTrail[i].used = uint128(bytes16(encodedReceipt[offset + 16:offset + 32]));
-            receipt.liquidityTrail[i].pending = uint128(bytes16(encodedReceipt[offset + 32:offset + 48]));
+            receipt.nodeReceipts[i].depth = uint128(bytes16(encodedReceipt[offset:offset + 16]));
+            receipt.nodeReceipts[i].used = uint128(bytes16(encodedReceipt[offset + 16:offset + 32]));
+            receipt.nodeReceipts[i].pending = uint128(bytes16(encodedReceipt[offset + 32:offset + 48]));
         }
 
         return receipt;
     }
 
     /**
-     * @dev Build a loan receipt from loan info and liquidity trail
+     * @dev Build a loan receipt from loan info and node receipts
      * @param platform Note token or lending platform address
      * @param loanInfo Loan info
-     * @param trail Liquidity trail
+     * @param nodeReceipts Node receipts
      * @return Loan receipt
      */
     function fromLoanInfo(
         address platform,
         ILoanAdapter.LoanInfo memory loanInfo,
-        ILiquidity.LiquiditySource[] memory trail
+        ILiquidity.NodeReceipt[] memory nodeReceipts
     ) internal pure returns (LoanReceiptV1 memory) {
         LoanReceiptV1 memory receipt = LoanReceiptV1({
             version: 1,
@@ -199,13 +199,13 @@ library LoanReceipt {
             duration: loanInfo.duration,
             collateralToken: loanInfo.collateralToken,
             collateralTokenId: loanInfo.collateralTokenId,
-            liquidityTrail: new ILiquidity.LiquiditySource[](trail.length)
+            nodeReceipts: new ILiquidity.NodeReceipt[](nodeReceipts.length)
         });
 
-        for (uint256 i = 0; i < trail.length && trail[i].depth != 0; i++) {
-            receipt.liquidityTrail[i].depth = trail[i].depth;
-            receipt.liquidityTrail[i].used = trail[i].used;
-            receipt.liquidityTrail[i].pending = trail[i].pending;
+        for (uint256 i = 0; i < nodeReceipts.length; i++) {
+            receipt.nodeReceipts[i].depth = nodeReceipts[i].depth;
+            receipt.nodeReceipts[i].used = nodeReceipts[i].used;
+            receipt.nodeReceipts[i].pending = nodeReceipts[i].pending;
         }
 
         return receipt;

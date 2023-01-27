@@ -10,12 +10,26 @@ interface ILiquidity {
     /**************************************************************************/
 
     /**
-     * @notice Liquidity source
-     * @param depth Sourced depth
-     * @param used Sourced amount
+     * @notice Node source
+     * @param depth Depth
+     * @param available Available amount
+     * @param used Used amount
      * @param pending Pending amount
      */
-    struct LiquiditySource {
+    struct NodeSource {
+        uint128 depth;
+        uint128 available;
+        uint128 used;
+        uint128 pending;
+    }
+
+    /**
+     * @notice Node receipt
+     * @param depth Depth
+     * @param used Used amount
+     * @param pending Pending amount
+     */
+    struct NodeReceipt {
         uint128 depth;
         uint128 used;
         uint128 pending;

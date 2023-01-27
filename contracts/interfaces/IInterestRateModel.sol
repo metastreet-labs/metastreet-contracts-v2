@@ -19,14 +19,22 @@ interface IInterestRateModel {
      * @param nodesTotal Number of nodes total
      * @return interestRate Interest per second
      */
-    function calculateRate(uint16 nodesUsed, uint16 nodesTotal) external view returns (uint256 interestRate);
+    function price(uint16 nodesUsed, uint16 nodesTotal) external view returns (uint256 interestRate);
 
     /**
-     * Distribute interest for liquidity
+     * Distribute amount and interest to liquidity
+     * @param amount Amount to distribute
      * @param interest Interest to distribute
-     * @param trail Liquidity trail
+     * @param nodes Liquidity nodes
+     * @param count Liquidity node count
+     * @return Liquidity nodes, Liquidity node count
      */
-    function distributeInterest(uint128 interest, ILiquidity.LiquiditySource[] memory trail) external view;
+    function distribute(
+        uint256 amount,
+        uint256 interest,
+        ILiquidity.NodeSource[] memory nodes,
+        uint16 count
+    ) external view returns (ILiquidity.NodeSource[] memory, uint16);
 
     /**
      * Utilization updated handler

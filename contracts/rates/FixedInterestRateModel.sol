@@ -30,10 +30,16 @@ contract FixedInterestRateModel is IInterestRateModel {
     uint256 public immutable fixedInterestRate;
 
     /**
+     * @notice Reserved
+     * @dev Reserved variable used to intialize the slot for utilization
+     */
+    uint128 private _reserved;
+
+    /**
      * @notice Utilization
      * @dev Currently unused, but updated to simulate storage costs.
      */
-    uint256 private _utilization;
+    uint128 private _utilization;
 
     /**************************************************************************/
     /* Constructor */
@@ -45,6 +51,7 @@ contract FixedInterestRateModel is IInterestRateModel {
      */
     constructor(uint256 fixedInterestRate_) {
         fixedInterestRate = fixedInterestRate_;
+        _reserved = 1;
     }
 
     /**************************************************************************/
@@ -61,32 +68,39 @@ contract FixedInterestRateModel is IInterestRateModel {
     /**
      * @inheritdoc IInterestRateModel
      */
-    function calculateRate(uint16, uint16) external view returns (uint256) {
+    function price(uint16, uint16) external view returns (uint256) {
         return fixedInterestRate;
     }
 
     /**
      * @inheritdoc IInterestRateModel
      */
-    function distributeInterest(uint128 interest, ILiquidity.LiquiditySource[] memory trail) external pure {
-        uint256 numNodes;
-        while (trail[numNodes].depth != 0) {
-            numNodes++;
-        }
+    function distribute(
+        uint256 amount,
+        uint256 interest,
+        ILiquidity.NodeSource[] memory nodes,
+        uint16 count
+    ) external view returns (ILiquidity.NodeSource[] memory, uint16) {
+        uint128 interestPerNode = uint128(Math.mulDiv(interest, FIXED_POINT_SCALE, count * FIXED_POINT_SCALE));
 
-        uint128 interestPerNode = uint128(Math.mulDiv(interest, FIXED_POINT_SCALE, numNodes));
-
-        for (uint256 i; i < numNodes - 1; i++) {
-            trail[i].pending += interestPerNode;
+        uint128 taken;
+        uint16 i;
+        for (; taken < amount; i++) {
+            uint128 take = uint128(Math.min(Math.min(nodes[i].depth - taken, nodes[i].available), amount - taken));
+            nodes[i].available -= take;
+            nodes[i].used = take;
+            nodes[i].pending += take + uint128(Math.min(interestPerNode, interest));
             interest -= interestPerNode;
+            taken += take;
         }
-        trail[numNodes - 1].pending += interest;
+
+        return (nodes, i);
     }
 
     /**
      * @inheritdoc IInterestRateModel
      */
     function onUtilizationUpdated(uint256 utilization) external {
-        _utilization = utilization;
+        _utilization = uint128(utilization);
     }
 }

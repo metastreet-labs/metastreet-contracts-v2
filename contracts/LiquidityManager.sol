@@ -292,15 +292,15 @@ library LiquidityManager {
      * @notice Source liquidity from nodes
      * @param liquidity Liquidity state
      * @param startDepth Start depth
-     * @param amount Total amount
-     * @return Liquidity trail
+     * @param amount Amount
+     * @return Sourced liquidity nodes, count of nodes
      */
     function source(
         Liquidity storage liquidity,
         uint128 startDepth,
         uint128 amount
-    ) external view returns (ILiquidity.LiquiditySource[] memory) {
-        ILiquidity.LiquiditySource[] memory trail = new ILiquidity.LiquiditySource[](MAX_NUM_NODES);
+    ) external view returns (ILiquidity.NodeSource[] memory, uint16) {
+        ILiquidity.NodeSource[] memory sources = new ILiquidity.NodeSource[](MAX_NUM_NODES);
 
         uint128 taken = 0;
         uint16 i = 0;
@@ -309,15 +309,20 @@ library LiquidityManager {
             Node storage node = liquidity.nodes[d];
 
             uint128 take = uint128(Math.min(Math.min(d - taken, node.available), amount - taken));
-            trail[i++] = ILiquidity.LiquiditySource({depth: d, used: take, pending: take});
+            if (take > 0) {
+                sources[i].depth = d;
+                sources[i].available = node.available;
+                sources[i].pending = node.pending;
+                taken += take;
+                i++;
+            }
 
-            taken += take;
             d = node.next;
         }
 
         if (taken < amount) revert InsufficientLiquidity();
 
-        return trail;
+        return (sources, i);
     }
 
     /**
@@ -400,6 +405,42 @@ library LiquidityManager {
         node.pending += pending;
 
         liquidity.used += amount;
+    }
+
+    /**
+     * @notice Update multiple liquidity nodes
+     * @param liquidity Liquidity state
+     * @param sources Liquidity nodes
+     * @param count Liquidity node count
+     */
+    function update(
+        Liquidity storage liquidity,
+        ILiquidity.NodeSource[] memory sources,
+        uint16 count
+    ) external returns (ILiquidity.NodeReceipt[] memory) {
+        ILiquidity.NodeReceipt[] memory nodeReceipts = new ILiquidity.NodeReceipt[](count);
+
+        uint128 totalUsed;
+        for (uint256 i; i < count; i++) {
+            /* Update node */
+            Node storage node = liquidity.nodes[sources[i].depth];
+            node.available = sources[i].available;
+            node.pending = sources[i].pending;
+
+            /* Create node receipt */
+            nodeReceipts[i] = ILiquidity.NodeReceipt({
+                depth: sources[i].depth,
+                used: sources[i].used,
+                pending: sources[i].pending - sources[i].used
+            });
+
+            totalUsed += sources[i].used;
+        }
+
+        /* Update global liquidity statistics */
+        liquidity.used += totalUsed;
+
+        return nodeReceipts;
     }
 
     /**
