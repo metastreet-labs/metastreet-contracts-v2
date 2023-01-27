@@ -213,6 +213,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         _collateralFilter = collateralFilter_;
         _interestRateModel = interestRateModel_;
         _collateralLiquidator = collateralLiquidator_;
+
+        _liquidity.initialize();
     }
 
     /**************************************************************************/
@@ -306,8 +308,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityTotals() external view returns (uint256, uint256) {
-        return (_liquidity.value, _liquidity.used);
+    function liquidityStatistics() external view returns (uint256, uint256, uint16) {
+        return (_liquidity.value, _liquidity.used, _liquidity.numNodes);
     }
 
     /**
@@ -320,22 +322,15 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityNodes(uint256 startDepth, uint256 endDepth) external view returns (LiquidityNodeInfo[] memory) {
+    function liquidityNodes(uint256 startDepth, uint256 endDepth) external view returns (NodeInfo[] memory) {
         return _liquidity.liquidityNodes(startDepth, endDepth);
     }
 
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityNodeIsSolvent(uint256 depth) external view returns (bool) {
-        return _liquidity.liquidityNodeIsSolvent(depth);
-    }
-
-    /**
-     * @inheritdoc ILiquidity
-     */
-    function liquidityNodeIsActive(uint256 depth) external view returns (bool) {
-        return _liquidity.liquidityNodeIsActive(depth);
+    function liquidityNode(uint256 depth) external view returns (NodeInfo memory) {
+        return _liquidity.liquidityNode(depth);
     }
 
     /**************************************************************************/

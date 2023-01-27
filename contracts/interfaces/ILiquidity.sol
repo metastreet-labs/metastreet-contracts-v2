@@ -32,7 +32,7 @@ interface ILiquidity {
      * @param prev Previous liquidity node
      * @param next Next liquidity node
      */
-    struct LiquidityNodeInfo {
+    struct NodeInfo {
         uint128 depth;
         uint128 value;
         uint128 shares;
@@ -48,44 +48,38 @@ interface ILiquidity {
     /**************************************************************************/
 
     /**
-     * Get utilization of liquidity
-     * @return Utilization (fixed-point)
+     * Get liquidity utilization
+     * @return Utilization as 18-decimal fixed-point fraction
      */
     function utilization() external view returns (uint256);
 
     /**
-     * Get total liquidity statistics
+     * Get liquidity statistics
      * @return value Total liquidity value
      * @return used Total liquidity used
+     * @return numNodes Total liquidity nodes
      */
-    function liquidityTotals() external view returns (uint256 value, uint256 used);
+    function liquidityStatistics() external view returns (uint256 value, uint256 used, uint16 numNodes);
 
     /**
-     * Get liquidity available
+     * Get liquidity available up to max depth
      * @param maxDepth Max depth
      * @return Liquidity available
      */
     function liquidityAvailable(uint256 maxDepth) external view returns (uint256);
 
     /**
-     * Get liquidity nodes across [startDepth, endDepth] range
+     * Get liquidity nodes spanning [startDepth, endDepth] range
      * @param startDepth Loan limit start depth
      * @param endDepth Loan limit end depth
      * @return Liquidity nodes
      */
-    function liquidityNodes(uint256 startDepth, uint256 endDepth) external view returns (LiquidityNodeInfo[] memory);
+    function liquidityNodes(uint256 startDepth, uint256 endDepth) external view returns (NodeInfo[] memory);
 
     /**
-     * Get liquidity solvency status at depth
+     * Get liquidity node at depth
      * @param depth Depth
-     * @return True if liquidity is solvent, false otherwise
+     * @return Liquidity node
      */
-    function liquidityNodeIsSolvent(uint256 depth) external view returns (bool);
-
-    /**
-     * Get liquidity active status at depth
-     * @param depth Depth
-     * @return True if liquidity is active, false otherwise
-     */
-    function liquidityNodeIsActive(uint256 depth) external view returns (bool);
+    function liquidityNode(uint256 depth) external view returns (NodeInfo memory);
 }
