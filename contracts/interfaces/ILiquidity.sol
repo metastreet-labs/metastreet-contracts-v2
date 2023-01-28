@@ -38,8 +38,8 @@ interface ILiquidity {
     /**
      * @notice Flattened liquidity node returned by getter
      * @param depth Depth
-     * @param value Total liquidity value
-     * @param shares Total liquidity shares outstanding
+     * @param value Liquidity value
+     * @param shares Liquidity shares outstanding
      * @param available Liquidity available
      * @param pending Liquidity pending (with interest)
      * @param redemptions Total pending redemptions
@@ -69,11 +69,11 @@ interface ILiquidity {
 
     /**
      * Get liquidity statistics
-     * @return value Total liquidity value
+     * @return total Total liquidity value
      * @return used Total liquidity used
      * @return numNodes Total liquidity nodes
      */
-    function liquidityStatistics() external view returns (uint256 value, uint256 used, uint16 numNodes);
+    function liquidityStatistics() external view returns (uint256 total, uint256 used, uint16 numNodes);
 
     /**
      * Get liquidity available up to max depth

@@ -77,8 +77,8 @@ library LiquidityManager {
 
     /**
      * @notice Liquidity node
-     * @param value Total liquidity value
-     * @param shares Total liquidity shares outstanding
+     * @param value Liquidity value
+     * @param shares Liquidity shares outstanding
      * @param available Liquidity available
      * @param pending Liquidity pending (with interest)
      * @param redemption Redemption state
@@ -97,13 +97,13 @@ library LiquidityManager {
 
     /**
      * @notice Liquidity state
-     * @param value Total value
+     * @param total Total value
      * @param used Total used
      * @param numNodes Total number of nodes
      * @param nodes Liquidity nodes
      */
     struct Liquidity {
-        uint128 value;
+        uint128 total;
         uint128 used;
         uint16 numNodes;
         mapping(uint256 => Node) nodes;
@@ -466,9 +466,9 @@ library LiquidityManager {
         node.available += restored;
         node.pending -= pending;
 
-        liquidity.value = (delta > 0)
-            ? liquidity.value + uint128(uint256(delta))
-            : liquidity.value - uint128(uint256(-delta));
+        liquidity.total = (delta > 0)
+            ? liquidity.total + uint128(uint256(delta))
+            : liquidity.total - uint128(uint256(-delta));
         liquidity.used -= used;
 
         /* If node became insolvent */
@@ -571,7 +571,7 @@ library LiquidityManager {
             node.redemptions.pending -= shares;
             node.redemptions.index += 1;
 
-            liquidity.value -= amount;
+            liquidity.total -= amount;
 
             return (shares, amount);
         }
