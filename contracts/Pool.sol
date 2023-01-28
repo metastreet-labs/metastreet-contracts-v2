@@ -487,13 +487,13 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         if (purchasePrice < minPurchasePrice) revert PurchasePriceTooLow();
 
         /* Use liquidity nodes */
-        NodeReceipt[] memory nodeReceipts = new NodeReceipt[](count);
+        LoanReceipt.NodeReceipt[] memory nodeReceipts = new LoanReceipt.NodeReceipt[](count);
         for (uint256 i; i < count; i++) {
             /* Use node */
             _liquidity.use(nodes[i].depth, nodes[i].used, nodes[i].pending);
 
             /* Construct node receipt */
-            nodeReceipts[i] = ILiquidity.NodeReceipt({
+            nodeReceipts[i] = LoanReceipt.NodeReceipt({
                 depth: nodes[i].depth,
                 used: nodes[i].used,
                 pending: nodes[i].pending

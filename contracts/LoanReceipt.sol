@@ -67,7 +67,19 @@ library LoanReceipt {
         uint64 duration;
         address collateralToken;
         uint256 collateralTokenId;
-        ILiquidity.NodeReceipt[] nodeReceipts;
+        NodeReceipt[] nodeReceipts;
+    }
+
+    /**
+     * @notice Node receipt
+     * @param depth Depth
+     * @param used Used amount
+     * @param pending Pending amount
+     */
+    struct NodeReceipt {
+        uint128 depth;
+        uint128 used;
+        uint128 pending;
     }
 
     /**************************************************************************/
@@ -167,7 +179,7 @@ library LoanReceipt {
         /* Decode node receipts */
         uint256 numNodeReceipts = (encodedReceipt.length - LOAN_RECEIPT_V1_HEADER_SIZE) /
             LOAN_RECEIPT_V1_PAYLOAD_ELEMENT_SIZE;
-        receipt.nodeReceipts = new ILiquidity.NodeReceipt[](numNodeReceipts);
+        receipt.nodeReceipts = new NodeReceipt[](numNodeReceipts);
         for (uint256 i; i < numNodeReceipts; i++) {
             uint256 offset = LOAN_RECEIPT_V1_HEADER_SIZE + i * LOAN_RECEIPT_V1_PAYLOAD_ELEMENT_SIZE;
             receipt.nodeReceipts[i].depth = uint128(bytes16(encodedReceipt[offset:offset + 16]));
@@ -188,7 +200,7 @@ library LoanReceipt {
     function fromLoanInfo(
         address platform,
         ILoanAdapter.LoanInfo memory loanInfo,
-        ILiquidity.NodeReceipt[] memory nodeReceipts
+        NodeReceipt[] memory nodeReceipts
     ) internal pure returns (LoanReceiptV1 memory) {
         LoanReceiptV1 memory receipt = LoanReceiptV1({
             version: 1,
@@ -199,7 +211,7 @@ library LoanReceipt {
             duration: loanInfo.duration,
             collateralToken: loanInfo.collateralToken,
             collateralTokenId: loanInfo.collateralTokenId,
-            nodeReceipts: new ILiquidity.NodeReceipt[](nodeReceipts.length)
+            nodeReceipts: new NodeReceipt[](nodeReceipts.length)
         });
 
         for (uint256 i = 0; i < nodeReceipts.length; i++) {

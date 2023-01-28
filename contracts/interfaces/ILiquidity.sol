@@ -24,18 +24,6 @@ interface ILiquidity {
     }
 
     /**
-     * @notice Node receipt
-     * @param depth Depth
-     * @param used Used amount
-     * @param pending Pending amount
-     */
-    struct NodeReceipt {
-        uint128 depth;
-        uint128 used;
-        uint128 pending;
-    }
-
-    /**
      * @notice Flattened liquidity node returned by getter
      * @param depth Depth
      * @param value Liquidity value

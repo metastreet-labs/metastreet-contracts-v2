@@ -38,7 +38,7 @@ contract TestLoanReceipt {
     function fromLoanInfo(
         address platform,
         ILoanAdapter.LoanInfo memory loanInfo,
-        ILiquidity.NodeReceipt[] memory nodeReceipts
+        LoanReceipt.NodeReceipt[] memory nodeReceipts
     ) external pure returns (LoanReceipt.LoanReceiptV1 memory) {
         return LoanReceipt.fromLoanInfo(platform, loanInfo, nodeReceipts);
     }
