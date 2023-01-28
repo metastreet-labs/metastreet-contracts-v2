@@ -122,14 +122,23 @@ contract TestLiquidityManager is ILiquidity {
      * @dev External wrapper function for LiquidityManager.use()
      */
     function use(uint128 depth, uint128 amount, uint128 pending) external {
-        return _liquidity.use(depth, amount, pending);
+        _liquidity.use(depth, amount, pending);
+
+        /* Update liquidity statistics */
+        _liquidity.used += amount;
     }
 
     /**
      * @dev External wrapper function for LiquidityManager.restore()
      */
     function restore(uint128 depth, uint128 used, uint128 pending, uint128 restored) external {
-        return _liquidity.restore(depth, used, pending, restored);
+        _liquidity.restore(depth, used, pending, restored);
+
+        /* Update liquidity statistics */
+        _liquidity.total = (restored > used)
+            ? (_liquidity.total + restored - used)
+            : (_liquidity.total - used + restored);
+        _liquidity.used -= used;
     }
 
     /**

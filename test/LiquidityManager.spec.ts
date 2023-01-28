@@ -297,34 +297,6 @@ describe("LiquidityManager", function () {
       expect(statistics[1]).to.equal(toFixedPoint("3"));
       expect(statistics[2]).to.equal(1);
     });
-    it("fails on insufficient liquidity", async function () {
-      /* Instantiate and deposit in node */
-      await liquidityManager.instantiate(toFixedPoint("3"));
-      await liquidityManager.deposit(toFixedPoint("3"), toFixedPoint("5"));
-
-      /* Use from node */
-      await expect(
-        liquidityManager.use(toFixedPoint("3"), toFixedPoint("5.1"), toFixedPoint("5.5"))
-      ).to.be.revertedWithCustomError(liquidityManagerLib, "InsufficientLiquidity");
-    });
-    it("fails on inactive node", async function () {
-      /* Use from inactive node */
-      await expect(
-        liquidityManager.use(toFixedPoint("3"), toFixedPoint("3"), toFixedPoint("3.2"))
-      ).to.be.revertedWithCustomError(liquidityManagerLib, "InactiveLiquidity");
-    });
-    it("fails on insolvent node", async function () {
-      /* Create insolvent node */
-      await liquidityManager.instantiate(toFixedPoint("3"));
-      await liquidityManager.deposit(toFixedPoint("3"), toFixedPoint("5"));
-      await liquidityManager.use(toFixedPoint("3"), toFixedPoint("5"), toFixedPoint("6"));
-      await liquidityManager.restore(toFixedPoint("3"), toFixedPoint("5"), toFixedPoint("6"), ethers.constants.Zero);
-
-      /* Try to use node */
-      await expect(
-        liquidityManager.use(toFixedPoint("3"), toFixedPoint("3"), toFixedPoint("3.2"))
-      ).to.be.revertedWithCustomError(liquidityManagerLib, "InactiveLiquidity");
-    });
   });
 
   describe("#restore", async function () {

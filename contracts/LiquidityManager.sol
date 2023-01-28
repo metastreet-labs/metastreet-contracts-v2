@@ -299,12 +299,12 @@ library LiquidityManager {
         Liquidity storage liquidity,
         uint128 startDepth,
         uint128 amount
-    ) external view returns (ILiquidity.NodeSource[] memory, uint16) {
+    ) internal view returns (ILiquidity.NodeSource[] memory, uint16) {
         ILiquidity.NodeSource[] memory sources = new ILiquidity.NodeSource[](MAX_NUM_NODES);
 
         uint128 taken = 0;
         uint16 i = 0;
-        uint128 d = startDepth;
+        uint128 d = (startDepth == 0) ? liquidity.nodes[0].next : startDepth;
         while (taken < amount && d != type(uint128).max && i < MAX_NUM_NODES) {
             Node storage node = liquidity.nodes[d];
 
@@ -312,7 +312,6 @@ library LiquidityManager {
             if (take > 0) {
                 sources[i].depth = d;
                 sources[i].available = node.available;
-                sources[i].pending = node.pending;
                 taken += take;
                 i++;
             }
@@ -381,70 +380,31 @@ library LiquidityManager {
         node.shares += shares;
         node.available += amount;
 
-        liquidity.value += amount;
+        liquidity.total += amount;
 
         return shares;
     }
 
     /**
-     * @notice Use liquidity
+     * @notice Use liquidity from node
+     * @dev Note, does not update liquidity statistics
      * @param liquidity Liquidity state
      * @param depth Depth
-     * @param amount Amount
+     * @param used Used amount
      * @param pending Pending Amount
      */
-    function use(Liquidity storage liquidity, uint128 depth, uint128 amount, uint128 pending) external {
+    function use(Liquidity storage liquidity, uint128 depth, uint128 used, uint128 pending) internal {
         Node storage node = liquidity.nodes[depth];
 
-        /* If depth is reserved or node is inactive */
-        if (_isReserved(depth) || _isInactive(node)) revert InactiveLiquidity();
-        /* If node has insufficient liquidity */
-        if (node.available < amount) revert InsufficientLiquidity();
-
-        node.available -= amount;
-        node.pending += pending;
-
-        liquidity.used += amount;
-    }
-
-    /**
-     * @notice Update multiple liquidity nodes
-     * @param liquidity Liquidity state
-     * @param sources Liquidity nodes
-     * @param count Liquidity node count
-     */
-    function update(
-        Liquidity storage liquidity,
-        ILiquidity.NodeSource[] memory sources,
-        uint16 count
-    ) external returns (ILiquidity.NodeReceipt[] memory) {
-        ILiquidity.NodeReceipt[] memory nodeReceipts = new ILiquidity.NodeReceipt[](count);
-
-        uint128 totalUsed;
-        for (uint256 i; i < count; i++) {
-            /* Update node */
-            Node storage node = liquidity.nodes[sources[i].depth];
-            node.available = sources[i].available;
-            node.pending = sources[i].pending;
-
-            /* Create node receipt */
-            nodeReceipts[i] = ILiquidity.NodeReceipt({
-                depth: sources[i].depth,
-                used: sources[i].used,
-                pending: sources[i].pending - sources[i].used
-            });
-
-            totalUsed += sources[i].used;
+        unchecked {
+            node.available -= used;
+            node.pending += pending;
         }
-
-        /* Update global liquidity statistics */
-        liquidity.used += totalUsed;
-
-        return nodeReceipts;
     }
 
     /**
      * @notice Restore liquidity and process pending redemptions
+     * @dev Note, does not update liquidity statistics
      * @param liquidity Liquidity state
      * @param depth Depth
      * @param used Used amount
@@ -457,19 +417,14 @@ library LiquidityManager {
         uint128 used,
         uint128 pending,
         uint128 restored
-    ) external {
+    ) internal {
         Node storage node = liquidity.nodes[depth];
 
-        int256 delta = int256(uint256(restored)) - int256(uint256(used));
-
-        node.value = (delta > 0) ? node.value + uint128(uint256(delta)) : node.value - uint128(uint256(-delta));
-        node.available += restored;
-        node.pending -= pending;
-
-        liquidity.total = (delta > 0)
-            ? liquidity.total + uint128(uint256(delta))
-            : liquidity.total - uint128(uint256(-delta));
-        liquidity.used -= used;
+        unchecked {
+            node.value = (restored > used) ? (node.value + restored - used) : (node.value - used + restored);
+            node.available += restored;
+            node.pending -= pending;
+        }
 
         /* If node became insolvent */
         if (_isInsolvent(node)) {

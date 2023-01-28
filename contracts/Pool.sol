@@ -486,8 +486,22 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         /* Validate purchase price */
         if (purchasePrice < minPurchasePrice) revert PurchasePriceTooLow();
 
-        /* Update liquidity nodes */
-        NodeReceipt[] memory nodeReceipts = _liquidity.update(nodes, count);
+        /* Use liquidity nodes */
+        NodeReceipt[] memory nodeReceipts = new NodeReceipt[](count);
+        for (uint256 i; i < count; i++) {
+            /* Use node */
+            _liquidity.use(nodes[i].depth, nodes[i].used, nodes[i].pending);
+
+            /* Construct node receipt */
+            nodeReceipts[i] = ILiquidity.NodeReceipt({
+                depth: nodes[i].depth,
+                used: nodes[i].used,
+                pending: nodes[i].pending
+            });
+        }
+
+        /* Update top level liquidity statistics */
+        _liquidity.used += uint128(purchasePrice);
 
         /* Update utilization tracking */
         _interestRateModel.onUtilizationUpdated(utilization());
@@ -596,15 +610,26 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         if (loanAdapter.getLoanStatus(loanReceipt.loanId, encodedLoanReceipt) != ILoanAdapter.LoanStatus.Repaid)
             revert InvalidLoanStatus();
 
-        /* Restore nodes in liquidity trail */
+        /* Restore liquidity nodes */
+        uint128 totalPending;
+        uint128 totalUsed;
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
+            /* Restore node */
             _liquidity.restore(
                 loanReceipt.nodeReceipts[i].depth,
                 loanReceipt.nodeReceipts[i].used,
                 loanReceipt.nodeReceipts[i].pending,
                 loanReceipt.nodeReceipts[i].pending
             );
+
+            /* Track totals */
+            totalPending += loanReceipt.nodeReceipts[i].pending;
+            totalUsed += loanReceipt.nodeReceipts[i].used;
         }
+
+        /* Update top level liquidity statistics */
+        _liquidity.total += totalPending - totalUsed;
+        _liquidity.used -= totalUsed;
 
         /* Update utilization tracking */
         _interestRateModel.onUtilizationUpdated(utilization());
@@ -673,9 +698,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
-        /* Restore nodes in liquidity trail */
-        uint256 proceedsRemaining = proceeds;
+        /* Restore liquidity nodes */
+        uint128 totalUsed;
+        uint128 proceedsRemaining = uint128(proceeds);
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
+            /* Restore node */
             uint128 restored = uint128(Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining));
             _liquidity.restore(
                 loanReceipt.nodeReceipts[i].depth,
@@ -683,8 +710,17 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
                 loanReceipt.nodeReceipts[i].pending,
                 restored
             );
+
+            /* Track totals */
             proceedsRemaining -= restored;
+            totalUsed += loanReceipt.nodeReceipts[i].used;
         }
+
+        /* Update top level liquidity statistics */
+        _liquidity.total = (uint128(proceeds) > totalUsed)
+            ? (_liquidity.total + uint128(proceeds) - totalUsed)
+            : (_liquidity.total - totalUsed + uint128(proceeds));
+        _liquidity.used -= totalUsed;
 
         /* Update utilization tracking */
         _interestRateModel.onUtilizationUpdated(utilization());
