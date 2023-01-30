@@ -400,7 +400,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
             repayment,
             LiquidityManager.FIXED_POINT_SCALE,
             LiquidityManager.FIXED_POINT_SCALE +
-                Math.mulDiv(rate, maturity - uint64(block.timestamp), LiquidityManager.FIXED_POINT_SCALE)
+                Math.mulDiv(
+                    rate,
+                    (maturity - uint64(block.timestamp)) * LiquidityManager.FIXED_POINT_SCALE,
+                    LiquidityManager.FIXED_POINT_SCALE
+                )
         );
 
         /* Distribute liquidity */
