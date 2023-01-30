@@ -305,7 +305,10 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
      * @inheritdoc ILiquidity
      */
     function utilization() public view returns (uint256) {
-        return Math.mulDiv(_liquidity.used, LiquidityManager.FIXED_POINT_SCALE, _liquidity.total);
+        return
+            (_liquidity.total == 0)
+                ? 0
+                : Math.mulDiv(_liquidity.used, LiquidityManager.FIXED_POINT_SCALE, _liquidity.total);
     }
 
     /**
