@@ -263,8 +263,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
      * @inheritdoc IPool
      */
     function loanAdapters(address platform) external view returns (ILoanAdapter) {
-        if (!_loanAdapters.contains(platform)) revert UnsupportedPlatform();
-        return ILoanAdapter(address(uint160(_loanAdapters.get(platform))));
+        bytes32 value = _loanAdapters._inner._values[bytes32(uint256(uint160(platform)))];
+        return ILoanAdapter(address(uint160(uint256(value))));
     }
 
     /**
@@ -347,7 +347,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
      */
     function _getNoteAdapter(address noteToken) internal view returns (INoteAdapter) {
         ILoanAdapter loanAdapter = this.loanAdapters(noteToken);
-        if (loanAdapter.getAdapterType() != ILoanAdapter.AdapterType.Note) revert UnsupportedPlatform();
+        if (address(loanAdapter) == address(0) || loanAdapter.getAdapterType() != ILoanAdapter.AdapterType.Note)
+            revert UnsupportedPlatform();
         return INoteAdapter(address(loanAdapter));
     }
 
@@ -358,7 +359,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
      */
     function _getLendAdapter(address lendPlatform) internal view returns (ILendAdapter) {
         ILoanAdapter loanAdapter = this.loanAdapters(lendPlatform);
-        if (loanAdapter.getAdapterType() != ILoanAdapter.AdapterType.Lend) revert UnsupportedPlatform();
+        if (address(loanAdapter) == address(0) || loanAdapter.getAdapterType() != ILoanAdapter.AdapterType.Lend)
+            revert UnsupportedPlatform();
         return ILendAdapter(address(loanAdapter));
     }
 
