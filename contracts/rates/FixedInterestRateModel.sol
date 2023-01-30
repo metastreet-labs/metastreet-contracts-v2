@@ -94,6 +94,9 @@ contract FixedInterestRateModel is IInterestRateModel {
             taken += take;
         }
 
+        /* Assign any remaining interest to final node */
+        nodes[i - 1].pending += uint128(interest);
+
         return (nodes, i);
     }
 
