@@ -208,7 +208,30 @@ describe("Pool", function () {
   });
 
   describe("#redeem", async function () {
-    it("successfully redeems from available cash", async function () {
+    it("successfully redeems entire deposit from available cash", async function () {
+      /* Deposit 1 ETH */
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
+
+      /* Redeem 1 shares */
+      const redeemTx = await pool
+        .connect(accountDepositors[0])
+        .redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
+
+      /* Validate events */
+      await expectEvent(redeemTx, pool, "Redeemed", {
+        account: accountDepositors[0].address,
+        depth: ethers.utils.parseEther("10"),
+        shares: ethers.utils.parseEther("1"),
+      });
+
+      /* Validate deposit state */
+      const deposit = await pool.deposits(accountDepositors[0].address, ethers.utils.parseEther("10"));
+      expect(deposit.shares).to.equal(ethers.utils.parseEther("1"));
+      expect(deposit.redemptionPending).to.equal(ethers.utils.parseEther("1"));
+      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+    });
+    it("successfully redeems partial deposit from available cash", async function () {
       /* Deposit 1 ETH */
       await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
 
