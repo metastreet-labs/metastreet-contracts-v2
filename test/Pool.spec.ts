@@ -695,4 +695,60 @@ describe("Pool", function () {
       ).to.be.revertedWithCustomError(pool, "UnsupportedCurrencyToken");
     });
   });
+
+  /****************************************************************************/
+  /* Privileged API Tests */
+  /****************************************************************************/
+
+  describe("#setLoanAdapter", async function () {
+    it("sets loan adapter", async function () {
+      /* Unset loan adapter */
+      const unsetLoanAdapterTx = await pool.setLoanAdapter(noteToken.address, ethers.constants.AddressZero);
+
+      /* Validate event */
+      await expectEvent(unsetLoanAdapterTx, pool, "LoanAdapterUpdated", {
+        platform: noteToken.address,
+        loanAdapter: ethers.constants.AddressZero,
+      });
+
+      /* Validate state */
+      expect(await pool.loanAdapters(noteToken.address)).to.equal(ethers.constants.AddressZero);
+
+      /* Set loan adpater */
+      const setLoanAdapterTx = await pool.setLoanAdapter(noteToken.address, noteAdapter.address);
+
+      /* Validate event */
+      await expectEvent(setLoanAdapterTx, pool, "LoanAdapterUpdated", {
+        platform: noteToken.address,
+        loanAdapter: noteAdapter.address,
+      });
+
+      /* Validate state */
+      expect(await pool.loanAdapters(noteToken.address)).to.equal(noteAdapter.address);
+    });
+    it("fails on invalid caller", async function () {
+      await expect(
+        pool.connect(accountDepositors[0]).setLoanAdapter(noteToken.address, noteAdapter.address)
+      ).to.be.revertedWith(/AccessControl: account .* is missing role .*/);
+    });
+  });
+
+  describe("#pause", async function () {
+    it("pauses", async function () {
+      expect(await pool.paused()).to.equal(false);
+
+      /* Pause pool */
+      await pool.pause();
+      expect(await pool.paused()).to.equal(true);
+
+      /* Unpause pool */
+      await pool.unpause();
+      expect(await pool.paused()).to.equal(false);
+    });
+    it("fails on invalid caller", async function () {
+      await expect(pool.connect(accountDepositors[0]).pause()).to.be.revertedWith(
+        /AccessControl: account .* is missing role .*/
+      );
+    });
+  });
 });
