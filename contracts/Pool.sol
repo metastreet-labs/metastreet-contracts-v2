@@ -217,6 +217,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         _liquidity.initialize();
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(EMERGENCY_ADMIN_ROLE, msg.sender);
     }
 
     /**************************************************************************/
