@@ -751,4 +751,36 @@ describe("Pool", function () {
       );
     });
   });
+
+  /****************************************************************************/
+  /* ERC165 Interface */
+  /****************************************************************************/
+
+  describe("#supportsInterface", async function () {
+    it("returns true on supported interfaces", async function () {
+      /* ERC165 */
+      expect(await pool.supportsInterface(pool.interface.getSighash("supportsInterface"))).to.equal(true);
+      /* AccessControl */
+      expect(
+        await pool.supportsInterface(
+          ethers.utils.hexlify(
+            [
+              pool.interface.getSighash("hasRole"),
+              pool.interface.getSighash("getRoleAdmin"),
+              pool.interface.getSighash("grantRole"),
+              pool.interface.getSighash("revokeRole"),
+              pool.interface.getSighash("renounceRole"),
+            ].reduce((acc, value) => acc.xor(ethers.BigNumber.from(value)), ethers.constants.Zero)
+          )
+        )
+      ).to.equal(true);
+      /* ERC721 */
+      expect(await pool.supportsInterface(pool.interface.getSighash("onERC721Received"))).to.equal(true);
+    });
+    it("returns false on unsupported interfaces", async function () {
+      expect(await pool.supportsInterface("0xaabbccdd")).to.equal(false);
+      expect(await pool.supportsInterface("0x00000000")).to.equal(false);
+      expect(await pool.supportsInterface("0xffffffff")).to.equal(false);
+    });
+  });
 });
