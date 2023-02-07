@@ -130,6 +130,8 @@ describe("Pool", function () {
 
     /* Mint NFT to borrower */
     await nft1.mint(accountBorrower.address, 123);
+    await nft1.mint(accountBorrower.address, 124);
+    await nft1.mint(accountBorrower.address, 125);
     /* Mint token to borrower */
     await tok1.transfer(accountBorrower.address, ethers.utils.parseEther("100"));
     /* Mint token to lender */
@@ -212,7 +214,12 @@ describe("Pool", function () {
       ).to.be.revertedWithCustomError(liquidityManagerLib, "InsufficientTickSpacing");
     });
     it("fails on insolvent tick", async function () {
-      /* FIXME */
+      /* Setup insolvent tick at 10 ETH */
+      await setupInsolventTick();
+      /* Attempt to deposit */
+      await expect(
+        pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"))
+      ).to.be.revertedWithCustomError(liquidityManagerLib, "InsolventLiquidity");
     });
     it("fails on transfer failure", async function () {
       await expect(
@@ -269,7 +276,28 @@ describe("Pool", function () {
       expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
     });
     it("successfully schedules redemption", async function () {
-      /* FIXME */
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("10"));
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("15"), ethers.utils.parseEther("10"));
+
+      /* Create and sell loan */
+      await createAndSellLoan(ethers.utils.parseEther("14"), ethers.utils.parseEther("15"));
+
+      /* Redeem 5 shares */
+      await pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("5"));
+
+      /* Validate deposit state */
+      const deposit = await pool.deposits(accountDepositors[0].address, ethers.utils.parseEther("10"));
+      expect(deposit.shares).to.equal(ethers.utils.parseEther("10"));
+      expect(deposit.redemptionPending).to.equal(ethers.utils.parseEther("5"));
+      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+
+      /* Validate tick state */
+      const node = await pool.liquidityNode(ethers.utils.parseEther("10"));
+      expect(node.value).to.equal(ethers.utils.parseEther("10"));
+      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.redemptions).to.equal(ethers.utils.parseEther("5"));
     });
     it("fails on invalid shares", async function () {
       /* Deposit 1 ETH */
@@ -311,6 +339,117 @@ describe("Pool", function () {
       expect(shares).to.equal(ethers.utils.parseEther("0.5"));
       expect(amount).to.equal(ethers.utils.parseEther("0.5"));
     });
+    it("returns full redemption available from repaid loan", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("10"));
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("15"), ethers.utils.parseEther("5"));
+      /* Create and sell loan */
+      const [loanId, loanReceipt] = await createAndSellLoan(
+        ethers.utils.parseEther("14"),
+        ethers.utils.parseEther("15")
+      );
+      /* Redeem 5 shares */
+      await pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("5"));
+
+      /* No redemption available */
+      let [shares, amount] = await pool.redemptionAvailable(
+        accountDepositors[0].address,
+        ethers.utils.parseEther("10")
+      );
+      expect(shares).to.equal(ethers.constants.Zero);
+      expect(amount).to.equal(ethers.constants.Zero);
+
+      /* Repay loan */
+      await lendingPlatform.connect(accountBorrower).repay(loanId);
+      /* Process repayment */
+      await pool.onLoanRepaid(loanReceipt);
+
+      /* Full redemption should be available */
+      [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, ethers.utils.parseEther("10"));
+      expect(shares).to.equal(ethers.utils.parseEther("5"));
+      expect(amount.sub(ethers.utils.parseEther("5")).abs()).to.be.lt(ethers.utils.parseEther("0.1"));
+    });
+    it("returns partial redemption available from repaid loan", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("10"));
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("15"), ethers.utils.parseEther("5"));
+      /* Create and sell loan 1 */
+      const [loanId1, loanReceipt1] = await createAndSellLoan(
+        ethers.utils.parseEther("2"),
+        ethers.utils.parseEther("3")
+      );
+      /* Create and sell loan 2 */
+      const [loanId2, loanReceipt2] = await createAndSellLoan(
+        ethers.utils.parseEther("10"),
+        ethers.utils.parseEther("11")
+      );
+      /* Redeem 8 shares */
+      await pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("8"));
+
+      /* No redemption available */
+      let [shares, amount] = await pool.redemptionAvailable(
+        accountDepositors[0].address,
+        ethers.utils.parseEther("10")
+      );
+      expect(shares).to.equal(ethers.constants.Zero);
+      expect(amount).to.equal(ethers.constants.Zero);
+
+      /* Repay loan 1 */
+      await lendingPlatform.connect(accountBorrower).repay(loanId1);
+      /* Process repayment */
+      await pool.onLoanRepaid(loanReceipt1);
+
+      /* Partial redemption should be available */
+      [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, ethers.utils.parseEther("10"));
+      expect(shares.sub(ethers.utils.parseEther("3")).abs()).to.be.lt(ethers.utils.parseEther("0.1"));
+      expect(amount.sub(ethers.utils.parseEther("3")).abs()).to.be.lt(ethers.utils.parseEther("0.1"));
+
+      /* Repay loan 2 */
+      await lendingPlatform.connect(accountBorrower).repay(loanId2);
+      /* Process repayment */
+      await pool.onLoanRepaid(loanReceipt2);
+
+      /* Full redemption should be available */
+      [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, ethers.utils.parseEther("10"));
+      expect(shares).to.equal(ethers.utils.parseEther("8"));
+      expect(amount.sub(ethers.utils.parseEther("8")).abs()).to.be.lt(ethers.utils.parseEther("0.1"));
+    });
+    it("returns written down redemption available from liquidated loan", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("10"));
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("15"), ethers.utils.parseEther("5"));
+      /* Create and sell loan */
+      const [loanId, loanReceipt] = await createAndSellLoan(
+        ethers.utils.parseEther("14"),
+        ethers.utils.parseEther("15")
+      );
+      /* Redeem 5 shares */
+      await pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("5"));
+
+      /* No redemption available */
+      let [shares, amount] = await pool.redemptionAvailable(
+        accountDepositors[0].address,
+        ethers.utils.parseEther("10")
+      );
+      expect(shares).to.equal(ethers.constants.Zero);
+      expect(amount).to.equal(ethers.constants.Zero);
+
+      /* Wait for loan expiration */
+      const startTime = (await lendingPlatform.loans(loanId)).startTime.toNumber();
+      const duration = (await lendingPlatform.loans(loanId)).duration;
+      await elapseUntilTimestamp(startTime + duration + 1);
+      /* Process expiration */
+      await pool.onLoanExpired(loanReceipt);
+      /* Withdraw collateral */
+      await collateralLiquidator.withdrawCollateral(loanReceipt);
+      /* Liquidate collateral and process liquidation */
+      await collateralLiquidator.connect(accountLiquidator).liquidateCollateral(loanReceipt, ethers.constants.Zero);
+
+      /* Redemption should be available */
+      [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, ethers.utils.parseEther("10"));
+      expect(shares).to.equal(ethers.utils.parseEther("5"));
+      expect(amount).to.equal(ethers.constants.Zero);
+    });
   });
 
   describe("#withdraw", async function () {
@@ -328,13 +467,13 @@ describe("Pool", function () {
       /* Withdraw tx should have no events */
       expect((await withdrawTx.wait()).logs.length).to.equal(0);
     });
-    it("withdraws fully available redemption", async function () {
+    it("withdraws fully available redemption from cash", async function () {
       /* Deposit 1 ETH */
       await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
       /* Redeem 0.5 shares */
       await pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("0.5"));
 
-      /* Simulate withdrawal should return 0.5 ETH */
+      /* Simulated withdrawal should return 0.5 ETH */
       expect(await pool.connect(accountDepositors[0]).callStatic.withdraw(ethers.utils.parseEther("10"))).to.equal(
         ethers.utils.parseEther("0.5")
       );
@@ -365,8 +504,172 @@ describe("Pool", function () {
       /* Validate token balance */
       expect(await tok1.balanceOf(accountDepositors[0].address)).to.equal(ethers.utils.parseEther("999.5"));
     });
-    it("withdraws partially available redemption", async function () {
-      /* FIXME */
+    it("withdraws fully available redemption from repaid loan", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("10"));
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("15"), ethers.utils.parseEther("5"));
+      /* Create and sell loan */
+      const [loanId, loanReceipt] = await createAndSellLoan(
+        ethers.utils.parseEther("14"),
+        ethers.utils.parseEther("15")
+      );
+      /* Redeem 5 shares */
+      await pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("5"));
+
+      /* Repay loan */
+      await lendingPlatform.connect(accountBorrower).repay(loanId);
+      /* Process repayment */
+      await pool.onLoanRepaid(loanReceipt);
+
+      /* Withdraw */
+      const withdrawTx = await pool.connect(accountDepositors[0]).withdraw(ethers.utils.parseEther("10"));
+
+      /* Validate events */
+      await expectEvent(withdrawTx, pool, "Withdrawn", {
+        account: accountDepositors[0].address,
+        depth: ethers.utils.parseEther("10"),
+        shares: ethers.utils.parseEther("5"),
+      });
+      await expectEvent(withdrawTx, tok1, "Transfer", {
+        from: pool.address,
+        to: accountDepositors[0].address,
+      });
+
+      /* Validate amount approximately */
+      const amount = (await extractEvent(withdrawTx, pool, "Withdrawn")).args.amount;
+      expect(amount.sub(ethers.utils.parseEther("5")).abs()).to.be.lt(ethers.utils.parseEther("0.1"));
+
+      /* Validate deposit state */
+      const deposit = await pool.deposits(accountDepositors[0].address, ethers.utils.parseEther("10"));
+      expect(deposit.shares).to.equal(ethers.utils.parseEther("5"));
+      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+    });
+    it("withdraws partially available redemption from repaid loan", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("10"));
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("15"), ethers.utils.parseEther("5"));
+      /* Create and sell loan 1 */
+      const [loanId1, loanReceipt1] = await createAndSellLoan(
+        ethers.utils.parseEther("2"),
+        ethers.utils.parseEther("3")
+      );
+      /* Create and sell loan 2 */
+      const [loanId2, loanReceipt2] = await createAndSellLoan(
+        ethers.utils.parseEther("10"),
+        ethers.utils.parseEther("11")
+      );
+      /* Redeem 8 shares */
+      await pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("8"));
+
+      /* Repay loan 1 */
+      await lendingPlatform.connect(accountBorrower).repay(loanId1);
+      /* Process repayment */
+      await pool.onLoanRepaid(loanReceipt1);
+
+      /* Withdraw */
+      const withdrawTx1 = await pool.connect(accountDepositors[0]).withdraw(ethers.utils.parseEther("10"));
+
+      /* Validate events */
+      await expectEvent(withdrawTx1, pool, "Withdrawn", {
+        account: accountDepositors[0].address,
+        depth: ethers.utils.parseEther("10"),
+      });
+      await expectEvent(withdrawTx1, tok1, "Transfer", {
+        from: pool.address,
+        to: accountDepositors[0].address,
+      });
+
+      /* Validate shares and amount approximately */
+      const shares1 = (await extractEvent(withdrawTx1, pool, "Withdrawn")).args.shares;
+      const amount1 = (await extractEvent(withdrawTx1, pool, "Withdrawn")).args.amount;
+      expect(shares1.sub(ethers.utils.parseEther("3")).abs()).to.be.lt(ethers.utils.parseEther("0.1"));
+      expect(amount1.sub(ethers.utils.parseEther("3")).abs()).to.be.lt(ethers.utils.parseEther("0.1"));
+
+      /* Validate deposit state */
+      let deposit = await pool.deposits(accountDepositors[0].address, ethers.utils.parseEther("10"));
+      expect(deposit.shares).to.equal(ethers.utils.parseEther("10").sub(shares1));
+      expect(deposit.redemptionPending).to.equal(ethers.utils.parseEther("8").sub(shares1));
+      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionTarget).to.equal(shares1);
+
+      /* Repay loan 2 */
+      await lendingPlatform.connect(accountBorrower).repay(loanId2);
+      /* Process repayment */
+      await pool.onLoanRepaid(loanReceipt2);
+
+      /* Withdraw again */
+      const withdrawTx2 = await pool.connect(accountDepositors[0]).withdraw(ethers.utils.parseEther("10"));
+
+      /* Validate events */
+      await expectEvent(withdrawTx2, pool, "Withdrawn", {
+        account: accountDepositors[0].address,
+        depth: ethers.utils.parseEther("10"),
+      });
+      await expectEvent(withdrawTx2, tok1, "Transfer", {
+        from: pool.address,
+        to: accountDepositors[0].address,
+      });
+
+      /* Validate shares and amount approximately */
+      const shares2 = (await extractEvent(withdrawTx2, pool, "Withdrawn")).args.shares;
+      const amount2 = (await extractEvent(withdrawTx2, pool, "Withdrawn")).args.amount;
+      expect(shares2.sub(ethers.utils.parseEther("5")).abs()).to.be.lt(ethers.utils.parseEther("0.1"));
+      expect(amount2.sub(ethers.utils.parseEther("5")).abs()).to.be.lt(ethers.utils.parseEther("0.1"));
+
+      /* Validate deposit state */
+      deposit = await pool.deposits(accountDepositors[0].address, ethers.utils.parseEther("10"));
+      expect(deposit.shares).to.equal(ethers.utils.parseEther("2"));
+      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+    });
+    it("withdraws fully written down redemption from liquidated loan", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("10"));
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("15"), ethers.utils.parseEther("5"));
+      /* Create and sell loan */
+      const [loanId, loanReceipt] = await createAndSellLoan(
+        ethers.utils.parseEther("14"),
+        ethers.utils.parseEther("15")
+      );
+      /* Redeem 5 shares */
+      await pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("5"));
+
+      /* Wait for loan expiration */
+      const startTime = (await lendingPlatform.loans(loanId)).startTime.toNumber();
+      const duration = (await lendingPlatform.loans(loanId)).duration;
+      await elapseUntilTimestamp(startTime + duration + 1);
+      /* Process expiration */
+      await pool.onLoanExpired(loanReceipt);
+      /* Withdraw collateral */
+      await collateralLiquidator.withdrawCollateral(loanReceipt);
+      /* Liquidate collateral and process liquidation */
+      await collateralLiquidator.connect(accountLiquidator).liquidateCollateral(loanReceipt, ethers.constants.Zero);
+
+      /* Withdraw */
+      const withdrawTx = await pool.connect(accountDepositors[0]).withdraw(ethers.utils.parseEther("10"));
+
+      /* Validate events */
+      await expectEvent(withdrawTx, pool, "Withdrawn", {
+        account: accountDepositors[0].address,
+        depth: ethers.utils.parseEther("10"),
+        shares: ethers.utils.parseEther("5"),
+        amount: ethers.constants.Zero,
+      });
+      await expectEvent(withdrawTx, tok1, "Transfer", {
+        from: pool.address,
+        to: accountDepositors[0].address,
+        value: ethers.constants.Zero,
+      });
+
+      /* Validate deposit state */
+      const deposit = await pool.deposits(accountDepositors[0].address, ethers.utils.parseEther("10"));
+      expect(deposit.shares).to.equal(ethers.utils.parseEther("5"));
+      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
     });
   });
 
@@ -385,14 +688,47 @@ describe("Pool", function () {
     }
   }
 
+  async function setupInsolventTick(): Promise<void> {
+    /* Create two deposits at 10 ETH and 20 ETH ticks */
+    await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("5"), ethers.utils.parseEther("5"));
+    await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("5"));
+    await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("15"), ethers.utils.parseEther("5"));
+
+    /* Create and sell loan taking 15 ETH */
+    const [loanId, loanReceipt] = await createAndSellLoan(ethers.utils.parseEther("14"), ethers.utils.parseEther("15"));
+
+    /* Wait for loan expiration */
+    const startTime = (await lendingPlatform.loans(loanId)).startTime.toNumber();
+    const duration = (await lendingPlatform.loans(loanId)).duration;
+    await elapseUntilTimestamp(startTime + duration + 1);
+
+    /* Process expiration */
+    await pool.onLoanExpired(loanReceipt);
+
+    /* Withdraw collateral */
+    await collateralLiquidator.withdrawCollateral(loanReceipt);
+
+    /* Liquidate collateral and process liquidation */
+    await collateralLiquidator
+      .connect(accountLiquidator)
+      .liquidateCollateral(loanReceipt, ethers.utils.parseEther("5"));
+  }
+
   async function createActiveLoan(
     principal: ethers.BigNumber,
     repayment: ethers.BigNumber,
     duration?: number
   ): Promise<ethers.BigNumber> {
+    const tokenId =
+      (await nft1.ownerOf(123)) === accountBorrower.address
+        ? 123
+        : (await nft1.ownerOf(124)) === accountBorrower.address
+        ? 124
+        : 125;
+
     const lendTx = await lendingPlatform
       .connect(accountLender)
-      .lend(accountBorrower.address, nft1.address, 123, principal, repayment, duration || 30 * 86400);
+      .lend(accountBorrower.address, nft1.address, tokenId, principal, repayment, duration || 30 * 86400);
     return (await extractEvent(lendTx, lendingPlatform, "LoanCreated")).args.loanId;
   }
 
