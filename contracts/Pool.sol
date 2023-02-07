@@ -770,7 +770,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         /* Transfer Deposit Amount */
         _currencyToken.safeTransferFrom(msg.sender, address(this), amount);
 
-        /* Emit deposited event */
+        /* Emit Deposited */
         emit Deposited(msg.sender, depth, amount, shares);
     }
 
@@ -859,7 +859,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         /* Transfer Withdrawal Amount */
         _currencyToken.safeTransfer(msg.sender, amount);
 
-        /* Emit Withdrawn event */
+        /* Emit Withdrawn */
         emit Withdrawn(msg.sender, uint128(depth), shares, amount);
 
         return amount;
@@ -884,6 +884,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
             _loanAdapters.remove(platform);
         }
 
+        /* Emit Loan Adapter Updated */
         emit LoanAdapterUpdated(platform, loanAdapter);
     }
 
