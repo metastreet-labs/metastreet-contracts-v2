@@ -713,7 +713,9 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         uint128 proceedsRemaining = uint128(proceeds);
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
             /* Restore node */
-            uint128 restored = uint128(Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining));
+            uint128 restored = (i == loanReceipt.nodeReceipts.length - 1)
+                ? proceedsRemaining
+                : uint128(Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining));
             _liquidity.restore(
                 loanReceipt.nodeReceipts[i].depth,
                 loanReceipt.nodeReceipts[i].used,
