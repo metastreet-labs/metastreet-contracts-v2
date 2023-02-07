@@ -740,6 +740,9 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         /* Mark loan status collateral liquidated */
         _loans[loanReceiptHash] = LoanStatus.CollateralLiquidated;
 
+        /* Transfer proceeds from liquidator to pool */
+        _currencyToken.safeTransferFrom(address(_collateralLiquidator), address(this), proceeds);
+
         /* Emit Collateral Liquidated */
         emit CollateralLiquidated(loanReceiptHash, proceeds);
     }
