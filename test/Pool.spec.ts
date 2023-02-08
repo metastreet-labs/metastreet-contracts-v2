@@ -450,6 +450,34 @@ describe("Pool", function () {
       expect(shares).to.equal(ethers.utils.parseEther("5"));
       expect(amount).to.equal(ethers.constants.Zero);
     });
+    it("returns partial redemption available from subsequent deposit", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("10"));
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("15"), ethers.utils.parseEther("5"));
+      /* Create and sell loan */
+      const [loanId, loanReceipt] = await createAndSellLoan(
+        ethers.utils.parseEther("14"),
+        ethers.utils.parseEther("15")
+      );
+      /* Redeem 5 shares */
+      await pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("5"));
+
+      /* No redemption available */
+      let [shares, amount] = await pool.redemptionAvailable(
+        accountDepositors[0].address,
+        ethers.utils.parseEther("10")
+      );
+      expect(shares).to.equal(ethers.constants.Zero);
+      expect(amount).to.equal(ethers.constants.Zero);
+
+      /* Subsequent deposit */
+      await pool.connect(accountDepositors[1]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("3"));
+
+      /* Full redemption should be available */
+      [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, ethers.utils.parseEther("10"));
+      expect(shares.sub(ethers.utils.parseEther("3")).abs()).to.be.lt(ethers.utils.parseEther("0.1"));
+      expect(amount.sub(ethers.utils.parseEther("3")).abs()).to.be.lt(ethers.utils.parseEther("0.1"));
+    });
   });
 
   describe("#withdraw", async function () {
@@ -666,6 +694,78 @@ describe("Pool", function () {
 
       /* Validate deposit state */
       const deposit = await pool.deposits(accountDepositors[0].address, ethers.utils.parseEther("10"));
+      expect(deposit.shares).to.equal(ethers.utils.parseEther("5"));
+      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+    });
+    it("withdraws partially available redemption from subsequent deposit", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("10"));
+      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("15"), ethers.utils.parseEther("5"));
+      /* Create and sell loan */
+      const [loanId, loanReceipt] = await createAndSellLoan(
+        ethers.utils.parseEther("14"),
+        ethers.utils.parseEther("15")
+      );
+      /* Redeem 5 shares */
+      await pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("5"));
+
+      /* Subsequent deposit */
+      await pool.connect(accountDepositors[1]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("3"));
+
+      /* Withdraw */
+      const withdrawTx1 = await pool.connect(accountDepositors[0]).withdraw(ethers.utils.parseEther("10"));
+
+      /* Validate events */
+      await expectEvent(withdrawTx1, pool, "Withdrawn", {
+        account: accountDepositors[0].address,
+        depth: ethers.utils.parseEther("10"),
+      });
+      await expectEvent(withdrawTx1, tok1, "Transfer", {
+        from: pool.address,
+        to: accountDepositors[0].address,
+      });
+
+      /* Validate shares and amount approximately */
+      const shares1 = (await extractEvent(withdrawTx1, pool, "Withdrawn")).args.shares;
+      const amount1 = (await extractEvent(withdrawTx1, pool, "Withdrawn")).args.amount;
+      expect(shares1.sub(ethers.utils.parseEther("3")).abs()).to.be.lt(ethers.utils.parseEther("0.1"));
+      expect(amount1.sub(ethers.utils.parseEther("3")).abs()).to.be.lt(ethers.utils.parseEther("0.1"));
+
+      /* Validate deposit state */
+      let deposit = await pool.deposits(accountDepositors[0].address, ethers.utils.parseEther("10"));
+      expect(deposit.shares).to.equal(ethers.utils.parseEther("10").sub(shares1));
+      expect(deposit.redemptionPending).to.equal(ethers.utils.parseEther("5").sub(shares1));
+      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionTarget).to.equal(shares1);
+
+      /* Repay loan */
+      await lendingPlatform.connect(accountBorrower).repay(loanId);
+      /* Process repayment */
+      await pool.onLoanRepaid(loanReceipt);
+
+      /* Withdraw again */
+      const withdrawTx2 = await pool.connect(accountDepositors[0]).withdraw(ethers.utils.parseEther("10"));
+
+      /* Validate events */
+      await expectEvent(withdrawTx2, pool, "Withdrawn", {
+        account: accountDepositors[0].address,
+        depth: ethers.utils.parseEther("10"),
+      });
+      await expectEvent(withdrawTx2, tok1, "Transfer", {
+        from: pool.address,
+        to: accountDepositors[0].address,
+      });
+
+      /* Validate shares and amount approximately */
+      const shares2 = (await extractEvent(withdrawTx2, pool, "Withdrawn")).args.shares;
+      const amount2 = (await extractEvent(withdrawTx2, pool, "Withdrawn")).args.amount;
+      expect(shares2.sub(ethers.utils.parseEther("2")).abs()).to.be.lt(ethers.utils.parseEther("0.1"));
+      expect(amount2.sub(ethers.utils.parseEther("2")).abs()).to.be.lt(ethers.utils.parseEther("0.1"));
+
+      /* Validate deposit state */
+      deposit = await pool.deposits(accountDepositors[0].address, ethers.utils.parseEther("10"));
       expect(deposit.shares).to.equal(ethers.utils.parseEther("5"));
       expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
       expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);

@@ -767,6 +767,9 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         /* Update utilization tracking */
         _interestRateModel.onUtilizationUpdated(utilization());
 
+        /* Process redemptions from available cash */
+        _liquidity.processRedemptions(uint128(depth));
+
         /* Transfer Deposit Amount */
         _currencyToken.safeTransferFrom(msg.sender, address(this), amount);
 
