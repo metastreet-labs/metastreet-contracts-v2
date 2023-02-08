@@ -2,6 +2,7 @@ node_modules
 artifacts
 cache
 coverage
+typechain
 coverage.json
 gasReporterOutput.json
 subgraph
