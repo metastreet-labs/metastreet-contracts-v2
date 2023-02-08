@@ -10,8 +10,7 @@
     "test:coverage": "hardhat coverage",
     "lint": "solhint 'contracts/**/*.sol'",
     "lint:ts": "eslint '{test,scripts}/**'",
-    "format": "prettier --write 'contracts/**/*.sol'",
-    "format:ts": "prettier --write '{test,scripts}/**/*.ts'",
+    "format": "prettier --write .",
     "analyze": "slither --filter-paths 'node_modules|contracts/test' .",
     "deployment-manager": "ts-node --files scripts/deployment-manager.ts",
     "node": "hardhat node"
