@@ -17,13 +17,13 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 200,
           },
-          outputSelection: { "*": { "*": ["storageLayout"], } },
+          outputSelection: { "*": { "*": ["storageLayout"] } },
         },
       },
     ],
   },
   typechain: {
-    outDir: 'typechain',
+    outDir: "typechain",
   },
 };
 
