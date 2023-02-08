@@ -4,15 +4,15 @@
 
 The main goals of MetaStreet Pool v2 is to improve on three shortcomings of v1:
 
-* **Oracleless**: Remove the dependency on a centralized price oracle for loan to value limits
-* **Dynamic Rates**: Replace a fixed, governance-driven interest rate model with a dynamic, automated one
-* **Permissionless**: Allow users to instantiate a debt purchasing Pool for any collection permissionlessly
+- **Oracleless**: Remove the dependency on a centralized price oracle for loan to value limits
+- **Dynamic Rates**: Replace a fixed, governance-driven interest rate model with a dynamic, automated one
+- **Permissionless**: Allow users to instantiate a debt purchasing Pool for any collection permissionlessly
 
 In addition, v2 includes some implementation subgoals:
 
-* **Improved Gas Efficiency**: Reduce the cost of all operations, especially `sellNote()`, to under 200k gas
-* **Lending Platform Integration**: Add support for integrating directly with lending platforms to originate loans (i.e. no promissory note required)
-* **Token ID Whitelisting**: Add support for whitelisting arbitrary token IDs within a collection for loan collateral (e.g. for rare collections)
+- **Improved Gas Efficiency**: Reduce the cost of all operations, especially `sellNote()`, to under 200k gas
+- **Lending Platform Integration**: Add support for integrating directly with lending platforms to originate loans (i.e. no promissory note required)
+- **Token ID Whitelisting**: Add support for whitelisting arbitrary token IDs within a collection for loan collateral (e.g. for rare collections)
 
 Finally, Vault has been renamed to Pool in v2.
 
@@ -284,23 +284,23 @@ withdraw(uint256 depth) returns (uint256 amount)
 
 ## Outstanding Issues
 
-* The liquidation procedure is assumed to be the same as in v1, but v2 will feature a more modular design and may possibly implement a hosted Dutch auction.
+- The liquidation procedure is assumed to be the same as in v1, but v2 will feature a more modular design and may possibly implement a hosted Dutch auction.
 
-* The fixed tick spacing for deposit loan limits is not ideal for competing deposits close to the maximum LTV, where market conditions may warrant adjustments finer than 25%. This can be addressed by modifying the tick spacing rule to allow for some compression at higher loan limits, but requires the smart contract to know how close a loan limit is to the maximum LTV.
+- The fixed tick spacing for deposit loan limits is not ideal for competing deposits close to the maximum LTV, where market conditions may warrant adjustments finer than 25%. This can be addressed by modifying the tick spacing rule to allow for some compression at higher loan limits, but requires the smart contract to know how close a loan limit is to the maximum LTV.
 
-* The mechanism for token ID whitelisting is currently unspecified. There are a number of different compact approaches: merkle trees, bloom filters, simple bitmasks for smaller collections, or even a user-defined function. This will be implemented in a modular way to allow for future flexibility.
+- The mechanism for token ID whitelisting is currently unspecified. There are a number of different compact approaches: merkle trees, bloom filters, simple bitmasks for smaller collections, or even a user-defined function. This will be implemented in a modular way to allow for future flexibility.
 
 ## Design Alternatives
 
 Pool accounting can be implemented in a number of different ways. The approach described here uses share-based accounting similar to that of v1, which automatically compounds by design -- interest from loans is returned to the tick after repayment and can be reused in new loans. Some other choices include:
 
-* Using native currency for all accounting, i.e. no shares or share pricing
-* Storing accrued interest from loans separately from the capital
-    * No automatic compounding
-    * User has an API to withdraw interest earned or redeploy it
-* Allowing more sophisticated accounting by requiring the user to synchronize their position with each processed loan
-    * User would call `update()` on their position with a batch of all loans that have completed, possibly multiple times
-    * Allows for accounting to be done on each position for each loan
-    * More active and gas intensive to maintain a position
+- Using native currency for all accounting, i.e. no shares or share pricing
+- Storing accrued interest from loans separately from the capital
+  - No automatic compounding
+  - User has an API to withdraw interest earned or redeploy it
+- Allowing more sophisticated accounting by requiring the user to synchronize their position with each processed loan
+  - User would call `update()` on their position with a batch of all loans that have completed, possibly multiple times
+  - Allows for accounting to be done on each position for each loan
+  - More active and gas intensive to maintain a position
 
 These design choices can enable some interesting design directions, but introduce more difficulties with handling withdrawals during active loans compared to the share-based accounting approach.
