@@ -5,5 +5,7 @@ coverage
 typechain
 coverage.json
 gasReporterOutput.json
-subgraph
 deployments
+subgraph/build
+subgraph/generated
+subgraph/node_modules
