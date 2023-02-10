@@ -3,6 +3,8 @@ import { ethers } from "hardhat";
 import { BigNumber } from "@ethersproject/bignumber";
 
 export class FixedPoint {
+  static Zero = ethers.constants.Zero;
+
   static from(x: string | number | BigNumber): BigNumber {
     if (typeof x === "string") {
       return ethers.utils.parseEther(x);
