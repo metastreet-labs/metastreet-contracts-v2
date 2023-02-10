@@ -6,16 +6,19 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "../interfaces/ICollateralFilter.sol";
 
 /**
- * @title Allow Collateral Filter
+ * @title Multiple Collection Collateral Filter
  * @author MetaStreet Labs
  */
-contract AllowCollateralFilter is ICollateralFilter {
+contract MultipleCollectionCollateralFilter is ICollateralFilter {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /**************************************************************************/
     /* State */
     /**************************************************************************/
 
+    /**
+     * @notice Supported token set
+     */
     EnumerableSet.AddressSet private _tokens;
 
     /**************************************************************************/
@@ -23,8 +26,8 @@ contract AllowCollateralFilter is ICollateralFilter {
     /**************************************************************************/
 
     /**
-     * @notice AllowCollateralFilter constructor
-     * @notice tokens Supported tokens
+     * @notice MultipleCollectionCollateralFilter constructor
+     * @param tokens Supported tokens
      */
     constructor(address[] memory tokens_) {
         for (uint256 i; i < tokens_.length; i++) {
@@ -40,7 +43,7 @@ contract AllowCollateralFilter is ICollateralFilter {
      * @inheritdoc ICollateralFilter
      */
     function name() external pure returns (string memory) {
-        return "AllowCollateralFilter";
+        return "MultipleCollectionCollateralFilter";
     }
 
     /**

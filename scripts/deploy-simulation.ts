@@ -9,7 +9,10 @@ async function main() {
   const TestERC20 = await ethers.getContractFactory("TestERC20", accounts[9]);
   const TestERC721 = await ethers.getContractFactory("TestERC721", accounts[9]);
   const LiquidityManager = await ethers.getContractFactory("LiquidityManager");
-  const AllowCollateralFilter = await ethers.getContractFactory("AllowCollateralFilter", accounts[9]);
+  const MultipleCollectionCollateralFilter = await ethers.getContractFactory(
+    "MultipleCollectionCollateralFilter",
+    accounts[9]
+  );
   const FixedInterestRateModel = await ethers.getContractFactory("FixedInterestRateModel", accounts[9]);
 
   /* Deploy liquidity manager library */
@@ -44,9 +47,11 @@ async function main() {
 
   console.log("");
 
-  /* Deploy Allow Collateral Filter */
-  const allowCollateralFilter = await AllowCollateralFilter.deploy([baycTokenContract.address]);
-  console.log("Allow Collateral Filter     ", allowCollateralFilter.address);
+  /* Deploy Multiple Collection Collateral Filter */
+  const multipleCollectionCollateralFilter = await MultipleCollectionCollateralFilter.deploy([
+    baycTokenContract.address,
+  ]);
+  console.log("Multiple Collection Collateral Filter     ", multipleCollectionCollateralFilter.address);
 
   /* Deploy Fixed Interest Rate Model */
   const fixedInterestRateModel = await FixedInterestRateModel.deploy(ethers.utils.parseEther("0.02"));
@@ -58,7 +63,7 @@ async function main() {
     [
       wethTokenContract.address,
       30 * 86400,
-      allowCollateralFilter.address,
+      multipleCollectionCollateralFilter.address,
       fixedInterestRateModel.address,
       ethers.constants.AddressZero,
     ]

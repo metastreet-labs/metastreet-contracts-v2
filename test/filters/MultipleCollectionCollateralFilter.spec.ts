@@ -1,17 +1,18 @@
 import { expect } from "chai";
 import { ethers, network } from "hardhat";
 
-import { AllowCollateralFilter } from "../../typechain";
+import { MultipleCollectionCollateralFilter } from "../../typechain";
 
-describe("AllowCollateralFilter", function () {
-  let collateralFilter: AllowCollateralFilter;
+describe("MultipleCollectionCollateralFilter", function () {
+  let collateralFilter: MultipleCollectionCollateralFilter;
   let snapshotId: string;
 
   before("deploy fixture", async () => {
-    const allowCollateralFilterFactory = await ethers.getContractFactory("AllowCollateralFilter");
+    const multipleCollectionCollateralFilterFactory = await ethers.getContractFactory(
+      "MultipleCollectionCollateralFilter"
+    );
 
-    /* Deploy collateral filter with two token IDs */
-    collateralFilter = await allowCollateralFilterFactory.deploy([
+    collateralFilter = await multipleCollectionCollateralFilterFactory.deploy([
       "0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b",
       "0x822CB8a23b42Cf37DE879C382BCdA5E20D5764B7",
     ]);
@@ -28,7 +29,7 @@ describe("AllowCollateralFilter", function () {
 
   describe("constants", async function () {
     it("matches expected name", async function () {
-      expect(await collateralFilter.name()).to.equal("AllowCollateralFilter");
+      expect(await collateralFilter.name()).to.equal("MultipleCollectionCollateralFilter");
     });
   });
 
