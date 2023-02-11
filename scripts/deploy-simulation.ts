@@ -44,9 +44,9 @@ async function main() {
 
   console.log("");
 
-  /* Deploy Collection Collateral Filter */
-  const collectionCollateralFilter = await CollectionCollateralFilter.deploy(baycTokenContract.address);
-  console.log("Collection Collateral Filter     ", collectionCollateralFilter.address);
+  /* Deploy Collection Collateral Filter Implementation */
+  const collectionCollateralFilterImpl = await CollectionCollateralFilter.deploy();
+  console.log("Collection Collateral Filter Impl:", collectionCollateralFilterImpl.address);
 
   /* Deploy Fixed Interest Rate Model */
   const fixedInterestRateModel = await FixedInterestRateModel.deploy(ethers.utils.parseEther("0.02"));
@@ -54,13 +54,14 @@ async function main() {
 
   /* Create WETH Pool */
   const calldata = ethers.utils.defaultAbiCoder.encode(
-    ["address", "uint64", "address", "address", "address"],
+    ["address", "uint64", "address", "address", "address", "bytes"],
     [
       wethTokenContract.address,
       30 * 86400,
-      collectionCollateralFilter.address,
+      collectionCollateralFilterImpl.address,
       fixedInterestRateModel.address,
       ethers.constants.AddressZero,
+      ethers.utils.defaultAbiCoder.encode(["address"], [baycTokenContract.address])
     ]
   );
   const wethTestPoolCreationTx = await poolFactory.createPool(calldata);

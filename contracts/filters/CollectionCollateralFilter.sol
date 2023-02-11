@@ -13,6 +13,11 @@ contract CollectionCollateralFilter is ICollateralFilter {
     /**************************************************************************/
 
     /**
+     * @notice Initialized boolean
+     */
+    bool private _initialized;
+
+    /**
      * @notice Supported token
      */
     address private _token;
@@ -23,10 +28,25 @@ contract CollectionCollateralFilter is ICollateralFilter {
 
     /**
      * @notice CollectionCollateralFilter constructor
-     * @param token Supported token
      */
-    constructor(address token) {
-        _token = token;
+    constructor() {
+        /* Disable initialization of implementation contract */
+        _initialized = true;
+    }
+
+    /**************************************************************************/
+    /* Initializer */
+    /**************************************************************************/
+
+    /**
+     * @notice Initializer
+     * @param params ABI-encoded parameters
+     */
+    function initialize(bytes memory params) external {
+        require(!_initialized, "Already initialized");
+
+        _initialized = true;
+        _token = abi.decode(params, (address));
     }
 
     /**************************************************************************/

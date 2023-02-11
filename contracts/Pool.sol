@@ -3,8 +3,10 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -196,25 +198,33 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
      * @notice Pool constructor
      * @param currencyToken_ Currency token contract
      * @param maxLoanDuration_ Maximum loan duration in seconds
-     * @param collateralFilter_ Collateral filter contract
+     * @param collateralFilterImpl Collateral filter implementation contract
      * @param interestRateModel_ Interest rate model contract
      * @param collateralLiquidator_ Collateral liquidator contract
+     * @param collateralFilterParams Collateral filter initialization parameters
      */
     constructor(
         IERC20 currencyToken_,
         uint64 maxLoanDuration_,
-        ICollateralFilter collateralFilter_,
+        address collateralFilterImpl,
         IInterestRateModel interestRateModel_,
-        ICollateralLiquidator collateralLiquidator_
+        ICollateralLiquidator collateralLiquidator_,
+        bytes memory collateralFilterParams
     ) {
         /* FIXME verify 18 decimals */
         _currencyToken = currencyToken_;
         _maxLoanDuration = maxLoanDuration_;
-        _collateralFilter = collateralFilter_;
         _interestRateModel = interestRateModel_;
         _collateralLiquidator = collateralLiquidator_;
 
         _liquidity.initialize();
+
+        address collateralFilterInstance = Clones.clone(collateralFilterImpl);
+        Address.functionCall(
+            collateralFilterInstance,
+            abi.encodeWithSignature("initialize(bytes)", collateralFilterParams)
+        );
+        _collateralFilter = ICollateralFilter(collateralFilterInstance);
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(EMERGENCY_ADMIN_ROLE, msg.sender);

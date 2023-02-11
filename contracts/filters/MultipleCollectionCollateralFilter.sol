@@ -17,6 +17,11 @@ contract MultipleCollectionCollateralFilter is ICollateralFilter {
     /**************************************************************************/
 
     /**
+     * @notice Initialized boolean
+     */
+    bool private _initialized;
+
+    /**
      * @notice Supported token set
      */
     EnumerableSet.AddressSet private _tokens;
@@ -27,9 +32,24 @@ contract MultipleCollectionCollateralFilter is ICollateralFilter {
 
     /**
      * @notice MultipleCollectionCollateralFilter constructor
-     * @param tokens Supported tokens
      */
-    constructor(address[] memory tokens_) {
+    constructor() {
+        /* Disable initialization of implementation contract */
+        _initialized = true;
+    }
+
+    /**************************************************************************/
+    /* Initializer */
+    /**************************************************************************/
+
+    /**
+     * @notice Initializer
+     * @param params ABI-encoded parameters
+     */
+    function initialize(bytes calldata params) external {
+        require(!_initialized, "Already initialized");
+
+        address[] memory tokens_ = abi.decode(params, (address[]));
         for (uint256 i; i < tokens_.length; i++) {
             _tokens.add(tokens_[i]);
         }

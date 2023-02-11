@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import "./interfaces/IPoolFactory.sol";
-import "./interfaces/ICollateralFilter.sol";
 import "./interfaces/ICollateralLiquidator.sol";
 import "./Pool.sol";
 
@@ -37,13 +36,21 @@ contract PoolFactory is IPoolFactory {
         (
             IERC20 currencyToken,
             uint64 maxLoanDuration,
-            ICollateralFilter collateralFilter,
+            address collateralFilterImpl,
             IInterestRateModel interestRateModel,
-            ICollateralLiquidator collateralLiquidator
-        ) = abi.decode(params, (IERC20, uint64, ICollateralFilter, IInterestRateModel, ICollateralLiquidator));
+            ICollateralLiquidator collateralLiquidator,
+            bytes memory collateralFilterParams
+        ) = abi.decode(params, (IERC20, uint64, address, IInterestRateModel, ICollateralLiquidator, bytes));
 
         /* Create pool */
-        Pool pool = new Pool(currencyToken, maxLoanDuration, collateralFilter, interestRateModel, collateralLiquidator);
+        Pool pool = new Pool(
+            currencyToken,
+            maxLoanDuration,
+            collateralFilterImpl,
+            interestRateModel,
+            collateralLiquidator,
+            collateralFilterParams
+        );
         address poolAddress = address(pool);
 
         /* Add pool to registry */

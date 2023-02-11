@@ -31,7 +31,7 @@ describe("Pool", function () {
   let loanReceiptLib: TestLoanReceipt;
   let liquidityManagerLib: LiquidityManager;
   let interestRateModel: FixedInterestRateModel;
-  let collateralFilter: CollectionCollateralFilter;
+  let collateralFilterImpl: CollectionCollateralFilter;
   let collateralLiquidator: ExternalCollateralLiquidator;
   let pool: Pool;
   let snapshotId: string;
@@ -80,13 +80,13 @@ describe("Pool", function () {
     loanReceiptLib = await testLoanReceiptFactory.deploy();
     await loanReceiptLib.deployed();
 
-    /* Deploy collateral filter */
-    collateralFilter = await collectionCollateralFilterFactory.deploy(nft1.address);
-    await collateralFilter.deployed();
-
     /* Deploy liquidity manager library */
     liquidityManagerLib = await liquidityManagerFactory.deploy();
     await liquidityManagerLib.deployed();
+
+    /* Deploy collateral filter implementation */
+    collateralFilterImpl = await collectionCollateralFilterFactory.deploy();
+    await collateralFilterImpl.deployed();
 
     /* Deploy test interest rate model */
     interestRateModel = await fixedInterestRateModelFactory.deploy(FixedPoint.normalizeRate("0.02"));
@@ -101,9 +101,10 @@ describe("Pool", function () {
     pool = await poolFactory.deploy(
       tok1.address,
       30 * 86400,
-      collateralFilter.address,
+      collateralFilterImpl.address,
       interestRateModel.address,
-      collateralLiquidator.address
+      collateralLiquidator.address,
+      ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address])
     );
     await pool.deployed();
 
@@ -986,9 +987,10 @@ describe("Pool", function () {
       const pool2 = await poolFactory.deploy(
         tok2.address,
         30 * 86400,
-        collateralFilter.address,
+        collateralFilterImpl.address,
         interestRateModel.address,
-        ethers.constants.AddressZero
+        ethers.constants.AddressZero,
+        ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address])
       );
       await pool2.deployed();
 
@@ -1143,9 +1145,10 @@ describe("Pool", function () {
       const pool2 = await poolFactory.deploy(
         tok2.address,
         30 * 86400,
-        collateralFilter.address,
+        collateralFilterImpl.address,
         interestRateModel.address,
-        ethers.constants.AddressZero
+        ethers.constants.AddressZero,
+        ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address])
       );
       await pool2.deployed();
 

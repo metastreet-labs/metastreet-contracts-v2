@@ -11,12 +11,26 @@ describe("MultipleCollectionCollateralFilter", function () {
     const multipleCollectionCollateralFilterFactory = await ethers.getContractFactory(
       "MultipleCollectionCollateralFilter"
     );
+    const testProxyFactory = await ethers.getContractFactory("TestProxy");
 
-    collateralFilter = await multipleCollectionCollateralFilterFactory.deploy([
-      "0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b",
-      "0x822CB8a23b42Cf37DE879C382BCdA5E20D5764B7",
-    ]);
-    await collateralFilter.deployed();
+    const collateralFilterImpl = await multipleCollectionCollateralFilterFactory.deploy();
+    await collateralFilterImpl.deployed();
+
+    const proxy = await testProxyFactory.deploy(
+      collateralFilterImpl.address,
+      collateralFilterImpl.interface.encodeFunctionData("initialize", [
+        ethers.utils.defaultAbiCoder.encode(
+          ["address[]"],
+          [["0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b", "0x822CB8a23b42Cf37DE879C382BCdA5E20D5764B7"]]
+        ),
+      ])
+    );
+    await proxy.deployed();
+
+    collateralFilter = (await ethers.getContractAt(
+      "MultipleCollectionCollateralFilter",
+      proxy.address
+    )) as CollectionCollateralFilter;
   });
 
   beforeEach("snapshot blockchain", async () => {
