@@ -30,8 +30,8 @@ describe("Pool", function () {
   let noteAdapter: TestNoteAdapter;
   let loanReceiptLib: TestLoanReceipt;
   let liquidityManagerLib: LiquidityManager;
-  let interestRateModel: FixedInterestRateModel;
   let collateralFilterImpl: CollectionCollateralFilter;
+  let interestRateModelImpl: FixedInterestRateModel;
   let collateralLiquidator: ExternalCollateralLiquidator;
   let pool: Pool;
   let snapshotId: string;
@@ -89,7 +89,8 @@ describe("Pool", function () {
     await collateralFilterImpl.deployed();
 
     /* Deploy test interest rate model */
-    interestRateModel = await fixedInterestRateModelFactory.deploy(FixedPoint.normalizeRate("0.02"));
+    interestRateModelImpl = await fixedInterestRateModelFactory.deploy();
+    await interestRateModelImpl.deployed();
 
     /* Deploy external collateral liquidator */
     collateralLiquidator = await externalCollateralLiquidatorFactory.connect(accounts[6]).deploy();
@@ -102,9 +103,10 @@ describe("Pool", function () {
       tok1.address,
       30 * 86400,
       collateralFilterImpl.address,
-      interestRateModel.address,
+      interestRateModelImpl.address,
       collateralLiquidator.address,
-      ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address])
+      ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
+      ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.normalizeRate("0.02")])
     );
     await pool.deployed();
 
@@ -988,9 +990,10 @@ describe("Pool", function () {
         tok2.address,
         30 * 86400,
         collateralFilterImpl.address,
-        interestRateModel.address,
+        interestRateModelImpl.address,
         ethers.constants.AddressZero,
-        ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address])
+        ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
+        ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.normalizeRate("0.02")])
       );
       await pool2.deployed();
 
@@ -1146,9 +1149,10 @@ describe("Pool", function () {
         tok2.address,
         30 * 86400,
         collateralFilterImpl.address,
-        interestRateModel.address,
+        interestRateModelImpl.address,
         ethers.constants.AddressZero,
-        ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address])
+        ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
+        ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.normalizeRate("0.02")])
       );
       await pool2.deployed();
 

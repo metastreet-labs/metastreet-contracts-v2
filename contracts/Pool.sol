@@ -199,22 +199,23 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
      * @param currencyToken_ Currency token contract
      * @param maxLoanDuration_ Maximum loan duration in seconds
      * @param collateralFilterImpl Collateral filter implementation contract
-     * @param interestRateModel_ Interest rate model contract
+     * @param interestRateModelImpl Interest rate model implementation contract
      * @param collateralLiquidator_ Collateral liquidator contract
      * @param collateralFilterParams Collateral filter initialization parameters
+     * @param interestRateModelParams Interest rate model initialization parameters
      */
     constructor(
         IERC20 currencyToken_,
         uint64 maxLoanDuration_,
         address collateralFilterImpl,
-        IInterestRateModel interestRateModel_,
+        address interestRateModelImpl,
         ICollateralLiquidator collateralLiquidator_,
-        bytes memory collateralFilterParams
+        bytes memory collateralFilterParams,
+        bytes memory interestRateModelParams
     ) {
         /* FIXME verify 18 decimals */
         _currencyToken = currencyToken_;
         _maxLoanDuration = maxLoanDuration_;
-        _interestRateModel = interestRateModel_;
         _collateralLiquidator = collateralLiquidator_;
 
         _liquidity.initialize();
@@ -225,6 +226,13 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
             abi.encodeWithSignature("initialize(bytes)", collateralFilterParams)
         );
         _collateralFilter = ICollateralFilter(collateralFilterInstance);
+
+        address interestRateModelInstance = Clones.clone(interestRateModelImpl);
+        Address.functionCall(
+            interestRateModelInstance,
+            abi.encodeWithSignature("initialize(bytes)", interestRateModelParams)
+        );
+        _interestRateModel = IInterestRateModel(interestRateModelInstance);
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(EMERGENCY_ADMIN_ROLE, msg.sender);

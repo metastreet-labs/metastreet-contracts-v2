@@ -25,15 +25,19 @@ contract FixedInterestRateModel is IInterestRateModel {
     /**************************************************************************/
 
     /**
-     * @notice Fixed interest rate
+     * @notice Initialized boolean
      */
-    uint256 public immutable fixedInterestRate;
+    bool private _initialized;
 
     /**
-     * @notice Reserved
-     * @dev Reserved variable used to intialize the slot for utilization
+     * @notice Owner
      */
-    uint128 private _reserved;
+    address private _owner;
+
+    /**
+     * @notice Fixed interest rate
+     */
+    uint128 private _fixedInterestRate;
 
     /**
      * @notice Utilization
@@ -47,11 +51,38 @@ contract FixedInterestRateModel is IInterestRateModel {
 
     /**
      * @notice FixedInterestRateModel constructor
-     * @param fixedInterestRate_ Fixed interest rate
      */
-    constructor(uint256 fixedInterestRate_) {
-        fixedInterestRate = fixedInterestRate_;
-        _reserved = 1;
+    constructor() {
+        /* Disable initialization of implementation contract */
+        _initialized = true;
+    }
+
+    /**************************************************************************/
+    /* Initializer */
+    /**************************************************************************/
+
+    /**
+     * @notice Initializer
+     * @param params ABI-encoded parameters
+     */
+    function initialize(bytes memory params) external {
+        require(!_initialized, "Already initialized");
+
+        _initialized = true;
+        _owner = msg.sender;
+        _fixedInterestRate = uint128(abi.decode(params, (uint256)));
+    }
+
+    /**************************************************************************/
+    /* Getters */
+    /**************************************************************************/
+
+    /**
+     * @notice Get fixed interest rate
+     * @return Fixed interest rate
+     */
+    function fixedInterestRate() external view returns (uint256) {
+        return _fixedInterestRate;
     }
 
     /**************************************************************************/
@@ -69,7 +100,7 @@ contract FixedInterestRateModel is IInterestRateModel {
      * @inheritdoc IInterestRateModel
      */
     function price(uint16, uint16) external view returns (uint256) {
-        return fixedInterestRate;
+        return _fixedInterestRate;
     }
 
     /**
@@ -104,6 +135,8 @@ contract FixedInterestRateModel is IInterestRateModel {
      * @inheritdoc IInterestRateModel
      */
     function onUtilizationUpdated(uint256 utilization) external {
+        if (msg.sender != _owner) revert("Invalid caller");
+
         _utilization = uint128(utilization);
     }
 }

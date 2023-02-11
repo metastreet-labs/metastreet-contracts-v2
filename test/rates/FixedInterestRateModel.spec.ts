@@ -13,9 +13,20 @@ describe("FixedInterestRateModel", function () {
 
   before("deploy fixture", async () => {
     const fixedInterestRateModelFactory = await ethers.getContractFactory("FixedInterestRateModel");
+    const testProxyFactory = await ethers.getContractFactory("TestProxy");
 
-    interestRateModel = await fixedInterestRateModelFactory.deploy(FIXED_INTEREST_RATE);
-    await interestRateModel.deployed();
+    const interestRateModelImpl = await fixedInterestRateModelFactory.deploy();
+    await interestRateModelImpl.deployed();
+
+    const proxy = await testProxyFactory.deploy(
+      interestRateModelImpl.address,
+      interestRateModelImpl.interface.encodeFunctionData("initialize", [
+        ethers.utils.defaultAbiCoder.encode(["uint256"], [FIXED_INTEREST_RATE]),
+      ])
+    );
+    await proxy.deployed();
+
+    interestRateModel = (await ethers.getContractAt("FixedInterestRateModel", proxy.address)) as FixedInterestRateModel;
   });
 
   beforeEach("snapshot blockchain", async () => {

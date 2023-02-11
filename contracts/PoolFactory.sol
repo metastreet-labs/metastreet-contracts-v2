@@ -37,19 +37,21 @@ contract PoolFactory is IPoolFactory {
             IERC20 currencyToken,
             uint64 maxLoanDuration,
             address collateralFilterImpl,
-            IInterestRateModel interestRateModel,
+            address interestRateModelImpl,
             ICollateralLiquidator collateralLiquidator,
-            bytes memory collateralFilterParams
-        ) = abi.decode(params, (IERC20, uint64, address, IInterestRateModel, ICollateralLiquidator, bytes));
+            bytes memory collateralFilterParams,
+            bytes memory interestRateModelParams
+        ) = abi.decode(params, (IERC20, uint64, address, address, ICollateralLiquidator, bytes, bytes));
 
         /* Create pool */
         Pool pool = new Pool(
             currencyToken,
             maxLoanDuration,
             collateralFilterImpl,
-            interestRateModel,
+            interestRateModelImpl,
             collateralLiquidator,
-            collateralFilterParams
+            collateralFilterParams,
+            interestRateModelParams
         );
         address poolAddress = address(pool);
 

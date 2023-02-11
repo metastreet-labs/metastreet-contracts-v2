@@ -1,5 +1,6 @@
 import { ethers } from "hardhat";
 
+import { FixedPoint } from "../test/helpers/FixedPoint";
 import { extractEvent } from "../test/helpers/EventUtilities";
 
 async function main() {
@@ -48,20 +49,21 @@ async function main() {
   const collectionCollateralFilterImpl = await CollectionCollateralFilter.deploy();
   console.log("Collection Collateral Filter Impl:", collectionCollateralFilterImpl.address);
 
-  /* Deploy Fixed Interest Rate Model */
-  const fixedInterestRateModel = await FixedInterestRateModel.deploy(ethers.utils.parseEther("0.02"));
-  console.log("Fixed Interest Rate Model:  ", fixedInterestRateModel.address);
+  /* Deploy Fixed Interest Rate Model Implementation */
+  const fixedInterestRateModelImpl = await FixedInterestRateModel.deploy();
+  console.log("Fixed Interest Rate Model Impl:", fixedInterestRateModelImpl.address);
 
   /* Create WETH Pool */
   const calldata = ethers.utils.defaultAbiCoder.encode(
-    ["address", "uint64", "address", "address", "address", "bytes"],
+    ["address", "uint64", "address", "address", "address", "bytes", "bytes"],
     [
       wethTokenContract.address,
       30 * 86400,
       collectionCollateralFilterImpl.address,
-      fixedInterestRateModel.address,
+      fixedInterestRateModelImpl.address,
       ethers.constants.AddressZero,
-      ethers.utils.defaultAbiCoder.encode(["address"], [baycTokenContract.address])
+      ethers.utils.defaultAbiCoder.encode(["address"], [baycTokenContract.address]),
+      ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.from("0.02")]),
     ]
   );
   const wethTestPoolCreationTx = await poolFactory.createPool(calldata);
