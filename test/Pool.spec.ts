@@ -11,7 +11,7 @@ import {
   TestNoteAdapter,
   TestLoanReceipt,
   FixedInterestRateModel,
-  MultipleCollectionCollateralFilter,
+  CollectionCollateralFilter,
   ExternalCollateralLiquidator,
   LiquidityManager,
   Pool,
@@ -31,7 +31,7 @@ describe("Pool", function () {
   let loanReceiptLib: TestLoanReceipt;
   let liquidityManagerLib: LiquidityManager;
   let interestRateModel: FixedInterestRateModel;
-  let collateralFilter: MultipleCollectionCollateralFilter;
+  let collateralFilter: CollectionCollateralFilter;
   let collateralLiquidator: ExternalCollateralLiquidator;
   let pool: Pool;
   let snapshotId: string;
@@ -47,9 +47,7 @@ describe("Pool", function () {
     const testERC721Factory = await ethers.getContractFactory("TestERC721");
     const testLendingPlatformFactory = await ethers.getContractFactory("TestLendingPlatform");
     const testNoteAdapterFactory = await ethers.getContractFactory("TestNoteAdapter");
-    const multipleCollectionCollateralFilterFactory = await ethers.getContractFactory(
-      "MultipleCollectionCollateralFilter"
-    );
+    const collectionCollateralFilterFactory = await ethers.getContractFactory("CollectionCollateralFilter");
     const testLoanReceiptFactory = await ethers.getContractFactory("TestLoanReceipt");
     const liquidityManagerFactory = await ethers.getContractFactory("LiquidityManager");
     const fixedInterestRateModelFactory = await ethers.getContractFactory("FixedInterestRateModel");
@@ -83,7 +81,7 @@ describe("Pool", function () {
     await loanReceiptLib.deployed();
 
     /* Deploy collateral filter */
-    collateralFilter = await multipleCollectionCollateralFilterFactory.deploy([nft1.address]);
+    collateralFilter = await collectionCollateralFilterFactory.deploy(nft1.address);
     await collateralFilter.deployed();
 
     /* Deploy liquidity manager library */
