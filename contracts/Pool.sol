@@ -146,6 +146,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
     /**************************************************************************/
 
     /**
+     * @notice Initialized boolean
+     */
+    bool private _initialized;
+
+    /**
      * @notice Currency token contract
      */
     IERC20 internal _currencyToken;
@@ -196,6 +201,19 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
 
     /**
      * @notice Pool constructor
+     */
+    constructor() {
+        /* Disable initialization of implementation contract */
+        _initialized = true;
+    }
+
+    /**************************************************************************/
+    /* Initializer */
+    /**************************************************************************/
+
+    /**
+     * @notice Pool initializer
+     * @param admin Admin account
      * @param currencyToken_ Currency token contract
      * @param maxLoanDuration_ Maximum loan duration in seconds
      * @param collateralFilterImpl Collateral filter implementation contract
@@ -204,7 +222,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
      * @param collateralFilterParams Collateral filter initialization parameters
      * @param interestRateModelParams Interest rate model initialization parameters
      */
-    constructor(
+    function initialize(
+        address admin,
         IERC20 currencyToken_,
         uint64 maxLoanDuration_,
         address collateralFilterImpl,
@@ -212,14 +231,19 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         ICollateralLiquidator collateralLiquidator_,
         bytes memory collateralFilterParams,
         bytes memory interestRateModelParams
-    ) {
+    ) external {
+        require(!_initialized, "Already initialized");
+
+        _initialized = true;
         /* FIXME verify 18 decimals */
         _currencyToken = currencyToken_;
         _maxLoanDuration = maxLoanDuration_;
         _collateralLiquidator = collateralLiquidator_;
 
+        /* Initialize liquidity */
         _liquidity.initialize();
 
+        /* Deploy collateral filter instance */
         address collateralFilterInstance = Clones.clone(collateralFilterImpl);
         Address.functionCall(
             collateralFilterInstance,
@@ -227,6 +251,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         );
         _collateralFilter = ICollateralFilter(collateralFilterInstance);
 
+        /* Deploy interest rate model instance */
         address interestRateModelInstance = Clones.clone(interestRateModelImpl);
         Address.functionCall(
             interestRateModelInstance,
@@ -234,7 +259,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         );
         _interestRateModel = IInterestRateModel(interestRateModelInstance);
 
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        /* Grant roles */
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(EMERGENCY_ADMIN_ROLE, msg.sender);
     }
 

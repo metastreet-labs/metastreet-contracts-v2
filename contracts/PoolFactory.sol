@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
@@ -12,17 +13,44 @@ import "./Pool.sol";
  * @title PoolFactory
  * @author MetaStreet Labs
  */
-contract PoolFactory is IPoolFactory {
+contract PoolFactory is Ownable, IPoolFactory {
     using EnumerableSet for EnumerableSet.AddressSet;
+
+    /**************************************************************************/
+    /* Events */
+    /**************************************************************************/
+
+    /**
+     * @notice Emitted when pool implementation is updated
+     * @param implementation New Pool implementation contract
+     */
+    event PoolImplementationUpdated(address indexed implementation);
 
     /**************************************************************************/
     /* State */
     /**************************************************************************/
 
     /**
+     * @notice Pool implementation
+     */
+    address private _poolImplementation;
+
+    /**
      * @notice Set of deployed pools
      */
     EnumerableSet.AddressSet private _pools;
+
+    /**************************************************************************/
+    /* Constructor */
+    /**************************************************************************/
+
+    /*
+     * @notice PoolFactory constructor
+     * @param poolImplementation Pool implementation contract
+     */
+    constructor(address poolImplementation) {
+        _poolImplementation = poolImplementation;
+    }
 
     /**************************************************************************/
     /* Primary API */
@@ -43,24 +71,32 @@ contract PoolFactory is IPoolFactory {
             bytes memory interestRateModelParams
         ) = abi.decode(params, (IERC20, uint64, address, address, ICollateralLiquidator, bytes, bytes));
 
-        /* Create pool */
-        Pool pool = new Pool(
-            currencyToken,
-            maxLoanDuration,
-            collateralFilterImpl,
-            interestRateModelImpl,
-            collateralLiquidator,
-            collateralFilterParams,
-            interestRateModelParams
+        /* Create pool instance */
+        address poolInstance = Clones.clone(_poolImplementation);
+        Address.functionCall(
+            poolInstance,
+            abi.encodeCall(
+                Pool.initialize,
+                (
+                    msg.sender,
+                    currencyToken,
+                    maxLoanDuration,
+                    collateralFilterImpl,
+                    interestRateModelImpl,
+                    collateralLiquidator,
+                    collateralFilterParams,
+                    interestRateModelParams
+                )
+            )
         );
-        address poolAddress = address(pool);
 
         /* Add pool to registry */
-        _pools.add(poolAddress);
+        _pools.add(poolInstance);
 
-        emit PoolCreated(poolAddress);
+        /* Emit Pool Created */
+        emit PoolCreated(poolInstance);
 
-        return poolAddress;
+        return poolInstance;
     }
 
     /**
@@ -89,5 +125,20 @@ contract PoolFactory is IPoolFactory {
      */
     function getPoolAt(uint256 index) external view returns (address) {
         return _pools.at(index);
+    }
+
+    /**************************************************************************/
+    /* Admin API */
+    /**************************************************************************/
+
+    /*
+     * @notice Set Pool Implementation
+     * @param implementation New Pool implementation contract
+     */
+    function setPoolImplementation(address implementation) external onlyOwner {
+        _poolImplementation = implementation;
+
+        /* Emit Pool Implementation Updated */
+        emit PoolImplementationUpdated(implementation);
     }
 }

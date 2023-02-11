@@ -33,6 +33,7 @@ describe("Pool", function () {
   let collateralFilterImpl: CollectionCollateralFilter;
   let interestRateModelImpl: FixedInterestRateModel;
   let collateralLiquidator: ExternalCollateralLiquidator;
+  let poolImpl: Pool;
   let pool: Pool;
   let snapshotId: string;
   let accountDepositors: SignerWithAddress[3];
@@ -47,6 +48,7 @@ describe("Pool", function () {
     const testERC721Factory = await ethers.getContractFactory("TestERC721");
     const testLendingPlatformFactory = await ethers.getContractFactory("TestLendingPlatform");
     const testNoteAdapterFactory = await ethers.getContractFactory("TestNoteAdapter");
+    const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const collectionCollateralFilterFactory = await ethers.getContractFactory("CollectionCollateralFilter");
     const testLoanReceiptFactory = await ethers.getContractFactory("TestLoanReceipt");
     const liquidityManagerFactory = await ethers.getContractFactory("LiquidityManager");
@@ -94,21 +96,31 @@ describe("Pool", function () {
 
     /* Deploy external collateral liquidator */
     collateralLiquidator = await externalCollateralLiquidatorFactory.connect(accounts[6]).deploy();
+    await collateralLiquidator.deployed();
 
-    /* Deploy pool */
+    /* Deploy pool implementation */
     const poolFactory = await ethers.getContractFactory("Pool", {
       libraries: { LiquidityManager: liquidityManagerLib.address },
     });
-    pool = await poolFactory.deploy(
-      tok1.address,
-      30 * 86400,
-      collateralFilterImpl.address,
-      interestRateModelImpl.address,
-      collateralLiquidator.address,
-      ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
-      ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.normalizeRate("0.02")])
+    poolImpl = await poolFactory.deploy();
+    await poolImpl.deployed();
+
+    /* Deploy pool */
+    const proxy = await testProxyFactory.deploy(
+      poolImpl.address,
+      poolImpl.interface.encodeFunctionData("initialize", [
+        accounts[0].address,
+        tok1.address,
+        30 * 86400,
+        collateralFilterImpl.address,
+        interestRateModelImpl.address,
+        collateralLiquidator.address,
+        ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
+        ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.normalizeRate("0.02")]),
+      ])
     );
-    await pool.deployed();
+    await proxy.deployed();
+    pool = (await ethers.getContractAt("Pool", proxy.address)) as Pool;
 
     /* Add note token to pool */
     await pool.setLoanAdapter(noteToken.address, noteAdapter.address);
@@ -983,19 +995,22 @@ describe("Pool", function () {
       await tok2.deployed();
 
       /* Deploy second pool */
-      const poolFactory = await ethers.getContractFactory("Pool", {
-        libraries: { LiquidityManager: liquidityManagerLib.address },
-      });
-      const pool2 = await poolFactory.deploy(
-        tok2.address,
-        30 * 86400,
-        collateralFilterImpl.address,
-        interestRateModelImpl.address,
-        ethers.constants.AddressZero,
-        ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
-        ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.normalizeRate("0.02")])
+      const testProxyFactory = await ethers.getContractFactory("TestProxy");
+      const proxy = await testProxyFactory.deploy(
+        poolImpl.address,
+        poolImpl.interface.encodeFunctionData("initialize", [
+          accounts[0].address,
+          tok2.address,
+          30 * 86400,
+          collateralFilterImpl.address,
+          interestRateModelImpl.address,
+          collateralLiquidator.address,
+          ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
+          ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.normalizeRate("0.02")]),
+        ])
       );
-      await pool2.deployed();
+      await proxy.deployed();
+      const pool2 = (await ethers.getContractAt("Pool", proxy.address)) as Pool;
 
       /* Add note token to pool */
       await pool2.setLoanAdapter(noteToken.address, noteAdapter.address);
@@ -1142,19 +1157,22 @@ describe("Pool", function () {
       await tok2.deployed();
 
       /* Deploy second pool */
-      const poolFactory = await ethers.getContractFactory("Pool", {
-        libraries: { LiquidityManager: liquidityManagerLib.address },
-      });
-      const pool2 = await poolFactory.deploy(
-        tok2.address,
-        30 * 86400,
-        collateralFilterImpl.address,
-        interestRateModelImpl.address,
-        ethers.constants.AddressZero,
-        ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
-        ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.normalizeRate("0.02")])
+      const testProxyFactory = await ethers.getContractFactory("TestProxy");
+      const proxy = await testProxyFactory.deploy(
+        poolImpl.address,
+        poolImpl.interface.encodeFunctionData("initialize", [
+          accounts[0].address,
+          tok2.address,
+          30 * 86400,
+          collateralFilterImpl.address,
+          interestRateModelImpl.address,
+          collateralLiquidator.address,
+          ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
+          ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.normalizeRate("0.02")]),
+        ])
       );
-      await pool2.deployed();
+      await proxy.deployed();
+      const pool2 = (await ethers.getContractAt("Pool", proxy.address)) as Pool;
 
       /* Add note token to pool */
       await pool2.setLoanAdapter(noteToken.address, noteAdapter.address);

@@ -12,19 +12,24 @@ async function main() {
   const LiquidityManager = await ethers.getContractFactory("LiquidityManager");
   const CollectionCollateralFilter = await ethers.getContractFactory("CollectionCollateralFilter", accounts[9]);
   const FixedInterestRateModel = await ethers.getContractFactory("FixedInterestRateModel", accounts[9]);
+  const PoolFactory = await ethers.getContractFactory("PoolFactory", accounts[9]);
 
   /* Deploy liquidity manager library */
   const liquidityManagerLib = await LiquidityManager.deploy();
   await liquidityManagerLib.deployed();
 
-  /* Create Pool Factory */
-  const PoolFactory = await ethers.getContractFactory("PoolFactory", {
+  /* Deploy Pool implementation */
+  const Pool = await ethers.getContractFactory("Pool", {
     signer: accounts[9],
     libraries: { LiquidityManager: liquidityManagerLib.address },
   });
+  const poolImpl = await Pool.deploy();
+  await poolImpl.deployed();
+  console.log("Pool Implementation:        ", poolImpl.address);
 
   /* Deploy Pool Factory */
-  const poolFactory = await PoolFactory.deploy();
+  const poolFactory = await PoolFactory.deploy(poolImpl.address);
+  await poolFactory.deployed();
   console.log("Pool Factory:               ", poolFactory.address);
 
   console.log("");
@@ -52,6 +57,8 @@ async function main() {
   /* Deploy Fixed Interest Rate Model Implementation */
   const fixedInterestRateModelImpl = await FixedInterestRateModel.deploy();
   console.log("Fixed Interest Rate Model Impl:", fixedInterestRateModelImpl.address);
+
+  console.log("");
 
   /* Create WETH Pool */
   const calldata = ethers.utils.defaultAbiCoder.encode(
