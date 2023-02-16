@@ -831,11 +831,13 @@ describe("LiquidityManager", function () {
   }
 
   describe("#source", async function () {
+    const depths = [toFixedPoint("10"), toFixedPoint("20"), toFixedPoint("30"), toFixedPoint("40")];
+
     beforeEach("setup liquidity", async function () {
       await setupLiquidity();
     });
     it("sources required liquidity", async function () {
-      let [nodes, count] = await liquidityManager.source(0, toFixedPoint("15"));
+      let [nodes, count] = await liquidityManager.source(toFixedPoint("15"), depths);
 
       /* Validate nodes */
       expect(count).to.equal(2);
@@ -848,7 +850,7 @@ describe("LiquidityManager", function () {
       expect(nodes[1].used).to.equal(ethers.constants.Zero);
       expect(nodes[1].pending).to.equal(ethers.constants.Zero);
 
-      [nodes, count] = await liquidityManager.source(0, toFixedPoint("35"));
+      [nodes, count] = await liquidityManager.source(toFixedPoint("35"), depths);
 
       /* Validate nodes */
       expect(count).to.equal(4);
@@ -870,7 +872,11 @@ describe("LiquidityManager", function () {
       expect(nodes[3].pending).to.equal(ethers.constants.Zero);
     });
     it("fails on insufficient liquidity", async function () {
-      await expect(liquidityManager.source(0, toFixedPoint("45"))).to.be.revertedWithCustomError(
+      await expect(liquidityManager.source(toFixedPoint("25"), depths.slice(0, 2))).to.be.revertedWithCustomError(
+        liquidityManagerLib,
+        "InsufficientLiquidity"
+      );
+      await expect(liquidityManager.source(toFixedPoint("45"), depths)).to.be.revertedWithCustomError(
         liquidityManagerLib,
         "InsufficientLiquidity"
       );

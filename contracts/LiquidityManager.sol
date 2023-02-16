@@ -291,37 +291,32 @@ library LiquidityManager {
     /**
      * @notice Source liquidity from nodes
      * @param liquidity Liquidity state
-     * @param startDepth Start depth
      * @param amount Amount
+     * @param depths Depths to source from
      * @return Sourced liquidity nodes, count of nodes
      */
     function source(
         Liquidity storage liquidity,
-        uint128 startDepth,
-        uint128 amount
+        uint256 amount,
+        uint256[] calldata depths
     ) internal view returns (ILiquidity.NodeSource[] memory, uint16) {
-        ILiquidity.NodeSource[] memory sources = new ILiquidity.NodeSource[](MAX_NUM_NODES);
+        ILiquidity.NodeSource[] memory sources = new ILiquidity.NodeSource[](depths.length);
 
         uint128 taken = 0;
-        uint16 i = 0;
-        uint128 d = (startDepth == 0) ? liquidity.nodes[0].next : startDepth;
-        while (taken < amount && d != type(uint128).max && i < MAX_NUM_NODES) {
-            Node storage node = liquidity.nodes[d];
+        uint16 count = 0;
+        for (count = 0; count < depths.length && taken != amount; count++) {
+            uint128 depth = uint128(depths[count]);
+            Node storage node = liquidity.nodes[depth];
 
-            uint128 take = uint128(Math.min(Math.min(d - taken, node.available), amount - taken));
-            if (take > 0) {
-                sources[i].depth = d;
-                sources[i].available = node.available;
-                taken += take;
-                i++;
-            }
-
-            d = node.next;
+            uint128 take = uint128(Math.min(Math.min(depth - taken, node.available), amount - taken));
+            sources[count].depth = uint128(depth);
+            sources[count].available = node.available;
+            taken += take;
         }
 
         if (taken < amount) revert InsufficientLiquidity();
 
-        return (sources, i);
+        return (sources, count);
     }
 
     /**

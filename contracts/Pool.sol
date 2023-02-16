@@ -422,9 +422,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
      * @param maturity Maturity
      * @param assets Collateral assets
      * @param collateralTokenIdSpec Collateral token ID specification
-     * @return purchasePrice Purchase price
-     * @return nodes Liquidity nodes
-     * @return count Liquidity nodes count
+     * @return Purchase price in currency tokens
      */
     function _priceNote(
         uint256 principal,
@@ -432,32 +430,25 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         uint64 maturity,
         ILoanAdapter.AssetInfo[] memory assets,
         bytes[] calldata collateralTokenIdSpec
-    ) internal view returns (uint256, ILiquidity.NodeSource[] memory, uint16) {
+    ) internal view returns (uint256) {
         /* FIXME implement bundle support */
         require(assets.length == 1, "Bundles not yet supported");
 
         /* Verify collateral is supported */
         if (!_collateralFilter.supported(assets[0].token, assets[0].tokenId, "")) revert UnsupportedCollateral(0);
 
-        /* Source nodes needed */
-        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(0, uint128(repayment));
-
         /* Calculate purchase price from repayment, rate, and remaining duration */
-        uint256 purchasePrice = Math.mulDiv(
-            repayment,
-            LiquidityManager.FIXED_POINT_SCALE,
-            LiquidityManager.FIXED_POINT_SCALE +
-                Math.mulDiv(
-                    _interestRateModel.rate(),
-                    (maturity - uint64(block.timestamp)) * LiquidityManager.FIXED_POINT_SCALE,
-                    LiquidityManager.FIXED_POINT_SCALE
-                )
-        );
-
-        /* Distribute liquidity */
-        (nodes, count) = _interestRateModel.distribute(purchasePrice, repayment - purchasePrice, nodes, count);
-
-        return (purchasePrice, nodes, count);
+        return
+            Math.mulDiv(
+                repayment,
+                LiquidityManager.FIXED_POINT_SCALE,
+                LiquidityManager.FIXED_POINT_SCALE +
+                    Math.mulDiv(
+                        _interestRateModel.rate(),
+                        (maturity - uint64(block.timestamp)) * LiquidityManager.FIXED_POINT_SCALE,
+                        LiquidityManager.FIXED_POINT_SCALE
+                    )
+            );
     }
 
     /**
@@ -487,15 +478,14 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         if (loanInfo.duration > _maxLoanDuration) revert UnsupportedLoanDuration();
 
         /* Price the note */
-        (uint256 purchasePrice, , ) = _priceNote(
-            loanInfo.principal,
-            loanInfo.repayment,
-            loanInfo.maturity,
-            loanInfo.assets,
-            collateralTokenIdSpec
-        );
-
-        return purchasePrice;
+        return
+            _priceNote(
+                loanInfo.principal,
+                loanInfo.repayment,
+                loanInfo.maturity,
+                loanInfo.assets,
+                collateralTokenIdSpec
+            );
     }
 
     /**
@@ -505,6 +495,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         address noteToken,
         uint256 noteTokenId,
         uint256 minPurchasePrice,
+        uint256[] calldata depths,
         bytes[] calldata collateralTokenIdSpec
     ) external returns (uint256) {
         /* Get note adapter */
@@ -526,7 +517,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         if (loanInfo.duration > _maxLoanDuration) revert UnsupportedLoanDuration();
 
         /* Price the note */
-        (uint256 purchasePrice, NodeSource[] memory nodes, uint16 count) = _priceNote(
+        uint256 purchasePrice = _priceNote(
             loanInfo.principal,
             loanInfo.repayment,
             loanInfo.maturity,
@@ -536,6 +527,17 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
 
         /* Validate purchase price */
         if (purchasePrice < minPurchasePrice) revert PurchasePriceTooLow();
+
+        /* Source liquidity nodes */
+        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(purchasePrice, depths);
+
+        /* Distribute interest */
+        (nodes, count) = _interestRateModel.distribute(
+            purchasePrice,
+            loanInfo.repayment - purchasePrice,
+            nodes,
+            uint16(nodes.length)
+        );
 
         /* Use liquidity nodes */
         LoanReceipt.NodeReceipt[] memory nodeReceipts = new LoanReceipt.NodeReceipt[](count);

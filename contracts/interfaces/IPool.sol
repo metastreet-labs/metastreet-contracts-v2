@@ -154,6 +154,7 @@ interface IPool {
      * @param noteToken Note token contract
      * @param noteTokenId Note token ID
      * @param minPurchasePrice Minimum purchase price in currency tokens
+     * @param depths Liquidity node depths
      * @param collateralTokenIdSpec Collateral token ID specification
      * @return purchasePrice Executed purchase price in currency tokens
      */
@@ -161,6 +162,7 @@ interface IPool {
         address noteToken,
         uint256 noteTokenId,
         uint256 minPurchasePrice,
+        uint256[] calldata depths,
         bytes[] calldata collateralTokenIdSpec
     ) external returns (uint256 purchasePrice);
 

@@ -803,6 +803,26 @@ describe("Pool", function () {
     }
   }
 
+  async function sourceLiquidity(amount: ethers.BigNumber): Promise<ethers.BigNumber[]> {
+    const nodes = await pool.liquidityNodes(0, ethers.constants.MaxUint256);
+    const depths = [];
+
+    const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
+    const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
+
+    let taken = ethers.constants.Zero;
+    for (let node of nodes) {
+      const take = minBN(minBN(node.depth.sub(taken), node.available), amount.sub(taken));
+      if (take.isZero()) continue;
+      depths.push(node.depth);
+      taken = taken.add(take);
+    }
+
+    if (!taken.eq(amount)) throw new Error(`Insufficient liquidity for amount {amount.toString()}`);
+
+    return depths;
+  }
+
   async function setupInsolventTick(): Promise<void> {
     /* Create two deposits at 10 ETH and 20 ETH ticks */
     await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("5"), ethers.utils.parseEther("5"));
@@ -894,7 +914,9 @@ describe("Pool", function () {
     const loanId = await createActiveLoan(principal, repayment, duration);
 
     /* Sell note */
-    const sellNoteTx = await pool.connect(accountLender).sellNote(noteToken.address, loanId, 0, []);
+    const sellNoteTx = await pool
+      .connect(accountLender)
+      .sellNote(noteToken.address, loanId, 0, await sourceLiquidity(repayment), []);
     const loanReceipt = (await extractEvent(sellNoteTx, pool, "LoanPurchased")).args.loanReceipt;
 
     return [loanId, loanReceipt];
@@ -916,13 +938,6 @@ describe("Pool", function () {
       const purchasePrice = await pool.priceNote(noteToken.address, loanId, []);
       expect(purchasePrice.sub(ethers.utils.parseEther("25.95733041")).abs()).to.be.lt(
         ethers.utils.parseEther("0.0000001")
-      );
-    });
-    it("fails on insufficient liquidity", async function () {
-      const loanId = await createActiveLoan(ethers.utils.parseEther("30"), ethers.utils.parseEther("31"));
-      await expect(pool.priceNote(noteToken.address, loanId, [])).to.be.revertedWithCustomError(
-        liquidityManagerLib,
-        "InsufficientLiquidity"
       );
     });
     it("fails on invalid loan status (repaid)", async function () {
@@ -1036,7 +1051,13 @@ describe("Pool", function () {
       /* Sell note */
       const sellNoteTx = await pool
         .connect(accountLender)
-        .sellNote(noteToken.address, loanId, ethers.utils.parseEther("25"), []);
+        .sellNote(
+          noteToken.address,
+          loanId,
+          ethers.utils.parseEther("25"),
+          await sourceLiquidity(ethers.utils.parseEther("26")),
+          []
+        );
       await expectEvent(sellNoteTx, noteToken, "Transfer", {
         from: accountLender.address,
         to: pool.address,
@@ -1090,31 +1111,61 @@ describe("Pool", function () {
     it("fails on insufficient liquidity", async function () {
       const loanId = await createActiveLoan(ethers.utils.parseEther("30"), ethers.utils.parseEther("31"));
       await expect(
-        pool.sellNote(noteToken.address, loanId, ethers.utils.parseEther("25"), [])
+        pool.sellNote(
+          noteToken.address,
+          loanId,
+          ethers.utils.parseEther("25"),
+          await sourceLiquidity(ethers.utils.parseEther("26")),
+          []
+        )
       ).to.be.revertedWithCustomError(liquidityManagerLib, "InsufficientLiquidity");
     });
     it("fails on invalid loan status (repaid)", async function () {
       const loanId = await createRepaidLoan(ethers.utils.parseEther("25"), ethers.utils.parseEther("26"));
       await expect(
-        pool.sellNote(noteToken.address, loanId, ethers.utils.parseEther("25"), [])
+        pool.sellNote(
+          noteToken.address,
+          loanId,
+          ethers.utils.parseEther("25"),
+          await sourceLiquidity(ethers.utils.parseEther("26")),
+          []
+        )
       ).to.be.revertedWithCustomError(pool, "InvalidLoanStatus");
     });
     it("fails on invalid loan status (expired)", async function () {
       const loanId = await createExpiredLoan(ethers.utils.parseEther("25"), ethers.utils.parseEther("26"));
       await expect(
-        pool.sellNote(noteToken.address, loanId, ethers.utils.parseEther("25"), [])
+        pool.sellNote(
+          noteToken.address,
+          loanId,
+          ethers.utils.parseEther("25"),
+          await sourceLiquidity(ethers.utils.parseEther("26")),
+          []
+        )
       ).to.be.revertedWithCustomError(pool, "InvalidLoanStatus");
     });
     it("fails on invalid loan status (liquidated)", async function () {
       const loanId = await createLiquidatedLoan(ethers.utils.parseEther("25"), ethers.utils.parseEther("26"));
       await expect(
-        pool.sellNote(noteToken.address, loanId, ethers.utils.parseEther("25"), [])
+        pool.sellNote(
+          noteToken.address,
+          loanId,
+          ethers.utils.parseEther("25"),
+          await sourceLiquidity(ethers.utils.parseEther("26")),
+          []
+        )
       ).to.be.revertedWithCustomError(pool, "InvalidLoanStatus");
     });
     it("fails on unsupported loan duration", async function () {
       const loanId = await createActiveLoan(ethers.utils.parseEther("25"), ethers.utils.parseEther("26"), 35 * 86400);
       await expect(
-        pool.sellNote(noteToken.address, loanId, ethers.utils.parseEther("25"), [])
+        pool.sellNote(
+          noteToken.address,
+          loanId,
+          ethers.utils.parseEther("25"),
+          await sourceLiquidity(ethers.utils.parseEther("26")),
+          []
+        )
       ).to.be.revertedWithCustomError(pool, "UnsupportedLoanDuration");
     });
     it("fails on unsupported collateral", async function () {
@@ -1142,7 +1193,13 @@ describe("Pool", function () {
       const loanId = (await extractEvent(lendTx, lendingPlatform, "LoanCreated")).args.loanId;
 
       await expect(
-        pool.sellNote(noteToken.address, loanId, ethers.utils.parseEther("25"), [])
+        pool.sellNote(
+          noteToken.address,
+          loanId,
+          ethers.utils.parseEther("25"),
+          await sourceLiquidity(ethers.utils.parseEther("26")),
+          []
+        )
       ).to.be.revertedWithCustomError(pool, "UnsupportedCollateral", 0);
     });
     it("fails on unsupported currency token", async function () {
@@ -1181,7 +1238,13 @@ describe("Pool", function () {
       const loanId = await createActiveLoan(ethers.utils.parseEther("25"), ethers.utils.parseEther("26"));
 
       await expect(
-        pool2.sellNote(noteToken.address, loanId, ethers.utils.parseEther("25"), [])
+        pool2.sellNote(
+          noteToken.address,
+          loanId,
+          ethers.utils.parseEther("25"),
+          await sourceLiquidity(ethers.utils.parseEther("26")),
+          []
+        )
       ).to.be.revertedWithCustomError(pool, "UnsupportedCurrencyToken");
     });
   });

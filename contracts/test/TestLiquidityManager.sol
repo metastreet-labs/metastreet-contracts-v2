@@ -98,8 +98,11 @@ contract TestLiquidityManager is ILiquidity {
     /**
      * @dev External wrapper function for LiquidityManager.source()
      */
-    function source(uint128 startDepth, uint128 amount) external view returns (ILiquidity.NodeSource[] memory, uint16) {
-        return _liquidity.source(startDepth, amount);
+    function source(
+        uint256 amount,
+        uint256[] calldata depths
+    ) external view returns (ILiquidity.NodeSource[] memory, uint16 count) {
+        return _liquidity.source(amount, depths);
     }
 
     /**
