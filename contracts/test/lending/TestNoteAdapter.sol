@@ -104,11 +104,12 @@ contract TestNoteAdapter is INoteAdapter {
         TestLendingPlatform.LoanTerms memory loanTerms = _lendingPlatform.loans(loanId);
 
         /* Map loan term status */
-        if (loanTerms.status == TestLendingPlatform.LoanStatus.Unknown) return LoanStatus.Unknown;
         if (loanTerms.status == TestLendingPlatform.LoanStatus.Repaid) return LoanStatus.Repaid;
         if (loanTerms.status == TestLendingPlatform.LoanStatus.Liquidated) return LoanStatus.Liquidated;
-        if (block.timestamp > loanTerms.startTime + loanTerms.duration) return LoanStatus.Expired;
-        return LoanStatus.Active;
+        if (loanTerms.status == TestLendingPlatform.LoanStatus.Active)
+            return
+                (block.timestamp > loanTerms.startTime + loanTerms.duration) ? LoanStatus.Expired : LoanStatus.Active;
+        return LoanStatus.Unknown;
     }
 
     /**
