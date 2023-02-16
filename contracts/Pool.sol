@@ -442,16 +442,13 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         /* Source nodes needed */
         (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(0, uint128(repayment));
 
-        /* Price overall interest rate */
-        uint256 rate = _interestRateModel.price(count, _liquidity.numNodes);
-
         /* Calculate purchase price from repayment, rate, and remaining duration */
         uint256 purchasePrice = Math.mulDiv(
             repayment,
             LiquidityManager.FIXED_POINT_SCALE,
             LiquidityManager.FIXED_POINT_SCALE +
                 Math.mulDiv(
-                    rate,
+                    _interestRateModel.rate(),
                     (maturity - uint64(block.timestamp)) * LiquidityManager.FIXED_POINT_SCALE,
                     LiquidityManager.FIXED_POINT_SCALE
                 )

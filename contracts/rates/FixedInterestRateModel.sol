@@ -74,18 +74,6 @@ contract FixedInterestRateModel is IInterestRateModel {
     }
 
     /**************************************************************************/
-    /* Getters */
-    /**************************************************************************/
-
-    /**
-     * @notice Get fixed interest rate
-     * @return Fixed interest rate
-     */
-    function fixedInterestRate() external view returns (uint256) {
-        return _fixedInterestRate;
-    }
-
-    /**************************************************************************/
     /* Implementation */
     /**************************************************************************/
 
@@ -99,7 +87,7 @@ contract FixedInterestRateModel is IInterestRateModel {
     /**
      * @inheritdoc IInterestRateModel
      */
-    function price(uint16, uint16) external view returns (uint256) {
+    function rate() external view returns (uint256) {
         return _fixedInterestRate;
     }
 

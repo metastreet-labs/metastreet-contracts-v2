@@ -41,15 +41,11 @@ describe("FixedInterestRateModel", function () {
     it("matches expected name", async function () {
       expect(await interestRateModel.name()).to.equal("FixedInterestRateModel");
     });
-    it("matches expected fixed interest rate", async function () {
-      expect(await interestRateModel.fixedInterestRate()).to.equal(FIXED_INTEREST_RATE);
-    });
   });
 
-  describe("price", async function () {
+  describe("rate", async function () {
     it("returns correct rate", async function () {
-      expect(await interestRateModel.price(1, 16)).to.equal(FIXED_INTEREST_RATE);
-      expect(await interestRateModel.price(16, 16)).to.equal(FIXED_INTEREST_RATE);
+      expect(await interestRateModel.rate()).to.equal(FIXED_INTEREST_RATE);
     });
   });
 

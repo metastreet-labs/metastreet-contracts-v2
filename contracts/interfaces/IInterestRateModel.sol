@@ -14,12 +14,10 @@ interface IInterestRateModel {
     function name() external view returns (string memory);
 
     /**
-     * Calculate interest rate for liquidity
-     * @param nodesUsed Number of nodes used
-     * @param nodesTotal Number of nodes total
-     * @return interestRate Interest per second
+     * Get interest rate
+     * @return Interest per second
      */
-    function price(uint16 nodesUsed, uint16 nodesTotal) external view returns (uint256 interestRate);
+    function rate() external view returns (uint256);
 
     /**
      * Distribute amount and interest to liquidity
