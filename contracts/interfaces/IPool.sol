@@ -58,8 +58,9 @@ interface IPool {
     /**
      * @notice Emitted when a loan is repaid
      * @param loanReceiptHash Loan receipt hash
+     * @param processed If loan accounting has been processed
      */
-    event LoanRepaid(bytes32 indexed loanReceiptHash);
+    event LoanRepaid(bytes32 indexed loanReceiptHash, bool indexed processed);
 
     /**
      * @notice Emitted when a loan is liquidated
@@ -171,48 +172,57 @@ interface IPool {
     /**************************************************************************/
 
     /**
-     * @notice Price a loan
+     * @notice Quote repayment for a loan
      *
-     * @param lendPlatform Lend platform
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
      * @param collateralTokenIdSpec Collateral token ID specification
-     * @return repayment Repayment amount in currency tokens
+     * @return Repayment amount in currency tokens
      */
-    function priceLoan(
-        address lendPlatform,
+    function quote(
         uint256 principal,
         uint64 duration,
         address collateralToken,
         uint256 collateralTokenId,
         bytes[] calldata collateralTokenIdSpec
-    ) external view returns (uint256 repayment);
+    ) external view returns (uint256);
 
     /**
      * @notice Originate a loan
      *
      * Emits a {LoanOriginated} event.
      *
-     * @param lendPlatform Lend platform
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
-     * @param collateralTokenIdSpec Collateral token ID specification
      * @param maxRepayment Maximum repayment amount in currency tokens
-     * @return loanId Loan ID
+     * @param depths Liquidity node depths
+     * @param collateralTokenIdSpec Collateral token ID specification
+     * @param options Encoded options
+     * @return Repayment amount in currency tokens
      */
-    function originateLoan(
-        address lendPlatform,
+    function borrow(
         uint256 principal,
         uint64 duration,
         address collateralToken,
         uint256 collateralTokenId,
         uint256 maxRepayment,
-        bytes[] calldata collateralTokenIdSpec
-    ) external returns (uint256 loanId);
+        uint256[] calldata depths,
+        bytes[] calldata collateralTokenIdSpec,
+        bytes calldata options
+    ) external returns (uint256);
+
+    /**
+     * @notice Repay a loan
+     *
+     * Emits a {PoolLoanRepaid} event.
+     *
+     * @param encodedLoanReceipt Encoded loan receipt
+     */
+    function repay(bytes calldata encodedLoanReceipt) external;
 
     /**************************************************************************/
     /* Loan Callbacks */
