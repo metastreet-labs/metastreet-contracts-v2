@@ -532,12 +532,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, Multicall, IPool
         (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(purchasePrice, depths);
 
         /* Distribute interest */
-        (nodes, count) = _interestRateModel.distribute(
-            purchasePrice,
-            loanInfo.repayment - purchasePrice,
-            nodes,
-            uint16(nodes.length)
-        );
+        (nodes, count) = _interestRateModel.distribute(purchasePrice, loanInfo.repayment - purchasePrice, nodes, count);
 
         /* Use liquidity nodes */
         LoanReceipt.NodeReceipt[] memory nodeReceipts = new LoanReceipt.NodeReceipt[](count);
