@@ -1,5 +1,6 @@
 import { Address, BigInt, dataSource, ethereum, log, store } from "@graphprotocol/graph-ts";
 import {
+  CollateralToken as CollateralTokenEntity,
   Deposit as DepositEntity,
   Deposited as DepositedEntity,
   Pool as PoolEntity,
@@ -60,16 +61,35 @@ function createPoolEvent(event: ethereum.Event, type: string, account: Address |
   return id;
 }
 
-function updatePoolEntity(): void {
+function updatePoolEntity(): PoolEntity {
   const poolEntity = PoolEntity.load(poolAddress);
   if (!poolEntity) {
     log.error("No Pool entity for this event", []);
-    return;
+    throw new Error("No Pool entity");
   }
   poolEntity.totalValueLocked = poolContract.liquidityStatistics().value0;
   poolEntity.utilization = poolContract.utilization();
   poolEntity.maxBorrow = poolContract.liquidityAvailable(MAX_UINT256);
   poolEntity.save();
+  return poolEntity;
+}
+
+function updateCollateralTokenEntity(id: string): void {
+  const collateralTokenEntity = CollateralTokenEntity.load(id);
+  if (collateralTokenEntity) {
+    let tvl = BigInt.zero();
+    let maxBorrow = BigInt.zero();
+    for (let i = 0; i < collateralTokenEntity.poolIds.length; i++) {
+      const pool = PoolEntity.load(collateralTokenEntity.poolIds[i]);
+      if (pool) {
+        tvl = tvl.plus(pool.totalValueLocked);
+        if (maxBorrow.lt(pool.maxBorrow)) maxBorrow = pool.maxBorrow;
+      }
+    }
+    collateralTokenEntity.totalValueLocked = tvl;
+    collateralTokenEntity.maxBorrow = maxBorrow;
+    collateralTokenEntity.save();
+  }
 }
 
 function updateTickEntity(depth: BigInt): void {
@@ -111,7 +131,7 @@ function updateDepositEntity(account: Address, depth: BigInt, timestamp: BigInt)
   depositEntity.redemptionPending = deposit.redemptionPending;
   depositEntity.redemptionIndex = deposit.redemptionIndex;
   depositEntity.redemptionTarget = deposit.redemptionTarget;
-  depositEntity.collateralToken = poolEntity.collateralToken;
+  depositEntity.collateralToken = Address.fromString(poolEntity.collateralToken);
   depositEntity.maxLoanDuration = poolEntity.maxLoanDuration;
   depositEntity.depth = depth;
   depositEntity.updatedAt = timestamp;
@@ -123,7 +143,8 @@ function updateDepositEntity(account: Address, depth: BigInt, timestamp: BigInt)
 /**************************************************************************/
 
 export function handleDeposited(event: Deposited): void {
-  updatePoolEntity();
+  const poolEntity = updatePoolEntity();
+  updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.depth);
   updateDepositEntity(event.params.account, event.params.depth, event.block.timestamp);
   const poolEventID = createPoolEvent(event, PoolEventType.Deposited, event.params.account);
@@ -136,7 +157,8 @@ export function handleDeposited(event: Deposited): void {
 }
 
 export function handleRedeemed(event: Redeemed): void {
-  updatePoolEntity();
+  const poolEntity = updatePoolEntity();
+  updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.depth);
   updateDepositEntity(event.params.account, event.params.depth, event.block.timestamp);
   const poolEventID = createPoolEvent(event, PoolEventType.Redeemed, event.params.account);
@@ -148,7 +170,8 @@ export function handleRedeemed(event: Redeemed): void {
 }
 
 export function handleWithdrawn(event: Withdrawn): void {
-  updatePoolEntity();
+  const poolEntity = updatePoolEntity();
+  updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.depth);
   updateDepositEntity(event.params.account, event.params.depth, event.block.timestamp);
   const poolEventID = createPoolEvent(event, PoolEventType.Withdrawn, event.params.account);
