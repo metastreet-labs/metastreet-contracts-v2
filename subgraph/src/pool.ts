@@ -1,14 +1,28 @@
-import { Address, BigInt, dataSource, ethereum, log, store } from "@graphprotocol/graph-ts";
+import { Address, BigInt, Bytes, dataSource, ethereum, log, store } from "@graphprotocol/graph-ts";
 import {
+  CollateralToken as CollateralTokenEntity,
   Deposit as DepositEntity,
   Deposited as DepositedEntity,
+  Loan as LoanEntity,
+  LoanOriginated as LoanOriginatedEntity,
+  LoanRepaid as LoanRepaidEntity,
   Pool as PoolEntity,
   PoolEvent,
   Redeemed as RedeemedEntity,
   Tick,
   Withdrawn as WithdrawnEntity,
 } from "../generated/schema";
-import { Deposited, Pool, Redeemed, Withdrawn } from "../generated/templates/Pool/Pool";
+import {
+  CollateralLiquidated,
+  Deposited,
+  LoanLiquidated,
+  LoanOriginated,
+  Pool__decodeLoanReceiptResultValue0Struct as LoanReceipt,
+  LoanRepaid,
+  Pool,
+  Redeemed,
+  Withdrawn,
+} from "../generated/templates/Pool/Pool";
 
 const poolContract = Pool.bind(dataSource.address());
 const poolAddress = dataSource.address().toHexString();
@@ -30,17 +44,23 @@ class PoolEventType {
   static LoanPurchased: string = "LoanPurchased";
   static LoanRepaid: string = "LoanRepaid";
   static LoanLiquidated: string = "LoanLiquidated";
-  static CollateralLiquidated: string = "CollateralLiquidated";
   static Deposited: string = "Deposited";
   static Redeemed: string = "Redeemed";
   static Withdrawn: string = "Withdrawn";
+}
+
+class LoanStatus {
+  static Active: string = "Active";
+  static Liquidated: string = "Liquidated";
+  static Repaid: string = "Repaid";
+  static CollateralLiquidated: string = "CollateralLiquidated";
 }
 
 /**************************************************************************/
 /* helper functions */
 /**************************************************************************/
 
-function createPoolEvent(event: ethereum.Event, type: string, account: Address | null): string {
+function createPoolEvent(event: ethereum.Event, type: string, account: Bytes): string {
   const id = `${poolAddress}-${event.transaction.hash.toHexString()}`;
   const eventEntity = new PoolEvent(id);
   eventEntity.pool = poolAddress;
@@ -52,7 +72,6 @@ function createPoolEvent(event: ethereum.Event, type: string, account: Address |
   else if (type == PoolEventType.LoanPurchased) eventEntity.loanPurchased = id;
   else if (type == PoolEventType.LoanRepaid) eventEntity.LoanRepaid = id;
   else if (type == PoolEventType.LoanLiquidated) eventEntity.loanLiquidated = id;
-  else if (type == PoolEventType.CollateralLiquidated) eventEntity.collateralLiquidated = id;
   else if (type == PoolEventType.Deposited) eventEntity.deposited = id;
   else if (type == PoolEventType.Redeemed) eventEntity.redeemed = id;
   else if (type == PoolEventType.Withdrawn) eventEntity.withdrawn = id;
@@ -60,16 +79,35 @@ function createPoolEvent(event: ethereum.Event, type: string, account: Address |
   return id;
 }
 
-function updatePoolEntity(): void {
+function updatePoolEntity(): PoolEntity {
   const poolEntity = PoolEntity.load(poolAddress);
   if (!poolEntity) {
     log.error("No Pool entity for this event", []);
-    return;
+    throw new Error("No Pool entity");
   }
   poolEntity.totalValueLocked = poolContract.liquidityStatistics().value0;
   poolEntity.utilization = poolContract.utilization();
-  poolEntity.maxBorrow = poolContract.liquidityAvailable(MAX_UINT256);
+  poolEntity.maxBorrow = poolContract.liquidityAvailable(MAX_UINT256, BigInt.fromI32(1));
   poolEntity.save();
+  return poolEntity;
+}
+
+function updateCollateralTokenEntity(id: string): void {
+  const collateralTokenEntity = CollateralTokenEntity.load(id);
+  if (collateralTokenEntity) {
+    let tvl = BigInt.zero();
+    let maxBorrow = BigInt.zero();
+    for (let i = 0; i < collateralTokenEntity.poolIds.length; i++) {
+      const pool = PoolEntity.load(collateralTokenEntity.poolIds[i]);
+      if (pool) {
+        tvl = tvl.plus(pool.totalValueLocked);
+        if (maxBorrow.lt(pool.maxBorrow)) maxBorrow = pool.maxBorrow;
+      }
+    }
+    collateralTokenEntity.totalValueLocked = tvl;
+    collateralTokenEntity.maxBorrow = maxBorrow;
+    collateralTokenEntity.save();
+  }
 }
 
 function updateTickEntity(depth: BigInt): void {
@@ -111,11 +149,48 @@ function updateDepositEntity(account: Address, depth: BigInt, timestamp: BigInt)
   depositEntity.redemptionPending = deposit.redemptionPending;
   depositEntity.redemptionIndex = deposit.redemptionIndex;
   depositEntity.redemptionTarget = deposit.redemptionTarget;
-  depositEntity.collateralToken = poolEntity.collateralToken;
+  depositEntity.collateralToken = Address.fromString(poolEntity.collateralToken);
   depositEntity.maxLoanDuration = poolEntity.maxLoanDuration;
   depositEntity.depth = depth;
   depositEntity.updatedAt = timestamp;
   depositEntity.save();
+}
+
+function createLoanEntity(receipt: LoanReceipt, encodedReceipt: Bytes, receiptHash: Bytes, timestamp: BigInt): void {
+  const nodeReceipts = receipt.nodeReceipts;
+
+  /* Update the Pool, CollateralToken, and Ticks */
+  const poolEntity = updatePoolEntity();
+  updateCollateralTokenEntity(poolEntity.collateralToken);
+  for (let i = 0; i < nodeReceipts.length; i++) updateTickEntity(nodeReceipts[i].depth);
+
+  /* Create the Loan entity */
+  const loanEntity = new LoanEntity(receiptHash.toHexString());
+
+  let principal: BigInt = BigInt.zero();
+  let repayment: BigInt = BigInt.zero();
+  let depths: BigInt[] = [];
+  for (let i = 0; i < nodeReceipts.length; i++) {
+    const nodeReceipt = nodeReceipts[i];
+    principal = principal.plus(nodeReceipt.used);
+    repayment = repayment.plus(nodeReceipt.pending);
+    depths.push(nodeReceipt.depth);
+  }
+
+  loanEntity.loanReceipt = encodedReceipt;
+  loanEntity.principal = principal;
+  loanEntity.repayment = repayment;
+  loanEntity.depths = depths;
+  loanEntity.pool = poolAddress;
+  loanEntity.timestamp = timestamp.toI32();
+  loanEntity.status = LoanStatus.Active;
+  loanEntity.borrower = receipt.borrower;
+  loanEntity.maturity = receipt.maturity.toI32();
+  loanEntity.duration = receipt.duration.toI32();
+  loanEntity.collateralToken = receipt.collateralToken.toHexString();
+  loanEntity.collateralTokenId = receipt.collateralTokenId;
+
+  loanEntity.save();
 }
 
 /**************************************************************************/
@@ -123,7 +198,8 @@ function updateDepositEntity(account: Address, depth: BigInt, timestamp: BigInt)
 /**************************************************************************/
 
 export function handleDeposited(event: Deposited): void {
-  updatePoolEntity();
+  const poolEntity = updatePoolEntity();
+  updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.depth);
   updateDepositEntity(event.params.account, event.params.depth, event.block.timestamp);
   const poolEventID = createPoolEvent(event, PoolEventType.Deposited, event.params.account);
@@ -136,7 +212,8 @@ export function handleDeposited(event: Deposited): void {
 }
 
 export function handleRedeemed(event: Redeemed): void {
-  updatePoolEntity();
+  const poolEntity = updatePoolEntity();
+  updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.depth);
   updateDepositEntity(event.params.account, event.params.depth, event.block.timestamp);
   const poolEventID = createPoolEvent(event, PoolEventType.Redeemed, event.params.account);
@@ -148,7 +225,8 @@ export function handleRedeemed(event: Redeemed): void {
 }
 
 export function handleWithdrawn(event: Withdrawn): void {
-  updatePoolEntity();
+  const poolEntity = updatePoolEntity();
+  updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.depth);
   updateDepositEntity(event.params.account, event.params.depth, event.block.timestamp);
   const poolEventID = createPoolEvent(event, PoolEventType.Withdrawn, event.params.account);
@@ -158,4 +236,62 @@ export function handleWithdrawn(event: Withdrawn): void {
   withdrawnEntity.amount = event.params.amount;
   withdrawnEntity.shares = event.params.shares;
   withdrawnEntity.save();
+}
+
+export function handleLoanOriginated(event: LoanOriginated): void {
+  const receipt = poolContract.decodeLoanReceipt(event.params.loanReceipt);
+  createLoanEntity(receipt, event.params.loanReceipt, event.params.loanReceiptHash, event.block.timestamp);
+
+  const poolEventID = createPoolEvent(event, PoolEventType.LoanOriginated, receipt.borrower);
+
+  const loanOriginatedEntity = new LoanOriginatedEntity(poolEventID);
+  loanOriginatedEntity.loan = event.params.loanReceiptHash.toHexString();
+  loanOriginatedEntity.save();
+}
+
+export function handleLoanRepaid(event: LoanRepaid): void {
+  const loanEntity = LoanEntity.load(event.params.loanReceiptHash.toHexString());
+
+  if (loanEntity) {
+    loanEntity.status = LoanStatus.Repaid;
+    loanEntity.save();
+
+    const poolEntity = updatePoolEntity();
+    updateCollateralTokenEntity(poolEntity.collateralToken);
+    for (let i = 0; i < loanEntity.depths.length; i++) updateTickEntity(loanEntity.depths[i]);
+
+    const poolEventID = createPoolEvent(event, PoolEventType.LoanRepaid, loanEntity.borrower);
+
+    const loanRepaidEntity = new LoanRepaidEntity(poolEventID);
+    loanRepaidEntity.loan = loanEntity.id;
+    loanRepaidEntity.save();
+  }
+}
+
+export function handleLoanLiquidated(event: LoanLiquidated): void {
+  const loanEntity = LoanEntity.load(event.params.loanReceiptHash.toHexString());
+
+  if (loanEntity) {
+    loanEntity.status = LoanStatus.Liquidated;
+    loanEntity.save();
+
+    const poolEventID = createPoolEvent(event, PoolEventType.LoanLiquidated, loanEntity.borrower);
+
+    const loanLiquidatedEntity = new LoanRepaidEntity(poolEventID);
+    loanLiquidatedEntity.loan = loanEntity.id;
+    loanLiquidatedEntity.save();
+  }
+}
+
+export function handleCollateralLiquidated(event: CollateralLiquidated): void {
+  const loanEntity = LoanEntity.load(event.params.loanReceiptHash.toHexString());
+
+  if (loanEntity) {
+    loanEntity.status = LoanStatus.CollateralLiquidated;
+    loanEntity.save();
+
+    const poolEntity = updatePoolEntity();
+    updateCollateralTokenEntity(poolEntity.collateralToken);
+    for (let i = 0; i < loanEntity.depths.length; i++) updateTickEntity(loanEntity.depths[i]);
+  }
 }

@@ -5,9 +5,7 @@
 type Pool @entity {
   id: ID! # address
   currencyToken: Bytes! # address
-  maxLoanDuration: BigInt! # uint64 (in seconds)
-  collateralFilter: Bytes! # address
-  interestRateModel: Bytes! # address
+  maxLoanDuration: Int! # i32 (in seconds)
   collateralLiquidator: Bytes! # address
   noteTokens: [NoteToken!]! @derivedFrom(field: "pool")
   lendPlatforms: [LendPlatform!]! @derivedFrom(field: "pool")
@@ -21,8 +19,7 @@ type Pool @entity {
   deposits: [Deposit!]! @derivedFrom(field: "pool")
   loans: [Loan!]! @derivedFrom(field: "pool")
 
-  collateralToken: Bytes! # address
-  collateralTokenName: String!
+  collateralToken: CollateralToken!
   maxBorrow: BigInt! # uint256
   utilization: BigInt! # uint256
 }
@@ -37,6 +34,21 @@ type LendPlatform @entity {
   id: ID! # <pool>-lendplatform-<address>
   lendAdapter: Bytes! # address
   pool: Pool!
+}
+
+################################################################################
+# CollateralToken Entity
+################################################################################
+
+type CollateralToken @entity {
+  id: ID! # address
+  name: String!
+  totalValueLocked: BigInt! # uint256
+  maxBorrow: BigInt! # uint256
+  maxLoanDuration: Int! # in seconds
+  minAPR: Int! # percentage
+  pools: [Pool!]! @derivedFrom(field: "collateralToken")
+  poolIds: [String!]!
 }
 
 ################################################################################
@@ -82,7 +94,7 @@ type Deposit @entity {
   updatedAt: BigInt # uint64
   # below fields already exist in the related Pool and Tick entities, but are needed here for filtering/sorting
   collateralToken: Bytes! # address
-  maxLoanDuration: BigInt! # uint64
+  maxLoanDuration: Int! # i32
   depth: BigInt! # uint128
 }
 
@@ -106,19 +118,17 @@ type LiquiditySource @entity {
 }
 
 type Loan @entity {
-  id: ID! # <pool>-loan-<loanId>
+  id: ID! # loan receipt hash
   pool: Pool!
-  loanId: BigInt! # uint256
   status: LoanStatus!
-
+  timestamp: Int! # uint64 (in seconds since epoch)
   # Decoded Loan Receipt
-  platform: Bytes! # address
   borrower: Bytes! # address
-  maturity: BigInt! # uint64 (in seconds since epoch)
-  duration: BigInt! # uint64 (in seconds)
-  collateralToken: Bytes! # address
-  collateralTokenId: Bytes! # uint256
-  liquidityTrail: [LiquiditySource!]! @derivedFrom(field: "loan")
+  maturity: Int! # uint64 (in seconds since epoch)
+  duration: Int! # uint64 (in seconds)
+  collateralToken: CollateralToken!
+  collateralTokenId: BigInt! # uint256
+  depths: [BigInt!]! # uint256[]
   principal: BigInt! # uint256
   repayment: BigInt! # uint256
   # Raw Loan Receipt
@@ -133,14 +143,13 @@ type PoolEvent @entity {
   id: ID! # <pool>-<tx hash>
   transactionHash: Bytes!
   timestamp: BigInt! # uint64
-  account: Bytes # address (set only for user events, e.g Deposited, Withdrawn... etc)
+  account: Bytes! # address
   type: PoolEventType!
   pool: Pool!
   loanOriginated: LoanOriginated
   loanPurchased: LoanPurchased
   LoanRepaid: LoanRepaid
   loanLiquidated: LoanLiquidated
-  collateralLiquidated: CollateralLiquidated
   deposited: Deposited
   redeemed: Redeemed
   withdrawn: Withdrawn
@@ -148,10 +157,8 @@ type PoolEvent @entity {
 
 enum PoolEventType {
   LoanOriginated
-  LoanPurchased
   LoanRepaid
   LoanLiquidated
-  CollateralLiquidated
   Deposited
   Redeemed
   Withdrawn
@@ -175,12 +182,6 @@ type LoanRepaid @entity {
 type LoanLiquidated @entity {
   id: ID! # <pool>-<tx hash>
   loan: Loan!
-}
-
-type CollateralLiquidated @entity {
-  id: ID! # <pool>-<tx hash>
-  loan: Loan!
-  proceeds: BigInt! # uint256
 }
 
 type Deposited @entity {
