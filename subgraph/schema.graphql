@@ -5,7 +5,7 @@
 type Pool @entity {
   id: ID! # address
   currencyToken: Bytes! # address
-  maxLoanDuration: BigInt! # uint64 (in seconds)
+  maxLoanDuration: Int! # i32 (in seconds)
   collateralFilter: Bytes! # address
   interestRateModel: Bytes! # address
   collateralLiquidator: Bytes! # address
@@ -21,8 +21,7 @@ type Pool @entity {
   deposits: [Deposit!]! @derivedFrom(field: "pool")
   loans: [Loan!]! @derivedFrom(field: "pool")
 
-  collateralToken: Bytes! # address
-  collateralTokenName: String!
+  collateralToken: CollateralToken!
   maxBorrow: BigInt! # uint256
   utilization: BigInt! # uint256
 }
@@ -37,6 +36,21 @@ type LendPlatform @entity {
   id: ID! # <pool>-lendplatform-<address>
   lendAdapter: Bytes! # address
   pool: Pool!
+}
+
+################################################################################
+# CollateralToken Entity
+################################################################################
+
+type CollateralToken @entity {
+  id: ID! # address
+  name: String!
+  totalValueLocked: BigInt! # uint256
+  maxBorrow: BigInt! # uint256
+  maxLoanDuration: Int! # in seconds
+  minAPR: Int! # percentage
+  pools: [Pool!]! @derivedFrom(field: "collateralToken")
+  poolIds: [String!]!
 }
 
 ################################################################################
@@ -82,7 +96,7 @@ type Deposit @entity {
   updatedAt: BigInt # uint64
   # below fields already exist in the related Pool and Tick entities, but are needed here for filtering/sorting
   collateralToken: Bytes! # address
-  maxLoanDuration: BigInt! # uint64
+  maxLoanDuration: Int! # i32
   depth: BigInt! # uint128
 }
 
