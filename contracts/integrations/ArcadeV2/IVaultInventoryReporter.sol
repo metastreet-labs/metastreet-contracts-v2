@@ -64,13 +64,7 @@ interface IVaultInventoryReporter {
         bytes32 s
     ) external;
 
-    function clearWithPermit(
-        address vault,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external;
+    function clearWithPermit(address vault, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
 
     function permit(
         address owner,
