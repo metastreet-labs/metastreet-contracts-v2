@@ -10,6 +10,7 @@ import {
   TestNoteToken,
   TestNoteAdapter,
   TestLoanReceipt,
+  TestDelegationRegistry,
   FixedInterestRateModel,
   CollectionCollateralFilter,
   ExternalCollateralLiquidator,
@@ -40,6 +41,7 @@ describe("Pool", function () {
   let accountBorrower: SignerWithAddress;
   let accountLender: SignerWithAddress;
   let accountLiquidator: SignerWithAddress;
+  let delegationRegistry: TestDelegationRegistry;
 
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
@@ -54,6 +56,7 @@ describe("Pool", function () {
     const liquidityManagerFactory = await ethers.getContractFactory("LiquidityManager");
     const fixedInterestRateModelFactory = await ethers.getContractFactory("FixedInterestRateModel");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
+    const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;
@@ -98,6 +101,10 @@ describe("Pool", function () {
     collateralLiquidator = await externalCollateralLiquidatorFactory.connect(accounts[6]).deploy();
     await collateralLiquidator.deployed();
 
+    /* Deploy test delegation registry */
+    delegationRegistry = await delegationRegistryFactory.deploy();
+    await delegationRegistry.deployed();
+
     /* Deploy pool implementation */
     const poolFactory = await ethers.getContractFactory("Pool", {
       libraries: { LiquidityManager: liquidityManagerLib.address },
@@ -115,6 +122,7 @@ describe("Pool", function () {
         collateralFilterImpl.address,
         interestRateModelImpl.address,
         collateralLiquidator.address,
+        delegationRegistry.address,
         ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
         ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.normalizeRate("0.02")]),
       ])
@@ -1025,6 +1033,7 @@ describe("Pool", function () {
           collateralFilterImpl.address,
           interestRateModelImpl.address,
           collateralLiquidator.address,
+          delegationRegistry.address,
           ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
           ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.normalizeRate("0.02")]),
         ])
@@ -1229,6 +1238,7 @@ describe("Pool", function () {
           collateralFilterImpl.address,
           interestRateModelImpl.address,
           collateralLiquidator.address,
+          delegationRegistry.address,
           ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
           ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.normalizeRate("0.02")]),
         ])
@@ -1349,7 +1359,7 @@ describe("Pool", function () {
           ethers.utils.parseEther("26"),
           await sourceLiquidity(ethers.utils.parseEther("25")),
           [],
-          "0x"
+          ethers.utils.solidityPack(["uint16", "bytes32"], [1, ethers.utils.zeroPad(accountBorrower.address, 32)])
         );
 
       /* Validate events */
@@ -1364,6 +1374,14 @@ describe("Pool", function () {
         value: ethers.utils.parseEther("25"),
       });
       await expect(borrowTx).to.emit(pool, "LoanOriginated");
+
+      await expectEvent(borrowTx, delegationRegistry, "DelegateForToken", {
+        vault: pool.address,
+        delegate: accountBorrower.address,
+        contract_: nft1.address,
+        tokenId: 123,
+        value: true,
+      });
 
       /* Extract loan receipt */
       const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
@@ -1400,6 +1418,11 @@ describe("Pool", function () {
 
       /* Validate loan state */
       expect(await pool.loans(loanReceiptHash)).to.equal(1);
+
+      /* Validate delegation */
+      expect(
+        await delegationRegistry.checkDelegateForToken(accountBorrower.address, pool.address, nft1.address, 123)
+      ).to.equal(true);
     });
     it("fails on unsupported collateral", async function () {
       await expect(
@@ -1449,6 +1472,50 @@ describe("Pool", function () {
           )
       ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
     });
+
+    it("fails on invalid borrow options encoding", async function () {
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .borrow(
+            ethers.utils.parseEther("25"),
+            30 * 86400,
+            nft1.address,
+            123,
+            ethers.utils.parseEther("26"),
+            await sourceLiquidity(ethers.utils.parseEther("25")),
+            [],
+            ethers.utils.solidityPack(["uint16", "bytes"], [1, ethers.utils.zeroPad("0x12341234", 31)])
+          )
+      ).to.be.revertedWithCustomError(pool, "InvalidBorrowOptionsEncoding");
+    });
+
+    it("fails on delegating multiple wallets", async function () {
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .borrow(
+            ethers.utils.parseEther("25"),
+            30 * 86400,
+            nft1.address,
+            123,
+            ethers.utils.parseEther("26"),
+            await sourceLiquidity(ethers.utils.parseEther("25")),
+            [],
+            ethers.utils.solidityPack(
+              ["uint16", "bytes32", "uint16", "bytes32"],
+              [
+                1,
+                ethers.utils.zeroPad(accountBorrower.address, 32),
+                1,
+                ethers.utils.zeroPad(accountDepositors[0].address, 32),
+              ]
+            )
+          )
+      )
+        .to.be.revertedWithCustomError(pool, "InvalidBorrowOptions")
+        .withArgs(1);
+    });
   });
 
   describe("#repay", async function () {
@@ -1459,7 +1526,6 @@ describe("Pool", function () {
     beforeEach("setup liquidity and borrow", async function () {
       await setupLiquidity();
 
-      /* Borrow */
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
@@ -1470,7 +1536,7 @@ describe("Pool", function () {
           ethers.utils.parseEther("26"),
           await sourceLiquidity(ethers.utils.parseEther("25")),
           [],
-          "0x"
+          ethers.utils.solidityPack(["uint16", "bytes32"], [1, ethers.utils.zeroPad(accountBorrower.address, 32)])
         );
       loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
       loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
@@ -1502,8 +1568,21 @@ describe("Pool", function () {
         processed: false,
       });
 
+      await expectEvent(repayTx, delegationRegistry, "DelegateForToken", {
+        vault: pool.address,
+        delegate: accountBorrower.address,
+        contract_: nft1.address,
+        tokenId: 123,
+        value: false,
+      });
+
       /* Validate loan state */
       expect(await pool.loans(loanReceiptHash)).to.equal(3);
+
+      /* validate delegation */
+      expect(
+        await delegationRegistry.checkDelegateForToken(accountBorrower.address, pool.address, nft1.address, 123)
+      ).to.equal(false);
     });
     it("fails on invalid caller", async function () {
       await expect(pool.connect(accountLender).repay(loanReceipt)).to.be.revertedWithCustomError(pool, "InvalidCaller");
@@ -1626,7 +1705,7 @@ describe("Pool", function () {
           ethers.utils.parseEther("26"),
           await sourceLiquidity(ethers.utils.parseEther("25")),
           [],
-          "0x"
+          ethers.utils.solidityPack(["uint16", "bytes32"], [1, ethers.utils.zeroPad(accountBorrower.address, 32)])
         );
       loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
       loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
@@ -1649,8 +1728,21 @@ describe("Pool", function () {
         loanReceiptHash,
       });
 
+      await expectEvent(onLoanExpiredTx, delegationRegistry, "DelegateForToken", {
+        vault: pool.address,
+        delegate: accountBorrower.address,
+        contract_: nft1.address,
+        tokenId: 123,
+        value: false,
+      });
+
       /* Validate state */
       expect(await pool.loans(loanReceiptHash)).to.equal(4);
+
+      /* validate delegation */
+      expect(
+        await delegationRegistry.checkDelegateForToken(accountBorrower.address, pool.address, nft1.address, 123)
+      ).to.equal(false);
     });
     it("fails on non-expired loan", async function () {
       await expect(pool.onLoanExpired(loanReceipt)).to.be.revertedWithCustomError(pool, "InvalidLoanStatus");

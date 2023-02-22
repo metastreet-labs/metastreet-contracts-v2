@@ -19,6 +19,7 @@ import "./interfaces/IPool.sol";
 import "./interfaces/ILiquidity.sol";
 import "./LoanReceipt.sol";
 import "./LiquidityManager.sol";
+import "./integrations/DelegateCash/IDelegationRegistry.sol";
 
 /**
  * @title Pool
@@ -48,6 +49,16 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      */
     string public constant IMPLEMENTATION_VERSION = "1.0";
 
+    /**
+     * @notice Pool borrow options tag size in bytes
+     */
+    uint256 internal constant BORROW_OPTIONS_TAG_SIZE = 2;
+
+    /**
+     * @notice Pool borrow options value size in bytes
+     */
+    uint256 internal constant BORROW_OPTIONS_VALUE_SIZE = 32;
+
     /**************************************************************************/
     /* Errors */
     /**************************************************************************/
@@ -76,6 +87,17 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @notice Invalid loan status
      */
     error InvalidLoanStatus();
+
+    /**
+     * @notice Invalid borrow options encoding
+     */
+    error InvalidBorrowOptionsEncoding();
+
+    /**
+     * @notice Invalid borrow options
+     * @param index Index of invalid borrow option
+     */
+    error InvalidBorrowOptions(uint256 index);
 
     /**
      * @notice Unsupported collateral
@@ -153,6 +175,14 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         CollateralLiquidated
     }
 
+    /**
+     * @notice Borrow function options
+     */
+    enum BorrowOptions {
+        None,
+        DelegateCash
+    }
+
     /**************************************************************************/
     /* State */
     /**************************************************************************/
@@ -203,6 +233,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     ICollateralLiquidator internal _collateralLiquidator;
 
     /**
+     * @notice Delegation registry contract
+     */
+    IDelegationRegistry internal _delegationRegistry;
+
+    /**
      * @notice Set of supported loan adapters
      */
     EnumerableMap.AddressToUintMap internal _loanAdapters;
@@ -231,6 +266,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @param collateralFilterImpl Collateral filter implementation contract
      * @param interestRateModelImpl Interest rate model implementation contract
      * @param collateralLiquidator_ Collateral liquidator contract
+     * @param delegationRegistry_ Delegation registry contract
      * @param collateralFilterParams Collateral filter initialization parameters
      * @param interestRateModelParams Interest rate model initialization parameters
      */
@@ -241,6 +277,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         address collateralFilterImpl,
         address interestRateModelImpl,
         ICollateralLiquidator collateralLiquidator_,
+        IDelegationRegistry delegationRegistry_,
         bytes memory collateralFilterParams,
         bytes memory interestRateModelParams
     ) external {
@@ -251,6 +288,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         _currencyToken = currencyToken_;
         _maxLoanDuration = maxLoanDuration_;
         _collateralLiquidator = collateralLiquidator_;
+        _delegationRegistry = delegationRegistry_;
 
         /* Initialize liquidity */
         _liquidity.initialize();
@@ -313,6 +351,13 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      */
     function collateralLiquidator() external view returns (ICollateralLiquidator) {
         return _collateralLiquidator;
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
+    function delegationRegistry() external view returns (IDelegationRegistry) {
+        return _delegationRegistry;
     }
 
     /**
@@ -421,6 +466,77 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         if (address(loanAdapter) == address(0) || loanAdapter.getAdapterType() != ILoanAdapter.AdapterType.Lend)
             revert UnsupportedPlatform();
         return ILendAdapter(address(loanAdapter));
+    }
+
+    /**
+     * @dev Helper function to process borrow options
+     * @param collateralToken Contract address of token being borrowed against
+     * @param collateralTokenId Token id of token being borrowed against
+     * @param options Borrow function parameter
+     */
+    function _processBorrowOptions(
+        address collateralToken,
+        uint256 collateralTokenId,
+        bytes calldata options
+    ) internal {
+        /* Tightly packed options format */
+        /*
+            options (34 bytes, repeating)
+            -eg:
+                -0 indexed option-
+                2   uint16    tag-1     0:2
+                32  bytes32   value-1   2:34
+                
+                -1 indexed option-
+                2   uint16    tag-2     34:36
+                32  bytes32   value-2   36:68
+
+                ...
+
+                -n indexed option-
+                2   uint16  tag-n       34n:34n+2
+                32  bytes32 value-n     34n+2:34n+34
+        */
+
+        bool delegated;
+        uint256 payloadSize = BORROW_OPTIONS_TAG_SIZE + BORROW_OPTIONS_VALUE_SIZE;
+
+        if (options.length % payloadSize != 0) revert InvalidBorrowOptionsEncoding();
+
+        for (uint256 i = 0; i < options.length / payloadSize; i++) {
+            uint256 offset = i * payloadSize;
+
+            uint16 tag = uint16(bytes2(options[offset:offset + BORROW_OPTIONS_TAG_SIZE]));
+            bytes32 value = bytes32(options[offset + BORROW_OPTIONS_TAG_SIZE:offset + payloadSize]);
+
+            /* delegate.cash */
+            if (tag == uint256(BorrowOptions.DelegateCash)) {
+                if (delegated) revert InvalidBorrowOptions(i);
+                delegated = true;
+
+                address delegate = address(uint160(uint256(value)));
+                _delegationRegistry.delegateForToken(delegate, collateralToken, collateralTokenId, true);
+            }
+        }
+    }
+
+    /**
+     * @dev Helper function to revoke token delegate
+     * @param collateralToken Contract address of token that delegation is being removed from
+     * @param collateralTokenId Token id of token that delegation is being removed from
+     */
+    function _revokeDelegates(address collateralToken, uint256 collateralTokenId) internal {
+        /* get delegates for collateral token and id */
+        address[] memory delegates = _delegationRegistry.getDelegatesForToken(
+            address(this),
+            collateralToken,
+            collateralTokenId
+        );
+
+        for (uint256 i = 0; i < delegates.length; i++) {
+            /* revoke by setting value to false */
+            _delegationRegistry.delegateForToken(delegates[i], collateralToken, collateralTokenId, false);
+        }
     }
 
     /**************************************************************************/
@@ -686,6 +802,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Store loan status */
         _loans[loanReceiptHash] = LoanStatus.Active;
 
+        /* Handle borrow options parameter */
+        if (options.length > 0) {
+            _processBorrowOptions(collateralToken, collateralTokenId, options);
+        }
+
         /* Transfer collateral from borrower to pool */
         IERC721(collateralToken).safeTransferFrom(msg.sender, address(this), collateralTokenId);
 
@@ -725,6 +846,9 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         for (uint256 i = 0; i < loanReceipt.nodeReceipts.length; i++) {
             repayment += loanReceipt.nodeReceipts[i].pending;
         }
+
+        /* revoke delegate */
+        _revokeDelegates(loanReceipt.collateralToken, loanReceipt.collateralTokenId);
 
         /* Transfer repayment from borrower to lender */
         _currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), repayment);
@@ -850,6 +974,9 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
 
         /* Mark loan status liquidated */
         _loans[loanReceiptHash] = LoanStatus.Liquidated;
+
+        /* revoke delegate */
+        _revokeDelegates(loanReceipt.collateralToken, loanReceipt.collateralTokenId);
 
         /* Emit Loan Liquidated */
         emit LoanLiquidated(loanReceiptHash);

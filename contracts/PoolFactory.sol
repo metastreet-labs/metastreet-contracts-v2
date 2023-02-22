@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "./interfaces/IPoolFactory.sol";
 import "./interfaces/ICollateralLiquidator.sol";
 import "./Pool.sol";
+import "./integrations/DelegateCash/IDelegationRegistry.sol";
 
 /*
  * @title PoolFactory
@@ -67,9 +68,13 @@ contract PoolFactory is Ownable, IPoolFactory {
             address collateralFilterImpl,
             address interestRateModelImpl,
             ICollateralLiquidator collateralLiquidator,
+            IDelegationRegistry delegationRegistry,
             bytes memory collateralFilterParams,
             bytes memory interestRateModelParams
-        ) = abi.decode(params, (IERC20, uint64, address, address, ICollateralLiquidator, bytes, bytes));
+        ) = abi.decode(
+                params,
+                (IERC20, uint64, address, address, ICollateralLiquidator, IDelegationRegistry, bytes, bytes)
+            );
 
         /* Create pool instance */
         address poolInstance = Clones.clone(_poolImplementation);
@@ -84,6 +89,7 @@ contract PoolFactory is Ownable, IPoolFactory {
                     collateralFilterImpl,
                     interestRateModelImpl,
                     collateralLiquidator,
+                    delegationRegistry,
                     collateralFilterParams,
                     interestRateModelParams
                 )
