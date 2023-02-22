@@ -6,6 +6,7 @@ import "./IInterestRateModel.sol";
 import "./ICollateralLiquidator.sol";
 import "./INoteAdapter.sol";
 import "./ILendAdapter.sol";
+import "../integrations/DelegateCash/IDelegationRegistry.sol";
 
 /**
  * @title Interface to a Pool
@@ -115,6 +116,12 @@ interface IPool {
      * @return Collateral liquidator contract
      */
     function collateralLiquidator() external view returns (ICollateralLiquidator);
+
+    /**
+     * @notice Get delegation registry contract
+     * @return Delegation registry contract
+     */
+    function delegationRegistry() external view returns (IDelegationRegistry);
 
     /**
      * @notice Get loan adapter contract

@@ -11,6 +11,7 @@ import {
   CollectionCollateralFilter,
   FixedInterestRateModel,
   ExternalCollateralLiquidator,
+  TestDelegationRegistry,
   Pool,
   PoolFactory,
 } from "../typechain";
@@ -27,6 +28,7 @@ describe("PoolFactory", function () {
   let collateralLiquidator: ExternalCollateralLiquidator;
   let poolFactory: PoolFactory;
   let snapshotId: string;
+  let delegationRegistry: TestDelegationRegistry;
 
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
@@ -38,6 +40,7 @@ describe("PoolFactory", function () {
     const fixedInterestRateModelFactory = await ethers.getContractFactory("FixedInterestRateModel");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const poolFactoryFactory = await ethers.getContractFactory("PoolFactory");
+    const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;
@@ -63,6 +66,10 @@ describe("PoolFactory", function () {
     collateralLiquidator = await externalCollateralLiquidatorFactory.connect(accounts[6]).deploy();
     await collateralLiquidator.deployed();
 
+    /* Deploy test delegation registry */
+    delegationRegistry = await delegationRegistryFactory.deploy();
+    await delegationRegistry.deployed();
+
     /* Deploy pool implementation */
     const poolImplFactory = await ethers.getContractFactory("Pool", {
       libraries: { LiquidityManager: liquidityManagerLib.address },
@@ -87,13 +94,14 @@ describe("PoolFactory", function () {
     it("creates a pool", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "uint64", "address", "address", "address", "bytes", "bytes"],
+        ["address", "uint64", "address", "address", "address", "address", "bytes", "bytes"],
         [
           tok1.address,
           30 * 86400,
           collateralFilterImpl.address,
           interestRateModelImpl.address,
           collateralLiquidator.address,
+          delegationRegistry.address,
           ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
           ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.from("0.02")]),
         ]
@@ -113,13 +121,14 @@ describe("PoolFactory", function () {
     it("fails on invalid params", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "uint64", "address", "address", "address", "bytes"],
+        ["address", "uint64", "address", "address", "address", "address", "bytes"],
         [
           tok1.address,
           30 * 86400,
           collateralFilterImpl.address,
           interestRateModelImpl.address,
           collateralLiquidator.address,
+          delegationRegistry.address,
           ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
           /* Missing interest rate model params */
         ]
@@ -131,13 +140,14 @@ describe("PoolFactory", function () {
   /* Helper function to create a pool */
   async function createPool(): Promise<string> {
     const params = ethers.utils.defaultAbiCoder.encode(
-      ["address", "uint64", "address", "address", "address", "bytes", "bytes"],
+      ["address", "uint64", "address", "address", "address", "address", "bytes", "bytes"],
       [
         tok1.address,
         30 * 86400,
         collateralFilterImpl.address,
         interestRateModelImpl.address,
         collateralLiquidator.address,
+        delegationRegistry.address,
         ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
         ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.from("0.02")]),
       ]
