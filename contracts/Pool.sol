@@ -579,12 +579,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
             Math.mulDiv(
                 repayment,
                 LiquidityManager.FIXED_POINT_SCALE,
-                LiquidityManager.FIXED_POINT_SCALE +
-                    Math.mulDiv(
-                        _interestRateModel.rate(),
-                        (maturity - uint64(block.timestamp)) * LiquidityManager.FIXED_POINT_SCALE,
-                        LiquidityManager.FIXED_POINT_SCALE
-                    )
+                LiquidityManager.FIXED_POINT_SCALE + (_interestRateModel.rate() * (maturity - uint64(block.timestamp)))
             );
     }
 
@@ -737,12 +732,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         return
             Math.mulDiv(
                 principal,
-                LiquidityManager.FIXED_POINT_SCALE +
-                    Math.mulDiv(
-                        _interestRateModel.rate(),
-                        duration * LiquidityManager.FIXED_POINT_SCALE,
-                        LiquidityManager.FIXED_POINT_SCALE
-                    ),
+                LiquidityManager.FIXED_POINT_SCALE + (_interestRateModel.rate() * duration),
                 LiquidityManager.FIXED_POINT_SCALE
             );
     }
