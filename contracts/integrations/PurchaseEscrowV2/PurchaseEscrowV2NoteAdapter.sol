@@ -56,7 +56,7 @@ contract PurchaseEscrowV2NoteAdapter is INoteAdapter {
     /**
      * @inheritdoc INoteAdapter
      */
-    function getLoanId(uint256 noteTokenId) external view returns (uint256) {
+    function getLoanId(uint256 noteTokenId) external pure returns (uint256) {
         return noteTokenId;
     }
 
