@@ -83,6 +83,19 @@ interface IPool {
      */
     event LoanAdapterUpdated(address indexed platform, address loanAdapter);
 
+    /**
+     * @notice Emitted when admin fee rate is updated
+     * @param rate New admin fee rate in basis points
+     */
+    event AdminFeeRateUpdated(uint256 rate);
+
+    /**
+     * @notice Emitted when admin fees are withdrawn
+     * @param account Recipient account
+     * @param amount Amount of currency tokens withdrawn
+     */
+    event AdminFeesWithdrawn(address indexed account, uint256 amount);
+
     /**************************************************************************/
     /* Getters */
     /**************************************************************************/
@@ -98,6 +111,12 @@ interface IPool {
      * @return Maximum loan duration in seconds
      */
     function maxLoanDuration() external view returns (uint64);
+
+    /**
+     * @notice Get admin fee rate
+     * @return Admin fee rate in basis points
+     */
+    function adminFeeRate() external view returns (uint256);
 
     /**
      * @notice Get collateral filter contract
