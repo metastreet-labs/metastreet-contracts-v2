@@ -59,6 +59,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      */
     uint256 internal constant BORROW_OPTIONS_VALUE_SIZE = 32;
 
+    /**
+     * @notice Basis points
+     */
+    uint256 internal constant BASIS_POINTS_SCALE = 10_000;
+
     /**************************************************************************/
     /* Errors */
     /**************************************************************************/
@@ -98,6 +103,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @param index Index of invalid borrow option
      */
     error InvalidBorrowOptions(uint256 index);
+
+    /**
+     * @notice Parameter out of bounds
+     */
+    error ParameterOutOfBounds();
 
     /**
      * @notice Unsupported collateral
@@ -201,6 +211,16 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @notice Maximum loan duration in seconds
      */
     uint64 internal _maxLoanDuration;
+
+    /**
+     * @notice Admin fee rate in basis points
+     */
+    uint256 internal _adminFeeRate;
+
+    /**
+     * @notice Total admin fee balance
+     */
+    uint256 internal _adminFeeBalance;
 
     /**
      * @notice Liquidity
@@ -335,6 +355,13 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     /**
      * @inheritdoc IPool
      */
+    function adminFeeRate() external view returns (uint256) {
+        return _adminFeeRate;
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
     function collateralFilter() external view returns (ICollateralFilter) {
         return _collateralFilter;
     }
@@ -405,6 +432,14 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      */
     function decodeLoanReceipt(bytes calldata loanReceipt) external pure returns (LoanReceipt.LoanReceiptV1 memory) {
         return LoanReceipt.decode(loanReceipt);
+    }
+
+    /**
+     * @notice Get total admin fee balance
+     * @return Total admin fee balance
+     */
+    function adminFeeBalance() external view returns (uint256) {
+        return _adminFeeBalance;
     }
 
     /**************************************************************************/
@@ -665,8 +700,15 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Source liquidity nodes */
         (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(purchasePrice, depths);
 
+        /* admin fee */
+        uint256 adminFee = Math.mulDiv(_adminFeeRate, loanInfo.repayment - purchasePrice, BASIS_POINTS_SCALE);
+
         /* Distribute interest */
-        uint128[] memory pending = _interestRateModel.distribute(loanInfo.repayment - purchasePrice, nodes, count);
+        uint128[] memory pending = _interestRateModel.distribute(
+            loanInfo.repayment - purchasePrice - adminFee,
+            nodes,
+            count
+        );
 
         /* Use liquidity nodes */
         LoanReceipt.NodeReceipt[] memory nodeReceipts = new LoanReceipt.NodeReceipt[](count);
@@ -761,14 +803,19 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Source liquidity nodes */
         (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(principal, depths);
 
+        /* admin fee */
+        uint256 adminFee = Math.mulDiv(_adminFeeRate, repayment - principal, BASIS_POINTS_SCALE);
+
         /* Distribute interest */
-        uint128[] memory pending = _interestRateModel.distribute(repayment - principal, nodes, count);
+        uint128[] memory pending = _interestRateModel.distribute(repayment - principal - adminFee, nodes, count);
 
         /* Build the loan receipt */
         LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.LoanReceiptV1({
             version: 1,
             platform: address(this),
             loanId: 0,
+            principal: principal,
+            repayment: repayment,
             borrower: msg.sender,
             maturity: uint64(block.timestamp + duration),
             duration: duration,
@@ -842,17 +889,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Validate loan is not expired */
         if (block.timestamp > loanReceipt.maturity) revert LoanExpired();
 
-        /* Recompute repayment from pending nodes */
-        uint256 repayment;
-        for (uint256 i = 0; i < loanReceipt.nodeReceipts.length; i++) {
-            repayment += loanReceipt.nodeReceipts[i].pending;
-        }
-
         /* revoke delegate */
         _revokeDelegates(loanReceipt.collateralToken, loanReceipt.collateralTokenId);
 
         /* Transfer repayment from borrower to lender */
-        _currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), repayment);
+        _currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), loanReceipt.repayment);
 
         /* Transfer collateral from pool to borrower */
         IERC721(loanReceipt.collateralToken).safeTransferFrom(
@@ -919,6 +960,9 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Update top level liquidity statistics */
         _liquidity.total += totalPending - totalUsed;
         _liquidity.used -= totalUsed;
+
+        /* Update admin fee total balance */
+        _adminFeeBalance += loanReceipt.repayment - totalPending;
 
         /* Update utilization tracking */
         _interestRateModel.onUtilizationUpdated(utilization());
@@ -1194,6 +1238,44 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      */
     function unpause() external onlyRole(EMERGENCY_ADMIN_ROLE) {
         _unpause();
+    }
+
+    /**
+     * @notice Set the admin fee rate
+     *
+     * Emits a {AdminFeeRateUpdated} event.
+     *
+     * @param rate Rate is the admin fee in basis points
+     */
+    function setAdminFeeRate(uint256 rate) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (rate == 0 || rate >= BASIS_POINTS_SCALE) revert ParameterOutOfBounds();
+        _adminFeeRate = rate;
+        emit AdminFeeRateUpdated(rate);
+    }
+
+    /**************************************************************************/
+    /* Admin Fees API */
+    /**************************************************************************/
+
+    /**
+     * @notice Withdraw admin fees
+     *
+     * Emits a {AdminFeesWithdrawn} event.
+     *
+     * @param recipient Recipient account
+     * @param amount Amount to withdraw
+     */
+    function withdrawAdminFees(address recipient, uint256 amount) external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (recipient == address(0)) revert InvalidAddress();
+        if (amount > _adminFeeBalance) revert ParameterOutOfBounds();
+
+        /* Update admin fees balance */
+        _adminFeeBalance -= amount;
+
+        /* Transfer cash from vault to recipient */
+        _currencyToken.safeTransfer(recipient, amount);
+
+        emit AdminFeesWithdrawn(recipient, amount);
     }
 
     /******************************************************/

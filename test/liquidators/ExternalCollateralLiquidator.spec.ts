@@ -7,7 +7,6 @@ import {
   TestERC20,
   TestERC721,
   TestLoanReceipt,
-  LoanReceipt,
   TestCollateralLiquidatorJig,
   ExternalCollateralLiquidator,
 } from "../../typechain";
@@ -86,10 +85,12 @@ describe("ExternalCollateralLiquidator", function () {
     });
   });
 
-  const loanReceiptTemplate: LoanReceipt = {
+  const loanReceiptTemplate = {
     version: 1,
     platform: "0x8552B1f50a85ae8e5198Cb286c435bb0cb951de5",
     loanId: 123,
+    principal: ethers.BigNumber.from("3000000000000000000"),
+    repayment: ethers.BigNumber.from("3040000000000000000"),
     borrower: "0x0CD36Fa7D9634994231Bc76Fb36938D56C6FE70E",
     maturity: 1685595600,
     duration: 2592000,
@@ -114,7 +115,7 @@ describe("ExternalCollateralLiquidator", function () {
     ],
   };
 
-  function makeLoanReceipt(collateralToken: string, collateralTokenId: number): LoanReceipt {
+  function makeLoanReceipt(collateralToken: string, collateralTokenId: number) {
     return { ...loanReceiptTemplate, collateralToken, collateralTokenId };
   }
 
