@@ -242,7 +242,7 @@ interface IPool {
     ) external returns (uint256);
 
     /**
-     * @notice Repay a loan
+     * @notice Repay a loan originated by pool
      *
      * Emits a {PoolLoanRepaid} event.
      *
@@ -255,7 +255,7 @@ interface IPool {
     /**************************************************************************/
 
     /**
-     * @notice Callback on loan repaid
+     * @notice Callback on loan repaid for notes
      * @param loanReceipt Loan receipt
      */
     function onLoanRepaid(bytes calldata loanReceipt) external;
