@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -30,6 +31,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     using EnumerableMap for EnumerableMap.AddressToUintMap;
     using LoanReceipt for LoanReceipt.LoanReceiptV1;
     using LiquidityManager for LiquidityManager.Liquidity;
+    using SafeCast for uint256;
 
     /**************************************************************************/
     /* Access Control Roles */
@@ -413,7 +415,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @return Deposit information
      */
     function deposits(address account, uint256 depth) external view returns (Deposit memory) {
-        return _deposits[account][uint128(depth)];
+        return _deposits[account][depth.toUint128()];
     }
 
     /**
@@ -725,7 +727,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         }
 
         /* Update top level liquidity statistics */
-        _liquidity.used += uint128(purchasePrice);
+        _liquidity.used += purchasePrice.toUint128();
 
         /* Update utilization tracking */
         _interestRateModel.onUtilizationUpdated(utilization());
@@ -838,7 +840,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         }
 
         /* Update top level liquidity statistics */
-        _liquidity.used += uint128(principal);
+        _liquidity.used += principal.toUint128();
 
         /* Update utilization tracking */
         _interestRateModel.onUtilizationUpdated(utilization());
@@ -1031,6 +1033,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @inheritdoc IPool
      */
     function onCollateralLiquidated(bytes calldata encodedLoanReceipt, uint256 proceeds) external {
+        uint128 proceeds_ = proceeds.toUint128();
+
         /* Validate caller is collateral liquidator */
         if (msg.sender != address(_collateralLiquidator)) revert InvalidCaller();
 
@@ -1045,12 +1049,12 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
 
         /* Restore liquidity nodes */
         uint128 totalUsed;
-        uint128 proceedsRemaining = uint128(proceeds);
+        uint128 proceedsRemaining = proceeds_;
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
             /* Restore node */
             uint128 restored = (i == loanReceipt.nodeReceipts.length - 1)
                 ? proceedsRemaining
-                : uint128(Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining));
+                : (Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining)).toUint128();
             _liquidity.restore(
                 loanReceipt.nodeReceipts[i].depth,
                 loanReceipt.nodeReceipts[i].used,
@@ -1064,9 +1068,9 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         }
 
         /* Update top level liquidity statistics */
-        _liquidity.total = (uint128(proceeds) > totalUsed)
-            ? (_liquidity.total + uint128(proceeds) - totalUsed)
-            : (_liquidity.total - totalUsed + uint128(proceeds));
+        _liquidity.total = (proceeds_ > totalUsed)
+            ? (_liquidity.total + proceeds_ - totalUsed)
+            : (_liquidity.total - totalUsed + proceeds_);
         _liquidity.used -= totalUsed;
 
         /* Update utilization tracking */
@@ -1090,20 +1094,22 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @inheritdoc IPool
      */
     function deposit(uint256 depth, uint256 amount) external {
+        uint128 depth_ = depth.toUint128();
+
         /* Instantiate liquidity node */
-        _liquidity.instantiate(uint128(depth));
+        _liquidity.instantiate(depth_);
 
         /* Deposit into liquidity node */
-        uint128 shares = _liquidity.deposit(uint128(depth), uint128(amount));
+        uint128 shares = _liquidity.deposit(depth_, amount.toUint128());
 
         /* Add to deposit */
-        _deposits[msg.sender][uint128(depth)].shares += shares;
+        _deposits[msg.sender][depth_].shares += shares;
 
         /* Update utilization tracking */
         _interestRateModel.onUtilizationUpdated(utilization());
 
         /* Process redemptions from available cash */
-        _liquidity.processRedemptions(uint128(depth));
+        _liquidity.processRedemptions(depth_);
 
         /* Transfer Deposit Amount */
         _currencyToken.safeTransferFrom(msg.sender, address(this), amount);
@@ -1116,8 +1122,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @inheritdoc IPool
      */
     function redeem(uint256 depth, uint256 shares) external {
+        uint128 depth_ = depth.toUint128();
+        uint128 shares_ = shares.toUint128();
+
         /* Look up Deposit */
-        Deposit storage dep = _deposits[msg.sender][uint128(depth)];
+        Deposit storage dep = _deposits[msg.sender][depth_];
 
         /* Validate shares */
         if (shares > dep.shares) revert InvalidShares();
@@ -1125,15 +1134,15 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         if (dep.redemptionPending != 0) revert RedemptionInProgress();
 
         /* Redeem shares in tick with liquidity manager */
-        (uint128 redemptionIndex, uint128 redemptionTarget) = _liquidity.redeem(uint128(depth), uint128(shares));
+        (uint128 redemptionIndex, uint128 redemptionTarget) = _liquidity.redeem(depth_, shares_);
 
         /* Update deposit state */
-        dep.redemptionPending = uint128(shares);
+        dep.redemptionPending = shares_;
         dep.redemptionIndex = redemptionIndex;
         dep.redemptionTarget = redemptionTarget;
 
         /* Process redemptions from available cash */
-        _liquidity.processRedemptions(uint128(depth));
+        _liquidity.processRedemptions(depth_);
 
         /* Update utilization tracking */
         _interestRateModel.onUtilizationUpdated(utilization());
@@ -1149,34 +1158,32 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         address account,
         uint256 depth
     ) external view returns (uint256 shares, uint256 amount) {
+        uint128 depth_ = depth.toUint128();
+
         /* Look up Deposit */
-        Deposit storage dep = _deposits[account][uint128(depth)];
+        Deposit storage dep = _deposits[account][depth_];
 
         /* If no redemption is pending */
         if (dep.redemptionPending == 0) return (0, 0);
 
-        return
-            _liquidity.redemptionAvailable(
-                uint128(depth),
-                dep.redemptionPending,
-                dep.redemptionIndex,
-                dep.redemptionTarget
-            );
+        return _liquidity.redemptionAvailable(depth_, dep.redemptionPending, dep.redemptionIndex, dep.redemptionTarget);
     }
 
     /**
      * @inheritdoc IPool
      */
     function withdraw(uint256 depth) external returns (uint256) {
+        uint128 depth_ = depth.toUint128();
+
         /* Look up Deposit */
-        Deposit storage dep = _deposits[msg.sender][uint128(depth)];
+        Deposit storage dep = _deposits[msg.sender][depth_];
 
         /* If no redemption is pending */
         if (dep.redemptionPending == 0) return 0;
 
         /* Look up redemption available */
         (uint128 shares, uint128 amount) = _liquidity.redemptionAvailable(
-            uint128(depth),
+            depth_,
             dep.redemptionPending,
             dep.redemptionIndex,
             dep.redemptionTarget
@@ -1198,7 +1205,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         _currencyToken.safeTransfer(msg.sender, amount);
 
         /* Emit Withdrawn */
-        emit Withdrawn(msg.sender, uint128(depth), shares, amount);
+        emit Withdrawn(msg.sender, depth_, shares, amount);
 
         return amount;
     }

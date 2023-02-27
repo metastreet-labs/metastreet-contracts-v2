@@ -2,10 +2,12 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import "./interfaces/ILiquidity.sol";
 
 library LiquidityManager {
+    using SafeCast for uint256;
     /**************************************************************************/
     /* Constants */
     /**************************************************************************/
@@ -144,7 +146,7 @@ library LiquidityManager {
     ) external view returns (ILiquidity.NodeInfo[] memory) {
         /* Count nodes first to figure out how to size liquidity nodes array */
         uint256 i = 0;
-        uint128 d = uint128(startDepth);
+        uint128 d = startDepth.toUint128();
         while (d != type(uint128).max && d <= endDepth) {
             Node storage node = liquidity.nodes[d];
             i++;
@@ -155,7 +157,7 @@ library LiquidityManager {
 
         /* Populate nodes */
         i = 0;
-        d = uint128(startDepth);
+        d = startDepth.toUint128();
         while (d != type(uint128).max && d <= endDepth) {
             Node storage node = liquidity.nodes[d];
             nodes[i++] = ILiquidity.NodeInfo({
@@ -188,7 +190,7 @@ library LiquidityManager {
 
         return
             ILiquidity.NodeInfo({
-                depth: uint128(depth),
+                depth: depth.toUint128(),
                 value: node.value,
                 shares: node.shares,
                 available: node.available,
@@ -237,7 +239,7 @@ library LiquidityManager {
                 uint256 price = Math.mulDiv(redemption.amount, FIXED_POINT_SCALE, redemption.shares);
 
                 totalRedeemedShares += shares;
-                totalRedeemedAmount += uint128(Math.mulDiv(shares, price, FIXED_POINT_SCALE));
+                totalRedeemedAmount += (Math.mulDiv(shares, price, FIXED_POINT_SCALE)).toUint128();
             }
         }
 
@@ -305,11 +307,11 @@ library LiquidityManager {
         uint128 taken = 0;
         uint16 count = 0;
         for (count = 0; count < depths.length && taken != amount; count++) {
-            uint128 depth = uint128(depths[count]);
+            uint128 depth = (depths[count]).toUint128();
             Node storage node = liquidity.nodes[depth];
 
-            uint128 take = uint128(Math.min(Math.min(depth - taken, node.available), amount - taken));
-            sources[count].depth = uint128(depth);
+            uint128 take = (Math.min(Math.min(depth - taken, node.available), amount - taken)).toUint128();
+            sources[count].depth = depth;
             sources[count].available = node.available - take;
             sources[count].used = take;
             taken += take;
@@ -370,7 +372,7 @@ library LiquidityManager {
         uint256 price = node.shares == 0
             ? FIXED_POINT_SCALE
             : Math.mulDiv(node.available + node.pending, FIXED_POINT_SCALE, node.shares);
-        uint128 shares = uint128(Math.mulDiv(amount, FIXED_POINT_SCALE, price));
+        uint128 shares = (Math.mulDiv(amount, FIXED_POINT_SCALE, price)).toUint128();
 
         node.value += amount;
         node.shares += shares;
@@ -507,10 +509,9 @@ library LiquidityManager {
 
             /* Redeem as many shares as possible and pending from available cash */
             uint256 price = Math.mulDiv(node.value, FIXED_POINT_SCALE, node.shares);
-            uint128 shares = uint128(
-                Math.min(Math.mulDiv(node.available, FIXED_POINT_SCALE, price), node.redemptions.pending)
-            );
-            uint128 amount = uint128(Math.mulDiv(shares, price, FIXED_POINT_SCALE));
+            uint128 shares = (Math.min(Math.mulDiv(node.available, FIXED_POINT_SCALE, price), node.redemptions.pending))
+                .toUint128();
+            uint128 amount = (Math.mulDiv(shares, price, FIXED_POINT_SCALE)).toUint128();
 
             /* Record fullfiled redemption */
             node.redemptions.fulfilled[node.redemptions.index] = FulfilledRedemption({shares: shares, amount: amount});

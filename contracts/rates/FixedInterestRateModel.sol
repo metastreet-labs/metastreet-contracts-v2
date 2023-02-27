@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import "../interfaces/IInterestRateModel.sol";
 
@@ -11,6 +12,8 @@ import "../interfaces/IInterestRateModel.sol";
  * @author MetaStreet Labs
  */
 contract FixedInterestRateModel is IInterestRateModel {
+    using SafeCast for uint256;
+
     /**************************************************************************/
     /* Constants */
     /**************************************************************************/
@@ -70,7 +73,7 @@ contract FixedInterestRateModel is IInterestRateModel {
 
         _initialized = true;
         _owner = msg.sender;
-        _fixedInterestRate = uint128(abi.decode(params, (uint256)));
+        _fixedInterestRate = (abi.decode(params, (uint256))).toUint128();
     }
 
     /**************************************************************************/
@@ -101,14 +104,14 @@ contract FixedInterestRateModel is IInterestRateModel {
     ) external pure returns (uint128[] memory) {
         uint128[] memory pending = new uint128[](count);
 
-        uint128 interestPerNode = uint128(Math.mulDiv(interest, FIXED_POINT_SCALE, count * FIXED_POINT_SCALE));
+        uint128 interestPerNode = (Math.mulDiv(interest, FIXED_POINT_SCALE, count * FIXED_POINT_SCALE)).toUint128();
         for (uint256 i; i < count; i++) {
-            pending[i] = nodes[i].used + uint128(Math.min(interestPerNode, interest));
+            pending[i] = nodes[i].used + (Math.min(interestPerNode, interest)).toUint128();
             interest -= interestPerNode;
         }
 
         /* Assign any remaining interest to final node */
-        pending[count - 1] += uint128(interest);
+        pending[count - 1] += interest.toUint128();
 
         return pending;
     }
@@ -119,6 +122,6 @@ contract FixedInterestRateModel is IInterestRateModel {
     function onUtilizationUpdated(uint256 utilization) external {
         if (msg.sender != _owner) revert("Invalid caller");
 
-        _utilization = uint128(utilization);
+        _utilization = utilization.toUint128();
     }
 }
