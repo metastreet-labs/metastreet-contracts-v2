@@ -180,7 +180,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         Uninitialized,
         Active,
         Repaid,
-        RepaidPending,
         Liquidated,
         CollateralLiquidated
     }
@@ -915,8 +914,19 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* revoke delegate */
         _revokeDelegates(loanReceipt.collateralToken, loanReceipt.collateralTokenId);
 
+        /* Compute proration based on elapsed duration against original loan duration and proration can't be more than 1.0 due to the loan expiry check above */
+        uint256 proration = Math.mulDiv(
+            block.timestamp - (loanReceipt.maturity - loanReceipt.duration),
+            LiquidityManager.FIXED_POINT_SCALE,
+            loanReceipt.duration
+        );
+
+        /* Compute repayment using prorated interest */
+        uint256 repayment = loanReceipt.principal +
+            Math.mulDiv(loanReceipt.repayment - loanReceipt.principal, proration, LiquidityManager.FIXED_POINT_SCALE);
+
         /* Transfer repayment from borrower to lender */
-        _currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), loanReceipt.repayment);
+        _currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), repayment);
 
         /* Transfer collateral from pool to borrower */
         IERC721(loanReceipt.collateralToken).safeTransferFrom(
@@ -925,11 +935,51 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
             loanReceipt.collateralTokenId
         );
 
-        /* Mark loan repaid */
-        _loans[loanReceiptHash] = LoanStatus.RepaidPending;
+        /* Restore liquidity nodes */
+        uint128 totalPending;
+        uint128 totalUsed;
+        for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
+            /* Restore node */
+            _liquidity.restore(
+                loanReceipt.nodeReceipts[i].depth,
+                loanReceipt.nodeReceipts[i].used,
+                loanReceipt.nodeReceipts[i].pending,
+                loanReceipt.nodeReceipts[i].used +
+                    uint128(
+                        Math.mulDiv(
+                            loanReceipt.nodeReceipts[i].pending - loanReceipt.nodeReceipts[i].used,
+                            proration,
+                            LiquidityManager.FIXED_POINT_SCALE
+                        )
+                    )
+            );
+
+            /* Track totals */
+            totalPending += loanReceipt.nodeReceipts[i].pending;
+            totalUsed += loanReceipt.nodeReceipts[i].used;
+        }
+
+        /* Update top level liquidity statistics with prorated interest earned by pool */
+        _liquidity.total += uint128(
+            Math.mulDiv(totalPending - totalUsed, proration, LiquidityManager.FIXED_POINT_SCALE)
+        );
+        _liquidity.used -= totalUsed;
+
+        /* Update admin fee total balance with prorated admin fee */
+        _adminFeeBalance += Math.mulDiv(
+            loanReceipt.repayment - totalPending,
+            proration,
+            LiquidityManager.FIXED_POINT_SCALE
+        );
+
+        /* Update utilization tracking */
+        _interestRateModel.onUtilizationUpdated(utilization());
+
+        /* Mark loan status repaid */
+        _loans[loanReceiptHash] = LoanStatus.Repaid;
 
         /* Emit Loan Repaid */
-        emit LoanRepaid(loanReceiptHash, false);
+        emit LoanRepaid(loanReceiptHash, true);
     }
 
     /**************************************************************************/
@@ -944,24 +994,20 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
 
         /* Validate loan status is active or repaid and pending */
-        if (_loans[loanReceiptHash] != LoanStatus.Active && _loans[loanReceiptHash] != LoanStatus.RepaidPending)
-            revert InvalidLoanReceipt();
+        if (_loans[loanReceiptHash] != LoanStatus.Active) revert InvalidLoanReceipt();
 
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
         /* If this is a pool loan */
-        if (loanReceipt.platform == address(this)) {
-            /* Validate loan is repaid */
-            if (_loans[loanReceiptHash] != LoanStatus.RepaidPending) revert InvalidLoanReceipt();
-        } else {
-            /* Look up loan adapter */
-            ILoanAdapter loanAdapter = this.loanAdapters(loanReceipt.platform);
+        if (loanReceipt.platform == address(this)) revert InvalidLoanReceipt();
 
-            /* Validate loan is repaid with note adapter */
-            if (loanAdapter.getLoanStatus(loanReceipt.loanId, encodedLoanReceipt) != ILoanAdapter.LoanStatus.Repaid)
-                revert InvalidLoanStatus();
-        }
+        /* Look up loan adapter */
+        ILoanAdapter loanAdapter = this.loanAdapters(loanReceipt.platform);
+
+        /* Validate loan is repaid with note adapter */
+        if (loanAdapter.getLoanStatus(loanReceipt.loanId, encodedLoanReceipt) != ILoanAdapter.LoanStatus.Repaid)
+            revert InvalidLoanStatus();
 
         /* Restore liquidity nodes */
         uint128 totalPending;
