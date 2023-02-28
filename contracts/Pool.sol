@@ -353,6 +353,15 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         return _loans[receiptHash];
     }
 
+    /**
+     * @notice Decode loan receipt
+     * @param loanReceipt Loan receipt
+     * @return Decoded loan receipt
+     */
+    function decodeLoanReceipt(bytes calldata loanReceipt) external pure returns (LoanReceipt.LoanReceiptV1 memory) {
+        return LoanReceipt.decode(loanReceipt);
+    }
+
     /**************************************************************************/
     /* ILiquidity Getters */
     /**************************************************************************/
