@@ -120,19 +120,20 @@ type LiquiditySource @entity {
 }
 
 type Loan @entity {
-  id: ID! # <pool>-loan-<loanId>
+  id: ID! # loan receipt hash
   pool: Pool!
   loanId: BigInt! # uint256
   status: LoanStatus!
-
+  timestamp: Int! # uint64 (in seconds since epoch)
   # Decoded Loan Receipt
   platform: Bytes! # address
   borrower: Bytes! # address
-  maturity: BigInt! # uint64 (in seconds since epoch)
-  duration: BigInt! # uint64 (in seconds)
+  maturity: Int! # uint64 (in seconds since epoch)
+  duration: Int! # uint64 (in seconds)
   collateralToken: Bytes! # address
-  collateralTokenId: Bytes! # uint256
-  liquidityTrail: [LiquiditySource!]! @derivedFrom(field: "loan")
+  collateralTokenId: BigInt! # uint256
+  collateralTokenName: String!
+  depths: [BigInt!]! # uint256[]
   principal: BigInt! # uint256
   repayment: BigInt! # uint256
   # Raw Loan Receipt
