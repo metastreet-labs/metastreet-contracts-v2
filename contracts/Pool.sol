@@ -568,6 +568,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         ILoanAdapter.AssetInfo[] memory assets,
         bytes[] calldata collateralTokenIdSpec
     ) internal view returns (uint256) {
+        principal;
+
         /* FIXME implement bundle support */
         require(assets.length == 1, "Bundles not yet supported");
 
