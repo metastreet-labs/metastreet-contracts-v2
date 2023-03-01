@@ -666,19 +666,19 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(purchasePrice, depths);
 
         /* Distribute interest */
-        (nodes, count) = _interestRateModel.distribute(purchasePrice, loanInfo.repayment - purchasePrice, nodes, count);
+        uint128[] memory pending = _interestRateModel.distribute(loanInfo.repayment - purchasePrice, nodes, count);
 
         /* Use liquidity nodes */
         LoanReceipt.NodeReceipt[] memory nodeReceipts = new LoanReceipt.NodeReceipt[](count);
         for (uint256 i; i < count; i++) {
             /* Use node */
-            _liquidity.use(nodes[i].depth, nodes[i].used, nodes[i].pending);
+            _liquidity.use(nodes[i].depth, nodes[i].used, pending[i]);
 
             /* Construct node receipt */
             nodeReceipts[i] = LoanReceipt.NodeReceipt({
                 depth: nodes[i].depth,
                 used: nodes[i].used,
-                pending: nodes[i].pending
+                pending: pending[i]
             });
         }
 
@@ -762,7 +762,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(principal, depths);
 
         /* Distribute interest */
-        (nodes, count) = _interestRateModel.distribute(principal, repayment - principal, nodes, count);
+        uint128[] memory pending = _interestRateModel.distribute(repayment - principal, nodes, count);
 
         /* Build the loan receipt */
         LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.LoanReceiptV1({
@@ -780,13 +780,13 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Use liquidity nodes */
         for (uint256 i; i < count; i++) {
             /* Use node */
-            _liquidity.use(nodes[i].depth, nodes[i].used, nodes[i].pending);
+            _liquidity.use(nodes[i].depth, nodes[i].used, pending[i]);
 
             /* Construct node receipt */
             receipt.nodeReceipts[i] = LoanReceipt.NodeReceipt({
                 depth: nodes[i].depth,
                 used: nodes[i].used,
-                pending: nodes[i].pending
+                pending: pending[i]
             });
         }
 

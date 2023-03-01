@@ -60,17 +60,9 @@ describe("FixedInterestRateModel", function () {
           pending: FixedPoint.Zero,
         },
       ];
-      let [nodes, count] = await interestRateModel.distribute(
-        FixedPoint.from("10"),
-        FixedPoint.from("1"),
-        sources,
-        sources.length
-      );
-      expect(count).to.equal(1);
-      expect(nodes[0].depth).to.equal(FixedPoint.from("15"));
-      expect(nodes[0].available).to.equal(FixedPoint.from("10"));
-      expect(nodes[0].used).to.equal(FixedPoint.from("10"));
-      expect(nodes[0].pending).to.equal(FixedPoint.from("11"));
+      let pending = await interestRateModel.distribute(FixedPoint.from("1"), sources, sources.length);
+      expect(pending.length).to.equal(1);
+      expect(pending[0]).to.equal(FixedPoint.from("11"));
 
       /* Distribute to four nodes */
       sources = [
@@ -99,29 +91,12 @@ describe("FixedInterestRateModel", function () {
           pending: FixedPoint.Zero,
         },
       ];
-      [nodes, count] = await interestRateModel.distribute(
-        ethers.utils.parseEther("12"),
-        ethers.utils.parseEther("2"),
-        sources,
-        sources.length
-      );
-      expect(count).to.equal(4);
-      expect(nodes[0].depth).to.equal(FixedPoint.from("1"));
-      expect(nodes[0].available).to.equal(FixedPoint.from("29"));
-      expect(nodes[0].used).to.equal(FixedPoint.from("1"));
-      expect(nodes[0].pending).to.equal(FixedPoint.from("1.5"));
-      expect(nodes[1].depth).to.equal(FixedPoint.from("5"));
-      expect(nodes[1].available).to.equal(FixedPoint.from("16"));
-      expect(nodes[1].used).to.equal(FixedPoint.from("4"));
-      expect(nodes[1].pending).to.equal(FixedPoint.from("4.5"));
-      expect(nodes[2].depth).to.equal(FixedPoint.from("10"));
-      expect(nodes[2].available).to.equal(FixedPoint.from("5"));
-      expect(nodes[2].used).to.equal(FixedPoint.from("5"));
-      expect(nodes[2].pending).to.equal(FixedPoint.from("5.5"));
-      expect(nodes[3].depth).to.equal(FixedPoint.from("15"));
-      expect(nodes[3].available).to.equal(FixedPoint.from("3"));
-      expect(nodes[3].used).to.equal(FixedPoint.from("2"));
-      expect(nodes[3].pending).to.equal(FixedPoint.from("2.5"));
+      pending = await interestRateModel.distribute(ethers.utils.parseEther("2"), sources, sources.length);
+      expect(pending.length).to.equal(4);
+      expect(pending[0]).to.equal(FixedPoint.from("1.5"));
+      expect(pending[1]).to.equal(FixedPoint.from("4.5"));
+      expect(pending[2]).to.equal(FixedPoint.from("5.5"));
+      expect(pending[3]).to.equal(FixedPoint.from("2.5"));
     });
   });
 });
