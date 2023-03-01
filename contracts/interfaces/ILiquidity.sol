@@ -14,13 +14,11 @@ interface ILiquidity {
      * @param depth Depth
      * @param available Available amount
      * @param used Used amount
-     * @param pending Pending amount
      */
     struct NodeSource {
         uint128 depth;
         uint128 available;
         uint128 used;
-        uint128 pending;
     }
 
     /**

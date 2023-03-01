@@ -844,11 +844,9 @@ describe("LiquidityManager", function () {
       expect(nodes[0].depth).to.equal(toFixedPoint("10"));
       expect(nodes[0].available).to.equal(toFixedPoint("40"));
       expect(nodes[0].used).to.equal(toFixedPoint("10"));
-      expect(nodes[0].pending).to.equal(ethers.constants.Zero);
       expect(nodes[1].depth).to.equal(toFixedPoint("20"));
       expect(nodes[1].available).to.equal(toFixedPoint("45"));
       expect(nodes[1].used).to.equal(toFixedPoint("5"));
-      expect(nodes[1].pending).to.equal(ethers.constants.Zero);
 
       [nodes, count] = await liquidityManager.source(toFixedPoint("35"), depths);
 
@@ -857,19 +855,15 @@ describe("LiquidityManager", function () {
       expect(nodes[0].depth).to.equal(toFixedPoint("10"));
       expect(nodes[0].available).to.equal(toFixedPoint("40"));
       expect(nodes[0].used).to.equal(toFixedPoint("10"));
-      expect(nodes[0].pending).to.equal(ethers.constants.Zero);
       expect(nodes[1].depth).to.equal(toFixedPoint("20"));
       expect(nodes[1].available).to.equal(toFixedPoint("40"));
       expect(nodes[1].used).to.equal(toFixedPoint("10"));
-      expect(nodes[1].pending).to.equal(ethers.constants.Zero);
       expect(nodes[2].depth).to.equal(toFixedPoint("30"));
       expect(nodes[2].available).to.equal(toFixedPoint("40"));
       expect(nodes[2].used).to.equal(toFixedPoint("10"));
-      expect(nodes[2].pending).to.equal(ethers.constants.Zero);
       expect(nodes[3].depth).to.equal(toFixedPoint("40"));
       expect(nodes[3].available).to.equal(toFixedPoint("45"));
       expect(nodes[3].used).to.equal(toFixedPoint("5"));
-      expect(nodes[3].pending).to.equal(ethers.constants.Zero);
     });
     it("fails on insufficient liquidity", async function () {
       await expect(liquidityManager.source(toFixedPoint("25"), depths.slice(0, 2))).to.be.revertedWithCustomError(
