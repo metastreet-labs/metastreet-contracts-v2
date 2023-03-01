@@ -310,7 +310,8 @@ library LiquidityManager {
 
             uint128 take = uint128(Math.min(Math.min(depth - taken, node.available), amount - taken));
             sources[count].depth = uint128(depth);
-            sources[count].available = node.available;
+            sources[count].available = node.available - take;
+            sources[count].used = take;
             taken += take;
         }
 

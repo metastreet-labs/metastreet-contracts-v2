@@ -55,8 +55,8 @@ describe("FixedInterestRateModel", function () {
       let sources = [
         {
           depth: FixedPoint.from("15"),
-          available: FixedPoint.from("20"),
-          used: FixedPoint.Zero,
+          available: FixedPoint.from("10"),
+          used: FixedPoint.from("10"),
           pending: FixedPoint.Zero,
         },
       ];
@@ -76,26 +76,26 @@ describe("FixedInterestRateModel", function () {
       sources = [
         {
           depth: FixedPoint.from("1"),
-          available: FixedPoint.from("30"),
-          used: FixedPoint.Zero,
+          available: FixedPoint.from("29"),
+          used: FixedPoint.from("1"),
           pending: FixedPoint.Zero,
         },
         {
           depth: FixedPoint.from("5"),
-          available: FixedPoint.from("20"),
-          used: FixedPoint.Zero,
+          available: FixedPoint.from("16"),
+          used: FixedPoint.from("4"),
           pending: FixedPoint.Zero,
         },
         {
           depth: FixedPoint.from("10"),
-          available: FixedPoint.from("10"),
-          used: FixedPoint.Zero,
+          available: FixedPoint.from("5"),
+          used: FixedPoint.from("5"),
           pending: FixedPoint.Zero,
         },
         {
           depth: FixedPoint.from("15"),
-          available: FixedPoint.from("5"),
-          used: FixedPoint.Zero,
+          available: FixedPoint.from("3"),
+          used: FixedPoint.from("2"),
           pending: FixedPoint.Zero,
         },
       ];
@@ -122,99 +122,6 @@ describe("FixedInterestRateModel", function () {
       expect(nodes[3].available).to.equal(FixedPoint.from("3"));
       expect(nodes[3].used).to.equal(FixedPoint.from("2"));
       expect(nodes[3].pending).to.equal(FixedPoint.from("2.5"));
-
-      /* Distribute to seven nodes out of nine provided */
-      sources = [
-        {
-          depth: FixedPoint.from("1"),
-          available: FixedPoint.from("30"),
-          used: FixedPoint.Zero,
-          pending: FixedPoint.Zero,
-        },
-        {
-          depth: FixedPoint.from("5"),
-          available: FixedPoint.from("20"),
-          used: FixedPoint.Zero,
-          pending: FixedPoint.Zero,
-        },
-        {
-          depth: FixedPoint.from("10"),
-          available: FixedPoint.from("10"),
-          used: FixedPoint.Zero,
-          pending: FixedPoint.Zero,
-        },
-        {
-          depth: FixedPoint.from("15"),
-          available: FixedPoint.from("5"),
-          used: FixedPoint.Zero,
-          pending: FixedPoint.Zero,
-        },
-        {
-          depth: FixedPoint.from("20"),
-          available: FixedPoint.from("5"),
-          used: FixedPoint.Zero,
-          pending: FixedPoint.Zero,
-        },
-        {
-          depth: FixedPoint.from("25"),
-          available: FixedPoint.from("5"),
-          used: FixedPoint.Zero,
-          pending: FixedPoint.Zero,
-        },
-        {
-          depth: FixedPoint.from("30"),
-          available: FixedPoint.from("5"),
-          used: FixedPoint.Zero,
-          pending: FixedPoint.Zero,
-        },
-        {
-          depth: FixedPoint.from("35"),
-          available: FixedPoint.from("5"),
-          used: FixedPoint.Zero,
-          pending: FixedPoint.Zero,
-        },
-        {
-          depth: FixedPoint.from("40"),
-          available: FixedPoint.from("5"),
-          used: FixedPoint.Zero,
-          pending: FixedPoint.Zero,
-        },
-      ];
-      [nodes, count] = await interestRateModel.distribute(
-        ethers.utils.parseEther("28"),
-        ethers.utils.parseEther("9"),
-        sources,
-        sources.length
-      );
-      expect(count).to.equal(7);
-      expect(nodes[0].depth).to.equal(FixedPoint.from("1"));
-      expect(nodes[0].available).to.equal(FixedPoint.from("29"));
-      expect(nodes[0].used).to.equal(FixedPoint.from("1"));
-      expect(nodes[0].pending).to.equal(FixedPoint.from("2"));
-      expect(nodes[1].depth).to.equal(FixedPoint.from("5"));
-      expect(nodes[1].available).to.equal(FixedPoint.from("16"));
-      expect(nodes[1].used).to.equal(FixedPoint.from("4"));
-      expect(nodes[1].pending).to.equal(FixedPoint.from("5"));
-      expect(nodes[2].depth).to.equal(FixedPoint.from("10"));
-      expect(nodes[2].available).to.equal(FixedPoint.from("5"));
-      expect(nodes[2].used).to.equal(FixedPoint.from("5"));
-      expect(nodes[2].pending).to.equal(FixedPoint.from("6"));
-      expect(nodes[3].depth).to.equal(FixedPoint.from("15"));
-      expect(nodes[3].available).to.equal(FixedPoint.from("0"));
-      expect(nodes[3].used).to.equal(FixedPoint.from("5"));
-      expect(nodes[3].pending).to.equal(FixedPoint.from("6"));
-      expect(nodes[4].depth).to.equal(FixedPoint.from("20"));
-      expect(nodes[4].available).to.equal(FixedPoint.from("0"));
-      expect(nodes[4].used).to.equal(FixedPoint.from("5"));
-      expect(nodes[4].pending).to.equal(FixedPoint.from("6"));
-      expect(nodes[5].depth).to.equal(FixedPoint.from("25"));
-      expect(nodes[5].available).to.equal(FixedPoint.from("0"));
-      expect(nodes[5].used).to.equal(FixedPoint.from("5"));
-      expect(nodes[5].pending).to.equal(FixedPoint.from("6"));
-      expect(nodes[6].depth).to.equal(FixedPoint.from("30"));
-      expect(nodes[6].available).to.equal(FixedPoint.from("2"));
-      expect(nodes[6].used).to.equal(FixedPoint.from("3"));
-      expect(nodes[6].pending).to.equal(FixedPoint.from("6"));
     });
   });
 });

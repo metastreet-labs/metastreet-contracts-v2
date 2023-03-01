@@ -100,23 +100,18 @@ contract FixedInterestRateModel is IInterestRateModel {
         ILiquidity.NodeSource[] memory nodes,
         uint16 count
     ) external pure returns (ILiquidity.NodeSource[] memory, uint16) {
+        amount;
         uint128 interestPerNode = uint128(Math.mulDiv(interest, FIXED_POINT_SCALE, count * FIXED_POINT_SCALE));
 
-        uint128 taken;
-        uint16 i;
-        for (; taken < amount; i++) {
-            uint128 take = uint128(Math.min(Math.min(nodes[i].depth - taken, nodes[i].available), amount - taken));
-            nodes[i].available -= take;
-            nodes[i].used = take;
-            nodes[i].pending = take + uint128(Math.min(interestPerNode, interest));
+        for (uint256 i; i < count; i++) {
+            nodes[i].pending = nodes[i].used + uint128(Math.min(interestPerNode, interest));
             interest -= interestPerNode;
-            taken += take;
         }
 
         /* Assign any remaining interest to final node */
-        nodes[i - 1].pending += uint128(interest);
+        nodes[count - 1].pending += uint128(interest);
 
-        return (nodes, i);
+        return (nodes, count);
     }
 
     /**
