@@ -875,6 +875,26 @@ describe("LiquidityManager", function () {
         "InsufficientLiquidity"
       );
     });
+    it("fails on non-increasing depths", async function () {
+      await expect(
+        liquidityManager.source(toFixedPoint("35"), [
+          toFixedPoint("10"),
+          toFixedPoint("30"),
+          toFixedPoint("20"),
+          toFixedPoint("40"),
+        ])
+      ).to.be.revertedWithCustomError(liquidityManagerLib, "InvalidDepths");
+    });
+    it("fails on duplicate depths", async function () {
+      await expect(
+        liquidityManager.source(toFixedPoint("25"), [
+          toFixedPoint("10"),
+          toFixedPoint("20"),
+          toFixedPoint("20"),
+          toFixedPoint("40"),
+        ])
+      ).to.be.revertedWithCustomError(liquidityManagerLib, "InvalidDepths");
+    });
   });
 
   describe("#utilization", async function () {

@@ -49,6 +49,11 @@ library LiquidityManager {
      */
     error InsufficientTickSpacing();
 
+    /**
+     * @notice Invalid depths
+     */
+    error InvalidDepths();
+
     /**************************************************************************/
     /* Structures */
     /**************************************************************************/
@@ -302,17 +307,21 @@ library LiquidityManager {
     ) internal view returns (ILiquidity.NodeSource[] memory, uint16) {
         ILiquidity.NodeSource[] memory sources = new ILiquidity.NodeSource[](depths.length);
 
+        uint128 prevDepth;
         uint128 taken = 0;
         uint16 count = 0;
         for (count = 0; count < depths.length && taken != amount; count++) {
             uint128 depth = uint128(depths[count]);
+            if (depth <= prevDepth) revert InvalidDepths();
+
             Node storage node = liquidity.nodes[depth];
 
             uint128 take = uint128(Math.min(Math.min(depth - taken, node.available), amount - taken));
-            sources[count].depth = uint128(depth);
+            sources[count].depth = depth;
             sources[count].available = node.available - take;
             sources[count].used = take;
             taken += take;
+            prevDepth = depth;
         }
 
         if (taken < amount) revert InsufficientLiquidity();
