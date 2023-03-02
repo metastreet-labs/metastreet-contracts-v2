@@ -24,7 +24,7 @@ interface IInterestRateModel {
      * @param interest Interest to distribute
      * @param nodes Liquidity nodes
      * @param count Liquidity node count
-     * @return Pending liquidity to nodes
+     * @return Interest distribution
      */
     function distribute(
         uint256 interest,

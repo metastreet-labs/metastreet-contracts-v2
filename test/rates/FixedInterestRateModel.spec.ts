@@ -60,9 +60,9 @@ describe("FixedInterestRateModel", function () {
           pending: FixedPoint.Zero,
         },
       ];
-      let pending = await interestRateModel.distribute(FixedPoint.from("1"), sources, sources.length);
-      expect(pending.length).to.equal(1);
-      expect(pending[0]).to.equal(FixedPoint.from("11"));
+      let distribution = await interestRateModel.distribute(FixedPoint.from("1"), sources, sources.length);
+      expect(distribution.length).to.equal(1);
+      expect(distribution[0]).to.equal(FixedPoint.from("1"));
 
       /* Distribute to four nodes */
       sources = [
@@ -91,12 +91,12 @@ describe("FixedInterestRateModel", function () {
           pending: FixedPoint.Zero,
         },
       ];
-      pending = await interestRateModel.distribute(ethers.utils.parseEther("2"), sources, sources.length);
-      expect(pending.length).to.equal(4);
-      expect(pending[0]).to.equal(FixedPoint.from("1.5"));
-      expect(pending[1]).to.equal(FixedPoint.from("4.5"));
-      expect(pending[2]).to.equal(FixedPoint.from("5.5"));
-      expect(pending[3]).to.equal(FixedPoint.from("2.5"));
+      distribution = await interestRateModel.distribute(ethers.utils.parseEther("2"), sources, sources.length);
+      expect(distribution.length).to.equal(4);
+      expect(distribution[0]).to.equal(FixedPoint.from("0.5"));
+      expect(distribution[1]).to.equal(FixedPoint.from("0.5"));
+      expect(distribution[2]).to.equal(FixedPoint.from("0.5"));
+      expect(distribution[3]).to.equal(FixedPoint.from("0.5"));
     });
   });
 });
