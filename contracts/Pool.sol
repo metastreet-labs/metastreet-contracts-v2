@@ -755,15 +755,21 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     /**************************************************************************/
 
     /**
-     * @inheritdoc IPool
+     * @dev Helper function to quote a loan
+     * @param principal Principal amount in currency tokens
+     * @param duration Duration in seconds
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
+     * @param collateralTokenIdSpec Collateral token ID specification
+     * @return Repayment amount in currency tokens
      */
-    function quote(
+    function _quote(
         uint256 principal,
         uint64 duration,
         address collateralToken,
         uint256 collateralTokenId,
         bytes[] calldata collateralTokenIdSpec
-    ) public view returns (uint256) {
+    ) internal view returns (uint256) {
         /* FIXME implement bundle support */
 
         /* Verify collateral is supported */
@@ -784,6 +790,23 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     /**
      * @inheritdoc IPool
      */
+    function quote(
+        uint256 principal,
+        uint64 duration,
+        address collateralToken,
+        uint256 collateralTokenId,
+        bytes[] calldata collateralTokenIdSpec
+    ) external view returns (uint256) {
+        /* Check principal doesn't exceed max borrow available */
+        if (principal > _liquidity.liquidityAvailable(type(uint256).max))
+            revert LiquidityManager.InsufficientLiquidity();
+
+        return _quote(principal, duration, collateralToken, collateralTokenId, collateralTokenIdSpec);
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
     function borrow(
         uint256 principal,
         uint64 duration,
@@ -795,7 +818,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         bytes calldata options
     ) external nonReentrant returns (uint256) {
         /* Quote repayment */
-        uint256 repayment = quote(principal, duration, collateralToken, collateralTokenId, collateralTokenIdSpec);
+        uint256 repayment = _quote(principal, duration, collateralToken, collateralTokenId, collateralTokenIdSpec);
 
         /* Validate repayment */
         if (repayment > maxRepayment) revert RepaymentTooHigh();

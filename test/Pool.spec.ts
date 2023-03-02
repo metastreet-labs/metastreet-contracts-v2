@@ -1582,13 +1582,21 @@ describe("Pool", function () {
   /****************************************************************************/
 
   describe("#quote", async function () {
+    beforeEach("setup liquidity", async function () {
+      await setupLiquidity();
+    });
     it("correctly quotes repayment", async function () {
+      expect(await pool.quote(ethers.utils.parseEther("10"), 30 * 86400, nft1.address, 123, [])).to.equal(
+        ethers.utils.parseEther("10.016438356146880000")
+      );
       expect(await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, 123, [])).to.equal(
         ethers.utils.parseEther("25.041095890367200000")
       );
-      expect(await pool.quote(ethers.utils.parseEther("100"), 30 * 86400, nft1.address, 123, [])).to.equal(
-        ethers.utils.parseEther("100.164383561468800000")
-      );
+    });
+    it("fails on insufficient liquidity", async function () {
+      await expect(
+        pool.quote(ethers.utils.parseEther("100"), 30 * 86400, tok1.address, 123, [])
+      ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
     });
     it("fails on unsupported collateral", async function () {
       await expect(
