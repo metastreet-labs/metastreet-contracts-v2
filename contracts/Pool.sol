@@ -789,7 +789,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     /**
      * @inheritdoc IPool
      */
-    function liquidate(bytes calldata encodedLoanReceipt) external {
+    function liquidate(bytes calldata encodedLoanReceipt) external nonReentrant {
         /* Compute loan receipt hash */
         bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
 
@@ -827,7 +827,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     /**
      * @inheritdoc IPool
      */
-    function onCollateralLiquidated(bytes calldata encodedLoanReceipt, uint256 proceeds) external {
+    function onCollateralLiquidated(bytes calldata encodedLoanReceipt, uint256 proceeds) external nonReentrant {
         /* Validate caller is collateral liquidator */
         if (msg.sender != address(_collateralLiquidator)) revert InvalidCaller();
 
@@ -886,7 +886,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     /**
      * @inheritdoc IPool
      */
-    function deposit(uint256 depth, uint256 amount) external {
+    function deposit(uint256 depth, uint256 amount) external nonReentrant {
         /* Instantiate liquidity node */
         _liquidity.instantiate(uint128(depth));
 
@@ -912,7 +912,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     /**
      * @inheritdoc IPool
      */
-    function redeem(uint256 depth, uint256 shares) external {
+    function redeem(uint256 depth, uint256 shares) external nonReentrant {
         /* Look up Deposit */
         Deposit storage dep = _deposits[msg.sender][uint128(depth)];
 
@@ -964,7 +964,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     /**
      * @inheritdoc IPool
      */
-    function withdraw(uint256 depth) external returns (uint256) {
+    function withdraw(uint256 depth) external nonReentrant returns (uint256) {
         /* Look up Deposit */
         Deposit storage dep = _deposits[msg.sender][uint128(depth)];
 
