@@ -122,17 +122,14 @@ type LiquiditySource @entity {
 type Loan @entity {
   id: ID! # loan receipt hash
   pool: Pool!
-  loanId: BigInt! # uint256
   status: LoanStatus!
   timestamp: Int! # uint64 (in seconds since epoch)
   # Decoded Loan Receipt
-  platform: Bytes! # address
   borrower: Bytes! # address
   maturity: Int! # uint64 (in seconds since epoch)
   duration: Int! # uint64 (in seconds)
-  collateralToken: Bytes! # address
+  collateralToken: CollateralToken!
   collateralTokenId: BigInt! # uint256
-  collateralTokenName: String!
   depths: [BigInt!]! # uint256[]
   principal: BigInt! # uint256
   repayment: BigInt! # uint256
@@ -148,14 +145,13 @@ type PoolEvent @entity {
   id: ID! # <pool>-<tx hash>
   transactionHash: Bytes!
   timestamp: BigInt! # uint64
-  account: Bytes # address (set only for user events, e.g Deposited, Withdrawn... etc)
+  account: Bytes! # address
   type: PoolEventType!
   pool: Pool!
   loanOriginated: LoanOriginated
   loanPurchased: LoanPurchased
   LoanRepaid: LoanRepaid
   loanLiquidated: LoanLiquidated
-  collateralLiquidated: CollateralLiquidated
   deposited: Deposited
   redeemed: Redeemed
   withdrawn: Withdrawn
@@ -163,10 +159,8 @@ type PoolEvent @entity {
 
 enum PoolEventType {
   LoanOriginated
-  LoanPurchased
   LoanRepaid
   LoanLiquidated
-  CollateralLiquidated
   Deposited
   Redeemed
   Withdrawn
@@ -190,12 +184,6 @@ type LoanRepaid @entity {
 type LoanLiquidated @entity {
   id: ID! # <pool>-<tx hash>
   loan: Loan!
-}
-
-type CollateralLiquidated @entity {
-  id: ID! # <pool>-<tx hash>
-  loan: Loan!
-  proceeds: BigInt! # uint256
 }
 
 type Deposited @entity {

@@ -5,6 +5,7 @@ import {
   Deposited as DepositedEntity,
   Loan as LoanEntity,
   LoanOriginated as LoanOriginatedEntity,
+  LoanRepaid as LoanRepaidEntity,
   Pool as PoolEntity,
   PoolEvent,
   Redeemed as RedeemedEntity,
@@ -16,7 +17,6 @@ import {
   Deposited,
   LoanLiquidated,
   LoanOriginated,
-  LoanPurchased,
   LoanRepaid,
   Pool,
   Pool__decodeLoanReceiptResultValue0Struct as LoanReceipt,
@@ -44,7 +44,6 @@ class PoolEventType {
   static LoanPurchased: string = "LoanPurchased";
   static LoanRepaid: string = "LoanRepaid";
   static LoanLiquidated: string = "LoanLiquidated";
-  static CollateralLiquidated: string = "CollateralLiquidated";
   static Deposited: string = "Deposited";
   static Redeemed: string = "Redeemed";
   static Withdrawn: string = "Withdrawn";
@@ -61,7 +60,7 @@ class LoanStatus {
 /* helper functions */
 /**************************************************************************/
 
-function createPoolEvent(event: ethereum.Event, type: string, account: Address | null): string {
+function createPoolEvent(event: ethereum.Event, type: string, account: Bytes): string {
   const id = `${poolAddress}-${event.transaction.hash.toHexString()}`;
   const eventEntity = new PoolEvent(id);
   eventEntity.pool = poolAddress;
@@ -73,7 +72,6 @@ function createPoolEvent(event: ethereum.Event, type: string, account: Address |
   else if (type == PoolEventType.LoanPurchased) eventEntity.loanPurchased = id;
   else if (type == PoolEventType.LoanRepaid) eventEntity.LoanRepaid = id;
   else if (type == PoolEventType.LoanLiquidated) eventEntity.loanLiquidated = id;
-  else if (type == PoolEventType.CollateralLiquidated) eventEntity.collateralLiquidated = id;
   else if (type == PoolEventType.Deposited) eventEntity.deposited = id;
   else if (type == PoolEventType.Redeemed) eventEntity.redeemed = id;
   else if (type == PoolEventType.Withdrawn) eventEntity.withdrawn = id;
@@ -184,23 +182,13 @@ function createLoanEntity(receipt: LoanReceipt, encodedReceipt: Bytes, receiptHa
   loanEntity.repayment = repayment;
   loanEntity.depths = depths;
   loanEntity.pool = poolAddress;
-  loanEntity.loanId = receipt.loanId;
   loanEntity.timestamp = timestamp.toI32();
   loanEntity.status = LoanStatus.Active;
-  loanEntity.platform = receipt.platform;
   loanEntity.borrower = receipt.borrower;
   loanEntity.maturity = receipt.maturity.toI32();
   loanEntity.duration = receipt.duration.toI32();
-  loanEntity.collateralToken = receipt.collateralToken;
+  loanEntity.collateralToken = receipt.collateralToken.toHexString();
   loanEntity.collateralTokenId = receipt.collateralTokenId;
-
-  const collateralTokenEntity = CollateralTokenEntity.load(receipt.collateralToken.toHexString());
-  if (collateralTokenEntity) {
-    loanEntity.collateralTokenName = collateralTokenEntity.name;
-  } else {
-    /* should never happen */
-    loanEntity.collateralTokenName = "Unnamed Token";
-  }
 
   loanEntity.save();
 }
@@ -257,21 +245,8 @@ export function handleLoanOriginated(event: LoanOriginated): void {
   const poolEventID = createPoolEvent(event, PoolEventType.LoanOriginated, receipt.borrower);
 
   const loanOriginatedEntity = new LoanOriginatedEntity(poolEventID);
-  loanOriginatedEntity.loan = receipt.loanId.toHexString();
-
+  loanOriginatedEntity.loan = event.params.loanReceiptHash.toHexString();
   loanOriginatedEntity.save();
-}
-
-export function handleLoanPurchased(event: LoanPurchased): void {
-  const receipt = poolContract.decodeLoanReceipt(event.params.loanReceipt);
-  createLoanEntity(receipt, event.params.loanReceipt, event.params.loanReceiptHash, event.block.timestamp);
-
-  const poolEventID = createPoolEvent(event, PoolEventType.LoanPurchased, receipt.borrower);
-
-  const loanPurchasedEntity = new LoanOriginatedEntity(poolEventID);
-  loanPurchasedEntity.loan = event.params.loanReceiptHash.toHexString();
-
-  loanPurchasedEntity.save();
 }
 
 export function handleLoanRepaid(event: LoanRepaid): void {
@@ -284,6 +259,12 @@ export function handleLoanRepaid(event: LoanRepaid): void {
     const poolEntity = updatePoolEntity();
     updateCollateralTokenEntity(poolEntity.collateralToken);
     for (let i = 0; i < loanEntity.depths.length; i++) updateTickEntity(loanEntity.depths[i]);
+
+    const poolEventID = createPoolEvent(event, PoolEventType.LoanRepaid, loanEntity.borrower);
+
+    const loanRepaidEntity = new LoanRepaidEntity(poolEventID);
+    loanRepaidEntity.loan = loanEntity.id;
+    loanRepaidEntity.save();
   }
 }
 
@@ -293,6 +274,12 @@ export function handleLoanLiquidated(event: LoanLiquidated): void {
   if (loanEntity) {
     loanEntity.status = LoanStatus.Liquidated;
     loanEntity.save();
+
+    const poolEventID = createPoolEvent(event, PoolEventType.LoanLiquidated, loanEntity.borrower);
+
+    const loanLiquidatedEntity = new LoanRepaidEntity(poolEventID);
+    loanLiquidatedEntity.loan = loanEntity.id;
+    loanLiquidatedEntity.save();
   }
 }
 

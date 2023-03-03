@@ -9,16 +9,9 @@ async function main() {
 
   /**************************************************************************/
   /* Libs and Implementations */
-  /**************************************************************************/
-  /* Deploy Liquidity Manager Lib */
-  const LiquidityManager = await ethers.getContractFactory("LiquidityManager");
-  const liquidityManagerLib = await LiquidityManager.deploy();
-  await liquidityManagerLib.deployed();
 
   /* Deploy Pool implementation */
-  const Pool = await ethers.getContractFactory("Pool", {
-    libraries: { LiquidityManager: liquidityManagerLib.address },
-  });
+  const Pool = await ethers.getContractFactory("Pool");
   const poolImpl = await Pool.deploy();
   await poolImpl.deployed();
 
@@ -31,6 +24,11 @@ async function main() {
   const FixedInterestRateModel = await ethers.getContractFactory("FixedInterestRateModel", accounts[9]);
   const fixedInterestRateModelImpl = await FixedInterestRateModel.deploy();
   console.log("FixedInterestRateModel Impl: ", fixedInterestRateModelImpl.address);
+
+  /* Deploy ExternalCollateralLiquidator Implementation */
+  const ExternalCollateralLiquidator = await ethers.getContractFactory("ExternalCollateralLiquidator", accounts[9]);
+  const externalCollateralLiquidatorImpl = await ExternalCollateralLiquidator.deploy();
+  console.log("ExternalCollateralLiquidator Impl:", externalCollateralLiquidatorImpl.address);
 
   /**************************************************************************/
   /* PoolFactory */
@@ -74,15 +72,18 @@ async function main() {
     const durations = [30, 14, 7];
     for (let j = 0; j < durations.length; j++) {
       const calldata = ethers.utils.defaultAbiCoder.encode(
-        ["address", "uint64", "address", "address", "address", "bytes", "bytes"],
+        ["address", "address", "uint64", "address", "address", "address", "address", "bytes", "bytes", "bytes"],
         [
+          collateralTokens[i],
           wethTokenContract.address,
           durations[j] * 86400,
+          ethers.constants.AddressZero,
           collectionCollateralFilterImpl.address,
           fixedInterestRateModelImpl.address,
-          ethers.constants.AddressZero,
+          externalCollateralLiquidatorImpl.address,
           ethers.utils.defaultAbiCoder.encode(["address"], [collateralTokens[i]]),
-          ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.from("0.02")]),
+          ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.from("0.0000002")]),
+          ethers.utils.defaultAbiCoder.encode(["address"], [accounts[0].address]),
         ]
       );
       const createPoolTx = await poolFactory.createPool(calldata);

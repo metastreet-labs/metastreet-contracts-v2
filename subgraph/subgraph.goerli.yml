@@ -4,10 +4,11 @@ schema:
 dataSources:
   - kind: ethereum
     name: PoolFactory
-    network: localhost
+    network: goerli
     source:
-      address: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+      address: "0x25dEeD6fBF3d03d6282550d7493cf23265e1bC82"
       abi: IPoolFactory
+      startBlock: 8588764
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.6
@@ -30,7 +31,7 @@ dataSources:
 templates:
   - kind: ethereum
     name: Pool
-    network: localhost
+    network: goerli
     source:
       abi: Pool
     mapping:
