@@ -31,15 +31,4 @@ contract TestLoanReceipt {
     function decode(bytes calldata encodedReceipt) external pure returns (LoanReceipt.LoanReceiptV1 memory) {
         return LoanReceipt.decode(encodedReceipt);
     }
-
-    /**
-     * @dev External wrapper function for LoanReceipt.fromLoanInfo()
-     */
-    function fromLoanInfo(
-        address platform,
-        ILoanAdapter.LoanInfo memory loanInfo,
-        LoanReceipt.NodeReceipt[] memory nodeReceipts
-    ) external pure returns (LoanReceipt.LoanReceiptV1 memory) {
-        return LoanReceipt.fromLoanInfo(platform, loanInfo, nodeReceipts);
-    }
 }

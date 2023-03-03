@@ -645,8 +645,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Build the loan receipt */
         LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.LoanReceiptV1({
             version: 1,
-            platform: address(this),
-            loanId: 0,
             principal: principal,
             repayment: repayment,
             borrower: msg.sender,
@@ -712,9 +710,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
 
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
-
-        /* Validate this is a pool loan */
-        if (loanReceipt.platform != address(this)) revert InvalidLoanReceipt();
 
         /* Validate caller is borrower */
         if (msg.sender != loanReceipt.borrower) revert InvalidCaller();
@@ -806,11 +801,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
-        /* If this is a pool loan */
-        if (loanReceipt.platform == address(this)) {
-            /* Validate loan is expired */
-            if (block.timestamp < loanReceipt.maturity) revert InvalidLoanStatus();
-        }
+        /* Validate loan is expired */
+        if (block.timestamp < loanReceipt.maturity) revert InvalidLoanStatus();
 
         /* Transfer collateral to _collateralLiquidator */
         IERC721(loanReceipt.collateralToken).safeTransferFrom(

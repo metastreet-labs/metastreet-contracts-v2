@@ -35,7 +35,7 @@ library LoanReceipt {
     /**
      * @notice LoanReceiptV1 header size in bytes
      */
-    uint256 internal constant LOAN_RECEIPT_V1_HEADER_SIZE = 205;
+    uint256 internal constant LOAN_RECEIPT_V1_HEADER_SIZE = 153;
 
     /**
      * @notice LoanReceiptV1 payload element size in bytes
@@ -49,8 +49,8 @@ library LoanReceipt {
     /**
      * @notice LoanReceiptV1
      * @param version Version (1)
-     * @param platform Note token or lending platform
-     * @param loanId Loan ID
+     * @param principal Principal amount in currency tokens
+     * @param repayment Repayment amount in currency tokens
      * @param borrower Borrower
      * @param maturity Loan maturity timestamp
      * @param duration Loan duration
@@ -60,8 +60,6 @@ library LoanReceipt {
      */
     struct LoanReceiptV1 {
         uint8 version;
-        address platform;
-        uint256 loanId;
         uint256 principal;
         uint256 repayment;
         address borrower;
@@ -89,17 +87,15 @@ library LoanReceipt {
     /**************************************************************************/
 
     /*
-      Header (205 bytes)
+      Header (153 bytes)
           1   uint8   version               0:1
-          20  address platform              1:21
-          32  uint256 loanId                21:53
-          32  uint256 principal             53:85
-          32  uint256 repayment             85:117
-          20  address borrower              117:137
-          8   uint64  maturity              137:145
-          8   uint64  duration              145:153
-          20  address collateralToken       153:173
-          32  uint256 collateralTokenId     173:205
+          32  uint256 principal             1:33
+          32  uint256 repayment             33:65
+          20  address borrower              65:85
+          8   uint64  maturity              85:93
+          8   uint64  duration              93:101
+          20  address collateralToken       101:121
+          32  uint256 collateralTokenId     121:153
 
       Node Receipts (48 * N bytes)
           N   NodeReceipts[] nodeReceipts
@@ -131,8 +127,6 @@ library LoanReceipt {
         /* Encode header */
         bytes memory encodedReceipt = abi.encodePacked(
             receipt.version,
-            receipt.platform,
-            receipt.loanId,
             receipt.principal,
             receipt.repayment,
             receipt.borrower,
@@ -174,15 +168,13 @@ library LoanReceipt {
 
         /* Decode header */
         receipt.version = uint8(encodedReceipt[0]);
-        receipt.platform = address(uint160(bytes20(encodedReceipt[1:21])));
-        receipt.loanId = uint256(bytes32(encodedReceipt[21:53]));
-        receipt.principal = uint256(bytes32(encodedReceipt[53:85]));
-        receipt.repayment = uint256(bytes32(encodedReceipt[85:117]));
-        receipt.borrower = address(uint160(bytes20(encodedReceipt[117:137])));
-        receipt.maturity = uint64(bytes8(encodedReceipt[137:145]));
-        receipt.duration = uint64(bytes8(encodedReceipt[145:153]));
-        receipt.collateralToken = address(uint160(bytes20(encodedReceipt[153:173])));
-        receipt.collateralTokenId = uint256(bytes32(encodedReceipt[173:205]));
+        receipt.principal = uint256(bytes32(encodedReceipt[1:33]));
+        receipt.repayment = uint256(bytes32(encodedReceipt[33:65]));
+        receipt.borrower = address(uint160(bytes20(encodedReceipt[65:85])));
+        receipt.maturity = uint64(bytes8(encodedReceipt[85:93]));
+        receipt.duration = uint64(bytes8(encodedReceipt[93:101]));
+        receipt.collateralToken = address(uint160(bytes20(encodedReceipt[101:121])));
+        receipt.collateralTokenId = uint256(bytes32(encodedReceipt[121:153]));
 
         /* Decode node receipts */
         uint256 numNodeReceipts = (encodedReceipt.length - LOAN_RECEIPT_V1_HEADER_SIZE) /
@@ -193,41 +185,6 @@ library LoanReceipt {
             receipt.nodeReceipts[i].depth = uint128(bytes16(encodedReceipt[offset:offset + 16]));
             receipt.nodeReceipts[i].used = uint128(bytes16(encodedReceipt[offset + 16:offset + 32]));
             receipt.nodeReceipts[i].pending = uint128(bytes16(encodedReceipt[offset + 32:offset + 48]));
-        }
-
-        return receipt;
-    }
-
-    /**
-     * @dev Build a loan receipt from loan info and node receipts
-     * @param platform Note token or lending platform address
-     * @param loanInfo Loan info
-     * @param nodeReceipts Node receipts
-     * @return Loan receipt
-     */
-    function fromLoanInfo(
-        address platform,
-        ILoanAdapter.LoanInfo memory loanInfo,
-        NodeReceipt[] memory nodeReceipts
-    ) internal pure returns (LoanReceiptV1 memory) {
-        LoanReceiptV1 memory receipt = LoanReceiptV1({
-            version: 1,
-            platform: platform,
-            loanId: loanInfo.loanId,
-            borrower: loanInfo.borrower,
-            principal: uint128(loanInfo.principal),
-            repayment: uint128(loanInfo.repayment),
-            maturity: loanInfo.maturity,
-            duration: loanInfo.duration,
-            collateralToken: loanInfo.collateralToken,
-            collateralTokenId: loanInfo.collateralTokenId,
-            nodeReceipts: new NodeReceipt[](nodeReceipts.length)
-        });
-
-        for (uint256 i = 0; i < nodeReceipts.length; i++) {
-            receipt.nodeReceipts[i].depth = nodeReceipts[i].depth;
-            receipt.nodeReceipts[i].used = nodeReceipts[i].used;
-            receipt.nodeReceipts[i].pending = nodeReceipts[i].pending;
         }
 
         return receipt;

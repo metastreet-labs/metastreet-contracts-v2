@@ -1211,8 +1211,6 @@ describe("Pool", function () {
       /* Validate loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       expect(decodedLoanReceipt.version).to.equal(1);
-      expect(decodedLoanReceipt.platform).to.equal(pool.address);
-      expect(decodedLoanReceipt.loanId).to.equal(ethers.constants.Zero);
       expect(decodedLoanReceipt.borrower).to.equal(accountBorrower.address);
       expect(decodedLoanReceipt.maturity).to.equal(
         (await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp + 30 * 86400
@@ -1288,8 +1286,6 @@ describe("Pool", function () {
       /* Validate loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       expect(decodedLoanReceipt.version).to.equal(1);
-      expect(decodedLoanReceipt.platform).to.equal(pool.address);
-      expect(decodedLoanReceipt.loanId).to.equal(ethers.constants.Zero);
       expect(decodedLoanReceipt.borrower).to.equal(accountBorrower.address);
       expect(decodedLoanReceipt.maturity).to.equal(
         (await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp + 30 * 86400
@@ -1375,8 +1371,6 @@ describe("Pool", function () {
       /* Validate loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       expect(decodedLoanReceipt.version).to.equal(1);
-      expect(decodedLoanReceipt.platform).to.equal(pool.address);
-      expect(decodedLoanReceipt.loanId).to.equal(ethers.constants.Zero);
       expect(decodedLoanReceipt.principal).to.equal(ethers.utils.parseEther("25"));
       expect(decodedLoanReceipt.repayment).to.equal(repayment);
       expect(decodedLoanReceipt.borrower).to.equal(accountBorrower.address);
