@@ -78,29 +78,19 @@ contract ExternalCollateralLiquidator is Ownable, ICollateralLiquidator {
         Withdrawn
     }
 
-    /**
-     * @notice Collateral Tracker
-     * @param status Collateral status
-     * @param pool Associated pool
-     */
-    struct CollateralTracker {
-        CollateralStatus status;
-        IPool pool;
-    }
-
     /**************************************************************************/
     /* State */
     /**************************************************************************/
 
     /**
-     * @dev Approved pools
+     * @dev Associated pool
      */
-    mapping(address => bool) private _approvedPools;
+    IPool private _pool;
 
     /**
      * @dev Collateral tracker
      */
-    mapping(bytes32 => CollateralTracker) private _collateralTracker;
+    mapping(bytes32 => CollateralStatus) private _collateralTracker;
 
     /**************************************************************************/
     /* Constructor */
@@ -116,20 +106,19 @@ contract ExternalCollateralLiquidator is Ownable, ICollateralLiquidator {
     /**************************************************************************/
 
     /**
-     * Get approved pool status
-     * @param pool Pool
-     * @return True if approved, otherwise false
+     * Get associated pool
+     * @return Pool address
      */
-    function isApprovedPool(address pool) external view returns (bool) {
-        return _approvedPools[pool];
+    function pool() external view returns (address) {
+        return address(_pool);
     }
 
     /**
-     * Get collateral tracker
+     * Get collateral status
      * @param loanReceiptHash Loan receipt hash
      * @return Collateral tracker
      */
-    function collateralTracker(bytes32 loanReceiptHash) external view returns (CollateralTracker memory) {
+    function collateralStatus(bytes32 loanReceiptHash) external view returns (CollateralStatus) {
         return _collateralTracker[loanReceiptHash];
     }
 
@@ -154,13 +143,13 @@ contract ExternalCollateralLiquidator is Ownable, ICollateralLiquidator {
         bytes calldata data
     ) external virtual returns (bytes4) {
         /* Validate caller */
-        if (operator != from || !_approvedPools[from]) revert InvalidCaller();
+        if (operator != from || from != address(_pool)) revert InvalidCaller();
 
         /* Get loan receipt hash */
         bytes32 loanReceiptHash = LoanReceipt.hash(data);
 
         /* Update collateral tracker */
-        _collateralTracker[loanReceiptHash] = CollateralTracker({status: CollateralStatus.Present, pool: IPool(from)});
+        _collateralTracker[loanReceiptHash] = CollateralStatus.Present;
 
         return this.onERC721Received.selector;
     }
@@ -175,10 +164,9 @@ contract ExternalCollateralLiquidator is Ownable, ICollateralLiquidator {
     function withdrawCollateral(bytes calldata loanReceipt) external onlyOwner {
         /* Look up collateral tracker */
         bytes32 loanReceiptHash = LoanReceipt.hash(loanReceipt);
-        CollateralTracker storage collateral = _collateralTracker[loanReceiptHash];
 
         /* Validate collateral is present */
-        if (collateral.status != CollateralStatus.Present) revert InvalidCollateralState();
+        if (_collateralTracker[loanReceiptHash] != CollateralStatus.Present) revert InvalidCollateralState();
 
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.decode(loanReceipt);
@@ -187,7 +175,7 @@ contract ExternalCollateralLiquidator is Ownable, ICollateralLiquidator {
         IERC721(receipt.collateralToken).safeTransferFrom(address(this), msg.sender, receipt.collateralTokenId);
 
         /* Update collateral tracker */
-        collateral.status = CollateralStatus.Withdrawn;
+        _collateralTracker[loanReceiptHash] = CollateralStatus.Withdrawn;
 
         emit CollateralWithdrawn(msg.sender, receipt.collateralToken, receipt.collateralTokenId, loanReceiptHash);
     }
@@ -203,19 +191,18 @@ contract ExternalCollateralLiquidator is Ownable, ICollateralLiquidator {
     function liquidateCollateral(bytes calldata loanReceipt, uint256 proceeds) external onlyOwner {
         /* Look up collateral tracker */
         bytes32 loanReceiptHash = LoanReceipt.hash(loanReceipt);
-        CollateralTracker storage collateral = _collateralTracker[loanReceiptHash];
 
         /* Validate collateral is withdrawn */
-        if (collateral.status != CollateralStatus.Withdrawn) revert InvalidCollateralState();
+        if (_collateralTracker[loanReceiptHash] != CollateralStatus.Withdrawn) revert InvalidCollateralState();
 
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.decode(loanReceipt);
 
         /* Transfer proceeds from caller to this contract */
-        IERC20(collateral.pool.currencyToken()).safeTransferFrom(msg.sender, address(this), proceeds);
+        IERC20(_pool.currencyToken()).safeTransferFrom(msg.sender, address(this), proceeds);
 
         /* Callback into pool */
-        collateral.pool.onCollateralLiquidated(loanReceipt, proceeds);
+        _pool.onCollateralLiquidated(loanReceipt, proceeds);
 
         /* Remove collateral tracker */
         delete _collateralTracker[loanReceiptHash];
@@ -230,24 +217,17 @@ contract ExternalCollateralLiquidator is Ownable, ICollateralLiquidator {
     }
 
     /**
-     * @notice Add an approved pool
+     * @notice Set associated pool
      */
-    function addPool(IPool pool) external onlyOwner {
+    function setPool(IPool newPool) external onlyOwner {
+        if (address(_pool) != address(0)) {
+            /* Reset token approval on current pool */
+            IERC20(_pool.currencyToken()).approve(address(_pool), 0);
+        }
+
         /* Approve pool to pull funds from this contract */
-        IERC20(pool.currencyToken()).approve(address(pool), type(uint256).max);
+        IERC20(newPool.currencyToken()).approve(address(newPool), type(uint256).max);
 
-        _approvedPools[address(pool)] = true;
-    }
-
-    /**
-     * @notice Remove an approved pool
-     */
-    function removePool(IPool pool) external onlyOwner {
-        if (!_approvedPools[address(pool)]) return;
-
-        /* Reset token approval */
-        IERC20(pool.currencyToken()).approve(address(pool), 0);
-
-        _approvedPools[address(pool)] = false;
+        _pool = newPool;
     }
 }

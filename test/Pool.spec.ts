@@ -133,8 +133,8 @@ describe("Pool", function () {
     /* Add note token to pool */
     await pool.setLoanAdapter(noteToken.address, noteAdapter.address);
 
-    /* Approve pool with liquidator */
-    await collateralLiquidator.addPool(pool.address);
+    /* Associate pool with liquidator */
+    await collateralLiquidator.setPool(pool.address);
 
     /* Arrange accounts */
     accountDepositors = accounts.slice(1, 4);
