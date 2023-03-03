@@ -550,7 +550,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @param collateralTokenId Token id of token that delegation is being removed from
      */
     function _revokeDelegates(address collateralToken_, uint256 collateralTokenId) internal {
-        /* get delegates for collateral token and id */
+        /* Get delegates for collateral token and id */
         address[] memory delegates = _delegationRegistry.getDelegatesForToken(
             address(this),
             collateralToken_,
@@ -558,7 +558,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         );
 
         for (uint256 i = 0; i < delegates.length; i++) {
-            /* revoke by setting value to false */
+            /* Revoke by setting value to false */
             _delegationRegistry.delegateForToken(delegates[i], collateralToken_, collateralTokenId, false);
         }
     }
@@ -634,7 +634,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Source liquidity nodes */
         (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(principal, depths);
 
-        /* admin fee */
+        /* Compute admin fee */
         uint256 adminFee = Math.mulDiv(_adminFeeRate, repayment - principal, BASIS_POINTS_SCALE);
 
         /* Distribute interest */
@@ -715,10 +715,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Validate loan is not expired */
         if (block.timestamp > loanReceipt.maturity) revert LoanExpired();
 
-        /* revoke delegate */
+        /* Revoke delegates */
         _revokeDelegates(loanReceipt.collateralToken, loanReceipt.collateralTokenId);
 
-        /* Compute proration based on elapsed duration against original loan duration and proration can't be more than 1.0 due to the loan expiry check above */
+        /* Compute proration based on elapsed duration. Proration can't exceed
+         * 1.0 due to the loan expiry check above. */
         uint256 proration = Math.mulDiv(
             block.timestamp - (loanReceipt.maturity - loanReceipt.duration),
             LiquidityManager.FIXED_POINT_SCALE,
@@ -813,7 +814,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Mark loan status liquidated */
         _loans[loanReceiptHash] = LoanStatus.Liquidated;
 
-        /* revoke delegate */
+        /* Revoke delegates */
         _revokeDelegates(loanReceipt.collateralToken, loanReceipt.collateralTokenId);
 
         /* Emit Loan Liquidated */
