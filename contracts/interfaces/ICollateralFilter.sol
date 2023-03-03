@@ -13,7 +13,10 @@ interface ICollateralFilter {
 
     /**
      * Query if collateral token is supported
+     * @param token Collateral token contract
+     * @param tokenId Collateral Token ID
+     * @param context ABI-encoded context
      * @return True if supported, otherwise false
      */
-    function supported(address token, uint256 tokenId, bytes memory tokenIdSpec) external view returns (bool);
+    function supported(address token, uint256 tokenId, bytes calldata context) external view returns (bool);
 }

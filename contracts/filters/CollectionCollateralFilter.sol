@@ -63,7 +63,7 @@ contract CollectionCollateralFilter is ICollateralFilter {
     /**
      * @inheritdoc ICollateralFilter
      */
-    function supported(address token, uint256, bytes memory) external view returns (bool) {
+    function supported(address token, uint256, bytes calldata) external view returns (bool) {
         return token == _token;
     }
 }
