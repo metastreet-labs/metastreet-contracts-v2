@@ -63,6 +63,7 @@ contract PoolFactory is Ownable, IPoolFactory {
     function createPool(bytes calldata params) external returns (address) {
         /* Decode pool constructor arguments */
         (
+            IERC721 collateralToken,
             IERC20 currencyToken,
             uint64 maxLoanDuration,
             IDelegationRegistry delegationRegistry,
@@ -72,7 +73,10 @@ contract PoolFactory is Ownable, IPoolFactory {
             bytes memory collateralFilterParams,
             bytes memory interestRateModelParams,
             bytes memory collateralLiquidatorParams
-        ) = abi.decode(params, (IERC20, uint64, IDelegationRegistry, address, address, address, bytes, bytes, bytes));
+        ) = abi.decode(
+                params,
+                (IERC721, IERC20, uint64, IDelegationRegistry, address, address, address, bytes, bytes, bytes)
+            );
 
         /* Create pool instance */
         address poolInstance = Clones.clone(_poolImplementation);
@@ -82,6 +86,7 @@ contract PoolFactory is Ownable, IPoolFactory {
                 Pool.initialize,
                 (
                     msg.sender,
+                    collateralToken,
                     currencyToken,
                     maxLoanDuration,
                     delegationRegistry,

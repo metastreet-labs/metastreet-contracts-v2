@@ -94,8 +94,9 @@ describe("PoolFactory", function () {
     it("creates a pool", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "uint64", "address", "address", "address", "address", "bytes", "bytes", "bytes"],
+        ["address", "address", "uint64", "address", "address", "address", "address", "bytes", "bytes", "bytes"],
         [
+          nft1.address,
           tok1.address,
           30 * 86400,
           delegationRegistry.address,
@@ -122,8 +123,9 @@ describe("PoolFactory", function () {
     it("fails on invalid params", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "uint64", "address", "address", "address", "address", "bytes", "bytes"],
+        ["address", "address", "uint64", "address", "address", "address", "address", "bytes", "bytes"],
         [
+          nft1.address,
           tok1.address,
           30 * 86400,
           delegationRegistry.address,
@@ -142,8 +144,9 @@ describe("PoolFactory", function () {
   /* Helper function to create a pool */
   async function createPool(): Promise<string> {
     const params = ethers.utils.defaultAbiCoder.encode(
-      ["address", "uint64", "address", "address", "address", "address", "bytes", "bytes", "bytes"],
+      ["address", "address", "uint64", "address", "address", "address", "address", "bytes", "bytes", "bytes"],
       [
+        nft1.address,
         tok1.address,
         30 * 86400,
         delegationRegistry.address,

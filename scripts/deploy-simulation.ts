@@ -67,8 +67,9 @@ async function main() {
 
   /* Create WETH Pool */
   const calldata = ethers.utils.defaultAbiCoder.encode(
-    ["address", "uint64", "address", "address", "address", "address", "bytes", "bytes", "bytes"],
+    ["address", "address", "uint64", "address", "address", "address", "address", "bytes", "bytes", "bytes"],
     [
+      baycTokenContract.address,
       wethTokenContract.address,
       30 * 86400,
       ethers.constants.AddressZero,

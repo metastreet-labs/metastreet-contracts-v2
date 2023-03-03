@@ -119,6 +119,7 @@ describe("Pool", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         accounts[0].address,
+        nft1.address,
         tok1.address,
         30 * 86400,
         delegationRegistry.address,
@@ -1056,6 +1057,7 @@ describe("Pool", function () {
         poolImpl.address,
         poolImpl.interface.encodeFunctionData("initialize", [
           accounts[0].address,
+          nft1.address,
           tok2.address,
           30 * 86400,
           delegationRegistry.address,
@@ -1351,6 +1353,7 @@ describe("Pool", function () {
         poolImpl.address,
         poolImpl.interface.encodeFunctionData("initialize", [
           accounts[0].address,
+          nft1.address,
           tok2.address,
           30 * 86400,
           delegationRegistry.address,

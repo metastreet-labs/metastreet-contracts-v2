@@ -101,6 +101,12 @@ interface IPool {
     /**************************************************************************/
 
     /**
+     * @notice Get collateral token
+     * @return Collateral token contract
+     */
+    function collateralToken() external view returns (address);
+
+    /**
      * @notice Get currency token
      * @return Currency token contract
      */
