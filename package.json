@@ -18,6 +18,7 @@
     "node": ">=12.0.0"
   },
   "devDependencies": {
+    "@anders-t/ethers-ledger": "^1.0.4",
     "@nomicfoundation/hardhat-toolbox": "^2.0.0",
     "@openzeppelin/contracts": "^4.8.0",
     "@typescript-eslint/eslint-plugin": "^5.48.0",
