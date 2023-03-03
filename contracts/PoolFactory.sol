@@ -141,7 +141,7 @@ contract PoolFactory is Ownable, IPoolFactory {
     /* Admin API */
     /**************************************************************************/
 
-    /*
+    /**
      * @notice Set Pool Implementation
      * @param implementation New Pool implementation contract
      */
@@ -150,5 +150,13 @@ contract PoolFactory is Ownable, IPoolFactory {
 
         /* Emit Pool Implementation Updated */
         emit PoolImplementationUpdated(implementation);
+    }
+
+    /**
+     * @notice Unregister Pool
+     * @param pool Pool address
+     */
+    function unregisterPool(address pool) external onlyOwner {
+        _pools.remove(pool);
     }
 }
