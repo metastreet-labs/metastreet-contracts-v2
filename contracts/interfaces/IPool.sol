@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import "./ICollateralFilter.sol";
 import "./IInterestRateModel.sol";
 import "./ICollateralLiquidator.sol";
-import "../integrations/DelegateCash/IDelegationRegistry.sol";
 
 /**
  * @title Interface to a Pool
@@ -130,7 +129,7 @@ interface IPool {
      * @notice Get delegation registry contract
      * @return Delegation registry contract
      */
-    function delegationRegistry() external view returns (IDelegationRegistry);
+    function delegationRegistry() external view returns (address);
 
     /**************************************************************************/
     /* Lend API */

@@ -406,8 +406,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     /**
      * @inheritdoc IPool
      */
-    function delegationRegistry() external view returns (IDelegationRegistry) {
-        return _delegationRegistry;
+    function delegationRegistry() external view returns (address) {
+        return address(_delegationRegistry);
     }
 
     /**
