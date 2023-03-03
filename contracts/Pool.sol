@@ -571,20 +571,20 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @dev Helper function to quote a loan
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
-     * @param collateralToken_ Collateral token
-     * @param collateralTokenId Collateral token ID
+     * @param collateralTokenIds Collateral token IDs
      * @return Repayment amount in currency tokens
      */
     function _quote(
         uint256 principal,
         uint64 duration,
-        address collateralToken_,
-        uint256 collateralTokenId
+        uint256[] calldata collateralTokenIds
     ) internal view returns (uint256) {
         /* FIXME implement bundle support */
+        require(collateralTokenIds.length == 1, "Bundles not supported");
 
         /* Verify collateral is supported */
-        if (!_collateralFilter.supported(collateralToken_, collateralTokenId, "")) revert UnsupportedCollateral(0);
+        if (!_collateralFilter.supported(address(_collateralToken), collateralTokenIds[0], ""))
+            revert UnsupportedCollateral(0);
 
         /* Validate loan duration */
         if (duration > _maxLoanDuration) revert UnsupportedLoanDuration();
@@ -604,15 +604,14 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     function quote(
         uint256 principal,
         uint64 duration,
-        address collateralToken_,
-        uint256 collateralTokenId,
+        uint256[] calldata collateralTokenIds,
         bytes calldata
     ) external view returns (uint256) {
         /* Check principal doesn't exceed max borrow available */
         if (principal > _liquidity.liquidityAvailable(type(uint256).max))
             revert LiquidityManager.InsufficientLiquidity();
 
-        return _quote(principal, duration, collateralToken_, collateralTokenId);
+        return _quote(principal, duration, collateralTokenIds);
     }
 
     /**
@@ -621,14 +620,13 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     function borrow(
         uint256 principal,
         uint64 duration,
-        address collateralToken_,
-        uint256 collateralTokenId,
+        uint256[] calldata collateralTokenIds,
         uint256 maxRepayment,
         uint256[] calldata depths,
         bytes calldata options
     ) external nonReentrant returns (uint256) {
         /* Quote repayment */
-        uint256 repayment = _quote(principal, duration, collateralToken_, collateralTokenId);
+        uint256 repayment = _quote(principal, duration, collateralTokenIds);
 
         /* Validate repayment */
         if (repayment > maxRepayment) revert RepaymentTooHigh();
@@ -650,8 +648,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
             borrower: msg.sender,
             maturity: uint64(block.timestamp + duration),
             duration: duration,
-            collateralToken: collateralToken_,
-            collateralTokenId: collateralTokenId,
+            collateralToken: address(_collateralToken),
+            collateralTokenId: collateralTokenIds[0],
             nodeReceipts: new LoanReceipt.NodeReceipt[](count)
         });
 
@@ -683,11 +681,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
 
         /* Handle borrow options parameter */
         if (options.length > 0) {
-            _processBorrowOptions(collateralToken_, collateralTokenId, options);
+            _processBorrowOptions(address(_collateralToken), collateralTokenIds[0], options);
         }
 
         /* Transfer collateral from borrower to pool */
-        IERC721(collateralToken_).safeTransferFrom(msg.sender, address(this), collateralTokenId);
+        IERC721(_collateralToken).safeTransferFrom(msg.sender, address(this), collateralTokenIds[0]);
 
         /* Transfer principal from pool to borrower */
         _currencyToken.safeTransfer(msg.sender, principal);

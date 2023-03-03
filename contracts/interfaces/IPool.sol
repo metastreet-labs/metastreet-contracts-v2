@@ -140,16 +140,14 @@ interface IPool {
      *
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
-     * @param collateralToken Collateral token
-     * @param collateralTokenId Collateral token ID
+     * @param collateralTokenIds Collateral token IDs
      * @param options Encoded options
      * @return Repayment amount in currency tokens
      */
     function quote(
         uint256 principal,
         uint64 duration,
-        address collateralToken,
-        uint256 collateralTokenId,
+        uint256[] calldata collateralTokenIds,
         bytes calldata options
     ) external view returns (uint256);
 
@@ -160,8 +158,7 @@ interface IPool {
      *
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
-     * @param collateralToken Collateral token
-     * @param collateralTokenId Collateral token ID
+     * @param collateralTokenIds Collateral token IDs
      * @param maxRepayment Maximum repayment amount in currency tokens
      * @param depths Liquidity node depths
      * @param options Encoded options
@@ -170,8 +167,7 @@ interface IPool {
     function borrow(
         uint256 principal,
         uint64 duration,
-        address collateralToken,
-        uint256 collateralTokenId,
+        uint256[] calldata collateralTokenIds,
         uint256 maxRepayment,
         uint256[] calldata depths,
         bytes calldata options
