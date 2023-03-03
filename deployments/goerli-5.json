@@ -1,0 +1,1 @@
+{"name":"goerli","chainId":5,"poolFactory":"0x25dEeD6fBF3d03d6282550d7493cf23265e1bC82","collateralFilters":["0x40793D044d383cdBBCee157107d7adB591a3feF0"],"interestRateModels":["0xEc507D977763cf1c4bfbEEb4700AAF8cb5eFc6cD"],"collateralLiquidators":["0x91348615D957EC052213b83657BcB61d27F2584a"]}
