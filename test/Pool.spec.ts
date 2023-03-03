@@ -435,7 +435,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
       /* Process expiration */
-      await pool.onLoanExpired(loanReceipt);
+      await pool.liquidate(loanReceipt);
       /* Withdraw collateral */
       await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
       /* Liquidate collateral and process liquidation */
@@ -656,7 +656,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
       /* Process expiration */
-      await pool.onLoanExpired(loanReceipt);
+      await pool.liquidate(loanReceipt);
       /* Withdraw collateral */
       await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
       /* Liquidate collateral and process liquidation */
@@ -802,7 +802,7 @@ describe("Pool", function () {
     const [loanReceipt] = await createExpiredLoan(ethers.utils.parseEther("15"));
 
     /* Process expiration */
-    await pool.onLoanExpired(loanReceipt);
+    await pool.liquidate(loanReceipt);
 
     /* Withdraw collateral */
     await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
@@ -859,7 +859,7 @@ describe("Pool", function () {
     const [loanReceipt, loanReceiptHash] = await createExpiredLoan(principal);
 
     /* Liquidate */
-    await pool.connect(accountLender).onLoanExpired(loanReceipt);
+    await pool.connect(accountLender).liquidate(loanReceipt);
 
     return [loanReceipt, loanReceiptHash];
   }
@@ -1824,7 +1824,7 @@ describe("Pool", function () {
       await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
 
       /* Process expiration */
-      await pool.onLoanExpired(loanReceipt);
+      await pool.liquidate(loanReceipt);
 
       await expect(pool.connect(accountBorrower).repay(loanReceipt)).to.be.revertedWithCustomError(
         pool,
@@ -1833,11 +1833,7 @@ describe("Pool", function () {
     });
   });
 
-  /****************************************************************************/
-  /* Loan Callbacks */
-  /****************************************************************************/
-
-  describe("#onLoanExpired", async function () {
+  describe("#liquidate", async function () {
     let loanReceipt: string;
     let loanReceiptHash: string;
 
@@ -1854,15 +1850,15 @@ describe("Pool", function () {
       await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
 
       /* Process expiration */
-      const onLoanExpiredTx = await pool.onLoanExpired(loanReceipt);
+      const liquidateTx = await pool.liquidate(loanReceipt);
 
       /* Validate events */
-      await expectEvent(onLoanExpiredTx, nft1, "Transfer", {
+      await expectEvent(liquidateTx, nft1, "Transfer", {
         from: pool.address,
         to: collateralLiquidator.address,
         tokenId: 123,
       });
-      await expectEvent(onLoanExpiredTx, pool, "LoanLiquidated", {
+      await expectEvent(liquidateTx, pool, "LoanLiquidated", {
         loanReceiptHash,
       });
 
@@ -1871,16 +1867,20 @@ describe("Pool", function () {
     });
 
     it("fails on non-expired loan", async function () {
-      await expect(pool.onLoanExpired(loanReceipt)).to.be.revertedWithCustomError(pool, "InvalidLoanStatus");
+      await expect(pool.liquidate(loanReceipt)).to.be.revertedWithCustomError(pool, "InvalidLoanStatus");
     });
 
     it("fails on repaid loan", async function () {
       await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Attempt to process repaid loan receipt */
-      await expect(pool.onLoanExpired(loanReceipt)).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
+      await expect(pool.liquidate(loanReceipt)).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
     });
   });
+
+  /****************************************************************************/
+  /* Callbacks */
+  /****************************************************************************/
 
   describe("#onCollateralLiquidated", async function () {
     let loanReceipt: string;
@@ -1898,7 +1898,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Process expiration */
-      await pool.onLoanExpired(loanReceipt);
+      await pool.liquidate(loanReceipt);
 
       /* Withdraw collateral */
       await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
@@ -1960,7 +1960,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Process expiration */
-      await pool.onLoanExpired(loanReceipt);
+      await pool.liquidate(loanReceipt);
 
       /* Withdraw collateral */
       await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);

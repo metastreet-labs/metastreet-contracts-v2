@@ -181,21 +181,24 @@ interface IPool {
     /**
      * @notice Repay a loan
      *
-     * Emits a {PoolLoanRepaid} event.
+     * Emits a {LoanRepaid} event.
      *
      * @param encodedLoanReceipt Encoded loan receipt
      */
     function repay(bytes calldata encodedLoanReceipt) external;
 
-    /**************************************************************************/
-    /* Loan Callbacks */
-    /**************************************************************************/
-
     /**
-     * @notice Callback on loan expired
+     * @notice Liquidate an expired loan
+     *
+     * Emits a {LoanLiquidated} event.
+     *
      * @param loanReceipt Loan receipt
      */
-    function onLoanExpired(bytes calldata loanReceipt) external;
+    function liquidate(bytes calldata loanReceipt) external;
+
+    /**************************************************************************/
+    /* Callbacks */
+    /**************************************************************************/
 
     /**
      * @notice Callback on loan collateral liquidated

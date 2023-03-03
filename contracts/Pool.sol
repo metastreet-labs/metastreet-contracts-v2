@@ -788,14 +788,10 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         emit LoanRepaid(loanReceiptHash, repayment);
     }
 
-    /**************************************************************************/
-    /* Loan Callbacks */
-    /**************************************************************************/
-
     /**
      * @inheritdoc IPool
      */
-    function onLoanExpired(bytes calldata encodedLoanReceipt) external {
+    function liquidate(bytes calldata encodedLoanReceipt) external {
         /* Compute loan receipt hash */
         bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
 
@@ -828,6 +824,10 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Emit Loan Liquidated */
         emit LoanLiquidated(loanReceiptHash);
     }
+
+    /**************************************************************************/
+    /* Callbacks */
+    /**************************************************************************/
 
     /**
      * @inheritdoc IPool
