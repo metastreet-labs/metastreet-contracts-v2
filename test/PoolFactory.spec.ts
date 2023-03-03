@@ -24,6 +24,7 @@ describe("PoolFactory", function () {
   let collateralFilterImpl: CollectionCollateralFilter;
   let interestRateModelImpl: FixedInterestRateModel;
   let collateralLiquidatorImpl: ExternalCollateralLiquidator;
+  let poolImpl: Pool;
   let poolFactory: PoolFactory;
   let snapshotId: string;
   let delegationRegistry: TestDelegationRegistry;
@@ -65,7 +66,7 @@ describe("PoolFactory", function () {
     await delegationRegistry.deployed();
 
     /* Deploy pool implementation */
-    const poolImpl = await poolImplFactory.deploy();
+    poolImpl = await poolImplFactory.deploy();
     await poolImpl.deployed();
 
     /* Deploy Pool Factory */
@@ -206,18 +207,25 @@ describe("PoolFactory", function () {
     });
   });
 
+  describe("#poolImplementation", async function () {
+    it("returns correct pool implementation", async function () {
+      expect(await poolFactory.poolImplementation()).to.equal(poolImpl.address);
+    });
+  });
+
   describe("#setPoolImplementation", async function () {
     it("updates pool implementation", async function () {
       /* Deploy new pool implementation */
       const poolImplFactory = await ethers.getContractFactory("Pool");
-      const poolImpl = await poolImplFactory.deploy();
-      await poolImpl.deployed();
+      const newPoolImpl = await poolImplFactory.deploy();
+      await newPoolImpl.deployed();
 
       /* Update pool implementation */
-      const setPoolImplementationTx = await poolFactory.setPoolImplementation(poolImpl.address);
+      const setPoolImplementationTx = await poolFactory.setPoolImplementation(newPoolImpl.address);
       await expectEvent(setPoolImplementationTx, poolFactory, "PoolImplementationUpdated", {
-        implementation: poolImpl.address,
+        implementation: newPoolImpl.address,
       });
+      expect(await poolFactory.poolImplementation()).to.equal(newPoolImpl.address);
     });
     it("fails on invalid caller", async function () {
       await expect(poolFactory.connect(accounts[3]).setPoolImplementation(accounts[2].address)).to.be.revertedWith(

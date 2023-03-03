@@ -49,8 +49,8 @@ contract PoolFactory is Ownable, IPoolFactory {
      * @notice PoolFactory constructor
      * @param poolImplementation Pool implementation contract
      */
-    constructor(address poolImplementation) {
-        _poolImplementation = poolImplementation;
+    constructor(address poolImplementation_) {
+        _poolImplementation = poolImplementation_;
     }
 
     /**************************************************************************/
@@ -140,6 +140,14 @@ contract PoolFactory is Ownable, IPoolFactory {
     /**************************************************************************/
     /* Admin API */
     /**************************************************************************/
+
+    /**
+     * @notice Get Pool Implementation
+     * @return Pool implementation contract address
+     */
+    function poolImplementation() external view returns (address) {
+        return _poolImplementation;
+    }
 
     /**
      * @notice Set Pool Implementation
