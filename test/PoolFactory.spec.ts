@@ -7,7 +7,6 @@ import { expectEvent, extractEvent } from "../test/helpers/EventUtilities";
 import {
   TestERC20,
   TestERC721,
-  LiquidityManager,
   CollectionCollateralFilter,
   FixedInterestRateModel,
   ExternalCollateralLiquidator,
@@ -22,7 +21,6 @@ describe("PoolFactory", function () {
   let accounts: SignerWithAddress[];
   let tok1: TestERC20;
   let nft1: TestERC721;
-  let liquidityManagerLib: LiquidityManager;
   let collateralFilterImpl: CollectionCollateralFilter;
   let interestRateModelImpl: FixedInterestRateModel;
   let collateralLiquidatorImpl: ExternalCollateralLiquidator;
@@ -35,10 +33,10 @@ describe("PoolFactory", function () {
 
     const testERC20Factory = await ethers.getContractFactory("TestERC20");
     const testERC721Factory = await ethers.getContractFactory("TestERC721");
-    const liquidityManagerFactory = await ethers.getContractFactory("LiquidityManager");
     const collectionCollateralFilterFactory = await ethers.getContractFactory("CollectionCollateralFilter");
     const fixedInterestRateModelFactory = await ethers.getContractFactory("FixedInterestRateModel");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
+    const poolImplFactory = await ethers.getContractFactory("Pool");
     const poolFactoryFactory = await ethers.getContractFactory("PoolFactory");
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
 
@@ -49,10 +47,6 @@ describe("PoolFactory", function () {
     /* Deploy test NFT */
     nft1 = (await testERC721Factory.deploy("NFT 1", "NFT1", "https://nft1.com/token/")) as TestERC721;
     await nft1.deployed();
-
-    /* Deploy liquidity manager library */
-    liquidityManagerLib = await liquidityManagerFactory.deploy();
-    await liquidityManagerLib.deployed();
 
     /* Deploy collateral filter implementation */
     collateralFilterImpl = await collectionCollateralFilterFactory.deploy();
@@ -71,9 +65,6 @@ describe("PoolFactory", function () {
     await delegationRegistry.deployed();
 
     /* Deploy pool implementation */
-    const poolImplFactory = await ethers.getContractFactory("Pool", {
-      libraries: { LiquidityManager: liquidityManagerLib.address },
-    });
     const poolImpl = await poolImplFactory.deploy();
     await poolImpl.deployed();
 
@@ -197,9 +188,7 @@ describe("PoolFactory", function () {
   describe("#setPoolImplementation", async function () {
     it("updates pool implementation", async function () {
       /* Deploy new pool implementation */
-      const poolImplFactory = await ethers.getContractFactory("Pool", {
-        libraries: { LiquidityManager: liquidityManagerLib.address },
-      });
+      const poolImplFactory = await ethers.getContractFactory("Pool");
       const poolImpl = await poolImplFactory.deploy();
       await poolImpl.deployed();
 

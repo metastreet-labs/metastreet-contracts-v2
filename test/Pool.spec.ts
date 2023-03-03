@@ -12,7 +12,6 @@ import {
   CollectionCollateralFilter,
   ExternalCollateralLiquidator,
   ICollateralLiquidator,
-  LiquidityManager,
   Pool,
 } from "../typechain";
 
@@ -25,7 +24,6 @@ describe("Pool", function () {
   let tok1: TestERC20;
   let nft1: TestERC721;
   let loanReceiptLib: TestLoanReceipt;
-  let liquidityManagerLib: LiquidityManager;
   let collateralFilterImpl: CollectionCollateralFilter;
   let interestRateModelImpl: FixedInterestRateModel;
   let collateralLiquidatorImpl: ExternalCollateralLiquidator;
@@ -48,7 +46,6 @@ describe("Pool", function () {
     const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const collectionCollateralFilterFactory = await ethers.getContractFactory("CollectionCollateralFilter");
     const testLoanReceiptFactory = await ethers.getContractFactory("TestLoanReceipt");
-    const liquidityManagerFactory = await ethers.getContractFactory("LiquidityManager");
     const fixedInterestRateModelFactory = await ethers.getContractFactory("FixedInterestRateModel");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
@@ -64,10 +61,6 @@ describe("Pool", function () {
     /* Deploy loan receipt library */
     loanReceiptLib = await testLoanReceiptFactory.deploy();
     await loanReceiptLib.deployed();
-
-    /* Deploy liquidity manager library */
-    liquidityManagerLib = await liquidityManagerFactory.deploy();
-    await liquidityManagerLib.deployed();
 
     /* Deploy collateral filter implementation */
     collateralFilterImpl = await collectionCollateralFilterFactory.deploy();
@@ -86,9 +79,7 @@ describe("Pool", function () {
     await delegationRegistry.deployed();
 
     /* Deploy pool implementation */
-    const poolFactory = await ethers.getContractFactory("Pool", {
-      libraries: { LiquidityManager: liquidityManagerLib.address },
-    });
+    const poolFactory = await ethers.getContractFactory("Pool");
     poolImpl = await poolFactory.deploy();
     await poolImpl.deployed();
 
@@ -213,7 +204,7 @@ describe("Pool", function () {
       await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
       await expect(
         pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10.1"), ethers.utils.parseEther("2"))
-      ).to.be.revertedWithCustomError(liquidityManagerLib, "InsufficientTickSpacing");
+      ).to.be.revertedWithCustomError(pool, "InsufficientTickSpacing");
     });
 
     it("fails on insolvent tick", async function () {
@@ -222,7 +213,7 @@ describe("Pool", function () {
       /* Attempt to deposit */
       await expect(
         pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"))
-      ).to.be.revertedWithCustomError(liquidityManagerLib, "InsolventLiquidity");
+      ).to.be.revertedWithCustomError(pool, "InsolventLiquidity");
     });
 
     it("fails on transfer failure", async function () {
@@ -763,7 +754,7 @@ describe("Pool", function () {
 
   async function setupLiquidity(): Promise<void> {
     const NUM_TICKS = 16;
-    const TICK_SPACING_BASIS_POINTS = await liquidityManagerLib.TICK_SPACING_BASIS_POINTS();
+    const TICK_SPACING_BASIS_POINTS = await pool.TICK_SPACING_BASIS_POINTS();
 
     let depth = ethers.utils.parseEther("1.0");
     for (let i = 0; i < NUM_TICKS; i++) {

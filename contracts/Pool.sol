@@ -50,6 +50,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     string public constant IMPLEMENTATION_VERSION = "1.0";
 
     /**
+     * @notice Tick spacing basis points
+     */
+    uint256 public constant TICK_SPACING_BASIS_POINTS = LiquidityManager.TICK_SPACING_BASIS_POINTS;
+
+    /**
      * @notice Pool borrow options tag size in bytes
      */
     uint256 internal constant BORROW_OPTIONS_TAG_SIZE = 2;

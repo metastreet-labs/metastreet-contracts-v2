@@ -7,20 +7,10 @@ import { extractEvent, expectEvent } from "./helpers/EventUtilities";
 
 describe("LiquidityManager", function () {
   let snapshotId: string;
-  let liquidityManagerLib: LiquidityManager;
   let liquidityManager: TestLiquidityManager;
 
   before("deploy fixture", async () => {
-    const liquidityManagerFactory = await ethers.getContractFactory("LiquidityManager");
-
-    /* Deploy liquidity manager library */
-    liquidityManagerLib = await liquidityManagerFactory.deploy();
-    await liquidityManagerLib.deployed();
-
-    /* Deploy test liquidity manager */
-    const testLiquidityManagerFactory = await ethers.getContractFactory("TestLiquidityManager", {
-      libraries: { LiquidityManager: liquidityManagerLib.address },
-    });
+    const testLiquidityManagerFactory = await ethers.getContractFactory("TestLiquidityManager");
     liquidityManager = await testLiquidityManagerFactory.deploy();
   });
 
@@ -110,12 +100,12 @@ describe("LiquidityManager", function () {
 
       /* Try to instantiate another node that is 5% higher */
       await expect(liquidityManager.instantiate(toFixedPoint("1.05"))).to.be.revertedWithCustomError(
-        liquidityManagerLib,
+        liquidityManager,
         "InsufficientTickSpacing"
       );
       /* Try to instantiate another node that is 5% lower */
       await expect(liquidityManager.instantiate(toFixedPoint("0.95"))).to.be.revertedWithCustomError(
-        liquidityManagerLib,
+        liquidityManager,
         "InsufficientTickSpacing"
       );
     });
@@ -128,7 +118,7 @@ describe("LiquidityManager", function () {
 
       /* Try to instantiate node again */
       await expect(liquidityManager.instantiate(toFixedPoint("3"))).to.be.revertedWithCustomError(
-        liquidityManagerLib,
+        liquidityManager,
         "InsolventLiquidity"
       );
     });
@@ -255,7 +245,7 @@ describe("LiquidityManager", function () {
     });
     it("fails on inactive node", async function () {
       await expect(liquidityManager.deposit(toFixedPoint("3"), toFixedPoint("5"))).to.be.revertedWithCustomError(
-        liquidityManagerLib,
+        liquidityManager,
         "InactiveLiquidity"
       );
     });
@@ -268,7 +258,7 @@ describe("LiquidityManager", function () {
 
       /* Try to deposit into node */
       await expect(liquidityManager.deposit(toFixedPoint("3"), toFixedPoint("1"))).to.be.revertedWithCustomError(
-        liquidityManagerLib,
+        liquidityManager,
         "InactiveLiquidity"
       );
     });
@@ -867,11 +857,11 @@ describe("LiquidityManager", function () {
     });
     it("fails on insufficient liquidity", async function () {
       await expect(liquidityManager.source(toFixedPoint("25"), depths.slice(0, 2))).to.be.revertedWithCustomError(
-        liquidityManagerLib,
+        liquidityManager,
         "InsufficientLiquidity"
       );
       await expect(liquidityManager.source(toFixedPoint("45"), depths)).to.be.revertedWithCustomError(
-        liquidityManagerLib,
+        liquidityManager,
         "InsufficientLiquidity"
       );
     });
@@ -883,7 +873,7 @@ describe("LiquidityManager", function () {
           toFixedPoint("20"),
           toFixedPoint("40"),
         ])
-      ).to.be.revertedWithCustomError(liquidityManagerLib, "InvalidDepths");
+      ).to.be.revertedWithCustomError(liquidityManager, "InvalidDepths");
     });
     it("fails on duplicate depths", async function () {
       await expect(
@@ -893,7 +883,7 @@ describe("LiquidityManager", function () {
           toFixedPoint("20"),
           toFixedPoint("40"),
         ])
-      ).to.be.revertedWithCustomError(liquidityManagerLib, "InvalidDepths");
+      ).to.be.revertedWithCustomError(liquidityManager, "InvalidDepths");
     });
   });
 

@@ -9,21 +9,13 @@ async function main() {
 
   const TestERC20 = await ethers.getContractFactory("TestERC20", accounts[9]);
   const TestERC721 = await ethers.getContractFactory("TestERC721", accounts[9]);
-  const LiquidityManager = await ethers.getContractFactory("LiquidityManager");
   const CollectionCollateralFilter = await ethers.getContractFactory("CollectionCollateralFilter", accounts[9]);
   const FixedInterestRateModel = await ethers.getContractFactory("FixedInterestRateModel", accounts[9]);
   const ExternalCollateralLiquidator = await ethers.getContractFactory("ExternalCollateralLiquidator", accounts[9]);
+  const Pool = await ethers.getContractFactory("Pool", accounts[9]);
   const PoolFactory = await ethers.getContractFactory("PoolFactory", accounts[9]);
 
-  /* Deploy liquidity manager library */
-  const liquidityManagerLib = await LiquidityManager.deploy();
-  await liquidityManagerLib.deployed();
-
   /* Deploy Pool implementation */
-  const Pool = await ethers.getContractFactory("Pool", {
-    signer: accounts[9],
-    libraries: { LiquidityManager: liquidityManagerLib.address },
-  });
   const poolImpl = await Pool.deploy();
   await poolImpl.deployed();
   console.log("Pool Implementation:        ", poolImpl.address);
