@@ -43,13 +43,6 @@ interface IPool {
     event Withdrawn(address indexed account, uint256 indexed depth, uint256 shares, uint256 amount);
 
     /**
-     * @notice Emitted when a loan is purchased
-     * @param loanReceiptHash Loan receipt hash
-     * @param loanReceipt Loan receipt
-     */
-    event LoanPurchased(bytes32 indexed loanReceiptHash, bytes loanReceipt);
-
-    /**
      * @notice Emitted when a loan is originated
      * @param loanReceiptHash Loan receipt hash
      * @param loanReceipt Loan receipt
@@ -162,37 +155,6 @@ interface IPool {
     function supportedPlatforms() external view returns (address[] memory);
 
     /**************************************************************************/
-    /* Note API */
-    /**************************************************************************/
-
-    /**
-     * @notice Price a note
-     *
-     * @param noteToken Note token contract
-     * @param noteTokenId Note token ID
-     * @return purchasePrice Purchase price in currency tokens
-     */
-    function priceNote(address noteToken, uint256 noteTokenId) external view returns (uint256 purchasePrice);
-
-    /**
-     * @notice Sell a note
-     *
-     * Emits a {LoanPurchased} event.
-     *
-     * @param noteToken Note token contract
-     * @param noteTokenId Note token ID
-     * @param minPurchasePrice Minimum purchase price in currency tokens
-     * @param depths Liquidity node depths
-     * @return purchasePrice Executed purchase price in currency tokens
-     */
-    function sellNote(
-        address noteToken,
-        uint256 noteTokenId,
-        uint256 minPurchasePrice,
-        uint256[] calldata depths
-    ) external returns (uint256 purchasePrice);
-
-    /**************************************************************************/
     /* Lend API */
     /**************************************************************************/
 
@@ -250,12 +212,6 @@ interface IPool {
     /**************************************************************************/
     /* Loan Callbacks */
     /**************************************************************************/
-
-    /**
-     * @notice Callback on loan repaid
-     * @param loanReceipt Loan receipt
-     */
-    function onLoanRepaid(bytes calldata loanReceipt) external;
 
     /**
      * @notice Callback on loan expired
