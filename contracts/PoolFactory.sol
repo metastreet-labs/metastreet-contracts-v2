@@ -65,16 +65,14 @@ contract PoolFactory is Ownable, IPoolFactory {
         (
             IERC20 currencyToken,
             uint64 maxLoanDuration,
+            IDelegationRegistry delegationRegistry,
             address collateralFilterImpl,
             address interestRateModelImpl,
-            ICollateralLiquidator collateralLiquidator,
-            IDelegationRegistry delegationRegistry,
+            address collateralLiquidatorImpl,
             bytes memory collateralFilterParams,
-            bytes memory interestRateModelParams
-        ) = abi.decode(
-                params,
-                (IERC20, uint64, address, address, ICollateralLiquidator, IDelegationRegistry, bytes, bytes)
-            );
+            bytes memory interestRateModelParams,
+            bytes memory collateralLiquidatorParams
+        ) = abi.decode(params, (IERC20, uint64, IDelegationRegistry, address, address, address, bytes, bytes, bytes));
 
         /* Create pool instance */
         address poolInstance = Clones.clone(_poolImplementation);
@@ -86,12 +84,13 @@ contract PoolFactory is Ownable, IPoolFactory {
                     msg.sender,
                     currencyToken,
                     maxLoanDuration,
+                    delegationRegistry,
                     collateralFilterImpl,
                     interestRateModelImpl,
-                    collateralLiquidator,
-                    delegationRegistry,
+                    collateralLiquidatorImpl,
                     collateralFilterParams,
-                    interestRateModelParams
+                    interestRateModelParams,
+                    collateralLiquidatorParams
                 )
             )
         );

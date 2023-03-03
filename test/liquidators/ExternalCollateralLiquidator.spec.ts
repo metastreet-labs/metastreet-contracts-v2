@@ -18,6 +18,7 @@ describe("ExternalCollateralLiquidator", function () {
   let tok1: TestERC20;
   let nft1: TestERC721;
   let loanReceiptLibrary: TestLoanReceipt;
+  let collateralLiquidatorImpl: ExternalCollateralLiquidator;
   let testCollateralLiquidatorJig: TestCollateralLiquidatorJig;
   let collateralLiquidator: ExternalCollateralLiquidator;
   let snapshotId: string;
@@ -44,25 +45,29 @@ describe("ExternalCollateralLiquidator", function () {
     loanReceiptLibrary = await testLoanReceiptFactory.deploy();
     await loanReceiptLibrary.deployed();
 
+    /* Deploy collateral liquidator implementation */
+    collateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
+    await collateralLiquidatorImpl.deployed();
+
     /* Deploy collateral liquidator testing jig */
-    testCollateralLiquidatorJig = await testCollateralLiquidatorJigFactory.deploy(tok1.address);
+    testCollateralLiquidatorJig = await testCollateralLiquidatorJigFactory.deploy(
+      tok1.address,
+      collateralLiquidatorImpl.address,
+      ethers.utils.defaultAbiCoder.encode(["address"], [accounts[3].address])
+    );
     await testCollateralLiquidatorJig.deployed();
 
-    /* Deploy external collateral liquidator */
-    collateralLiquidator = await externalCollateralLiquidatorFactory.deploy();
-    await collateralLiquidator.deployed();
-
-    /* Set testing jig as associated pool to collateral liquidator */
-    await collateralLiquidator.setPool(testCollateralLiquidatorJig.address);
+    /* Attach external collateral liquidator */
+    collateralLiquidator = (await ethers.getContractAt(
+      "ExternalCollateralLiquidator",
+      await testCollateralLiquidatorJig.collateralLiquidator()
+    )) as ExternalCollateralLiquidator;
 
     /* Mint NFT to testing jig to simulate default */
     await nft1.mint(testCollateralLiquidatorJig.address, 123);
     await nft1.mint(testCollateralLiquidatorJig.address, 456);
 
     accountLiquidator = accounts[3];
-
-    /* Transfer ownership to liquidator */
-    await collateralLiquidator.transferOwnership(accountLiquidator.address);
 
     /* Transfer token to liquidator account */
     await tok1.transfer(accountLiquidator.address, ethers.utils.parseEther("100"));
@@ -157,15 +162,21 @@ describe("ExternalCollateralLiquidator", function () {
 
       /* Create new pool */
       const testCollateralLiquidatorJigFactory = await ethers.getContractFactory("TestCollateralLiquidatorJig");
-      const pool = await testCollateralLiquidatorJigFactory.deploy(tok1.address);
+      const pool = await testCollateralLiquidatorJigFactory.deploy(
+        tok1.address,
+        collateralLiquidatorImpl.address,
+        ethers.utils.defaultAbiCoder.encode(["address"], [accountLiquidator.address])
+      );
       await pool.deployed();
-
-      /* Set new pool */
-      await collateralLiquidator.connect(accountLiquidator).setPool(pool.address);
 
       /* Try to transfer collateral */
       await expect(
-        testCollateralLiquidatorJig.transferCollateral(collateralLiquidator.address, nft1.address, 123, loanReceipt)
+        testCollateralLiquidatorJig.transferCollateral(
+          await pool.collateralLiquidator(),
+          nft1.address,
+          123,
+          loanReceipt
+        )
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidCaller");
     });
   });
@@ -227,8 +238,9 @@ describe("ExternalCollateralLiquidator", function () {
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidCollateralState");
     });
     it("fails on invalid caller", async function () {
-      await expect(collateralLiquidator.withdrawCollateral(loanReceipt)).to.be.revertedWith(
-        "Ownable: caller is not the owner"
+      await expect(collateralLiquidator.withdrawCollateral(loanReceipt)).to.be.revertedWithCustomError(
+        collateralLiquidator,
+        "InvalidCaller"
       );
     });
   });
@@ -320,54 +332,7 @@ describe("ExternalCollateralLiquidator", function () {
 
       await expect(
         collateralLiquidator.liquidateCollateral(loanReceipt, ethers.utils.parseEther("2.5"))
-      ).to.be.revertedWith("Ownable: caller is not the owner");
-    });
-  });
-
-  describe("#setPool", async function () {
-    it("successfully sets pool", async function () {
-      /* Create new pool */
-      const testCollateralLiquidatorJigFactory = await ethers.getContractFactory("TestCollateralLiquidatorJig");
-      const pool = await testCollateralLiquidatorJigFactory.deploy(tok1.address);
-      await pool.deployed();
-
-      /* Validate state */
-      expect(await collateralLiquidator.pool()).to.equal(testCollateralLiquidatorJig.address);
-
-      /* Set pool */
-      const setPoolTx = await collateralLiquidator.connect(accountLiquidator).setPool(pool.address);
-
-      /* Validate events */
-      await expectEvent(
-        setPoolTx,
-        tok1,
-        "Approval",
-        {
-          owner: collateralLiquidator.address,
-          spender: testCollateralLiquidatorJig.address,
-          value: ethers.constants.Zero,
-        },
-        0
-      );
-      await expectEvent(
-        setPoolTx,
-        tok1,
-        "Approval",
-        {
-          owner: collateralLiquidator.address,
-          spender: pool.address,
-          value: ethers.constants.MaxUint256,
-        },
-        1
-      );
-
-      /* Validate state */
-      expect(await collateralLiquidator.pool()).to.equal(pool.address);
-    });
-    it("fails on invalid caller", async function () {
-      await expect(collateralLiquidator.setPool(testCollateralLiquidatorJig.address)).to.be.revertedWith(
-        "Ownable: caller is not the owner"
-      );
+      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidCaller");
     });
   });
 });

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -14,7 +13,7 @@ import "../LoanReceipt.sol";
  * @title External Collateral Liquidator (trusted)
  * @author MetaStreet Labs
  */
-contract ExternalCollateralLiquidator is Ownable, ICollateralLiquidator {
+contract ExternalCollateralLiquidator is ICollateralLiquidator {
     using SafeERC20 for IERC20;
 
     /**************************************************************************/
@@ -83,9 +82,19 @@ contract ExternalCollateralLiquidator is Ownable, ICollateralLiquidator {
     /**************************************************************************/
 
     /**
+     * @notice Initialized boolean
+     */
+    bool private _initialized;
+
+    /**
      * @dev Associated pool
      */
     IPool private _pool;
+
+    /**
+     * @notice Admin
+     */
+    address private _admin;
 
     /**
      * @dev Collateral tracker
@@ -99,7 +108,26 @@ contract ExternalCollateralLiquidator is Ownable, ICollateralLiquidator {
     /**
      * @notice ExternalCollateralLiquidator constructor
      */
-    constructor() {}
+    constructor() {
+        /* Disable initialization of implementation contract */
+        _initialized = true;
+    }
+
+    /**************************************************************************/
+    /* Initializer */
+    /**************************************************************************/
+
+    /**
+     * @notice Initializer
+     * @param params ABI-encoded parameters
+     */
+    function initialize(bytes memory params) external {
+        require(!_initialized, "Already initialized");
+
+        _initialized = true;
+        _pool = IPool(msg.sender);
+        _admin = abi.decode(params, (address));
+    }
 
     /**************************************************************************/
     /* Getters */
@@ -161,7 +189,9 @@ contract ExternalCollateralLiquidator is Ownable, ICollateralLiquidator {
      *
      * @param loanReceipt Loan receipt
      */
-    function withdrawCollateral(bytes calldata loanReceipt) external onlyOwner {
+    function withdrawCollateral(bytes calldata loanReceipt) external {
+        if (msg.sender != _admin) revert InvalidCaller();
+
         /* Look up collateral tracker */
         bytes32 loanReceiptHash = LoanReceipt.hash(loanReceipt);
 
@@ -188,7 +218,9 @@ contract ExternalCollateralLiquidator is Ownable, ICollateralLiquidator {
      * @param loanReceipt Loan receipt
      * @param proceeds Proceeds from collateral liquidation
      */
-    function liquidateCollateral(bytes calldata loanReceipt, uint256 proceeds) external onlyOwner {
+    function liquidateCollateral(bytes calldata loanReceipt, uint256 proceeds) external {
+        if (msg.sender != _admin) revert InvalidCaller();
+
         /* Look up collateral tracker */
         bytes32 loanReceiptHash = LoanReceipt.hash(loanReceipt);
 
@@ -200,6 +232,9 @@ contract ExternalCollateralLiquidator is Ownable, ICollateralLiquidator {
 
         /* Transfer proceeds from caller to this contract */
         IERC20(_pool.currencyToken()).safeTransferFrom(msg.sender, address(this), proceeds);
+
+        /* Approve pool to pull funds from this contract */
+        IERC20(_pool.currencyToken()).approve(address(_pool), proceeds);
 
         /* Callback into pool */
         _pool.onCollateralLiquidated(loanReceipt, proceeds);
@@ -214,20 +249,5 @@ contract ExternalCollateralLiquidator is Ownable, ICollateralLiquidator {
             loanReceiptHash,
             proceeds
         );
-    }
-
-    /**
-     * @notice Set associated pool
-     */
-    function setPool(IPool newPool) external onlyOwner {
-        if (address(_pool) != address(0)) {
-            /* Reset token approval on current pool */
-            IERC20(_pool.currencyToken()).approve(address(_pool), 0);
-        }
-
-        /* Approve pool to pull funds from this contract */
-        IERC20(newPool.currencyToken()).approve(address(newPool), type(uint256).max);
-
-        _pool = newPool;
     }
 }

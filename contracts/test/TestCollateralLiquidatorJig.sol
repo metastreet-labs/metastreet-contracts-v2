@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
+import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -27,7 +28,15 @@ contract TestCollateralLiquidatorJig is ERC721Holder {
     /* State */
     /**************************************************************************/
 
+    /**
+     * @dev Currency token
+     */
     IERC20 private _currencyToken;
+
+    /**
+     * @dev Collateral liquidator instance
+     */
+    address private _collateralLiquidator;
 
     /**************************************************************************/
     /* Constructor */
@@ -36,8 +45,15 @@ contract TestCollateralLiquidatorJig is ERC721Holder {
     /**
      * @notice TestLiquidator
      */
-    constructor(IERC20 currencyToken_) {
+    constructor(IERC20 currencyToken_, address collateralLiquidatorImpl, bytes memory collateralLiquidatorParams) {
         _currencyToken = currencyToken_;
+
+        /* Deploy collateral liquidator instance */
+        _collateralLiquidator = Clones.clone(collateralLiquidatorImpl);
+        Address.functionCall(
+            _collateralLiquidator,
+            abi.encodeWithSignature("initialize(bytes)", collateralLiquidatorParams)
+        );
     }
 
     /**************************************************************************/
@@ -50,6 +66,14 @@ contract TestCollateralLiquidatorJig is ERC721Holder {
      */
     function currencyToken() external view returns (address) {
         return address(_currencyToken);
+    }
+
+    /**
+     * @notice Get collateral liquidator
+     * @return Collateral liquidator contract
+     */
+    function collateralLiquidator() external view returns (address) {
+        return address(_collateralLiquidator);
     }
 
     /**************************************************************************/

@@ -282,31 +282,32 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @param admin Admin account
      * @param currencyToken_ Currency token contract
      * @param maxLoanDuration_ Maximum loan duration in seconds
+     * @param delegationRegistry_ Delegation registry contract
      * @param collateralFilterImpl Collateral filter implementation contract
      * @param interestRateModelImpl Interest rate model implementation contract
-     * @param collateralLiquidator_ Collateral liquidator contract
-     * @param delegationRegistry_ Delegation registry contract
+     * @param collateralLiquidatorImpl Collateral liquidator implementation contract
      * @param collateralFilterParams Collateral filter initialization parameters
      * @param interestRateModelParams Interest rate model initialization parameters
+     * @param collateralLiquidatorParams Collateral liquidator initialization parameters
      */
     function initialize(
         address admin,
         IERC20 currencyToken_,
         uint64 maxLoanDuration_,
+        IDelegationRegistry delegationRegistry_,
         address collateralFilterImpl,
         address interestRateModelImpl,
-        ICollateralLiquidator collateralLiquidator_,
-        IDelegationRegistry delegationRegistry_,
+        address collateralLiquidatorImpl,
         bytes memory collateralFilterParams,
-        bytes memory interestRateModelParams
+        bytes memory interestRateModelParams,
+        bytes memory collateralLiquidatorParams
     ) external {
-        require(!_initialized, "Already initialized");
+        require(!_initialized);
 
         _initialized = true;
         /* FIXME verify 18 decimals */
         _currencyToken = currencyToken_;
         _maxLoanDuration = maxLoanDuration_;
-        _collateralLiquidator = collateralLiquidator_;
         _delegationRegistry = delegationRegistry_;
 
         /* Initialize liquidity */
@@ -327,6 +328,14 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
             abi.encodeWithSignature("initialize(bytes)", interestRateModelParams)
         );
         _interestRateModel = IInterestRateModel(interestRateModelInstance);
+
+        /* Deploy collateral liquidator instance */
+        address collateralLiquidatorInstance = Clones.clone(collateralLiquidatorImpl);
+        Address.functionCall(
+            collateralLiquidatorInstance,
+            abi.encodeWithSignature("initialize(bytes)", collateralLiquidatorParams)
+        );
+        _collateralLiquidator = ICollateralLiquidator(collateralLiquidatorInstance);
 
         /* Grant roles */
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
@@ -605,7 +614,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         principal;
 
         /* FIXME implement bundle support */
-        require(assets.length == 1, "Bundles not yet supported");
+        require(assets.length == 1);
 
         /* Verify collateral is supported */
         if (!_collateralFilter.supported(assets[0].token, assets[0].tokenId, "")) revert UnsupportedCollateral(0);

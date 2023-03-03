@@ -14,6 +14,7 @@ import {
   FixedInterestRateModel,
   CollectionCollateralFilter,
   ExternalCollateralLiquidator,
+  ICollateralLiquidator,
   LiquidityManager,
   Pool,
 } from "../typechain";
@@ -33,6 +34,7 @@ describe("Pool", function () {
   let liquidityManagerLib: LiquidityManager;
   let collateralFilterImpl: CollectionCollateralFilter;
   let interestRateModelImpl: FixedInterestRateModel;
+  let collateralLiquidatorImpl: ExternalCollateralLiquidator;
   let collateralLiquidator: ExternalCollateralLiquidator;
   let poolImpl: Pool;
   let pool: Pool;
@@ -93,13 +95,13 @@ describe("Pool", function () {
     collateralFilterImpl = await collectionCollateralFilterFactory.deploy();
     await collateralFilterImpl.deployed();
 
-    /* Deploy test interest rate model */
+    /* Deploy interest rate model implementation */
     interestRateModelImpl = await fixedInterestRateModelFactory.deploy();
     await interestRateModelImpl.deployed();
 
-    /* Deploy external collateral liquidator */
-    collateralLiquidator = await externalCollateralLiquidatorFactory.connect(accounts[6]).deploy();
-    await collateralLiquidator.deployed();
+    /* Deploy external collateral liquidator implementation */
+    collateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
+    await collateralLiquidatorImpl.deployed();
 
     /* Deploy test delegation registry */
     delegationRegistry = await delegationRegistryFactory.deploy();
@@ -119,12 +121,13 @@ describe("Pool", function () {
         accounts[0].address,
         tok1.address,
         30 * 86400,
+        delegationRegistry.address,
         collateralFilterImpl.address,
         interestRateModelImpl.address,
-        collateralLiquidator.address,
-        delegationRegistry.address,
+        collateralLiquidatorImpl.address,
         ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
         ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.normalizeRate("0.02")]),
+        ethers.utils.defaultAbiCoder.encode(["address"], [accounts[6].address]),
       ])
     );
     await proxy.deployed();
@@ -133,8 +136,11 @@ describe("Pool", function () {
     /* Add note token to pool */
     await pool.setLoanAdapter(noteToken.address, noteAdapter.address);
 
-    /* Associate pool with liquidator */
-    await collateralLiquidator.setPool(pool.address);
+    /* Attach collateral liquidator */
+    collateralLiquidator = (await ethers.getContractAt(
+      "ExternalCollateralLiquidator",
+      await pool.collateralLiquidator()
+    )) as ExternalCollateralLiquidator;
 
     /* Arrange accounts */
     accountDepositors = accounts.slice(1, 4);
@@ -480,7 +486,7 @@ describe("Pool", function () {
       /* Process expiration */
       await pool.onLoanExpired(loanReceipt);
       /* Withdraw collateral */
-      await collateralLiquidator.withdrawCollateral(loanReceipt);
+      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
       /* Liquidate collateral and process liquidation */
       await collateralLiquidator.connect(accountLiquidator).liquidateCollateral(loanReceipt, ethers.constants.Zero);
 
@@ -716,7 +722,7 @@ describe("Pool", function () {
       /* Process expiration */
       await pool.onLoanExpired(loanReceipt);
       /* Withdraw collateral */
-      await collateralLiquidator.withdrawCollateral(loanReceipt);
+      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
       /* Liquidate collateral and process liquidation */
       await collateralLiquidator.connect(accountLiquidator).liquidateCollateral(loanReceipt, ethers.constants.Zero);
 
@@ -871,7 +877,7 @@ describe("Pool", function () {
     await pool.onLoanExpired(loanReceipt);
 
     /* Withdraw collateral */
-    await collateralLiquidator.withdrawCollateral(loanReceipt);
+    await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
 
     /* Liquidate collateral and process liquidation */
     await collateralLiquidator
@@ -1052,12 +1058,13 @@ describe("Pool", function () {
           accounts[0].address,
           tok2.address,
           30 * 86400,
+          delegationRegistry.address,
           collateralFilterImpl.address,
           interestRateModelImpl.address,
-          collateralLiquidator.address,
-          delegationRegistry.address,
+          collateralLiquidatorImpl.address,
           ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
           ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.normalizeRate("0.02")]),
+          ethers.utils.defaultAbiCoder.encode(["address"], [accountLiquidator.address]),
         ])
       );
       await proxy.deployed();
@@ -1346,12 +1353,13 @@ describe("Pool", function () {
           accounts[0].address,
           tok2.address,
           30 * 86400,
+          delegationRegistry.address,
           collateralFilterImpl.address,
           interestRateModelImpl.address,
-          collateralLiquidator.address,
-          delegationRegistry.address,
+          collateralLiquidatorImpl.address,
           ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
           ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.normalizeRate("0.02")]),
+          ethers.utils.defaultAbiCoder.encode(["address"], [accountLiquidator.address]),
         ])
       );
       await proxy.deployed();
@@ -2745,7 +2753,7 @@ describe("Pool", function () {
       /* Process expiration */
       await pool.onLoanExpired(loanReceipt);
       /* Withdraw collateral */
-      await collateralLiquidator.withdrawCollateral(loanReceipt);
+      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
       /* Liquidate collateral and process liquidation */
       await collateralLiquidator
         .connect(accountLiquidator)
@@ -2904,7 +2912,7 @@ describe("Pool", function () {
       /* Process expiration */
       await pool.onLoanExpired(loanReceipt);
       /* Withdraw collateral */
-      await collateralLiquidator.withdrawCollateral(loanReceipt);
+      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
       /* Liquidate collateral and process liquidation */
       await collateralLiquidator
         .connect(accountLiquidator)
@@ -2962,7 +2970,7 @@ describe("Pool", function () {
       await pool.onLoanExpired(loanReceipt);
 
       /* Withdraw collateral */
-      await collateralLiquidator.withdrawCollateral(loanReceipt);
+      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
 
       /* Liquidate collateral and process liquidation */
       const onCollateralLiquidatedTx = await collateralLiquidator
@@ -3038,7 +3046,7 @@ describe("Pool", function () {
       await pool.onLoanExpired(loanReceipt);
 
       /* Withdraw collateral */
-      await collateralLiquidator.withdrawCollateral(loanReceipt);
+      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
 
       /* Liquidate collateral and process liquidation */
       const proceeds = decodedLoanReceipt.nodeReceipts[0].pending.add(decodedLoanReceipt.nodeReceipts[1].pending);

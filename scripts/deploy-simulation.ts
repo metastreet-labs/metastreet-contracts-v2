@@ -12,6 +12,7 @@ async function main() {
   const LiquidityManager = await ethers.getContractFactory("LiquidityManager");
   const CollectionCollateralFilter = await ethers.getContractFactory("CollectionCollateralFilter", accounts[9]);
   const FixedInterestRateModel = await ethers.getContractFactory("FixedInterestRateModel", accounts[9]);
+  const ExternalCollateralLiquidator = await ethers.getContractFactory("ExternalCollateralLiquidator", accounts[9]);
   const PoolFactory = await ethers.getContractFactory("PoolFactory", accounts[9]);
 
   /* Deploy liquidity manager library */
@@ -58,19 +59,25 @@ async function main() {
   const fixedInterestRateModelImpl = await FixedInterestRateModel.deploy();
   console.log("Fixed Interest Rate Model Impl:", fixedInterestRateModelImpl.address);
 
+  /* Deploy External Collateral Liquidator Implementation */
+  const externalCollateralLiquidatorImpl = await ExternalCollateralLiquidator.deploy();
+  console.log("External Collateral Liquidator Impl:", externalCollateralLiquidatorImpl.address);
+
   console.log("");
 
   /* Create WETH Pool */
   const calldata = ethers.utils.defaultAbiCoder.encode(
-    ["address", "uint64", "address", "address", "address", "bytes", "bytes"],
+    ["address", "uint64", "address", "address", "address", "address", "bytes", "bytes", "bytes"],
     [
       wethTokenContract.address,
       30 * 86400,
+      ethers.constants.AddressZero,
       collectionCollateralFilterImpl.address,
       fixedInterestRateModelImpl.address,
-      ethers.constants.AddressZero,
+      externalCollateralLiquidatorImpl.address,
       ethers.utils.defaultAbiCoder.encode(["address"], [baycTokenContract.address]),
       ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.from("0.02")]),
+      ethers.utils.defaultAbiCoder.encode(["address"], [accounts[0].address]),
     ]
   );
   const wethTestPoolCreationTx = await poolFactory.createPool(calldata);
