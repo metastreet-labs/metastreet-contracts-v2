@@ -28,6 +28,7 @@ interface IPoolFactory {
 
     /**
      * @notice Check if address is a pool
+     * @param pool Pool address
      * @return True if address is a pool, otherwise false
      */
     function isPool(address pool) external view returns (bool);
