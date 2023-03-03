@@ -304,7 +304,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         bytes memory interestRateModelParams,
         bytes memory collateralLiquidatorParams
     ) external {
-        require(!_initialized);
+        require(!_initialized, "Already initialized");
 
         _initialized = true;
         _collateralToken = collateralToken_;
