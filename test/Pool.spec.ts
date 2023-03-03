@@ -6,9 +6,6 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import {
   TestERC20,
   TestERC721,
-  TestLendingPlatform,
-  TestNoteToken,
-  TestNoteAdapter,
   TestLoanReceipt,
   TestDelegationRegistry,
   FixedInterestRateModel,
@@ -27,9 +24,6 @@ describe("Pool", function () {
   let accounts: SignerWithAddress[];
   let tok1: TestERC20;
   let nft1: TestERC721;
-  let lendingPlatform: TestLendingPlatform;
-  let noteToken: TestNoteToken;
-  let noteAdapter: TestNoteAdapter;
   let loanReceiptLib: TestLoanReceipt;
   let liquidityManagerLib: LiquidityManager;
   let collateralFilterImpl: CollectionCollateralFilter;
@@ -50,7 +44,6 @@ describe("Pool", function () {
 
     const testERC20Factory = await ethers.getContractFactory("TestERC20");
     const testERC721Factory = await ethers.getContractFactory("TestERC721");
-    const testLendingPlatformFactory = await ethers.getContractFactory("TestLendingPlatform");
     const testNoteAdapterFactory = await ethers.getContractFactory("TestNoteAdapter");
     const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const collectionCollateralFilterFactory = await ethers.getContractFactory("CollectionCollateralFilter");
@@ -67,21 +60,6 @@ describe("Pool", function () {
     /* Deploy test NFT */
     nft1 = (await testERC721Factory.deploy("NFT 1", "NFT1", "https://nft1.com/token/")) as TestERC721;
     await nft1.deployed();
-
-    /* Deploy test lending platform */
-    lendingPlatform = (await testLendingPlatformFactory.deploy(tok1.address)) as TestLendingPlatform;
-    await lendingPlatform.deployed();
-
-    /* Get test note token */
-    noteToken = (await ethers.getContractAt(
-      "TestNoteToken",
-      await lendingPlatform.noteToken(),
-      accounts[0]
-    )) as TestNoteToken;
-
-    /* Deploy test note adapter */
-    noteAdapter = (await testNoteAdapterFactory.deploy(lendingPlatform.address)) as TestNoteAdapter;
-    await noteAdapter.deployed();
 
     /* Deploy loan receipt library */
     loanReceiptLib = await testLoanReceiptFactory.deploy();
@@ -134,9 +112,6 @@ describe("Pool", function () {
     await proxy.deployed();
     pool = (await ethers.getContractAt("Pool", proxy.address)) as Pool;
 
-    /* Add note token to pool */
-    await pool.setLoanAdapter(noteToken.address, noteAdapter.address);
-
     /* Attach collateral liquidator */
     collateralLiquidator = (await ethers.getContractAt(
       "ExternalCollateralLiquidator",
@@ -171,9 +146,6 @@ describe("Pool", function () {
     await nft1.connect(accountBorrower).setApprovalForAll(pool.address, true);
     /* Approve pool to tranasfer token (for repayment) */
     await tok1.connect(accountBorrower).approve(pool.address, ethers.constants.MaxUint256);
-
-    /* Approve pool to transfer note token */
-    await noteToken.connect(accountLender).setApprovalForAll(pool.address, true);
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -895,40 +867,6 @@ describe("Pool", function () {
   /****************************************************************************/
   /* Privileged API Tests */
   /****************************************************************************/
-
-  describe("#setLoanAdapter", async function () {
-    it("sets loan adapter", async function () {
-      /* Unset loan adapter */
-      const unsetLoanAdapterTx = await pool.setLoanAdapter(noteToken.address, ethers.constants.AddressZero);
-
-      /* Validate event */
-      await expectEvent(unsetLoanAdapterTx, pool, "LoanAdapterUpdated", {
-        platform: noteToken.address,
-        loanAdapter: ethers.constants.AddressZero,
-      });
-
-      /* Validate state */
-      expect(await pool.loanAdapters(noteToken.address)).to.equal(ethers.constants.AddressZero);
-
-      /* Set loan adpater */
-      const setLoanAdapterTx = await pool.setLoanAdapter(noteToken.address, noteAdapter.address);
-
-      /* Validate event */
-      await expectEvent(setLoanAdapterTx, pool, "LoanAdapterUpdated", {
-        platform: noteToken.address,
-        loanAdapter: noteAdapter.address,
-      });
-
-      /* Validate state */
-      expect(await pool.loanAdapters(noteToken.address)).to.equal(noteAdapter.address);
-    });
-
-    it("fails on invalid caller", async function () {
-      await expect(
-        pool.connect(accountDepositors[0]).setLoanAdapter(noteToken.address, noteAdapter.address)
-      ).to.be.revertedWith(/AccessControl: account .* is missing role .*/);
-    });
-  });
 
   describe("#pause", async function () {
     it("pauses", async function () {

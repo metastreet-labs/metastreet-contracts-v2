@@ -4,8 +4,6 @@ pragma solidity ^0.8.0;
 import "./ICollateralFilter.sol";
 import "./IInterestRateModel.sol";
 import "./ICollateralLiquidator.sol";
-import "./INoteAdapter.sol";
-import "./ILendAdapter.sol";
 import "../integrations/DelegateCash/IDelegationRegistry.sol";
 
 /**
@@ -68,13 +66,6 @@ interface IPool {
      * @param proceeds Liquidation proceeds in currency tokens
      */
     event CollateralLiquidated(bytes32 indexed loanReceiptHash, uint256 proceeds);
-
-    /**
-     * @notice Emitted when a loan adapter is updated
-     * @param platform Note token or lend platform contract
-     * @param loanAdapter Loan adapter contract
-     */
-    event LoanAdapterUpdated(address indexed platform, address loanAdapter);
 
     /**
      * @notice Emitted when admin fee rate is updated
@@ -140,19 +131,6 @@ interface IPool {
      * @return Delegation registry contract
      */
     function delegationRegistry() external view returns (IDelegationRegistry);
-
-    /**
-     * @notice Get loan adapter contract
-     * @param platform Note token or lend platform contract
-     * @return Loan adapter contract
-     */
-    function loanAdapters(address platform) external view returns (ILoanAdapter);
-
-    /**
-     * @notice Get list of supported platforms
-     * @return Platform addresses
-     */
-    function supportedPlatforms() external view returns (address[] memory);
 
     /**************************************************************************/
     /* Lend API */
