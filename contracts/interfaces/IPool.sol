@@ -170,14 +170,9 @@ interface IPool {
      *
      * @param noteToken Note token contract
      * @param noteTokenId Note token ID
-     * @param collateralTokenIdSpec Collateral token ID specification
      * @return purchasePrice Purchase price in currency tokens
      */
-    function priceNote(
-        address noteToken,
-        uint256 noteTokenId,
-        bytes[] calldata collateralTokenIdSpec
-    ) external view returns (uint256 purchasePrice);
+    function priceNote(address noteToken, uint256 noteTokenId) external view returns (uint256 purchasePrice);
 
     /**
      * @notice Sell a note
@@ -188,15 +183,13 @@ interface IPool {
      * @param noteTokenId Note token ID
      * @param minPurchasePrice Minimum purchase price in currency tokens
      * @param depths Liquidity node depths
-     * @param collateralTokenIdSpec Collateral token ID specification
      * @return purchasePrice Executed purchase price in currency tokens
      */
     function sellNote(
         address noteToken,
         uint256 noteTokenId,
         uint256 minPurchasePrice,
-        uint256[] calldata depths,
-        bytes[] calldata collateralTokenIdSpec
+        uint256[] calldata depths
     ) external returns (uint256 purchasePrice);
 
     /**************************************************************************/
@@ -210,15 +203,13 @@ interface IPool {
      * @param duration Duration in seconds
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
-     * @param collateralTokenIdSpec Collateral token ID specification
      * @return Repayment amount in currency tokens
      */
     function quote(
         uint256 principal,
         uint64 duration,
         address collateralToken,
-        uint256 collateralTokenId,
-        bytes[] calldata collateralTokenIdSpec
+        uint256 collateralTokenId
     ) external view returns (uint256);
 
     /**
@@ -232,7 +223,6 @@ interface IPool {
      * @param collateralTokenId Collateral token ID
      * @param maxRepayment Maximum repayment amount in currency tokens
      * @param depths Liquidity node depths
-     * @param collateralTokenIdSpec Collateral token ID specification
      * @param options Encoded options
      * @return Repayment amount in currency tokens
      */
@@ -243,7 +233,6 @@ interface IPool {
         uint256 collateralTokenId,
         uint256 maxRepayment,
         uint256[] calldata depths,
-        bytes[] calldata collateralTokenIdSpec,
         bytes calldata options
     ) external returns (uint256);
 

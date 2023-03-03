@@ -616,15 +616,13 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @param repayment Repayment
      * @param maturity Maturity
      * @param assets Collateral assets
-     * @param collateralTokenIdSpec Collateral token ID specification
      * @return Purchase price in currency tokens
      */
     function _priceNote(
         uint256 principal,
         uint256 repayment,
         uint64 maturity,
-        ILoanAdapter.AssetInfo[] memory assets,
-        bytes[] calldata collateralTokenIdSpec
+        ILoanAdapter.AssetInfo[] memory assets
     ) internal view returns (uint256) {
         principal;
 
@@ -646,11 +644,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     /**
      * @inheritdoc IPool
      */
-    function priceNote(
-        address noteToken,
-        uint256 noteTokenId,
-        bytes[] calldata collateralTokenIdSpec
-    ) external view returns (uint256) {
+    function priceNote(address noteToken, uint256 noteTokenId) external view returns (uint256) {
         /* Get note adapter */
         INoteAdapter noteAdapter = _getNoteAdapter(noteToken);
 
@@ -670,14 +664,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         if (loanInfo.duration > _maxLoanDuration) revert UnsupportedLoanDuration();
 
         /* Price the note */
-        return
-            _priceNote(
-                loanInfo.principal,
-                loanInfo.repayment,
-                loanInfo.maturity,
-                loanInfo.assets,
-                collateralTokenIdSpec
-            );
+        return _priceNote(loanInfo.principal, loanInfo.repayment, loanInfo.maturity, loanInfo.assets);
     }
 
     /**
@@ -687,8 +674,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         address noteToken,
         uint256 noteTokenId,
         uint256 minPurchasePrice,
-        uint256[] calldata depths,
-        bytes[] calldata collateralTokenIdSpec
+        uint256[] calldata depths
     ) external returns (uint256) {
         /* Get note adapter */
         INoteAdapter noteAdapter = _getNoteAdapter(noteToken);
@@ -709,13 +695,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         if (loanInfo.duration > _maxLoanDuration) revert UnsupportedLoanDuration();
 
         /* Price the note */
-        uint256 purchasePrice = _priceNote(
-            loanInfo.principal,
-            loanInfo.repayment,
-            loanInfo.maturity,
-            loanInfo.assets,
-            collateralTokenIdSpec
-        );
+        uint256 purchasePrice = _priceNote(loanInfo.principal, loanInfo.repayment, loanInfo.maturity, loanInfo.assets);
 
         /* Validate purchase price */
         if (purchasePrice < minPurchasePrice) revert PurchasePriceTooLow();
@@ -783,15 +763,13 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @param duration Duration in seconds
      * @param collateralToken_ Collateral token
      * @param collateralTokenId Collateral token ID
-     * @param collateralTokenIdSpec Collateral token ID specification
      * @return Repayment amount in currency tokens
      */
     function _quote(
         uint256 principal,
         uint64 duration,
         address collateralToken_,
-        uint256 collateralTokenId,
-        bytes[] calldata collateralTokenIdSpec
+        uint256 collateralTokenId
     ) internal view returns (uint256) {
         /* FIXME implement bundle support */
 
@@ -817,14 +795,13 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         uint256 principal,
         uint64 duration,
         address collateralToken_,
-        uint256 collateralTokenId,
-        bytes[] calldata collateralTokenIdSpec
+        uint256 collateralTokenId
     ) external view returns (uint256) {
         /* Check principal doesn't exceed max borrow available */
         if (principal > _liquidity.liquidityAvailable(type(uint256).max))
             revert LiquidityManager.InsufficientLiquidity();
 
-        return _quote(principal, duration, collateralToken_, collateralTokenId, collateralTokenIdSpec);
+        return _quote(principal, duration, collateralToken_, collateralTokenId);
     }
 
     /**
@@ -837,11 +814,10 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         uint256 collateralTokenId,
         uint256 maxRepayment,
         uint256[] calldata depths,
-        bytes[] calldata collateralTokenIdSpec,
         bytes calldata options
     ) external nonReentrant returns (uint256) {
         /* Quote repayment */
-        uint256 repayment = _quote(principal, duration, collateralToken_, collateralTokenId, collateralTokenIdSpec);
+        uint256 repayment = _quote(principal, duration, collateralToken_, collateralTokenId);
 
         /* Validate repayment */
         if (repayment > maxRepayment) revert RepaymentTooHigh();
