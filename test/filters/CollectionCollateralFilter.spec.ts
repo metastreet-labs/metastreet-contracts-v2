@@ -42,12 +42,6 @@ describe("CollectionCollateralFilter", function () {
     });
   });
 
-  describe("#tokens", async function () {
-    it("matches expected token list", async function () {
-      expect(await collateralFilter.tokens()).to.deep.equal(["0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b"]);
-    });
-  });
-
   describe("#supported", async function () {
     it("matches supported token", async function () {
       expect(await collateralFilter.supported("0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b", 123, "0x")).to.equal(true);

@@ -63,15 +63,6 @@ contract CollectionCollateralFilter is ICollateralFilter {
     /**
      * @inheritdoc ICollateralFilter
      */
-    function tokens() external view returns (address[] memory) {
-        address[] memory tokenList = new address[](1);
-        tokenList[0] = _token;
-        return tokenList;
-    }
-
-    /**
-     * @inheritdoc ICollateralFilter
-     */
     function supported(address token, uint256, bytes memory) external view returns (bool) {
         return token == _token;
     }

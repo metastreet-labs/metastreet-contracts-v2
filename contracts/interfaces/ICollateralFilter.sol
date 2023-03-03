@@ -12,12 +12,6 @@ interface ICollateralFilter {
     function name() external view returns (string memory);
 
     /**
-     * Get collateral tokens
-     * @return Collateral tokens
-     */
-    function tokens() external view returns (address[] memory);
-
-    /**
      * Query if collateral token is supported
      * @return True if supported, otherwise false
      */
