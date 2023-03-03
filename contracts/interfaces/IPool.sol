@@ -203,13 +203,15 @@ interface IPool {
      * @param duration Duration in seconds
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
+     * @param options Encoded options
      * @return Repayment amount in currency tokens
      */
     function quote(
         uint256 principal,
         uint64 duration,
         address collateralToken,
-        uint256 collateralTokenId
+        uint256 collateralTokenId,
+        bytes calldata options
     ) external view returns (uint256);
 
     /**

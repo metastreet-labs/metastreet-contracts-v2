@@ -795,7 +795,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         uint256 principal,
         uint64 duration,
         address collateralToken_,
-        uint256 collateralTokenId
+        uint256 collateralTokenId,
+        bytes calldata
     ) external view returns (uint256) {
         /* Check principal doesn't exceed max borrow available */
         if (principal > _liquidity.liquidityAvailable(type(uint256).max))

@@ -1469,7 +1469,7 @@ describe("Pool", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, 123);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, 123, "0x");
 
       /* Borrow */
       const encodedAddress = ethers.utils.defaultAbiCoder.encode(["address"], [accountBorrower.address]);
@@ -1547,7 +1547,7 @@ describe("Pool", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, 123);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, 123, "0x");
 
       /* Borrow */
       const encodedAddress = ethers.utils.defaultAbiCoder.encode(["address"], [accountBorrower.address]);
@@ -1605,7 +1605,7 @@ describe("Pool", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, 123);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, 123, "0x");
 
       /* Borrow */
       const encodedAddress = ethers.utils.defaultAbiCoder.encode(["address"], [accountBorrower.address]);
@@ -1701,21 +1701,21 @@ describe("Pool", function () {
       await setupLiquidity();
     });
     it("correctly quotes repayment", async function () {
-      expect(await pool.quote(ethers.utils.parseEther("10"), 30 * 86400, nft1.address, 123)).to.equal(
+      expect(await pool.quote(ethers.utils.parseEther("10"), 30 * 86400, nft1.address, 123, "0x")).to.equal(
         ethers.utils.parseEther("10.016438356146880000")
       );
-      expect(await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, 123)).to.equal(
+      expect(await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, 123, "0x")).to.equal(
         ethers.utils.parseEther("25.041095890367200000")
       );
     });
     it("fails on insufficient liquidity", async function () {
       await expect(
-        pool.quote(ethers.utils.parseEther("100"), 30 * 86400, tok1.address, 123)
+        pool.quote(ethers.utils.parseEther("100"), 30 * 86400, tok1.address, 123, "0x")
       ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
     });
     it("fails on unsupported collateral", async function () {
       await expect(
-        pool.quote(ethers.utils.parseEther("25"), 30 * 86400, tok1.address, 456)
+        pool.quote(ethers.utils.parseEther("25"), 30 * 86400, tok1.address, 456, "0x")
       ).to.be.revertedWithCustomError(pool, "UnsupportedCollateral");
     });
   });
@@ -1727,7 +1727,7 @@ describe("Pool", function () {
 
     it("originates loan", async function () {
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, 123);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, 123, "0x");
 
       /* Borrow */
       const borrowTx = await pool
@@ -1796,7 +1796,7 @@ describe("Pool", function () {
 
     it("originates loan with delegation", async function () {
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, 123);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, 123, "0x");
 
       /* Borrow */
       const borrowTx = await pool
@@ -1881,7 +1881,7 @@ describe("Pool", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, 123);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, 123, "0x");
 
       /* Borrow */
       const encodedAddress = ethers.utils.defaultAbiCoder.encode(["address"], [accountBorrower.address]);
