@@ -979,7 +979,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         _loans[loanReceiptHash] = LoanStatus.Repaid;
 
         /* Emit Loan Repaid */
-        emit LoanRepaid(loanReceiptHash, true);
+        emit LoanRepaid(loanReceiptHash, repayment);
     }
 
     /**************************************************************************/
@@ -1040,7 +1040,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         _loans[loanReceiptHash] = LoanStatus.Repaid;
 
         /* Emit Loan Repaid */
-        emit LoanRepaid(loanReceiptHash, true);
+        emit LoanRepaid(loanReceiptHash, loanReceipt.repayment);
     }
 
     /**

@@ -59,9 +59,9 @@ interface IPool {
     /**
      * @notice Emitted when a loan is repaid
      * @param loanReceiptHash Loan receipt hash
-     * @param processed If loan accounting has been processed
+     * @param repayment Repayment amount in currency tokens
      */
-    event LoanRepaid(bytes32 indexed loanReceiptHash, bool indexed processed);
+    event LoanRepaid(bytes32 indexed loanReceiptHash, uint256 repayment);
 
     /**
      * @notice Emitted when a loan is liquidated

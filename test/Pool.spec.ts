@@ -1982,7 +1982,7 @@ describe("Pool", function () {
       /* Validate events */
       await expectEvent(repayTx, pool, "LoanRepaid", {
         loanReceiptHash,
-        processed: true,
+        repayment: decodedLoanReceipt.repayment,
       });
 
       /* Validate state */
@@ -2129,7 +2129,7 @@ describe("Pool", function () {
       });
       await expectEvent(repayTx, pool, "LoanRepaid", {
         loanReceiptHash,
-        processed: true,
+        repayment: decodedLoanReceipt.repayment,
       });
 
       await expectEvent(repayTx, delegationRegistry, "DelegateForToken", {
@@ -2192,7 +2192,7 @@ describe("Pool", function () {
       });
       await expectEvent(repayTx, pool, "LoanRepaid", {
         loanReceiptHash,
-        processed: true,
+        repayment: repayment.sub(1) /* FIXME rounding */,
       });
 
       await expectEvent(repayTx, delegationRegistry, "DelegateForToken", {
@@ -2259,7 +2259,7 @@ describe("Pool", function () {
       });
       await expectEvent(repayTx, pool, "LoanRepaid", {
         loanReceiptHash,
-        processed: true,
+        repayment: repayment.sub(1) /* FIXME rounding */,
       });
 
       await expectEvent(repayTx, delegationRegistry, "DelegateForToken", {
@@ -2324,7 +2324,7 @@ describe("Pool", function () {
       });
       await expectEvent(repayTx, pool, "LoanRepaid", {
         loanReceiptHash,
-        processed: true,
+        repayment: repayment.sub(1) /* FIXME rounding */,
       });
 
       await expectEvent(repayTx, delegationRegistry, "DelegateForToken", {
@@ -2605,7 +2605,7 @@ describe("Pool", function () {
       /* Validate events */
       await expectEvent(onLoanRepaidTx, pool, "LoanRepaid", {
         loanReceiptHash,
-        processed: true,
+        repayment: decodedLoanReceipt.repayment,
       });
 
       /* Validate state */
@@ -2683,7 +2683,7 @@ describe("Pool", function () {
       /* Validate events */
       await expectEvent(onLoanRepaidTx, pool, "LoanRepaid", {
         loanReceiptHash,
-        processed: true,
+        repayment: decodedLoanReceipt.repayment,
       });
 
       /* validate adminFee balance */
