@@ -222,6 +222,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     uint64 internal _maxLoanDuration;
 
     /**
+     * @notice Origination fee rate in basis points
+     */
+    uint256 internal _originationFeeRate;
+
+    /**
      * @notice Admin fee rate in basis points
      */
     uint256 internal _adminFeeRate;
@@ -301,6 +306,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         IERC721 collateralToken_,
         IERC20 currencyToken_,
         uint64 maxLoanDuration_,
+        uint256 originationFeeRate_,
         IDelegationRegistry delegationRegistry_,
         address collateralFilterImpl,
         address interestRateModelImpl,
@@ -316,6 +322,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* FIXME verify 18 decimals */
         _currencyToken = currencyToken_;
         _maxLoanDuration = maxLoanDuration_;
+        _originationFeeRate = originationFeeRate_;
         _delegationRegistry = delegationRegistry_;
 
         /* Initialize liquidity */
@@ -589,13 +596,13 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Validate loan duration */
         if (duration > _maxLoanDuration) revert UnsupportedLoanDuration();
 
-        /* Calculate repayment from princiapl, rate, and duration */
+        /* Calculate repayment from principal, rate, and duration */
         return
             Math.mulDiv(
                 principal,
                 LiquidityManager.FIXED_POINT_SCALE + (_interestRateModel.rate() * duration),
                 LiquidityManager.FIXED_POINT_SCALE
-            );
+            ) + Math.mulDiv(principal, _originationFeeRate, BASIS_POINTS_SCALE);
     }
 
     /**
@@ -726,9 +733,17 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
             loanReceipt.duration
         );
 
+        /* Compute origination fee */
+        uint256 originationFee = Math.mulDiv(loanReceipt.principal, _originationFeeRate, BASIS_POINTS_SCALE);
+
         /* Compute repayment using prorated interest */
         uint256 repayment = loanReceipt.principal +
-            Math.mulDiv(loanReceipt.repayment - loanReceipt.principal, proration, LiquidityManager.FIXED_POINT_SCALE);
+            originationFee +
+            Math.mulDiv(
+                loanReceipt.repayment - originationFee - loanReceipt.principal,
+                proration,
+                LiquidityManager.FIXED_POINT_SCALE
+            );
 
         /* Transfer repayment from borrower to lender */
         _currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), repayment);

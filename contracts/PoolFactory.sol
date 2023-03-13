@@ -66,6 +66,7 @@ contract PoolFactory is Ownable, IPoolFactory {
             IERC721 collateralToken,
             IERC20 currencyToken,
             uint64 maxLoanDuration,
+            uint256 originationFeeRate,
             IDelegationRegistry delegationRegistry,
             address collateralFilterImpl,
             address interestRateModelImpl,
@@ -75,7 +76,7 @@ contract PoolFactory is Ownable, IPoolFactory {
             bytes memory collateralLiquidatorParams
         ) = abi.decode(
                 params,
-                (IERC721, IERC20, uint64, IDelegationRegistry, address, address, address, bytes, bytes, bytes)
+                (IERC721, IERC20, uint64, uint256, IDelegationRegistry, address, address, address, bytes, bytes, bytes)
             );
 
         /* Create pool instance */
@@ -89,6 +90,7 @@ contract PoolFactory is Ownable, IPoolFactory {
                     collateralToken,
                     currencyToken,
                     maxLoanDuration,
+                    originationFeeRate,
                     delegationRegistry,
                     collateralFilterImpl,
                     interestRateModelImpl,
