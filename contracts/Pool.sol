@@ -693,7 +693,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Emit LoanOriginated */
         emit LoanOriginated(loanReceiptHash, encodedLoanReceipt);
 
-        return principal;
+        return repayment;
     }
 
     /**

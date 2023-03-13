@@ -1049,9 +1049,21 @@ describe("Pool", function () {
       /* Quote repayment */
       const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x");
 
-      /* Borrow */
+      /* Simulate borrow */
       const encodedAddress = ethers.utils.defaultAbiCoder.encode(["address"], [accountBorrower.address]);
 
+      const returnVal = await pool
+        .connect(accountBorrower)
+        .callStatic.borrow(
+          ethers.utils.parseEther("25"),
+          30 * 86400,
+          [123],
+          ethers.utils.parseEther("26"),
+          await sourceLiquidity(ethers.utils.parseEther("25")),
+          ethers.utils.solidityPack(["uint16", "bytes"], [1, encodedAddress])
+        );
+
+      /* Borrow */
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
@@ -1070,6 +1082,9 @@ describe("Pool", function () {
       /* Validate loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
+      /* Validate return value from borrow() */
+      expect(returnVal).to.equal(repayment);
+
       /* calculate admin fee */
       const adminFee = (await pool.adminFeeRate())
         .mul(repayment.sub(ethers.utils.parseEther("25")))
@@ -1085,6 +1100,8 @@ describe("Pool", function () {
 
       /* validate total adminFee balance */
       expect(await pool.adminFeeBalance()).to.be.closeTo(adminFee, 1);
+
+      /* Validate return value */
 
       /* withdraw */
       const withdrawTx = await pool.withdrawAdminFees(accounts[1].address, adminFee.sub(1));
@@ -1169,6 +1186,18 @@ describe("Pool", function () {
       /* Quote repayment */
       const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x");
 
+      /* Simulate borrow */
+      const returnVal = await pool
+        .connect(accountBorrower)
+        .callStatic.borrow(
+          ethers.utils.parseEther("25"),
+          30 * 86400,
+          [123],
+          ethers.utils.parseEther("26"),
+          await sourceLiquidity(ethers.utils.parseEther("25")),
+          "0x"
+        );
+
       /* Borrow */
       const borrowTx = await pool
         .connect(accountBorrower)
@@ -1180,6 +1209,9 @@ describe("Pool", function () {
           await sourceLiquidity(ethers.utils.parseEther("25")),
           "0x"
         );
+
+      /* Validate return value from borrow() */
+      expect(returnVal).to.equal(repayment);
 
       /* Validate events */
       await expectEvent(borrowTx, nft1, "Transfer", {
@@ -1235,6 +1267,18 @@ describe("Pool", function () {
       /* Quote repayment */
       const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x");
 
+      /* Simulate borrow */
+      const returnVal = await pool
+        .connect(accountBorrower)
+        .callStatic.borrow(
+          ethers.utils.parseEther("25"),
+          30 * 86400,
+          [123],
+          ethers.utils.parseEther("26"),
+          await sourceLiquidity(ethers.utils.parseEther("25")),
+          ethers.utils.solidityPack(["uint16", "bytes32"], [1, ethers.utils.zeroPad(accountBorrower.address, 32)])
+        );
+
       /* Borrow */
       const borrowTx = await pool
         .connect(accountBorrower)
@@ -1246,6 +1290,9 @@ describe("Pool", function () {
           await sourceLiquidity(ethers.utils.parseEther("25")),
           ethers.utils.solidityPack(["uint16", "bytes32"], [1, ethers.utils.zeroPad(accountBorrower.address, 32)])
         );
+
+      /* Validate return value from borrow() */
+      expect(returnVal).to.equal(repayment);
 
       /* Validate events */
       await expectEvent(borrowTx, nft1, "Transfer", {
@@ -1317,9 +1364,21 @@ describe("Pool", function () {
       /* Quote repayment */
       const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x");
 
-      /* Borrow */
+      /* Simulate borrow */
       const encodedAddress = ethers.utils.defaultAbiCoder.encode(["address"], [accountBorrower.address]);
 
+      const returnVal = await pool
+        .connect(accountBorrower)
+        .callStatic.borrow(
+          ethers.utils.parseEther("25"),
+          30 * 86400,
+          [123],
+          ethers.utils.parseEther("26"),
+          await sourceLiquidity(ethers.utils.parseEther("25")),
+          ethers.utils.solidityPack(["uint16", "bytes"], [1, encodedAddress])
+        );
+
+      /* Borrow */
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
@@ -1330,6 +1389,9 @@ describe("Pool", function () {
           await sourceLiquidity(ethers.utils.parseEther("25")),
           ethers.utils.solidityPack(["uint16", "bytes"], [1, encodedAddress])
         );
+
+      /* Validate return value from borrow() */
+      expect(returnVal).to.equal(repayment);
 
       /* Validate events */
       await expectEvent(borrowTx, nft1, "Transfer", {
