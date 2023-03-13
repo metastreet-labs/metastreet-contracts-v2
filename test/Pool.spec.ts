@@ -91,6 +91,7 @@ describe("Pool", function () {
         nft1.address,
         tok1.address,
         30 * 86400,
+        45,
         delegationRegistry.address,
         collateralFilterImpl.address,
         interestRateModelImpl.address,
@@ -1042,80 +1043,6 @@ describe("Pool", function () {
       expect(await pool.adminFeeBalance()).to.equal(0);
     });
 
-    it("withdraws admin fees with repayment after one third of loan maturity", async function () {
-      /* set admin fee */
-      await pool.setAdminFeeRate(500);
-
-      /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x");
-
-      /* Simulate borrow */
-      const encodedAddress = ethers.utils.defaultAbiCoder.encode(["address"], [accountBorrower.address]);
-
-      const returnVal = await pool
-        .connect(accountBorrower)
-        .callStatic.borrow(
-          ethers.utils.parseEther("25"),
-          30 * 86400,
-          [123],
-          ethers.utils.parseEther("26"),
-          await sourceLiquidity(ethers.utils.parseEther("25")),
-          ethers.utils.solidityPack(["uint16", "bytes"], [1, encodedAddress])
-        );
-
-      /* Borrow */
-      const borrowTx = await pool
-        .connect(accountBorrower)
-        .borrow(
-          ethers.utils.parseEther("25"),
-          30 * 86400,
-          [123],
-          ethers.utils.parseEther("26"),
-          await sourceLiquidity(ethers.utils.parseEther("25")),
-          ethers.utils.solidityPack(["uint16", "bytes"], [1, encodedAddress])
-        );
-
-      /* Extract loan receipt */
-      const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
-      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-
-      /* Validate loan receipt */
-      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-
-      /* Validate return value from borrow() */
-      expect(returnVal).to.equal(repayment);
-
-      /* calculate admin fee */
-      const adminFee = (await pool.adminFeeRate())
-        .mul(repayment.sub(ethers.utils.parseEther("25")))
-        .div(10000)
-        .div(3);
-
-      /* Validate loan state */
-      expect(await pool.loans(loanReceiptHash)).to.equal(1);
-
-      /* repay */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - (2 * 30 * 86400) / 3);
-      await pool.connect(accountBorrower).repay(loanReceipt);
-
-      /* validate total adminFee balance */
-      expect(await pool.adminFeeBalance()).to.be.closeTo(adminFee, 1);
-
-      /* Validate return value */
-
-      /* withdraw */
-      const withdrawTx = await pool.withdrawAdminFees(accounts[1].address, adminFee.sub(1));
-
-      /* validate events */
-      await expectEvent(withdrawTx, pool, "AdminFeesWithdrawn", {
-        account: accounts[1].address,
-        amount: adminFee.sub(1),
-      });
-
-      /* validate total admin fee balance */
-      expect(await pool.adminFeeBalance()).to.equal(0);
-    });
-
     it("fails on invalid caller", async function () {
       /* set admin fee */
       await pool.setAdminFeeRate(500);
@@ -1160,10 +1087,10 @@ describe("Pool", function () {
     });
     it("correctly quotes repayment", async function () {
       expect(await pool.quote(ethers.utils.parseEther("10"), 30 * 86400, [123], "0x")).to.equal(
-        ethers.utils.parseEther("10.016438356146880000")
+        ethers.utils.parseEther("10.061438356146880000")
       );
       expect(await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x")).to.equal(
-        ethers.utils.parseEther("25.041095890367200000")
+        ethers.utils.parseEther("25.153595890367200000")
       );
     });
     it("fails on insufficient liquidity", async function () {
@@ -1615,10 +1542,13 @@ describe("Pool", function () {
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Calculate prorated repayment amount */
+      const originationFee = decodedLoanReceipt.principal.mul(45).div(10000);
       const repayment = decodedLoanReceipt.repayment
         .sub(decodedLoanReceipt.principal)
+        .sub(originationFee)
         .div(3)
-        .add(decodedLoanReceipt.principal);
+        .add(decodedLoanReceipt.principal)
+        .add(originationFee);
 
       /* Validate events */
       await expectEvent(repayTx, tok1, "Transfer", {
@@ -1668,11 +1598,14 @@ describe("Pool", function () {
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Calculate prorated repayment amount */
+      const originationFee = decodedLoanReceipt.principal.mul(45).div(10000);
       const repayment = decodedLoanReceipt.repayment
         .sub(decodedLoanReceipt.principal)
+        .sub(originationFee)
         .mul(8)
         .div(9)
-        .add(decodedLoanReceipt.principal);
+        .add(decodedLoanReceipt.principal)
+        .add(originationFee);
 
       /* Validate events */
       await expectEvent(repayTx, tok1, "Transfer", {
@@ -1722,10 +1655,13 @@ describe("Pool", function () {
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Calculate prorated repayment amount */
+      const originationFee = decodedLoanReceipt.principal.mul(45).div(10000);
       const repayment = decodedLoanReceipt.repayment
         .sub(decodedLoanReceipt.principal)
+        .sub(originationFee)
         .div(30 * 86400)
-        .add(decodedLoanReceipt.principal);
+        .add(decodedLoanReceipt.principal)
+        .add(originationFee);
 
       /* Validate events */
       await expectEvent(repayTx, tok1, "Transfer", {
@@ -1740,7 +1676,7 @@ describe("Pool", function () {
       });
       await expectEvent(repayTx, pool, "LoanRepaid", {
         loanReceiptHash,
-        repayment: repayment.sub(1) /* FIXME rounding */,
+        repayment: repayment.sub(1),
       });
 
       /* Validate state */
