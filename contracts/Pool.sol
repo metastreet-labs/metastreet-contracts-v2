@@ -570,10 +570,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         }
     }
 
-    /**************************************************************************/
-    /* Lend API */
-    /**************************************************************************/
-
     /**
      * @dev Helper function to quote a loan
      * @param principal Principal amount in currency tokens
@@ -584,7 +580,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     function _quote(
         uint256 principal,
         uint64 duration,
-        uint256[] calldata collateralTokenIds
+        uint256[] memory collateralTokenIds
     ) internal view returns (uint256) {
         /* FIXME implement bundle support */
         require(collateralTokenIds.length == 1, "Bundles not supported");
@@ -606,32 +602,23 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     }
 
     /**
-     * @inheritdoc IPool
+     * @dev Helper function to handle borrow accounting
+     * @param principal Principal amount in currency tokens
+     * @param duration Duration in seconds
+     * @param collateralTokenIds Collateral token IDs
+     * @param maxRepayment Maximum repayment amount in currency tokens
+     * @param depths Liquidity node depths
+     * @return Repayment Amount in currency tokens
+     * @return EncodedLoanReceipt Encoded loan receipt
+     * @return LoanReceiptHash Loan receipt hash
      */
-    function quote(
+    function _borrow(
         uint256 principal,
         uint64 duration,
-        uint256[] calldata collateralTokenIds,
-        bytes calldata
-    ) external view returns (uint256) {
-        /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint256).max))
-            revert LiquidityManager.InsufficientLiquidity();
-
-        return _quote(principal, duration, collateralTokenIds);
-    }
-
-    /**
-     * @inheritdoc IPool
-     */
-    function borrow(
-        uint256 principal,
-        uint64 duration,
-        uint256[] calldata collateralTokenIds,
+        uint256[] memory collateralTokenIds,
         uint256 maxRepayment,
-        uint256[] calldata depths,
-        bytes calldata options
-    ) external nonReentrant returns (uint256) {
+        uint256[] calldata depths
+    ) internal returns (uint256, bytes memory, bytes32) {
         /* Quote repayment */
         uint256 repayment = _quote(principal, duration, collateralTokenIds);
 
@@ -683,30 +670,25 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         bytes memory encodedLoanReceipt = receipt.encode();
         bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
 
+        /* Validate no loan receipt hash collision */
+        if (_loans[loanReceiptHash] != LoanStatus.Uninitialized) revert InvalidLoanStatus();
+
         /* Store loan status */
         _loans[loanReceiptHash] = LoanStatus.Active;
 
-        /* Handle borrow options parameter */
-        if (options.length > 0) {
-            _processBorrowOptions(address(_collateralToken), collateralTokenIds[0], options);
-        }
-
-        /* Transfer collateral from borrower to pool */
-        IERC721(_collateralToken).safeTransferFrom(msg.sender, address(this), collateralTokenIds[0]);
-
-        /* Transfer principal from pool to borrower */
-        _currencyToken.safeTransfer(msg.sender, principal);
-
-        /* Emit LoanOriginated */
-        emit LoanOriginated(loanReceiptHash, encodedLoanReceipt);
-
-        return repayment;
+        return (repayment, encodedLoanReceipt, loanReceiptHash);
     }
 
     /**
-     * @inheritdoc IPool
+     * @dev Helper function to handle repay accounting
+     * @param encodedLoanReceipt Encoded loan receipt
+     * @return LoanReceipt Decoded loan receipt
+     * @return LoanReceiptHash Loan receipt hash
+     * @return Repayment Amount in currency tokens
      */
-    function repay(bytes calldata encodedLoanReceipt) external nonReentrant {
+    function _repay(
+        bytes calldata encodedLoanReceipt
+    ) internal returns (LoanReceipt.LoanReceiptV1 memory, bytes32, uint256) {
         /* Compute loan receipt hash */
         bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
 
@@ -721,9 +703,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
 
         /* Validate loan is not expired */
         if (block.timestamp > loanReceipt.maturity) revert LoanExpired();
-
-        /* Revoke delegates */
-        _revokeDelegates(loanReceipt.collateralToken, loanReceipt.collateralTokenId);
 
         /* Compute proration based on elapsed duration. Proration can't exceed
          * 1.0 due to the loan expiry check above. */
@@ -744,16 +723,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
                 proration,
                 LiquidityManager.FIXED_POINT_SCALE
             );
-
-        /* Transfer repayment from borrower to lender */
-        _currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), repayment);
-
-        /* Transfer collateral from pool to borrower */
-        IERC721(loanReceipt.collateralToken).safeTransferFrom(
-            address(this),
-            loanReceipt.borrower,
-            loanReceipt.collateralTokenId
-        );
 
         /* Restore liquidity nodes */
         uint128 totalPending;
@@ -798,8 +767,129 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Mark loan status repaid */
         _loans[loanReceiptHash] = LoanStatus.Repaid;
 
+        return (loanReceipt, loanReceiptHash, repayment);
+    }
+
+    /**************************************************************************/
+    /* Lend API */
+    /**************************************************************************/
+
+    /**
+     * @inheritdoc IPool
+     */
+    function quote(
+        uint256 principal,
+        uint64 duration,
+        uint256[] calldata collateralTokenIds,
+        bytes calldata
+    ) external view returns (uint256) {
+        /* Check principal doesn't exceed max borrow available */
+        if (principal > _liquidity.liquidityAvailable(type(uint256).max))
+            revert LiquidityManager.InsufficientLiquidity();
+
+        return _quote(principal, duration, collateralTokenIds);
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
+    function borrow(
+        uint256 principal,
+        uint64 duration,
+        uint256[] calldata collateralTokenIds,
+        uint256 maxRepayment,
+        uint256[] calldata depths,
+        bytes calldata options
+    ) external nonReentrant returns (uint256) {
+        /* Handle borrow accounting */
+        (uint256 repayment, bytes memory encodedLoanReceipt, bytes32 loanReceiptHash) = _borrow(
+            principal,
+            duration,
+            collateralTokenIds,
+            maxRepayment,
+            depths
+        );
+
+        /* Handle borrow options parameter */
+        if (options.length > 0) {
+            _processBorrowOptions(address(_collateralToken), collateralTokenIds[0], options);
+        }
+
+        /* Transfer collateral from borrower to pool */
+        IERC721(_collateralToken).safeTransferFrom(msg.sender, address(this), collateralTokenIds[0]);
+
+        /* Transfer principal from pool to borrower */
+        _currencyToken.safeTransfer(msg.sender, principal);
+
+        /* Emit LoanOriginated */
+        emit LoanOriginated(loanReceiptHash, encodedLoanReceipt);
+
+        return repayment;
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
+    function repay(bytes calldata encodedLoanReceipt) external nonReentrant {
+        /* Handle repay accounting */
+        (LoanReceipt.LoanReceiptV1 memory loanReceipt, bytes32 loanReceiptHash, uint256 repayment) = _repay(
+            encodedLoanReceipt
+        );
+
+        /* Revoke delegates */
+        _revokeDelegates(loanReceipt.collateralToken, loanReceipt.collateralTokenId);
+
+        /* Transfer repayment from borrower to lender */
+        _currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), repayment);
+
+        /* Transfer collateral from pool to borrower */
+        IERC721(loanReceipt.collateralToken).safeTransferFrom(
+            address(this),
+            loanReceipt.borrower,
+            loanReceipt.collateralTokenId
+        );
+
         /* Emit Loan Repaid */
         emit LoanRepaid(loanReceiptHash, repayment);
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
+    function refinance(
+        bytes calldata encodedLoanReceipt,
+        uint64 duration,
+        uint256 maxRepayment,
+        uint256[] calldata depths
+    ) external nonReentrant returns (uint256) {
+        /* Handle repay accounting without revoking delegates unlike in repay() */
+        (LoanReceipt.LoanReceiptV1 memory loanReceipt, bytes32 loanReceiptHash, uint256 repayment) = _repay(
+            encodedLoanReceipt
+        );
+
+        /* Transfer repayment less principal from borrower to lender */
+        _currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), repayment - loanReceipt.principal);
+
+        /* Emit Loan Repaid */
+        emit LoanRepaid(loanReceiptHash, repayment);
+
+        /* Assign a dynamic array containing collateral token id */
+        uint256[] memory collateralTokenIds = new uint256[](1);
+        collateralTokenIds[0] = loanReceipt.collateralTokenId;
+
+        /* Handle borrow accounting without delegating unlike in borrow() */
+        (uint256 newRepayment, bytes memory newEncodedLoanReceipt, bytes32 newLoanReceiptHash) = _borrow(
+            loanReceipt.principal,
+            duration,
+            collateralTokenIds,
+            maxRepayment,
+            depths
+        );
+
+        /* Emit LoanOriginated */
+        emit LoanOriginated(newLoanReceiptHash, newEncodedLoanReceipt);
+
+        return newRepayment;
     }
 
     /**
