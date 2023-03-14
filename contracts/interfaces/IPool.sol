@@ -183,6 +183,24 @@ interface IPool {
     function repay(bytes calldata encodedLoanReceipt) external;
 
     /**
+     * @notice Refinance a loan
+     *
+     * Emits a {LoanRepaid} event and a {LoanOriginated} event.
+     *
+     * @param encodedLoanReceipt Encoded loan receipt
+     * @param duration Duration in seconds
+     * @param maxRepayment Maximum repayment amount in currency tokens
+     * @param depths Liquidity node depths
+     * @return Repayment amount in currency tokens
+     */
+    function refinance(
+        bytes calldata encodedLoanReceipt,
+        uint64 duration,
+        uint256 maxRepayment,
+        uint256[] calldata depths
+    ) external returns (uint256);
+
+    /**
      * @notice Liquidate an expired loan
      *
      * Emits a {LoanLiquidated} event.
