@@ -1792,6 +1792,245 @@ describe("Pool", function () {
     });
   });
 
+  describe("#refinance", async function () {
+    let loanReceipt: string;
+    let loanReceiptHash: string;
+
+    beforeEach("setup liquidity and borrow", async function () {
+      await setupLiquidity();
+      pool.setAdminFeeRate(500);
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
+    });
+
+    it("refinance loan at maturity with delegation and admin fee", async function () {
+      /* Get decoded receipt */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      /* Refinance */
+      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
+      const refinanceTx = await pool
+        .connect(accountBorrower)
+        .refinance(
+          loanReceipt,
+          15 * 86400,
+          ethers.utils.parseEther("26"),
+          await sourceLiquidity(ethers.utils.parseEther("25"))
+        );
+      const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
+      const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
+
+      /* calculate admin fee */
+      const adminFee = (await pool.adminFeeRate())
+        .mul(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("25")))
+        .div(10000);
+
+      /* Validate hash */
+      expect(loanReceiptHash).to.equal(await loanReceiptLib.hash(loanReceipt));
+
+      /* Validate loan receipt */
+      const decodedNewLoanReceipt = await loanReceiptLib.decode(newLoanReceipt);
+      expect(decodedNewLoanReceipt.version).to.equal(1);
+      expect(decodedNewLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedNewLoanReceipt.maturity).to.equal(
+        (await ethers.provider.getBlock(refinanceTx.blockHash!)).timestamp + 15 * 86400
+      );
+      expect(decodedNewLoanReceipt.duration).to.equal(15 * 86400);
+      expect(decodedNewLoanReceipt.collateralToken).to.equal(nft1.address);
+      expect(decodedNewLoanReceipt.collateralTokenId).to.equal(123);
+      expect(decodedNewLoanReceipt.nodeReceipts.length).to.equal(16);
+
+      /* Validate events */
+      await expectEvent(refinanceTx, tok1, "Transfer", {
+        from: accountBorrower.address,
+        to: pool.address,
+        value: decodedLoanReceipt.repayment.sub(decodedLoanReceipt.principal),
+      });
+
+      await expectEvent(refinanceTx, pool, "LoanRepaid", {
+        loanReceiptHash,
+        repayment: decodedLoanReceipt.repayment,
+      });
+
+      await expect(refinanceTx).to.emit(pool, "LoanOriginated");
+
+      /* Validate state */
+      expect(await pool.loans(loanReceiptHash)).to.equal(2);
+
+      expect(await pool.loans(newLoanReceiptHash)).to.equal(1);
+
+      expect(await pool.adminFeeBalance()).to.equal(adminFee);
+
+      /* Validate liquidity statistics */
+      const liquidityStatistics = await pool.liquidityStatistics();
+      expect(liquidityStatistics[0]).to.equal(
+        ethers.utils
+          .parseEther("25")
+          .mul(16)
+          .add(decodedLoanReceipt.repayment.sub(decodedLoanReceipt.principal).sub(adminFee))
+      );
+      expect(liquidityStatistics[1]).to.equal(decodedLoanReceipt.principal);
+    });
+
+    it("fails on refinance and refinance in same block with same loan receipt fields", async function () {
+      // Validate inability to do both refinance() and refinance() with the same loan receipt fields
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .multicall([
+            pool.interface.encodeFunctionData("refinance", [
+              loanReceipt,
+              1,
+              ethers.utils.parseEther("26"),
+              await sourceLiquidity(ethers.utils.parseEther("25")),
+            ]),
+            pool.interface.encodeFunctionData("refinance", [
+              loanReceipt,
+              1,
+              ethers.utils.parseEther("26"),
+              await sourceLiquidity(ethers.utils.parseEther("25")),
+            ]),
+          ])
+      ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
+    });
+
+    it("fails on borrow and refinance in same block with same loan receipt fields", async function () {
+      // Workaround to skip borrow() in beforeEach
+      await pool.connect(accountBorrower).repay(loanReceipt);
+
+      // Get token id
+      const tokenId =
+        (await nft1.ownerOf(123)) === accountBorrower.address
+          ? 123
+          : (await nft1.ownerOf(124)) === accountBorrower.address
+          ? 124
+          : 125;
+
+      // Precompute repayment for the borrow() later with a simulation
+      const repayment = await pool
+        .connect(accountBorrower)
+        .callStatic.borrow(
+          ethers.utils.parseEther("25"),
+          1,
+          [tokenId],
+          ethers.utils.parseEther("26"),
+          await sourceLiquidity(ethers.utils.parseEther("25")),
+          "0x"
+        );
+
+      // Use existing loan receipt with the parameters we want
+      const decodedExistingLoanReceipt = await loanReceiptLib.decode(
+        "0x010000000000000000000000000000000000000000000000015af1d78b58c400000000000000000000000000000000000000000000000000015c8185b67305c36715d34aaf54267db7d7c367839aaf71a00a2c6a6500000002540be4010000000000000001e7f1725e7734ce288f8367e1bb143e90bb3f0512000000000000000000000000000000000000000000000000000000000000007b00000000000000000de0b6b3a764000000000000000000000de0b6b3a764000000000000000000000df871d7d0264e0000000000000000001158e460913d0000000000000000000003782dace9d900000000000000000000038fe8d1129b4e00000000000000000015af1d78b58c4000000000000000000004563918244f40000000000000000000046df43c4d118e0000000000000000001b1ae4d6e2ef50000000000000000000056bc75e2d63100000000000000000000583828256255e00000000000000000021e19e0c9bab2400000000000000000006c6b935b8bbd400000000000000000006de7459e17e220000000000000000002a5a058fc295ed0000000000000000000878678326eac9000000000000000000089022a74fad1700000000000000000034f086f3b33b684000000000000000000a968163f0a57b4000000000000000000aae3c881967c9400000000000000000422ca8b0a00a425000000000000000000d3c21bcecceda1000000000000000000d53dce115912810000000000000000052b7d2dcc80cd2e40000000000000000108b2a2c28029094000000000000000010a2e55050c4de9400000000000000006765c793fa10079d000000000000000014adf4b7320334b9000000000000000014c5afdb5ac582b90000000000000000813f3978f8940984000000000000000019d971e4fe8401e7000000000000000019f12d0927464fe70000000000000000a18f07d736b90be50000000000000000204fce5e3e25026100000000000000002067898266e750610000000000000000c9f2c9cd04674ede00000000000000002863c1f5cdae42f90000000000000000287b7d19f67090f90000000000000000fc6f7c40458122950000000000000000327cb2734119d3b7000000000000000032946d9769dc21b700000000000000013b8b5b5056e16b3a00000000000000003f1bdf10116048a500000000000000003f339a343a2296a500000000000000018a6e32246c99c60800000000000000001f667c3b01e294c600000000000000001f7e375f2aa4e2cf"
+      );
+
+      // Mutate nft address in loan receipt and encode it
+      const nodeReceipt = { ...decodedExistingLoanReceipt };
+      nodeReceipt.collateralToken = nft1.address;
+      const encodedLoanReceipt = await loanReceiptLib.encode(nodeReceipt);
+
+      // Force timestamp so maturity timestamp is constant and give us the same loanReceipt from borrow()
+      await elapseUntilTimestamp(9999999999);
+
+      // Validate inability to do both borrow() and refinance() with the same loan receipt fields
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .multicall([
+            pool.interface.encodeFunctionData("borrow", [
+              ethers.utils.parseEther("25"),
+              1,
+              [tokenId],
+              ethers.utils.parseEther("26"),
+              await sourceLiquidity(ethers.utils.parseEther("25")),
+              "0x",
+            ]),
+            pool.interface.encodeFunctionData("refinance", [
+              encodedLoanReceipt,
+              1,
+              ethers.utils.parseEther("26"),
+              await sourceLiquidity(ethers.utils.parseEther("25")),
+            ]),
+          ])
+      ).to.be.revertedWithCustomError(pool, "InvalidLoanStatus");
+    });
+
+    it("fails on invalid caller", async function () {
+      await expect(
+        pool
+          .connect(accountLender)
+          .refinance(
+            loanReceipt,
+            15 * 86400,
+            ethers.utils.parseEther("26"),
+            await sourceLiquidity(ethers.utils.parseEther("25"))
+          )
+      ).to.be.revertedWithCustomError(pool, "InvalidCaller");
+    });
+
+    it("fails on expired loan", async function () {
+      /* Wait for expiration */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+      await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .refinance(
+            loanReceipt,
+            15 * 86400,
+            ethers.utils.parseEther("26"),
+            await sourceLiquidity(ethers.utils.parseEther("25"))
+          )
+      ).to.be.revertedWithCustomError(pool, "LoanExpired");
+    });
+
+    it("fails on invalid loan receipt", async function () {
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .refinance(
+            ethers.utils.randomBytes(141 + 48 * 3),
+            15 * 86400,
+            ethers.utils.parseEther("26"),
+            await sourceLiquidity(ethers.utils.parseEther("25"))
+          )
+      ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
+    });
+
+    it("fails on repaid loan", async function () {
+      await pool.connect(accountBorrower).repay(loanReceipt);
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .refinance(
+            loanReceipt,
+            15 * 86400,
+            ethers.utils.parseEther("26"),
+            await sourceLiquidity(ethers.utils.parseEther("25"))
+          )
+      ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
+    });
+
+    it("fails on liquidated loan", async function () {
+      /* Wait for expiration */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+      await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+
+      /* Process expiration */
+      await pool.liquidate(loanReceipt);
+
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .refinance(
+            loanReceipt,
+            15 * 86400,
+            ethers.utils.parseEther("26"),
+            await sourceLiquidity(ethers.utils.parseEther("25"))
+          )
+      ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
+    });
+  });
+
   describe("#liquidate", async function () {
     let loanReceipt: string;
     let loanReceiptHash: string;
