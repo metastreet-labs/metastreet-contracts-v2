@@ -217,9 +217,9 @@ describe("LiquidityManager", function () {
       /* Create node with used liquidity */
       await liquidityManager.instantiate(toFixedPoint("3"));
       await liquidityManager.deposit(toFixedPoint("3"), toFixedPoint("5"));
-      await liquidityManager.use(toFixedPoint("3"), toFixedPoint("5"), toFixedPoint("6"));
+      await liquidityManager.use(toFixedPoint("3"), toFixedPoint("5"), toFixedPoint("7"));
 
-      /* Deposit share price is 6/5 = 1.2 */
+      /* Deposit share price is (5 + (7-5)/2)/5 = 1.2 */
 
       /* Deposit 2 */
       const depositTx = await liquidityManager.deposit(toFixedPoint("3"), toFixedPoint("3"));
@@ -234,7 +234,7 @@ describe("LiquidityManager", function () {
       expect(node.value).to.equal(toFixedPoint("8"));
       expect(node.shares).to.equal(toFixedPoint("7.5"));
       expect(node.available).to.equal(toFixedPoint("3"));
-      expect(node.pending).to.equal(toFixedPoint("6"));
+      expect(node.pending).to.equal(toFixedPoint("7"));
       expect(node.redemptions).to.equal(ethers.constants.Zero);
 
       /* Validate statistics */

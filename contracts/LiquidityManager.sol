@@ -380,7 +380,11 @@ library LiquidityManager {
 
         uint256 price = node.shares == 0
             ? FIXED_POINT_SCALE
-            : Math.mulDiv(node.available + node.pending, FIXED_POINT_SCALE, node.shares);
+            : Math.mulDiv(
+                node.value + (node.available + node.pending - node.value) / 2,
+                FIXED_POINT_SCALE,
+                node.shares
+            );
         uint128 shares = uint128(Math.mulDiv(amount, FIXED_POINT_SCALE, price));
 
         node.value += amount;
