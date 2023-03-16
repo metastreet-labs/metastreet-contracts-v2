@@ -602,6 +602,35 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     }
 
     /**
+     * @dev Helper function to calculated prorated repayment
+     * @param loanReceipt Decoded loan receipt
+     * @return Repayment amount in currency tokens, proration based on elapsed duration
+     */
+    function _prorateRepayment(LoanReceipt.LoanReceiptV1 memory loanReceipt) internal view returns (uint256, uint256) {
+        /* Compute proration based on elapsed duration. Proration can't exceed
+         * 1.0 due to the loan expiry check. */
+        uint256 proration = Math.mulDiv(
+            block.timestamp - (loanReceipt.maturity - loanReceipt.duration),
+            LiquidityManager.FIXED_POINT_SCALE,
+            loanReceipt.duration
+        );
+
+        /* Compute origination fee */
+        uint256 originationFee = Math.mulDiv(loanReceipt.principal, _originationFeeRate, BASIS_POINTS_SCALE);
+
+        /* Compute repayment using prorated interest */
+        uint256 repayment = loanReceipt.principal +
+            originationFee +
+            Math.mulDiv(
+                loanReceipt.repayment - originationFee - loanReceipt.principal,
+                proration,
+                LiquidityManager.FIXED_POINT_SCALE
+            );
+
+        return (repayment, proration);
+    }
+
+    /**
      * @dev Helper function to handle borrow accounting
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
@@ -709,25 +738,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Validate loan is not expired */
         if (block.timestamp > loanReceipt.maturity) revert LoanExpired();
 
-        /* Compute proration based on elapsed duration. Proration can't exceed
-         * 1.0 due to the loan expiry check above. */
-        uint256 proration = Math.mulDiv(
-            block.timestamp - (loanReceipt.maturity - loanReceipt.duration),
-            LiquidityManager.FIXED_POINT_SCALE,
-            loanReceipt.duration
-        );
-
-        /* Compute origination fee */
-        uint256 originationFee = Math.mulDiv(loanReceipt.principal, _originationFeeRate, BASIS_POINTS_SCALE);
-
-        /* Compute repayment using prorated interest */
-        uint256 repayment = loanReceipt.principal +
-            originationFee +
-            Math.mulDiv(
-                loanReceipt.repayment - originationFee - loanReceipt.principal,
-                proration,
-                LiquidityManager.FIXED_POINT_SCALE
-            );
+        /* Compute proration and repayment using prorated interest */
+        (uint256 repayment, uint256 proration) = _prorateRepayment(loanReceipt);
 
         /* Restore liquidity nodes */
         uint128 totalPending;
@@ -793,6 +805,34 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
             revert LiquidityManager.InsufficientLiquidity();
 
         return _quote(principal, duration, collateralTokenIds);
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
+    function quoteRefinance(
+        bytes calldata encodedLoanReceipt,
+        uint256 principal,
+        uint64 duration
+    ) external view returns (int256, uint256) {
+        /* Check principal doesn't exceed max borrow available */
+        if (principal > _liquidity.liquidityAvailable(type(uint256).max))
+            revert LiquidityManager.InsufficientLiquidity();
+
+        /* Decode loan receipt */
+        LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
+
+        /* Assign collateral token id to a dynamic array at index 0 */
+        uint256[] memory collateralTokenIds = new uint256[](1);
+        collateralTokenIds[0] = loanReceipt.collateralTokenId;
+
+        /* Quote repayment */
+        uint256 newRepayment = _quote(principal, duration, collateralTokenIds);
+
+        /* Compute repayment using prorated interest */
+        (uint256 proratedRepayment, ) = _prorateRepayment(loanReceipt);
+
+        return (int256(proratedRepayment) - int256(principal), newRepayment);
     }
 
     /**
