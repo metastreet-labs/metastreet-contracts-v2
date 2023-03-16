@@ -863,6 +863,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      */
     function refinance(
         bytes calldata encodedLoanReceipt,
+        uint256 principal,
         uint64 duration,
         uint256 maxRepayment,
         uint256[] calldata depths
@@ -872,24 +873,30 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
             encodedLoanReceipt
         );
 
-        /* Transfer repayment less principal from borrower to lender */
-        _currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), repayment - loanReceipt.principal);
-
-        /* Emit Loan Repaid */
-        emit LoanRepaid(loanReceiptHash, repayment);
-
-        /* Assign a dynamic array containing collateral token id */
+        /* Assign collateral token id to a dynamic array at index 0 */
         uint256[] memory collateralTokenIds = new uint256[](1);
         collateralTokenIds[0] = loanReceipt.collateralTokenId;
 
         /* Handle borrow accounting without delegating unlike in borrow() */
         (uint256 newRepayment, bytes memory newEncodedLoanReceipt, bytes32 newLoanReceiptHash) = _borrow(
-            loanReceipt.principal,
+            principal,
             duration,
             collateralTokenIds,
             maxRepayment,
             depths
         );
+
+        /* Determine transfer direction */
+        if (principal < repayment) {
+            /* Transfer prorated repayment less principal from borrower to pool */
+            _currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), repayment - principal);
+        } else {
+            /* Transfer principal less prorated repayment from pool to borrower */
+            _currencyToken.safeTransfer(msg.sender, principal - repayment);
+        }
+
+        /* Emit Loan Repaid */
+        emit LoanRepaid(loanReceiptHash, repayment);
 
         /* Emit LoanOriginated */
         emit LoanOriginated(newLoanReceiptHash, newEncodedLoanReceipt);
