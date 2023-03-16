@@ -80,6 +80,29 @@ interface IPool {
     event AdminFeesWithdrawn(address indexed account, uint256 amount);
 
     /**************************************************************************/
+    /* Structures */
+    /**************************************************************************/
+
+    /**
+     * @notice Asset type
+     */
+    enum AssetType {
+        ERC721
+    }
+
+    /**
+     * @notice Asset information
+     * @param assetType Asset type
+     * @param token Token contract
+     * @param tokenId Token ID
+     */
+    struct AssetInfo {
+        AssetType assetType;
+        address token;
+        uint256 tokenId;
+    }
+
+    /**************************************************************************/
     /* Getters */
     /**************************************************************************/
 
@@ -137,17 +160,18 @@ interface IPool {
 
     /**
      * @notice Quote repayment for a loan
-     *
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
-     * @param collateralTokenIds Collateral token IDs
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
      * @param options Encoded options
      * @return Repayment amount in currency tokens
      */
     function quote(
         uint256 principal,
         uint64 duration,
-        uint256[] calldata collateralTokenIds,
+        address collateralToken,
+        uint256 collateralTokenId,
         bytes calldata options
     ) external view returns (uint256);
 
@@ -158,7 +182,8 @@ interface IPool {
      *
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
-     * @param collateralTokenIds Collateral token IDs
+     * @param collateralToken Collateral token address
+     * @param collateralTokenId Collateral token ID
      * @param maxRepayment Maximum repayment amount in currency tokens
      * @param depths Liquidity node depths
      * @param options Encoded options
@@ -167,7 +192,8 @@ interface IPool {
     function borrow(
         uint256 principal,
         uint64 duration,
-        uint256[] calldata collateralTokenIds,
+        address collateralToken,
+        uint256 collateralTokenId,
         uint256 maxRepayment,
         uint256[] calldata depths,
         bytes calldata options
