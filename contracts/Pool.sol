@@ -601,7 +601,7 @@ abstract contract Pool is
         if (repayment > maxRepayment) revert RepaymentTooHigh();
 
         /* Source liquidity nodes */
-        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(principal, depths);
+        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(principal, depths, 1);
 
         /* Compute admin fee */
         uint256 adminFee = Math.mulDiv(_adminFeeRate, repayment - principal, BASIS_POINTS_SCALE);

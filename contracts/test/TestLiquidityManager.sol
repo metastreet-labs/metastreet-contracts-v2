@@ -100,9 +100,10 @@ contract TestLiquidityManager is ILiquidity {
      */
     function source(
         uint256 amount,
-        uint256[] calldata depths
+        uint256[] calldata depths,
+        uint256 multiplier
     ) external view returns (ILiquidity.NodeSource[] memory, uint16 count) {
-        return _liquidity.source(amount, depths);
+        return _liquidity.source(amount, depths, multiplier);
     }
 
     /**
