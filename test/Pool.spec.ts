@@ -97,7 +97,10 @@ describe("Pool", function () {
         interestRateModelImpl.address,
         collateralLiquidatorImpl.address,
         ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
-        ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.normalizeRate("0.02")]),
+        ethers.utils.defaultAbiCoder.encode(
+          ["uint64", "uint64", "uint64"],
+          [FixedPoint.normalizeRate("0.02"), FixedPoint.from("0.05"), FixedPoint.from("2.0")]
+        ),
         ethers.utils.defaultAbiCoder.encode(["address"], [accounts[6].address]),
       ])
     );

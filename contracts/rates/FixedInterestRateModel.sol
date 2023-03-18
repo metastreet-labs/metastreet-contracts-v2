@@ -6,8 +6,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../interfaces/IInterestRateModel.sol";
 
 /**
- * @title Fixed Interest Rate Model with a constant, fixed rate used for
- * testing.
+ * @title Fixed Interest Rate Model with a constant, fixed rate.
  * @author MetaStreet Labs
  */
 contract FixedInterestRateModel is IInterestRateModel {
@@ -37,13 +36,23 @@ contract FixedInterestRateModel is IInterestRateModel {
     /**
      * @notice Fixed interest rate
      */
-    uint128 private _fixedInterestRate;
+    uint64 private _fixedInterestRate;
+
+    /**
+     * @notice Tick interest threshold
+     */
+    uint64 private _tickThreshold;
+
+    /**
+     * @notice Tick exponential base
+     */
+    uint64 private _tickExponential;
 
     /**
      * @notice Utilization
      * @dev Currently unused, but updated to simulate storage costs.
      */
-    uint128 private _utilization;
+    uint64 private _utilization;
 
     /**************************************************************************/
     /* Constructor */
@@ -70,7 +79,14 @@ contract FixedInterestRateModel is IInterestRateModel {
 
         _initialized = true;
         _owner = msg.sender;
-        _fixedInterestRate = uint128(abi.decode(params, (uint256)));
+
+        (uint64 fixedInterestRate, uint64 tickThreshold, uint64 tickExponential) = abi.decode(
+            params,
+            (uint64, uint64, uint64)
+        );
+        _fixedInterestRate = fixedInterestRate;
+        _tickThreshold = tickThreshold;
+        _tickExponential = tickExponential;
     }
 
     /**************************************************************************/
@@ -95,23 +111,57 @@ contract FixedInterestRateModel is IInterestRateModel {
      * @inheritdoc IInterestRateModel
      */
     function distribute(
+        uint256 amount,
         uint256 interest,
         ILiquidity.NodeSource[] memory nodes,
         uint16 count
-    ) external pure returns (uint128[] memory) {
-        nodes;
-        uint128[] memory distribution = new uint128[](count);
+    ) external view returns (uint128[] memory) {
+        /* Interest threshold for tick to receive interest */
+        uint256 threshold = Math.mulDiv(_tickThreshold, amount, FIXED_POINT_SCALE);
 
-        uint128 interestPerNode = uint128(Math.mulDiv(interest, FIXED_POINT_SCALE, count * FIXED_POINT_SCALE));
-        for (uint256 i; i < count; i++) {
-            distribution[i] = uint128(Math.min(interestPerNode, interest));
-            interest -= interestPerNode;
+        /* Interest weight starting at final tick */
+        uint256 base = _tickExponential;
+        uint256 weight = Math.mulDiv(FIXED_POINT_SCALE, FIXED_POINT_SCALE, base);
+
+        /* Interest normalization */
+        uint256 normalization;
+
+        /* Assign weighted interest to ticks backwards */
+        uint128[] memory pending = new uint128[](count);
+        for (uint256 i = 0; i < count; i++) {
+            uint256 index = count - i - 1;
+
+            /* Calculate contribution of this tick to total amount */
+            uint256 contribution = (nodes[index].used >= threshold)
+                ? Math.mulDiv(nodes[index].used, FIXED_POINT_SCALE, amount)
+                : 0;
+
+            /* Calculate interest weight scaled by contribution */
+            uint256 scaledWeight = Math.mulDiv(weight, contribution, FIXED_POINT_SCALE);
+
+            /* Calculate unnormalized interest to tick */
+            pending[index] = uint128(Math.mulDiv(scaledWeight, interest, FIXED_POINT_SCALE));
+
+            /* Accumulate scaled interest weight for later normalization */
+            normalization += scaledWeight;
+
+            /* Adjust interest weight for next tick */
+            weight = Math.mulDiv(weight, FIXED_POINT_SCALE, base);
         }
 
-        /* Assign any remaining interest to final node */
-        distribution[count - 1] += uint128(interest);
+        /* Normalize assigned interest */
+        for (uint256 i = 0; i < count; i++) {
+            /* Calculate normalized interest to tick */
+            pending[i] = uint128(Math.mulDiv(pending[i], FIXED_POINT_SCALE, normalization));
 
-        return distribution;
+            /* Subtract from total interest */
+            interest -= pending[i];
+        }
+
+        /* Drop off dust at lowest tick */
+        pending[0] += uint128(interest);
+
+        return pending;
     }
 
     /**
@@ -120,6 +170,6 @@ contract FixedInterestRateModel is IInterestRateModel {
     function onUtilizationUpdated(uint256 utilization) external {
         if (msg.sender != _owner) revert("Invalid caller");
 
-        _utilization = uint128(utilization);
+        _utilization = uint64(utilization);
     }
 }

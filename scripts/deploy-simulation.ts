@@ -69,7 +69,10 @@ async function main() {
       fixedInterestRateModelImpl.address,
       externalCollateralLiquidatorImpl.address,
       ethers.utils.defaultAbiCoder.encode(["address"], [baycTokenContract.address]),
-      ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.from("0.02")]),
+      ethers.utils.defaultAbiCoder.encode(
+        ["uint64", "uint64", "uint64"],
+        [FixedPoint.normalizeRate("0.02"), FixedPoint.from("0.05"), FixedPoint.from("2")]
+      ),
       ethers.utils.defaultAbiCoder.encode(["address"], [accounts[0].address]),
     ]
   );
