@@ -21,12 +21,14 @@ interface IInterestRateModel {
 
     /**
      * Distribute amount and interest to liquidity
+     * @param amount Liquidity amount
      * @param interest Interest to distribute
      * @param nodes Liquidity nodes
      * @param count Liquidity node count
      * @return Interest distribution
      */
     function distribute(
+        uint256 amount,
         uint256 interest,
         ILiquidity.NodeSource[] memory nodes,
         uint16 count

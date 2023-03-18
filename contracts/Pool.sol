@@ -632,7 +632,12 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         uint256 adminFee = Math.mulDiv(_adminFeeRate, repayment - principal, BASIS_POINTS_SCALE);
 
         /* Distribute interest */
-        uint128[] memory interest = _interestRateModel.distribute(repayment - principal - adminFee, nodes, count);
+        uint128[] memory interest = _interestRateModel.distribute(
+            principal,
+            repayment - principal - adminFee,
+            nodes,
+            count
+        );
 
         /* Build the loan receipt */
         LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.LoanReceiptV1({
