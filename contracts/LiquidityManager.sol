@@ -298,25 +298,31 @@ library LiquidityManager {
      * @param liquidity Liquidity state
      * @param amount Amount
      * @param depths Depths to source from
+     * @param itemCount Number of items for sourcing
      * @return Sourced liquidity nodes, count of nodes
      */
     function source(
         Liquidity storage liquidity,
         uint256 amount,
-        uint256[] calldata depths
+        uint256[] calldata depths,
+        uint256 itemCount
     ) internal view returns (ILiquidity.NodeSource[] memory, uint16) {
         ILiquidity.NodeSource[] memory sources = new ILiquidity.NodeSource[](depths.length);
 
         uint256 prevDepth;
         uint256 taken;
         uint256 count;
+        uint256 carry;
         for (; count < depths.length && taken != amount; count++) {
             uint256 depth = depths[count];
             if (depth <= prevDepth) revert InvalidDepths();
 
             Node storage node = liquidity.nodes[depth];
 
-            uint128 take = uint128(Math.min(Math.min(depth - taken, node.available), amount - taken));
+            uint256 depthAmount = (depth - prevDepth) * itemCount + carry;
+            uint128 take = uint128(Math.min(Math.min(depthAmount, node.available), amount - taken));
+            carry = node.available < depthAmount ? depthAmount - node.available : 0;
+
             sources[count] = ILiquidity.NodeSource({
                 depth: uint128(depth),
                 available: node.available - take,
