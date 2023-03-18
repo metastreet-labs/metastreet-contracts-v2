@@ -6,3 +6,4 @@ typechain
 coverage.json
 gasReporterOutput.json
 subgraph
+deployments
