@@ -34,8 +34,9 @@ library LoanReceipt {
 
     /**
      * @notice LoanReceiptV1 header size in bytes
+     * @dev Header excludes borrow options byte array
      */
-    uint256 internal constant LOAN_RECEIPT_V1_HEADER_SIZE = 153;
+    uint256 internal constant LOAN_RECEIPT_V1_HEADER_SIZE = 155;
 
     /**
      * @notice LoanReceiptV1 payload element size in bytes
@@ -56,6 +57,8 @@ library LoanReceipt {
      * @param duration Loan duration
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
+     * @param collateralContextLength Collateral context length
+     * @param collateralContextData Collateral context data
      * @param nodeReceipts Node receipts
      */
     struct LoanReceiptV1 {
@@ -67,6 +70,8 @@ library LoanReceipt {
         uint64 duration;
         address collateralToken;
         uint256 collateralTokenId;
+        uint16 collateralContextLength;
+        bytes collateralContextData;
         NodeReceipt[] nodeReceipts;
     }
 
@@ -88,14 +93,16 @@ library LoanReceipt {
 
     /*
       Header (153 bytes)
-          1   uint8   version               0:1
-          32  uint256 principal             1:33
-          32  uint256 repayment             33:65
-          20  address borrower              65:85
-          8   uint64  maturity              85:93
-          8   uint64  duration              93:101
-          20  address collateralToken       101:121
-          32  uint256 collateralTokenId     121:153
+          1   uint8   version                 0:1
+          32  uint256 principal               1:33
+          32  uint256 repayment               33:65
+          20  address borrower                65:85
+          8   uint64  maturity                85:93
+          8   uint64  duration                93:101
+          20  address collateralToken         101:121
+          32  uint256 collateralTokenId       121:153
+          2   uint16  collateralContextLength 153:155
+          -- borrowOptions byte array --      155:___   
 
       Node Receipts (48 * N bytes)
           N   NodeReceipts[] nodeReceipts
@@ -133,7 +140,9 @@ library LoanReceipt {
             receipt.maturity,
             receipt.duration,
             receipt.collateralToken,
-            receipt.collateralTokenId
+            receipt.collateralTokenId,
+            receipt.collateralContextLength,
+            receipt.collateralContextData
         );
 
         /* Encode node receipts */
@@ -159,8 +168,18 @@ library LoanReceipt {
     function decode(bytes calldata encodedReceipt) internal pure returns (LoanReceiptV1 memory) {
         /* Validate encoded receipt length */
         if (encodedReceipt.length < LOAN_RECEIPT_V1_HEADER_SIZE) revert InvalidReceiptEncoding();
-        if ((encodedReceipt.length - LOAN_RECEIPT_V1_HEADER_SIZE) % LOAN_RECEIPT_V1_PAYLOAD_ELEMENT_SIZE != 0)
+
+        uint16 collateralContextLength = uint16(bytes2(encodedReceipt[153:155]));
+
+        if (encodedReceipt.length < LOAN_RECEIPT_V1_HEADER_SIZE + collateralContextLength)
             revert InvalidReceiptEncoding();
+
+        if (
+            (encodedReceipt.length - LOAN_RECEIPT_V1_HEADER_SIZE - collateralContextLength) %
+                LOAN_RECEIPT_V1_PAYLOAD_ELEMENT_SIZE !=
+            0
+        ) revert InvalidReceiptEncoding();
+
         /* Validate encoded receipt version */
         if (uint8(encodedReceipt[0]) != LOAN_RECEIPT_V1_VERSION) revert UnsupportedReceiptVersion();
 
@@ -175,13 +194,19 @@ library LoanReceipt {
         receipt.duration = uint64(bytes8(encodedReceipt[93:101]));
         receipt.collateralToken = address(uint160(bytes20(encodedReceipt[101:121])));
         receipt.collateralTokenId = uint256(bytes32(encodedReceipt[121:153]));
+        receipt.collateralContextLength = uint16(bytes2(encodedReceipt[153:155]));
+        receipt.collateralContextData = encodedReceipt[155:155 + receipt.collateralContextLength];
 
         /* Decode node receipts */
-        uint256 numNodeReceipts = (encodedReceipt.length - LOAN_RECEIPT_V1_HEADER_SIZE) /
-            LOAN_RECEIPT_V1_PAYLOAD_ELEMENT_SIZE;
+        uint256 numNodeReceipts = (encodedReceipt.length -
+            LOAN_RECEIPT_V1_HEADER_SIZE -
+            receipt.collateralContextLength) / LOAN_RECEIPT_V1_PAYLOAD_ELEMENT_SIZE;
         receipt.nodeReceipts = new NodeReceipt[](numNodeReceipts);
         for (uint256 i; i < numNodeReceipts; i++) {
-            uint256 offset = LOAN_RECEIPT_V1_HEADER_SIZE + i * LOAN_RECEIPT_V1_PAYLOAD_ELEMENT_SIZE;
+            uint256 offset = LOAN_RECEIPT_V1_HEADER_SIZE +
+                receipt.collateralContextLength +
+                i *
+                LOAN_RECEIPT_V1_PAYLOAD_ELEMENT_SIZE;
             receipt.nodeReceipts[i].depth = uint128(bytes16(encodedReceipt[offset:offset + 16]));
             receipt.nodeReceipts[i].used = uint128(bytes16(encodedReceipt[offset + 16:offset + 32]));
             receipt.nodeReceipts[i].pending = uint128(bytes16(encodedReceipt[offset + 32:offset + 48]));

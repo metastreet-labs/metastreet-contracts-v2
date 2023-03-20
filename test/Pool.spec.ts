@@ -13,6 +13,7 @@ import {
   ExternalCollateralLiquidator,
   ICollateralLiquidator,
   Pool,
+  BundleCollateralWrapper,
 } from "../typechain";
 
 import { extractEvent, expectEvent } from "./helpers/EventUtilities";
@@ -36,6 +37,7 @@ describe("Pool", function () {
   let accountLender: SignerWithAddress;
   let accountLiquidator: SignerWithAddress;
   let delegationRegistry: TestDelegationRegistry;
+  let bundleCollateralWrapper: BundleCollateralWrapper;
 
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
@@ -49,6 +51,7 @@ describe("Pool", function () {
     const fixedInterestRateModelFactory = await ethers.getContractFactory("FixedInterestRateModel");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
+    const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;
@@ -78,6 +81,10 @@ describe("Pool", function () {
     delegationRegistry = await delegationRegistryFactory.deploy();
     await delegationRegistry.deployed();
 
+    /* Deploy bundle collateral wrapper */
+    bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
+    await bundleCollateralWrapper.deployed();
+
     /* Deploy pool implementation */
     const poolFactory = await ethers.getContractFactory("Pool");
     poolImpl = await poolFactory.deploy();
@@ -93,6 +100,7 @@ describe("Pool", function () {
         30 * 86400,
         45,
         delegationRegistry.address,
+        [bundleCollateralWrapper.address],
         collateralFilterImpl.address,
         interestRateModelImpl.address,
         collateralLiquidatorImpl.address,
@@ -132,13 +140,16 @@ describe("Pool", function () {
     await nft1.mint(accountBorrower.address, 123);
     await nft1.mint(accountBorrower.address, 124);
     await nft1.mint(accountBorrower.address, 125);
+
     /* Mint token to borrower */
     await tok1.transfer(accountBorrower.address, ethers.utils.parseEther("100"));
+
     /* Mint token to lender */
     await tok1.transfer(accountLender.address, ethers.utils.parseEther("1000"));
 
     /* Approve pool to transfer NFT */
     await nft1.connect(accountBorrower).setApprovalForAll(pool.address, true);
+
     /* Approve pool to tranasfer token (for repayment) */
     await tok1.connect(accountBorrower).approve(pool.address, ethers.constants.MaxUint256);
   });
@@ -155,6 +166,11 @@ describe("Pool", function () {
     it("matches expected implementation", async function () {
       expect(await pool.IMPLEMENTATION_VERSION()).to.equal("1.0");
     });
+
+    it("returns expected supported collateral wrappers", async () => {
+      const collateralWrappers = await pool.supportedCollateralWrappers();
+      expect(collateralWrappers[0]).to.equal(bundleCollateralWrapper.address);
+    });
   });
 
   describe("#deposit", async function () {
@@ -170,6 +186,7 @@ describe("Pool", function () {
         amount: ethers.utils.parseEther("1"),
         shares: ethers.utils.parseEther("1"),
       });
+
       await expectEvent(depositTx, tok1, "Transfer", {
         from: accountDepositors[0].address,
         to: pool.address,
@@ -190,6 +207,7 @@ describe("Pool", function () {
     it("successfully deposits additional", async function () {
       /* Deposit 1 */
       await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
+
       /* Deposit 2 */
       await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("2"));
 
@@ -214,6 +232,7 @@ describe("Pool", function () {
     it("fails on insolvent tick", async function () {
       /* Setup insolvent tick at 10 ETH */
       await setupInsolventTick();
+
       /* Attempt to deposit */
       await expect(
         pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"))
@@ -304,6 +323,7 @@ describe("Pool", function () {
     it("fails on invalid shares", async function () {
       /* Deposit 1 ETH */
       await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
+
       /* Redeem 1.25 shares */
       await expect(
         pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("1.25"))
@@ -313,8 +333,10 @@ describe("Pool", function () {
     it("fails on redemption in progress", async function () {
       /* Deposit 1 ETH */
       await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
+
       /* Redeem 0.5 shares */
       await pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("0.5"));
+
       /* Redeem 0.5 shares */
       await expect(
         pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("0.5"))
@@ -334,6 +356,7 @@ describe("Pool", function () {
 
       /* Deposit 1 ETH */
       await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
+
       /* Redeem 0.5 shares */
       await pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("0.5"));
 
@@ -375,10 +398,13 @@ describe("Pool", function () {
       /* Deposit */
       await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("10"));
       await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("15"), ethers.utils.parseEther("5"));
+
       /* Create loan 1 */
       const [loanReceipt1] = await createActiveLoan(ethers.utils.parseEther("3"));
+
       /* Create loan 2 */
       const [loanReceipt2] = await createActiveLoan(ethers.utils.parseEther("11"));
+
       /* Redeem 8 shares */
       await pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("8"));
 
@@ -429,10 +455,13 @@ describe("Pool", function () {
       /* Wait for loan expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+
       /* Process expiration */
       await pool.liquidate(loanReceipt);
+
       /* Withdraw collateral */
       await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
+
       /* Liquidate collateral and process liquidation */
       await collateralLiquidator.connect(accountLiquidator).liquidateCollateral(loanReceipt, ethers.constants.Zero);
 
@@ -490,6 +519,7 @@ describe("Pool", function () {
     it("withdraws fully available redemption from cash", async function () {
       /* Deposit 1 ETH */
       await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
+
       /* Redeem 0.5 shares */
       await pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("0.5"));
 
@@ -572,6 +602,7 @@ describe("Pool", function () {
 
       /* Create loan 1 */
       const [loanReceipt1] = await createActiveLoan(ethers.utils.parseEther("3"));
+
       /* Create loan 2 */
       const [loanReceipt2] = await createActiveLoan(ethers.utils.parseEther("11"));
 
@@ -644,16 +675,20 @@ describe("Pool", function () {
 
       /* Create loan */
       const [loanReceipt] = await createActiveLoan(ethers.utils.parseEther("14"));
+
       /* Redeem 5 shares */
       await pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("5"));
 
       /* Wait for loan expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+
       /* Process expiration */
       await pool.liquidate(loanReceipt);
+
       /* Withdraw collateral */
       await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
+
       /* Liquidate collateral and process liquidation */
       await collateralLiquidator.connect(accountLiquidator).liquidateCollateral(loanReceipt, ethers.constants.Zero);
 
@@ -775,7 +810,7 @@ describe("Pool", function () {
     const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
 
     let taken = ethers.constants.Zero;
-    for (let node of nodes) {
+    for (const node of nodes) {
       const take = minBN(minBN(node.depth.sub(taken), node.available), amount.sub(taken));
       if (take.isZero()) continue;
       depths.push(node.depth);
@@ -818,14 +853,49 @@ describe("Pool", function () {
         : (await nft1.ownerOf(124)) === accountBorrower.address
         ? 124
         : 125;
-    const repayment = await pool.quote(principal, duration, [tokenId], "0x");
+
+    const repayment = await pool["quote(uint256,uint64,uint256[])"](principal, duration, [tokenId]);
 
     const borrowTx = await pool
       .connect(accountBorrower)
-      .borrow(principal, duration, [tokenId], repayment, await sourceLiquidity(principal), "0x");
+      .borrow(principal, duration, nft1.address, tokenId, repayment, await sourceLiquidity(principal), "0x");
     const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
     const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
     return [loanReceipt, loanReceiptHash];
+  }
+
+  async function createActiveBundleLoan(
+    principal: ethers.BigNumber,
+    duration?: number = 30 * 86400
+  ): Promise<[string, string, ethers.BigNumbe]> {
+    /* Mint bundle */
+    await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
+    const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
+    const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+
+    await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
+
+    /* Borrow */
+    const borrowTx = await pool
+      .connect(accountBorrower)
+      .borrow(
+        ethers.utils.parseEther("25"),
+        30 * 86400,
+        bundleCollateralWrapper.address,
+        bundleTokenId,
+        ethers.utils.parseEther("26"),
+        await sourceLiquidity(ethers.utils.parseEther("25")),
+        ethers.utils.solidityPack(
+          ["uint16", "uint16", "address", "uint256[]"],
+          [2, 20 + 32 * 3, nft1.address, [123, 124, 125]]
+        )
+      );
+
+    /* Extract loan receipt */
+    const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
+    const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+
+    return [loanReceipt, loanReceiptHash, bundleTokenId];
   }
 
   async function createExpiredLoan(principal: ethers.BigNumber): Promise<[string, string]> {
@@ -839,7 +909,7 @@ describe("Pool", function () {
     return [loanReceipt, loanReceiptHash];
   }
 
-  async function createRepaidLoan(principal: ethers.BigNumber): Promise<string> {
+  async function createRepaidLoan(principal: ethers.BigNumber): Promise<[string, string]> {
     /* Create active loan */
     const [loanReceipt, loanReceiptHash] = await createActiveLoan(principal);
 
@@ -885,11 +955,16 @@ describe("Pool", function () {
   describe("#setAdminFeeRate", async function () {
     it("sets admin fee rate successfully", async function () {
       const rate = 500;
+
+      /* Set admin fee rate */
       const tx = await pool.setAdminFeeRate(rate);
 
+      /* Validate events */
       await expectEvent(tx, pool, "AdminFeeRateUpdated", {
         rate: rate,
       });
+
+      /* Validate rate was successfully set */
       expect(await pool.adminFeeRate()).to.equal(rate);
     });
 
@@ -917,20 +992,19 @@ describe("Pool", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x");
+      const repayment = await pool["quote(uint256,uint64,uint256[])"](ethers.utils.parseEther("25"), 30 * 86400, [123]);
 
       /* Borrow */
-      const encodedAddress = ethers.utils.defaultAbiCoder.encode(["address"], [accountBorrower.address]);
-
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
           ethers.utils.parseEther("25"),
           30 * 86400,
-          [123],
+          nft1.address,
+          123,
           ethers.utils.parseEther("26"),
           await sourceLiquidity(ethers.utils.parseEther("25")),
-          ethers.utils.solidityPack(["uint16", "bytes"], [1, encodedAddress])
+          "0x"
         );
 
       /* Extract loan receipt */
@@ -948,7 +1022,7 @@ describe("Pool", function () {
         totalPending = totalPending.add(nodeReceipt.pending);
       }
 
-      /* calculate admin fee */
+      /* Calculate admin fee */
       const adminFee = (await pool.adminFeeRate()).mul(repayment.sub(ethers.utils.parseEther("25"))).div(10000);
 
       /* Validate used and pending totals */
@@ -958,19 +1032,19 @@ describe("Pool", function () {
       /* Validate loan state */
       expect(await pool.loans(loanReceiptHash)).to.equal(1);
 
-      /* repay */
+      /* Repay */
       elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber());
       await pool.connect(accountBorrower).repay(loanReceipt);
 
-      /* validate total adminFee balance */
+      /* Validate total adminFee balance */
       expect(await pool.adminFeeBalance()).to.equal(adminFee);
 
       const startingBalance = await tok1.balanceOf(accounts[1].address);
 
-      /* withdraw */
+      /* Withdraw */
       const withdrawTx = await pool.withdrawAdminFees(accounts[1].address, adminFee);
 
-      /* validate events */
+      /* Validate events */
       await expectEvent(withdrawTx, tok1, "Transfer", {
         from: pool.address,
         to: accounts[1].address,
@@ -982,32 +1056,30 @@ describe("Pool", function () {
         amount: adminFee,
       });
 
-      /* validate balance in account */
+      /* Validate balance in account */
       expect(await tok1.balanceOf(accounts[1].address)).to.equal(startingBalance.add(adminFee));
 
-      /* validate total admin fee balance */
+      /* Validate total admin fee balance */
       expect(await pool.adminFeeBalance()).to.equal(0);
     });
 
     it("withdraws admin fees with repayment after one third of loan maturity", async function () {
-      /* set admin fee */
+      /* Set admin fee */
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x");
-
-      /* Borrow */
-      const encodedAddress = ethers.utils.defaultAbiCoder.encode(["address"], [accountBorrower.address]);
+      const repayment = await pool["quote(uint256,uint64,uint256[])"](ethers.utils.parseEther("25"), 30 * 86400, [123]);
 
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
           ethers.utils.parseEther("25"),
           30 * 86400,
-          [123],
+          nft1.address,
+          123,
           ethers.utils.parseEther("26"),
           await sourceLiquidity(ethers.utils.parseEther("25")),
-          ethers.utils.solidityPack(["uint16", "bytes"], [1, encodedAddress])
+          "0x"
         );
 
       /* Extract loan receipt */
@@ -1026,31 +1098,32 @@ describe("Pool", function () {
       /* Validate loan state */
       expect(await pool.loans(loanReceiptHash)).to.equal(1);
 
-      /* repay */
+      /* Repay */
       elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - (2 * 30 * 86400) / 3);
       await pool.connect(accountBorrower).repay(loanReceipt);
 
-      /* validate total adminFee balance */
+      /* Validate total adminFee balance */
       expect(await pool.adminFeeBalance()).to.be.closeTo(adminFee, 1);
 
-      /* withdraw */
+      /* Withdraw */
       const withdrawTx = await pool.withdrawAdminFees(accounts[1].address, adminFee.sub(1));
 
-      /* validate events */
+      /* Validate events */
       await expectEvent(withdrawTx, pool, "AdminFeesWithdrawn", {
         account: accounts[1].address,
         amount: adminFee.sub(1),
       });
 
-      /* validate total admin fee balance */
+      /* Validate total admin fee balance */
       expect(await pool.adminFeeBalance()).to.equal(0);
     });
 
     it("fails on invalid caller", async function () {
-      /* set admin fee */
+      /* Set admin fee */
       await pool.setAdminFeeRate(500);
 
-      await createRepaidLoan(ethers.utils.parseEther("25"), ethers.utils.parseEther("26"));
+      /* Create repaid loan */
+      await createRepaidLoan(ethers.utils.parseEther("25"));
 
       await expect(
         pool.connect(accounts[1]).withdrawAdminFees(accounts[1].address, ethers.utils.parseEther("0.00001"))
@@ -1058,10 +1131,11 @@ describe("Pool", function () {
     });
 
     it("fails on invalid address", async function () {
-      /* set admin fee */
+      /* Set admin fee */
       await pool.setAdminFeeRate(500);
 
-      await createRepaidLoan(ethers.utils.parseEther("25"), ethers.utils.parseEther("26"));
+      /* Create repaid loan */
+      await createRepaidLoan(ethers.utils.parseEther("25"));
 
       await expect(
         pool.withdrawAdminFees(ethers.constants.AddressZero, ethers.utils.parseEther("0.00001"))
@@ -1072,7 +1146,8 @@ describe("Pool", function () {
       /* set admin fee */
       await pool.setAdminFeeRate(500);
 
-      await createRepaidLoan(ethers.utils.parseEther("25"), ethers.utils.parseEther("26"));
+      /* Create repaid loan */
+      await createRepaidLoan(ethers.utils.parseEther("25"));
 
       await expect(
         pool.withdrawAdminFees(accounts[1].address, ethers.utils.parseEther("10"))
@@ -1088,20 +1163,73 @@ describe("Pool", function () {
     beforeEach("setup liquidity", async function () {
       await setupLiquidity();
     });
+
     it("correctly quotes repayment", async function () {
-      expect(await pool.quote(ethers.utils.parseEther("10"), 30 * 86400, [123], "0x")).to.equal(
+      expect(await pool["quote(uint256,uint64,uint256[])"](ethers.utils.parseEther("10"), 30 * 86400, [123])).to.equal(
         ethers.utils.parseEther("10.061438356146880000")
       );
-      expect(await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x")).to.equal(
+
+      expect(await pool["quote(uint256,uint64,uint256[])"](ethers.utils.parseEther("25"), 30 * 86400, [123])).to.equal(
         ethers.utils.parseEther("25.153595890367200000")
       );
     });
-    it("fails on insufficient liquidity", async function () {
-      await expect(pool.quote(ethers.utils.parseEther("100"), 30 * 86400, [123], "0x")).to.be.revertedWithCustomError(
-        pool,
-        "InsufficientLiquidity"
-      );
+
+    it("bundle loan correctly quotes repayment", async function () {
+      /* Mint bundle */
+      await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
+      const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
+      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+
+      /* Set approvals */
+      await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
+
+      expect(
+        await pool["quote(uint256,uint64,address,uint256,bytes)"](
+          ethers.utils.parseEther("10"),
+          30 * 86400,
+          bundleCollateralWrapper.address,
+          bundleTokenId,
+          ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 124, 125]])
+        )
+      ).to.equal(ethers.utils.parseEther("10.061438356146880000"));
+
+      expect(
+        await pool["quote(uint256,uint64,address,uint256,bytes)"](
+          ethers.utils.parseEther("25"),
+          30 * 86400,
+          bundleCollateralWrapper.address,
+          bundleTokenId,
+          ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 124, 125]])
+        )
+      ).to.equal(ethers.utils.parseEther("25.153595890367200000"));
     });
+
+    it("fails on insufficient liquidity", async function () {
+      await expect(
+        pool["quote(uint256,uint64,uint256[])"](ethers.utils.parseEther("100"), 30 * 86400, [123])
+      ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
+    });
+
+    it("bundle loan fails on insufficient liquidity", async function () {
+      /* Mint bundle */
+      await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
+      const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
+      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+
+      /* Set approvals */
+      await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
+
+      await expect(
+        pool["quote(uint256,uint64,address,uint256,bytes)"](
+          ethers.utils.parseEther("1000"),
+          30 * 86400,
+          bundleCollateralWrapper.address,
+          bundleTokenId,
+          ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 124, 125]])
+        )
+      ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
+    });
+
     it("fails on unsupported collateral", async function () {
       /* FIXME implement */
     });
@@ -1109,13 +1237,34 @@ describe("Pool", function () {
 
   describe("#quoteRefinance", async function () {
     let loanReceipt: string;
-    let loanReceiptHash: string;
 
-    beforeEach("setup liquidity and borrow", async function () {
+    beforeEach("setup liquidity", async function () {
       await setupLiquidity();
-      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
     });
+
     it("correctly quotes refinance payment and repayment at original loan maturity with same principal", async function () {
+      /* Create Loan */
+      [loanReceipt] = await createActiveLoan(ethers.utils.parseEther("25"));
+
+      // Get decoded loan receipt
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      // Fast forward to maturity timestamp
+      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
+      await network.provider.send("evm_mine");
+
+      // Get quote
+      const [payment, repayment] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("25"), 30 * 86400);
+
+      // Validate quote
+      expect(repayment).to.equal(decodedLoanReceipt.repayment);
+      expect(payment).to.equal(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("25")));
+    });
+
+    it("correctly quotes refinance payment and repayment at original bundle loan maturity with same principal", async function () {
+      /* Create Loan */
+      [loanReceipt] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
+
       // Get decoded loan receipt
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
@@ -1132,6 +1281,27 @@ describe("Pool", function () {
     });
 
     it("correctly quotes refinance payment and repayment at original loan maturity with smaller principal (1 ETH less)", async function () {
+      /* Create Loan */
+      [loanReceipt] = await createActiveLoan(ethers.utils.parseEther("25"));
+
+      // Get decoded loan receipt
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      // Fast forward to maturity timestamp
+      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
+      await network.provider.send("evm_mine");
+
+      // Get quote
+      const [payment, _] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("24"), 30 * 86400);
+
+      // Validate quote
+      expect(payment).to.equal(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("24")));
+    });
+
+    it("correctly quotes refinance payment and repayment at original bundle loan maturity with smaller principal (1 ETH less)", async function () {
+      /* Create Loan */
+      [loanReceipt] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
+
       // Get decoded loan receipt
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
@@ -1147,6 +1317,9 @@ describe("Pool", function () {
     });
 
     it("correctly quotes refinance payment and repayment at original loan maturity with bigger principal (1 ETH more)", async function () {
+      /* Create Loan */
+      [loanReceipt] = await createActiveLoan(ethers.utils.parseEther("25"));
+
       // Get decoded loan receipt
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
@@ -1160,6 +1333,25 @@ describe("Pool", function () {
       // Validate quote
       expect(payment).to.equal(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("26")));
     });
+
+    it("correctly quotes refinance payment and repayment at original bundle loan maturity with bigger principal (1 ETH more)", async function () {
+      /* Create Loan */
+      [loanReceipt] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
+
+      // Get decoded loan receipt
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      // Fast forward to maturity timestamp
+      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
+      await network.provider.send("evm_mine");
+
+      // Get quote
+      const [payment] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("26"), 30 * 86400);
+
+      // Validate quote
+      expect(payment).to.equal(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("26")));
+    });
+
     it("fails on insufficient liquidity", async function () {
       await expect(
         pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("100"), 30 * 86400)
@@ -1174,7 +1366,7 @@ describe("Pool", function () {
 
     it("originates loan", async function () {
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x");
+      const repayment = await pool["quote(uint256,uint64,uint256[])"](ethers.utils.parseEther("25"), 30 * 86400, [123]);
 
       /* Simulate borrow */
       const returnVal = await pool
@@ -1182,7 +1374,8 @@ describe("Pool", function () {
         .callStatic.borrow(
           ethers.utils.parseEther("25"),
           30 * 86400,
-          [123],
+          nft1.address,
+          123,
           ethers.utils.parseEther("26"),
           await sourceLiquidity(ethers.utils.parseEther("25")),
           "0x"
@@ -1194,7 +1387,8 @@ describe("Pool", function () {
         .borrow(
           ethers.utils.parseEther("25"),
           30 * 86400,
-          [123],
+          nft1.address,
+          123,
           ethers.utils.parseEther("26"),
           await sourceLiquidity(ethers.utils.parseEther("25")),
           "0x"
@@ -1253,9 +1447,22 @@ describe("Pool", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(1);
     });
 
-    it("originates loan with delegation", async function () {
+    it("originates bundle loan", async function () {
+      /* Mint bundle */
+      await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
+      const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
+      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x");
+      const repayment = await pool["quote(uint256,uint64,address,uint256,bytes)"](
+        ethers.utils.parseEther("25"),
+        30 * 86400,
+        bundleCollateralWrapper.address,
+        bundleTokenId,
+        ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 124, 125]])
+      );
+
+      await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
 
       /* Simulate borrow */
       const returnVal = await pool
@@ -1263,10 +1470,14 @@ describe("Pool", function () {
         .callStatic.borrow(
           ethers.utils.parseEther("25"),
           30 * 86400,
-          [123],
+          bundleCollateralWrapper.address,
+          bundleTokenId,
           ethers.utils.parseEther("26"),
           await sourceLiquidity(ethers.utils.parseEther("25")),
-          ethers.utils.solidityPack(["uint16", "bytes32"], [1, ethers.utils.zeroPad(accountBorrower.address, 32)])
+          ethers.utils.solidityPack(
+            ["uint16", "uint16", "address", "uint256[]"],
+            [2, 20 + 32 * 3, nft1.address, [123, 124, 125]]
+          )
         );
 
       /* Borrow */
@@ -1275,10 +1486,107 @@ describe("Pool", function () {
         .borrow(
           ethers.utils.parseEther("25"),
           30 * 86400,
-          [123],
+          bundleCollateralWrapper.address,
+          bundleTokenId,
           ethers.utils.parseEther("26"),
           await sourceLiquidity(ethers.utils.parseEther("25")),
-          ethers.utils.solidityPack(["uint16", "bytes32"], [1, ethers.utils.zeroPad(accountBorrower.address, 32)])
+          ethers.utils.solidityPack(
+            ["uint16", "uint16", "address", "uint256[]"],
+            [2, 20 + 32 * 3, nft1.address, [123, 124, 125]]
+          )
+        );
+
+      /* Validate return value from borrow() */
+      expect(returnVal).to.equal(repayment);
+
+      /* Validate events */
+      await expectEvent(mintTx, bundleCollateralWrapper, "Transfer", {
+        from: ethers.constants.AddressZero,
+        to: accountBorrower.address,
+        tokenId: bundleTokenId,
+      });
+
+      await expectEvent(borrowTx, bundleCollateralWrapper, "Transfer", {
+        from: accountBorrower.address,
+        to: pool.address,
+        tokenId: bundleTokenId,
+      });
+
+      await expectEvent(borrowTx, tok1, "Transfer", {
+        from: pool.address,
+        to: accountBorrower.address,
+        value: ethers.utils.parseEther("25"),
+      });
+
+      await expect(borrowTx).to.emit(pool, "LoanOriginated");
+
+      /* Extract loan receipt */
+      const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
+      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+
+      /* Validate hash */
+      expect(loanReceiptHash).to.equal(await loanReceiptLib.hash(loanReceipt));
+
+      /* Validate loan receipt */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+      expect(decodedLoanReceipt.version).to.equal(1);
+      expect(decodedLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedLoanReceipt.maturity).to.equal(
+        (await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp + 30 * 86400
+      );
+      expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
+      expect(decodedLoanReceipt.collateralToken).to.equal(bundleCollateralWrapper.address);
+      expect(decodedLoanReceipt.collateralTokenId).to.equal(bundleTokenId);
+      expect(decodedLoanReceipt.collateralContextLength).to.equal(20 + 32 * 3);
+      expect(decodedLoanReceipt.collateralContextData).to.equal(
+        ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 124, 125]])
+      );
+      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
+
+      /* Sum used and pending totals from node receipts */
+      let totalUsed = ethers.constants.Zero;
+      let totalPending = ethers.constants.Zero;
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+        totalUsed = totalUsed.add(nodeReceipt.used);
+        totalPending = totalPending.add(nodeReceipt.pending);
+      }
+
+      /* Validate used and pending totals */
+      expect(totalUsed).to.equal(ethers.utils.parseEther("25"));
+      expect(totalPending).to.equal(repayment);
+
+      /* Validate loan state */
+      expect(await pool.loans(loanReceiptHash)).to.equal(1);
+    });
+
+    it("originates loan with delegation", async function () {
+      /* Quote repayment */
+      const repayment = await pool["quote(uint256,uint64,uint256[])"](ethers.utils.parseEther("25"), 30 * 86400, [123]);
+
+      /* Simulate borrow */
+      const returnVal = await pool
+        .connect(accountBorrower)
+        .callStatic.borrow(
+          ethers.utils.parseEther("25"),
+          30 * 86400,
+          nft1.address,
+          123,
+          ethers.utils.parseEther("26"),
+          await sourceLiquidity(ethers.utils.parseEther("25")),
+          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [1, 20, accountBorrower.address])
+        );
+
+      /* Borrow */
+      const borrowTx = await pool
+        .connect(accountBorrower)
+        .borrow(
+          ethers.utils.parseEther("25"),
+          30 * 86400,
+          nft1.address,
+          123,
+          ethers.utils.parseEther("26"),
+          await sourceLiquidity(ethers.utils.parseEther("25")),
+          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [1, 20, accountBorrower.address])
         );
 
       /* Validate return value from borrow() */
@@ -1348,24 +1656,23 @@ describe("Pool", function () {
     });
 
     it("originates loan with admin fee", async function () {
-      /* set admin fee */
+      /* Set admin fee */
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x");
+      const repayment = await pool["quote(uint256,uint64,uint256[])"](ethers.utils.parseEther("25"), 30 * 86400, [123]);
 
       /* Simulate borrow */
-      const encodedAddress = ethers.utils.defaultAbiCoder.encode(["address"], [accountBorrower.address]);
-
       const returnVal = await pool
         .connect(accountBorrower)
         .callStatic.borrow(
           ethers.utils.parseEther("25"),
           30 * 86400,
-          [123],
+          nft1.address,
+          123,
           ethers.utils.parseEther("26"),
           await sourceLiquidity(ethers.utils.parseEther("25")),
-          ethers.utils.solidityPack(["uint16", "bytes"], [1, encodedAddress])
+          "0x"
         );
 
       /* Borrow */
@@ -1374,10 +1681,11 @@ describe("Pool", function () {
         .borrow(
           ethers.utils.parseEther("25"),
           30 * 86400,
-          [123],
+          nft1.address,
+          123,
           ethers.utils.parseEther("26"),
           await sourceLiquidity(ethers.utils.parseEther("25")),
-          ethers.utils.solidityPack(["uint16", "bytes"], [1, encodedAddress])
+          "0x"
         );
 
       /* Validate return value from borrow() */
@@ -1397,14 +1705,6 @@ describe("Pool", function () {
       });
 
       await expect(borrowTx).to.emit(pool, "LoanOriginated");
-
-      await expectEvent(borrowTx, delegationRegistry, "DelegateForToken", {
-        vault: pool.address,
-        delegate: accountBorrower.address,
-        contract_: nft1.address,
-        tokenId: 123,
-        value: true,
-      });
 
       /* Extract loan receipt */
       const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
@@ -1435,7 +1735,7 @@ describe("Pool", function () {
         totalPending = totalPending.add(nodeReceipt.pending);
       }
 
-      /* calculate admin fee */
+      /* Calculate admin fee */
       const adminFee = (await pool.adminFeeRate()).mul(repayment.sub(ethers.utils.parseEther("25"))).div(10000);
 
       /* Validate used and pending totals */
@@ -1446,16 +1746,11 @@ describe("Pool", function () {
       /* Validate loan state */
       expect(await pool.loans(loanReceiptHash)).to.equal(1);
 
-      /* Validate delegation */
-      expect(
-        await delegationRegistry.checkDelegateForToken(accountBorrower.address, pool.address, nft1.address, 123)
-      ).to.equal(true);
-
-      /* repay */
+      /* Repay */
       elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber());
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
-      /* validate total adminFee balance */
+      /* Validate total adminFee balance */
       expect(await pool.adminFeeBalance()).to.equal(adminFee);
 
       /* Validate events */
@@ -1466,6 +1761,34 @@ describe("Pool", function () {
 
       /* Validate state */
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
+    });
+
+    it("fails on bundle with invalid option encoding", async function () {
+      /* Mint bundle */
+      await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
+      const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
+      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+
+      /* Set approvals */
+      await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
+
+      /* Set length of tokenId to 31 instead of 32 */
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .borrow(
+            ethers.utils.parseEther("25"),
+            30 * 86400,
+            bundleCollateralWrapper.address,
+            bundleTokenId,
+            ethers.utils.parseEther("26"),
+            await sourceLiquidity(ethers.utils.parseEther("25")),
+            ethers.utils.solidityPack(
+              ["uint16", "uint16", "address", "uint256[]"],
+              [2, 20 + 31 * 3, nft1.address, [123, 124, 125]]
+            )
+          )
+      ).to.be.revertedWithCustomError(bundleCollateralWrapper, "InvalidContext");
     });
 
     it("fails on unsupported collateral", async function () {
@@ -1479,7 +1802,8 @@ describe("Pool", function () {
           .borrow(
             ethers.utils.parseEther("25"),
             30 * 86400,
-            [123],
+            nft1.address,
+            123,
             ethers.utils.parseEther("25.01"),
             await sourceLiquidity(ethers.utils.parseEther("25")),
             "0x"
@@ -1494,65 +1818,24 @@ describe("Pool", function () {
           .borrow(
             ethers.utils.parseEther("30"),
             30 * 86400,
-            [123],
+            nft1.address,
+            123,
             ethers.utils.parseEther("31"),
             await sourceLiquidity(ethers.utils.parseEther("25")),
             "0x"
           )
       ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
     });
-
-    it("fails on invalid borrow options encoding", async function () {
-      await expect(
-        pool
-          .connect(accountBorrower)
-          .borrow(
-            ethers.utils.parseEther("25"),
-            30 * 86400,
-            [123],
-            ethers.utils.parseEther("26"),
-            await sourceLiquidity(ethers.utils.parseEther("25")),
-            ethers.utils.solidityPack(["uint16", "bytes"], [1, ethers.utils.zeroPad("0x12341234", 31)])
-          )
-      ).to.be.revertedWithCustomError(pool, "InvalidBorrowOptionsEncoding");
-    });
-
-    it("fails on delegating multiple wallets", async function () {
-      await expect(
-        pool
-          .connect(accountBorrower)
-          .borrow(
-            ethers.utils.parseEther("25"),
-            30 * 86400,
-            [123],
-            ethers.utils.parseEther("26"),
-            await sourceLiquidity(ethers.utils.parseEther("25")),
-            ethers.utils.solidityPack(
-              ["uint16", "bytes32", "uint16", "bytes32"],
-              [
-                1,
-                ethers.utils.zeroPad(accountBorrower.address, 32),
-                1,
-                ethers.utils.zeroPad(accountDepositors[0].address, 32),
-              ]
-            )
-          )
-      )
-        .to.be.revertedWithCustomError(pool, "InvalidBorrowOptions")
-        .withArgs(1);
-    });
   });
 
   describe("#repay", async function () {
-    let loanReceipt: string;
-    let loanReceiptHash: string;
-
     beforeEach("setup liquidity and borrow", async function () {
       await setupLiquidity();
-      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
     });
 
     it("repays loan at maturity", async function () {
+      const [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
+
       /* Get decoded receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
@@ -1597,7 +1880,94 @@ describe("Pool", function () {
       expect(liquidityStatistics[1]).to.equal(ethers.constants.Zero);
     });
 
+    it("repays bundle loan at maturity", async function () {
+      await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
+      const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [124, 125]);
+      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+
+      expect(await bundleCollateralWrapper.ownerOf(bundleTokenId)).to.equal(accountBorrower.address);
+
+      /* Quote repayment */
+      const repayment = await pool["quote(uint256,uint64,address,uint256,bytes)"](
+        ethers.utils.parseEther("25"),
+        30 * 86400,
+        bundleCollateralWrapper.address,
+        bundleTokenId,
+        ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [124, 125]])
+      );
+
+      await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
+
+      const borrowTx = await pool
+        .connect(accountBorrower)
+        .borrow(
+          ethers.utils.parseEther("25"),
+          30 * 86400,
+          bundleCollateralWrapper.address,
+          bundleTokenId,
+          repayment,
+          await sourceLiquidity(ethers.utils.parseEther("25")),
+          ethers.utils.solidityPack(
+            ["uint16", "uint16", "address", "uint256[]"],
+            [2, 20 + 32 * 2, nft1.address, [124, 125]]
+          )
+        );
+
+      expect(await bundleCollateralWrapper.ownerOf(bundleTokenId)).to.equal(pool.address);
+
+      const bundleLoanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+      const bundleLoanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
+
+      /* Get decoded receipt */
+      const decodedLoanReceipt = await loanReceiptLib.decode(bundleLoanReceipt);
+
+      /* Repay */
+      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber());
+      const repayTx = await pool.connect(accountBorrower).repay(bundleLoanReceipt);
+
+      /* Validate events */
+      await expectEvent(repayTx, tok1, "Transfer", {
+        from: accountBorrower.address,
+        to: pool.address,
+        value: decodedLoanReceipt.repayment,
+      });
+
+      await expectEvent(repayTx, bundleCollateralWrapper, "Transfer", {
+        from: pool.address,
+        to: accountBorrower.address,
+        tokenId: bundleTokenId,
+      });
+
+      await expectEvent(repayTx, pool, "LoanRepaid", {
+        loanReceiptHash: bundleLoanReceiptHash,
+        repayment: decodedLoanReceipt.repayment,
+      });
+
+      /* Validate state */
+      expect(await pool.loans(bundleLoanReceiptHash)).to.equal(2);
+
+      /* Validate ticks and liquidity statistics */
+      let totalPending = ethers.constants.Zero;
+      let totalUsed = ethers.constants.Zero;
+      const liquidityStatistics = await pool.liquidityStatistics();
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+        const node = await pool.liquidityNode(nodeReceipt.depth);
+        const value = ethers.utils.parseEther("25").add(nodeReceipt.pending).sub(nodeReceipt.used);
+        // expect(node.value).to.equal(value);
+        expect(node.available).to.equal(value);
+        // expect(node.pending).to.equal(ethers.constants.Zero);
+        totalPending = totalPending.add(nodeReceipt.pending);
+        totalUsed = totalUsed.add(nodeReceipt.used);
+      }
+
+      expect(liquidityStatistics[0]).to.equal(ethers.utils.parseEther("25").mul(16).add(totalPending.sub(totalUsed)));
+      expect(liquidityStatistics[1]).to.equal(ethers.constants.Zero);
+
+      expect(await bundleCollateralWrapper.ownerOf(bundleTokenId)).to.equal(accountBorrower.address);
+    });
+
     it("repays loan after one third of original loan duration has elasped", async function () {
+      const [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Repay */
@@ -1619,11 +1989,13 @@ describe("Pool", function () {
         to: pool.address,
         value: repayment.sub(1),
       });
+
       await expectEvent(repayTx, nft1, "Transfer", {
         from: pool.address,
         to: accountBorrower.address,
         tokenId: 123,
       });
+
       await expectEvent(repayTx, pool, "LoanRepaid", {
         loanReceiptHash,
         repayment: repayment.sub(1) /* FIXME rounding */,
@@ -1654,6 +2026,7 @@ describe("Pool", function () {
     });
 
     it("repays loan after 8 / 9 of original loan duration has elasped", async function () {
+      const [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Repay */
@@ -1711,6 +2084,7 @@ describe("Pool", function () {
     });
 
     it("repays loan after 1 second loan duration has elasped", async function () {
+      const [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Repay */
@@ -1732,11 +2106,13 @@ describe("Pool", function () {
         to: pool.address,
         value: repayment.sub(1),
       });
+
       await expectEvent(repayTx, nft1, "Transfer", {
         from: pool.address,
         to: accountBorrower.address,
         tokenId: 123,
       });
+
       await expectEvent(repayTx, pool, "LoanRepaid", {
         loanReceiptHash,
         repayment: repayment.sub(1),
@@ -1770,8 +2146,6 @@ describe("Pool", function () {
     });
 
     it("repays with admin fee", async function () {
-      await setupLiquidity();
-
       pool.setAdminFeeRate(500);
 
       const borrowTx = await pool
@@ -1779,13 +2153,14 @@ describe("Pool", function () {
         .borrow(
           ethers.utils.parseEther("25"),
           30 * 86400,
-          [124],
+          nft1.address,
+          124,
           ethers.utils.parseEther("26"),
           await sourceLiquidity(ethers.utils.parseEther("25")),
           "0x"
         );
-      loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-      loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
+      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+      const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
 
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
@@ -1804,6 +2179,7 @@ describe("Pool", function () {
         to: pool.address,
         value: repayment,
       });
+
       await expectEvent(repayTx, nft1, "Transfer", {
         from: pool.address,
         to: accountBorrower.address,
@@ -1814,11 +2190,53 @@ describe("Pool", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
     });
 
+    it("repays removes delegation", async function () {
+      /* Borrow */
+      const borrowTx = await pool
+        .connect(accountBorrower)
+        .borrow(
+          ethers.utils.parseEther("25"),
+          30 * 86400,
+          nft1.address,
+          124,
+          ethers.utils.parseEther("26"),
+          await sourceLiquidity(ethers.utils.parseEther("25")),
+          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [1, 20, accountBorrower.address])
+        );
+
+      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+      const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
+
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      /* Repay */
+      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await pool.connect(accountBorrower).repay(loanReceipt);
+
+      /* Validate events */
+      await expectEvent(borrowTx, delegationRegistry, "DelegateForToken", {
+        vault: pool.address,
+        delegate: accountBorrower.address,
+        contract_: nft1.address,
+        tokenId: 124,
+        value: true,
+      });
+
+      /* Validate loan state */
+      expect(await pool.loans(loanReceiptHash)).to.equal(2);
+      expect(
+        await delegationRegistry.checkDelegateForToken(accountBorrower.address, pool.address, nft1.address, 124)
+      ).to.equal(false);
+    });
+
     it("fails on invalid caller", async function () {
+      const [loanReceipt] = await createActiveLoan(ethers.utils.parseEther("25"));
       await expect(pool.connect(accountLender).repay(loanReceipt)).to.be.revertedWithCustomError(pool, "InvalidCaller");
     });
 
     it("fails on expired loan", async function () {
+      const [loanReceipt] = await createActiveLoan(ethers.utils.parseEther("25"));
+
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
@@ -1833,6 +2251,7 @@ describe("Pool", function () {
     });
 
     it("fails on repaid loan", async function () {
+      const [loanReceipt] = await createActiveLoan(ethers.utils.parseEther("25"));
       await pool.connect(accountBorrower).repay(loanReceipt);
       await expect(pool.connect(accountBorrower).repay(loanReceipt)).to.be.revertedWithCustomError(
         pool,
@@ -1841,6 +2260,8 @@ describe("Pool", function () {
     });
 
     it("fails on liquidated loan", async function () {
+      const [loanReceipt] = await createActiveLoan(ethers.utils.parseEther("25"));
+
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
@@ -1858,14 +2279,19 @@ describe("Pool", function () {
   describe("#refinance", async function () {
     let loanReceipt: string;
     let loanReceiptHash: string;
+    let bundleTokenId: ethers.BigNumber;
 
-    beforeEach("setup liquidity and borrow", async function () {
+    beforeEach("setup liquidity", async function () {
       await setupLiquidity();
-      pool.setAdminFeeRate(500);
-      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
     });
 
     it("refinance loan at maturity with delegation, admin fee, and same principal as original loan", async function () {
+      /* Set Admin Fee */
+      pool.setAdminFeeRate(500);
+
+      /* Create Loan */
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
+
       /* Get decoded receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
@@ -1883,7 +2309,7 @@ describe("Pool", function () {
       const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
 
-      /* calculate admin fee */
+      /* Calculate admin fee */
       const adminFee = (await pool.adminFeeRate())
         .mul(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("25")))
         .div(10000);
@@ -1936,6 +2362,12 @@ describe("Pool", function () {
     });
 
     it("refinance loan at maturity with delegation, admin fee and where new principal is 1 ETH less than original loan", async function () {
+      /* Set Admin Fee */
+      pool.setAdminFeeRate(500);
+
+      /* Create Loan */
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
+
       /* Get decoded receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
@@ -1953,7 +2385,7 @@ describe("Pool", function () {
       const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
 
-      /* calculate admin fee */
+      /* Calculate admin fee */
       const adminFee = (await pool.adminFeeRate())
         .mul(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("25")))
         .div(10000);
@@ -2006,6 +2438,12 @@ describe("Pool", function () {
     });
 
     it("refinance loan at maturity with delegation, admin fee and where new principal is 1 ETH more than original loan", async function () {
+      /* Set Admin Fee */
+      pool.setAdminFeeRate(500);
+
+      /* Create Loan */
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
+
       /* Get decoded receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
@@ -2023,7 +2461,7 @@ describe("Pool", function () {
       const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
 
-      /* calculate admin fee */
+      /* Calculate admin fee */
       const adminFee = (await pool.adminFeeRate())
         .mul(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("25")))
         .div(10000);
@@ -2075,7 +2513,119 @@ describe("Pool", function () {
       expect(liquidityStatistics[1]).to.equal(decodedLoanReceipt.principal.add(ethers.utils.parseEther("1")));
     });
 
+    it("refinance bundle loan at maturity admin fee, and same principal as original loan", async function () {
+      /* Set Admin Fee */
+      pool.setAdminFeeRate(500);
+
+      /* Create Loan */
+      [loanReceipt, loanReceiptHash, bundleTokenId] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
+
+      /* Get decoded receipt */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      /* Refinance */
+      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
+      const refinanceTx = await pool
+        .connect(accountBorrower)
+        .refinance(
+          loanReceipt,
+          decodedLoanReceipt.principal,
+          15 * 86400,
+          ethers.utils.parseEther("26"),
+          await sourceLiquidity(ethers.utils.parseEther("25"))
+        );
+      const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
+      const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
+
+      /* Calculate admin fee */
+      const adminFee = (await pool.adminFeeRate())
+        .mul(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("25")))
+        .div(10000);
+
+      /* Validate hash */
+      expect(loanReceiptHash).to.equal(await loanReceiptLib.hash(loanReceipt));
+
+      /* Validate loan receipt */
+      const decodedNewLoanReceipt = await loanReceiptLib.decode(newLoanReceipt);
+      expect(decodedNewLoanReceipt.version).to.equal(1);
+      expect(decodedNewLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedNewLoanReceipt.maturity).to.equal(
+        (await ethers.provider.getBlock(refinanceTx.blockHash!)).timestamp + 15 * 86400
+      );
+      expect(decodedNewLoanReceipt.duration).to.equal(15 * 86400);
+      expect(decodedNewLoanReceipt.collateralToken).to.equal(bundleCollateralWrapper.address);
+      expect(decodedNewLoanReceipt.collateralTokenId).to.equal(bundleTokenId);
+      expect(decodedNewLoanReceipt.nodeReceipts.length).to.equal(16);
+
+      /* Validate events */
+      await expectEvent(refinanceTx, tok1, "Transfer", {
+        from: accountBorrower.address,
+        to: pool.address,
+        value: decodedLoanReceipt.repayment.sub(decodedLoanReceipt.principal),
+      });
+
+      await expectEvent(refinanceTx, pool, "LoanRepaid", {
+        loanReceiptHash,
+        repayment: decodedLoanReceipt.repayment,
+      });
+
+      await expect(refinanceTx).to.emit(pool, "LoanOriginated");
+
+      /* Validate state */
+      expect(await pool.loans(loanReceiptHash)).to.equal(2);
+
+      expect(await pool.loans(newLoanReceiptHash)).to.equal(1);
+
+      expect(await pool.adminFeeBalance()).to.equal(adminFee);
+
+      /* Validate liquidity statistics */
+      const liquidityStatistics = await pool.liquidityStatistics();
+      expect(liquidityStatistics[0]).to.equal(
+        ethers.utils
+          .parseEther("25")
+          .mul(16)
+          .add(decodedLoanReceipt.repayment.sub(decodedLoanReceipt.principal).sub(adminFee))
+      );
+      expect(liquidityStatistics[1]).to.equal(decodedLoanReceipt.principal);
+    });
+
     it("fails on refinance and refinance in same block with same loan receipt fields", async function () {
+      /* Set Admin Fee */
+      pool.setAdminFeeRate(500);
+
+      /* Create Loan */
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
+
+      // Validate inability to do both refinance() and refinance() with the same loan receipt fields
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .multicall([
+            pool.interface.encodeFunctionData("refinance", [
+              loanReceipt,
+              ethers.utils.parseEther("25"),
+              1,
+              ethers.utils.parseEther("26"),
+              await sourceLiquidity(ethers.utils.parseEther("25")),
+            ]),
+            pool.interface.encodeFunctionData("refinance", [
+              loanReceipt,
+              ethers.utils.parseEther("25"),
+              1,
+              ethers.utils.parseEther("26"),
+              await sourceLiquidity(ethers.utils.parseEther("25")),
+            ]),
+          ])
+      ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
+    });
+
+    it("bundle loan fails on refinance and refinance in same block with same loan receipt fields", async function () {
+      /* Set Admin Fee */
+      pool.setAdminFeeRate(500);
+
+      /* Create Loan */
+      [loanReceipt, loanReceiptHash, bundleTokenId] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
+
       // Validate inability to do both refinance() and refinance() with the same loan receipt fields
       await expect(
         pool
@@ -2100,6 +2650,12 @@ describe("Pool", function () {
     });
 
     it("fails on borrow and refinance in same block with same loan receipt fields", async function () {
+      /* Set Admin Fee */
+      pool.setAdminFeeRate(500);
+
+      /* Create Loan */
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
+
       // Workaround to skip borrow() in beforeEach
       await pool.connect(accountBorrower).repay(loanReceipt);
 
@@ -2117,6 +2673,7 @@ describe("Pool", function () {
         .borrow(
           ethers.utils.parseEther("1"),
           1,
+          nft1.address,
           [tokenId],
           ethers.utils.parseEther("2"),
           await sourceLiquidity(ethers.utils.parseEther("1")),
@@ -2147,6 +2704,7 @@ describe("Pool", function () {
             pool.interface.encodeFunctionData("borrow", [
               ethers.utils.parseEther("1"),
               1,
+              nft1.address,
               [tokenId],
               ethers.utils.parseEther("2"),
               await sourceLiquidity(ethers.utils.parseEther("25")),
@@ -2163,7 +2721,100 @@ describe("Pool", function () {
       ).to.be.revertedWithCustomError(pool, "InvalidLoanStatus");
     });
 
+    it("bundle loan fails on borrow and refinance in same block with same loan receipt fields", async function () {
+      /* setup liquidity and borrow */
+      await setupLiquidity();
+      pool.setAdminFeeRate(500);
+      [loanReceipt, loanReceiptHash, bundleTokenId] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
+
+      // Workaround to skip borrow() in beforeEach
+      await pool.connect(accountBorrower).repay(loanReceipt);
+
+      // Borrow to get loan receipt object
+      const borrowTx = await pool
+        .connect(accountBorrower)
+        .borrow(
+          ethers.utils.parseEther("1"),
+          1,
+          bundleCollateralWrapper.address,
+          bundleTokenId,
+          ethers.utils.parseEther("2"),
+          await sourceLiquidity(ethers.utils.parseEther("1")),
+          ethers.utils.solidityPack(
+            ["uint16", "uint16", "address", "uint256[]"],
+            [2, 20 + 32 * 3, nft1.address, [123, 124, 125]]
+          )
+        );
+
+      let encodedLoanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+      await pool.connect(accountBorrower).repay(encodedLoanReceipt);
+
+      // Use existing loan receipt with the parameters we want
+      const decodedExistingLoanReceipt = await loanReceiptLib.decode(encodedLoanReceipt);
+
+      // Mutate nft address in loan receipt and encode it
+      const nodeReceipt = { ...decodedExistingLoanReceipt };
+      nodeReceipt.collateralToken = bundleCollateralWrapper.address;
+      nodeReceipt.borrower = accountBorrower.address;
+      nodeReceipt.maturity = ethers.BigNumber.from("10000000001");
+      encodedLoanReceipt = await loanReceiptLib.encode(nodeReceipt);
+
+      // Force timestamp so maturity timestamp is constant and give us the same loanReceipt from borrow()
+      await elapseUntilTimestamp(9999999999);
+
+      // Validate inability to do both borrow() and refinance() with the same loan receipt fields
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .multicall([
+            pool.interface.encodeFunctionData("borrow", [
+              ethers.utils.parseEther("1"),
+              1,
+              bundleCollateralWrapper.address,
+              bundleTokenId,
+              ethers.utils.parseEther("2"),
+              await sourceLiquidity(ethers.utils.parseEther("1")),
+              ethers.utils.solidityPack(
+                ["uint16", "uint16", "address", "uint256[]"],
+                [2, 20 + 32 * 3, nft1.address, [123, 124, 125]]
+              ),
+            ]),
+            pool.interface.encodeFunctionData("refinance", [
+              encodedLoanReceipt,
+              nodeReceipt.principal,
+              1,
+              ethers.utils.parseEther("2"),
+              await sourceLiquidity(ethers.utils.parseEther("1")),
+            ]),
+          ])
+      ).to.be.revertedWithCustomError(pool, "InvalidLoanStatus");
+    });
+
     it("fails on invalid caller", async function () {
+      /* setup liquidity and borrow */
+      await setupLiquidity();
+      pool.setAdminFeeRate(500);
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
+
+      await expect(
+        pool
+          .connect(accountLender)
+          .refinance(
+            loanReceipt,
+            ethers.utils.parseEther("25"),
+            15 * 86400,
+            ethers.utils.parseEther("26"),
+            await sourceLiquidity(ethers.utils.parseEther("1"))
+          )
+      ).to.be.revertedWithCustomError(pool, "InvalidCaller");
+    });
+
+    it("bundle loan fails on invalid caller", async function () {
+      /* setup liquidity and borrow */
+      await setupLiquidity();
+      pool.setAdminFeeRate(500);
+      [loanReceipt, loanReceiptHash] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
+
       await expect(
         pool
           .connect(accountLender)
@@ -2178,6 +2829,34 @@ describe("Pool", function () {
     });
 
     it("fails on expired loan", async function () {
+      /* setup liquidity and borrow */
+      await setupLiquidity();
+      pool.setAdminFeeRate(500);
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
+
+      /* Wait for expiration */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+      await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .refinance(
+            loanReceipt,
+            ethers.utils.parseEther("25"),
+            15 * 86400,
+            ethers.utils.parseEther("26"),
+            await sourceLiquidity(ethers.utils.parseEther("25"))
+          )
+      ).to.be.revertedWithCustomError(pool, "LoanExpired");
+    });
+
+    it("bundle loan fails on expired loan", async function () {
+      /* setup liquidity and borrow */
+      await setupLiquidity();
+      pool.setAdminFeeRate(500);
+      [loanReceipt, loanReceiptHash] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
+
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
@@ -2196,6 +2875,30 @@ describe("Pool", function () {
     });
 
     it("fails on invalid loan receipt", async function () {
+      /* setup liquidity and borrow */
+      await setupLiquidity();
+      pool.setAdminFeeRate(500);
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
+
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .refinance(
+            ethers.utils.randomBytes(141 + 48 * 3),
+            ethers.utils.parseEther("25"),
+            15 * 86400,
+            ethers.utils.parseEther("26"),
+            await sourceLiquidity(ethers.utils.parseEther("25"))
+          )
+      ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
+    });
+
+    it("bundle loan fails on invalid loan receipt", async function () {
+      /* setup liquidity and borrow */
+      await setupLiquidity();
+      pool.setAdminFeeRate(500);
+      [loanReceipt, loanReceiptHash] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
+
       await expect(
         pool
           .connect(accountBorrower)
@@ -2210,6 +2913,33 @@ describe("Pool", function () {
     });
 
     it("fails on repaid loan", async function () {
+      /* setup liquidity and borrow */
+      await setupLiquidity();
+      pool.setAdminFeeRate(500);
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
+
+      await pool.connect(accountBorrower).repay(loanReceipt);
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .refinance(
+            loanReceipt,
+            ethers.utils.parseEther("25"),
+            15 * 86400,
+            ethers.utils.parseEther("26"),
+            await sourceLiquidity(ethers.utils.parseEther("25"))
+          )
+      ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
+    });
+
+    it("bundle loan fails on repaid loan", async function () {
+      /* Set Admin Fee */
+      pool.setAdminFeeRate(500);
+
+      /* Create Loan */
+      [loanReceipt, loanReceiptHash] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
+
+      /* Repay */
       await pool.connect(accountBorrower).repay(loanReceipt);
       await expect(
         pool
@@ -2225,6 +2955,12 @@ describe("Pool", function () {
     });
 
     it("fails on liquidated loan", async function () {
+      /* Set Admin Fee */
+      pool.setAdminFeeRate(500);
+
+      /* Create Loan */
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
+
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
@@ -2232,6 +2968,35 @@ describe("Pool", function () {
       /* Process expiration */
       await pool.liquidate(loanReceipt);
 
+      /* Refinance */
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .refinance(
+            loanReceipt,
+            ethers.utils.parseEther("25"),
+            15 * 86400,
+            ethers.utils.parseEther("26"),
+            await sourceLiquidity(ethers.utils.parseEther("25"))
+          )
+      ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
+    });
+
+    it("bundle loan fails on liquidated loan", async function () {
+      /* Set Admin Fee */
+      pool.setAdminFeeRate(500);
+
+      /* Create Loan */
+      [loanReceipt, loanReceiptHash] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
+
+      /* Wait for expiration */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+      await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+
+      /* Process expiration */
+      await pool.liquidate(loanReceipt);
+
+      /* Refinance */
       await expect(
         pool
           .connect(accountBorrower)
@@ -2249,15 +3014,16 @@ describe("Pool", function () {
   describe("#liquidate", async function () {
     let loanReceipt: string;
     let loanReceiptHash: string;
+    let bundleTokenId: string;
 
-    beforeEach("setup liquidity and borrow", async function () {
+    beforeEach("setup liquidity", async function () {
       await setupLiquidity();
-
-      /* Borrow */
-      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
     });
 
     it("liquidates expired loan", async function () {
+      /* Create Loan */
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
+
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
@@ -2279,11 +3045,44 @@ describe("Pool", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(3);
     });
 
+    it("liquidates expired bundle loan", async function () {
+      /* Create Loan */
+      [loanReceipt, loanReceiptHash, bundleTokenId] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
+
+      /* Wait for expiration */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+      await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+
+      /* Process expiration */
+      const liquidateTx = await pool.liquidate(loanReceipt);
+
+      /* Validate events */
+      await expectEvent(liquidateTx, bundleCollateralWrapper, "Transfer", {
+        from: pool.address,
+        to: collateralLiquidator.address,
+        tokenId: bundleTokenId,
+      });
+
+      await expectEvent(liquidateTx, pool, "LoanLiquidated", {
+        loanReceiptHash,
+      });
+
+      /* Validate state */
+      expect(await pool.loans(loanReceiptHash)).to.equal(3);
+    });
+
     it("fails on non-expired loan", async function () {
+      /* Create Loan */
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
+
       await expect(pool.liquidate(loanReceipt)).to.be.revertedWithCustomError(pool, "InvalidLoanStatus");
     });
 
     it("fails on repaid loan", async function () {
+      /* Create Loan */
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
+
+      /* Repay */
       await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Attempt to process repaid loan receipt */
@@ -2414,6 +3213,7 @@ describe("Pool", function () {
     it("returns true on supported interfaces", async function () {
       /* ERC165 */
       expect(await pool.supportsInterface(pool.interface.getSighash("supportsInterface"))).to.equal(true);
+
       /* AccessControl */
       expect(
         await pool.supportsInterface(
@@ -2428,9 +3228,11 @@ describe("Pool", function () {
           )
         )
       ).to.equal(true);
+
       /* ERC721 */
       expect(await pool.supportsInterface(pool.interface.getSighash("onERC721Received"))).to.equal(true);
     });
+
     it("returns false on unsupported interfaces", async function () {
       expect(await pool.supportsInterface("0xaabbccdd")).to.equal(false);
       expect(await pool.supportsInterface("0x00000000")).to.equal(false);
