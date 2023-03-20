@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "./ICollateralFilter.sol";
 import "./IInterestRateModel.sol";
 import "./ICollateralLiquidator.sol";
+import "./ICollateralWrapper.sol";
 
 /**
  * @title Interface to a Pool
@@ -131,24 +132,44 @@ interface IPool {
      */
     function delegationRegistry() external view returns (address);
 
+    /**
+     * @notice Get list of supported collateral wrappers
+     * @return Collateral wrappers
+     */
+    function supportedCollateralWrappers() external view returns (address[] memory);
+
     /**************************************************************************/
     /* Lend API */
     /**************************************************************************/
 
     /**
      * @notice Quote repayment for a loan
-     *
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
-     * @param collateralTokenIds Collateral token IDs
-     * @param options Encoded options
+     * @param collateralTokenIds List of collateral token ids
      * @return Repayment amount in currency tokens
      */
     function quote(
         uint256 principal,
         uint64 duration,
-        uint256[] calldata collateralTokenIds,
-        bytes calldata options
+        uint256[] calldata collateralTokenIds
+    ) external view returns (uint256);
+
+    /**
+     * @notice Quote repayment for a loan with a collateral wrapper token
+     * @param principal Principal amount in currency tokens
+     * @param duration Duration in seconds
+     * @param collateralWrapperToken Collateral token
+     * @param collateralWrapperTokenId Collateral token ID
+     * @param collateralWrapperContext Collateral wrapper context
+     * @return Repayment amount in currency tokens
+     */
+    function quote(
+        uint256 principal,
+        uint64 duration,
+        address collateralWrapperToken,
+        uint256 collateralWrapperTokenId,
+        bytes calldata collateralWrapperContext
     ) external view returns (uint256);
 
     /**
@@ -173,7 +194,8 @@ interface IPool {
      *
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
-     * @param collateralTokenIds Collateral token IDs
+     * @param collateralToken Collateral token address
+     * @param collateralTokenId Collateral token ID
      * @param maxRepayment Maximum repayment amount in currency tokens
      * @param depths Liquidity node depths
      * @param options Encoded options
@@ -182,7 +204,8 @@ interface IPool {
     function borrow(
         uint256 principal,
         uint64 duration,
-        uint256[] calldata collateralTokenIds,
+        address collateralToken,
+        uint256 collateralTokenId,
         uint256 maxRepayment,
         uint256[] calldata depths,
         bytes calldata options

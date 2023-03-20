@@ -105,17 +105,21 @@ describe("BundleCollateralWrapper", function () {
     });
 
     it("can transfer BundleCollateralWrapperToken", async function () {
+      /* Mint bundle */
       const mintTx1 = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 456, 768]);
 
       /* Get token id */
       const tokenId1 = (await extractEvent(mintTx1, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
+      /* Validate owner */
       expect(await bundleCollateralWrapper.ownerOf(tokenId1)).to.equal(accountBorrower.address);
 
+      /* Transfer token */
       await bundleCollateralWrapper
         .connect(accountBorrower)
         .transferFrom(accountBorrower.address, accounts[2].address, tokenId1);
 
+      /* Validate owner */
       expect(await bundleCollateralWrapper.ownerOf(tokenId1)).to.equal(accounts[2].address);
     });
 
@@ -128,11 +132,13 @@ describe("BundleCollateralWrapper", function () {
 
   describe("#enumerate", async function () {
     it("enumerate bundle", async function () {
+      /* Mint bundle */
       const mintTx1 = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 456, 768]);
 
       /* Get token id */
       const tokenId1 = (await extractEvent(mintTx1, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
+      /* Create context */
       const context = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 456, 768]]);
 
       /* Enumerate */
@@ -146,12 +152,15 @@ describe("BundleCollateralWrapper", function () {
     });
 
     it("fails on incorrect tokenId", async function () {
+      /* Mint bundle */
       await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 456, 768]);
 
+      /* Use different token id */
       const badTokenId = BigNumber.from(
         "80530570786821071483259871300278421257638987008682429097249700923201294947214"
       );
 
+      /* Create context */
       const context = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 456, 768]]);
 
       await expect(bundleCollateralWrapper.enumerate(badTokenId, context)).to.be.revertedWithCustomError(
@@ -169,15 +178,19 @@ describe("BundleCollateralWrapper", function () {
 
   describe("#unwrap", async function () {
     it("unwrap bundle", async function () {
+      /* Mint bundle */
       const mintTx1 = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 456, 768]);
 
       /* Get token id */
       const tokenId1 = (await extractEvent(mintTx1, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
+      /* Create context */
       const context = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 456, 768]]);
+
+      /* Validate current owner */
       expect(await bundleCollateralWrapper.ownerOf(tokenId1)).to.equal(accountBorrower.address);
 
-      /* unwrap and validate events */
+      /* Unwrap and validate events */
       await expect(bundleCollateralWrapper.connect(accountBorrower).unwrap(tokenId1, context))
         .to.emit(nft1, "Transfer")
         .withArgs(bundleCollateralWrapper.address, accountBorrower.address, 123)
@@ -198,15 +211,19 @@ describe("BundleCollateralWrapper", function () {
     });
 
     it("only token holder can unwrap bundle", async function () {
+      /* Mint bundle */
       const mintTx1 = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 456, 768]);
 
       /* Get token id */
       const tokenId1 = (await extractEvent(mintTx1, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
+      /* Create context */
       const context = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 456, 768]]);
+
+      /* Validate current owner */
       expect(await bundleCollateralWrapper.ownerOf(tokenId1)).to.equal(accountBorrower.address);
 
-      /* attempt to unwrap */
+      /* Attempt to unwrap */
       await expect(
         bundleCollateralWrapper.connect(accounts[2]).unwrap(tokenId1, context)
       ).to.be.revertedWithCustomError(bundleCollateralWrapper, "InvalidCaller");
@@ -218,37 +235,45 @@ describe("BundleCollateralWrapper", function () {
     });
 
     it("fails on incorrect tokenId", async function () {
+      /* Mint bundle */
       await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 456, 768]);
 
+      /* Use bad token id */
       const badTokenId = BigNumber.from(
         "80530570786821071483259871300278421257638987008682429097249700923201294947214"
       );
 
+      /* Create context */
       const context = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 456, 768]]);
 
-      /* attempt to unwrap */
+      /* Attempt to unwrap */
       await expect(
         bundleCollateralWrapper.connect(accountBorrower).unwrap(badTokenId, context)
       ).to.be.revertedWithCustomError(bundleCollateralWrapper, "InvalidContext");
     });
 
     it("transferee can unwrap bundle", async function () {
+      /* Mint bundle */
       const mintTx1 = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 456, 768]);
 
       /* Get token id */
       const tokenId1 = (await extractEvent(mintTx1, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
+      /* Validate owner */
       expect(await bundleCollateralWrapper.ownerOf(tokenId1)).to.equal(accountBorrower.address);
 
+      /* Transfer token */
       await bundleCollateralWrapper
         .connect(accountBorrower)
         .transferFrom(accountBorrower.address, accounts[2].address, tokenId1);
 
+      /* Validate owner */
       expect(await bundleCollateralWrapper.ownerOf(tokenId1)).to.equal(accounts[2].address);
 
+      /* Create context */
       const context = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 456, 768]]);
 
-      /* unwrap and validate events */
+      /* Unwrap and validate events */
       await expect(bundleCollateralWrapper.connect(accounts[2]).unwrap(tokenId1, context))
         .to.emit(nft1, "Transfer")
         .withArgs(bundleCollateralWrapper.address, accounts[2].address, 123)

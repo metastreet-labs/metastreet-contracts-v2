@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -17,6 +17,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import "./interfaces/IPool.sol";
 import "./interfaces/ILiquidity.sol";
+import "./interfaces/ICollateralWrapper.sol";
 import "./LoanReceipt.sol";
 import "./LiquidityManager.sol";
 import "./integrations/DelegateCash/IDelegationRegistry.sol";
@@ -27,7 +28,7 @@ import "./integrations/DelegateCash/IDelegationRegistry.sol";
  */
 contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard, Multicall, IPool, ILiquidity {
     using SafeERC20 for IERC20;
-    using EnumerableMap for EnumerableMap.AddressToUintMap;
+    using EnumerableSet for EnumerableSet.AddressSet;
     using LoanReceipt for LoanReceipt.LoanReceiptV1;
     using LiquidityManager for LiquidityManager.Liquidity;
 
@@ -58,6 +59,16 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @notice Pool borrow options tag size in bytes
      */
     uint256 internal constant BORROW_OPTIONS_TAG_SIZE = 2;
+
+    /**
+     * @notice Pool borrow options length size in bytes
+     */
+    uint256 internal constant BORROW_OPTIONS_LENGTH_SIZE = 2;
+
+    /**
+     * @notice Pool borrow options header size in bytes
+     */
+    uint internal constant BORROW_OPTIONS_HEADER_SIZE = BORROW_OPTIONS_TAG_SIZE + BORROW_OPTIONS_LENGTH_SIZE;
 
     /**
      * @notice Pool borrow options value size in bytes
@@ -105,9 +116,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
 
     /**
      * @notice Invalid borrow options
-     * @param index Index of invalid borrow option
      */
-    error InvalidBorrowOptions(uint256 index);
+    error InvalidBorrowOptions();
 
     /**
      * @notice Parameter out of bounds
@@ -194,7 +204,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      */
     enum BorrowOptions {
         None,
-        DelegateCash
+        DelegateCash,
+        CollateralWrapperContext
     }
 
     /**************************************************************************/
@@ -271,6 +282,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      */
     IDelegationRegistry internal _delegationRegistry;
 
+    /**
+     * @notice  Collateral wrappers mapping
+     */
+    EnumerableSet.AddressSet internal _collateralWrappers;
+
     /**************************************************************************/
     /* Constructor */
     /**************************************************************************/
@@ -308,6 +324,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         uint64 maxLoanDuration_,
         uint256 originationFeeRate_,
         IDelegationRegistry delegationRegistry_,
+        address[] memory collateralWrappers,
         address collateralFilterImpl,
         address interestRateModelImpl,
         address collateralLiquidatorImpl,
@@ -324,6 +341,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         _maxLoanDuration = maxLoanDuration_;
         _originationFeeRate = originationFeeRate_;
         _delegationRegistry = delegationRegistry_;
+
+        /* Set collateral wrappers */
+        for (uint256 i = 0; i < collateralWrappers.length; i++) {
+            _collateralWrappers.add(collateralWrappers[i]);
+        }
 
         /* Initialize liquidity */
         _liquidity.initialize();
@@ -418,6 +440,13 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     }
 
     /**
+     * @inheritdoc IPool
+     */
+    function supportedCollateralWrappers() external view returns (address[] memory) {
+        return _collateralWrappers.values();
+    }
+
+    /**
      * @notice Get deposit
      * @param account Account
      * @param depth Depth
@@ -500,54 +529,83 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     /**************************************************************************/
 
     /**
-     * @dev Helper function to process borrow options
-     * @param collateralToken_ Contract address of token being borrowed against
-     * @param collateralTokenId Token id of token being borrowed against
-     * @param options Borrow function parameter
+     * @notice Helper function that scans options data for the specified tag
+     * and returns the associated data.
+     *
+     * @dev Options are encoded as:
+     *   2 byte uint16 tag
+     *   2 byte uint16 length
+     *   n byte bytes  data
+     * The first matching tag is returned.
+     *
+     * @param options Encoded options
+     * @param tag Tag to find
+     * @return Options data
      */
-    function _processBorrowOptions(
+    function _getOptionsData(bytes calldata options, uint16 tag) internal pure returns (bytes calldata) {
+        uint256 offset = 0;
+
+        /* Scan the options for the tag */
+        while (offset < options.length) {
+            /* The tag is in the first 2 bytes of each options item */
+            uint16 currentTag = uint16(bytes2(options[offset:BORROW_OPTIONS_TAG_SIZE]));
+
+            /* The length of the options data is in the second 2 bytes of each options item, after the tag */
+            uint256 dataLength = uint16(
+                bytes2(options[offset + BORROW_OPTIONS_TAG_SIZE:offset + BORROW_OPTIONS_HEADER_SIZE])
+            );
+
+            /* Return the offset and length if the tag is found */
+            if (currentTag == tag) {
+                return options[BORROW_OPTIONS_HEADER_SIZE + offset:BORROW_OPTIONS_HEADER_SIZE + offset + dataLength];
+            }
+
+            /* Increment to next options item */
+            offset += BORROW_OPTIONS_HEADER_SIZE + dataLength;
+        }
+
+        /* Explicit return if no tag found */
+        return options[0:0];
+    }
+
+    /**
+     * @notice Helper function that returns underlying collateral in (address, uint256[]) shape
+     * @param collateralToken_ Collateral token, either underlying token or collateral wrapper
+     * @param collateralTokenId Collateral token ID
+     * @param collateralContext Collateral context
+     */
+    function _getUnderlyingCollateral(
         address collateralToken_,
         uint256 collateralTokenId,
-        bytes calldata options
-    ) internal {
-        /* Tightly packed options format */
-        /*
-            options (34 bytes, repeating)
-            -eg:
-                -0 indexed option-
-                2   uint16    tag-1     0:2
-                32  bytes32   value-1   2:34
+        bytes memory collateralContext
+    ) internal view returns (address, uint256[] memory) {
+        /* Enumerate bundle if collateral token is a collateral wrapper */
+        if (_collateralWrappers.contains(collateralToken_)) {
+            return ICollateralWrapper(collateralToken_).enumerate(collateralTokenId, collateralContext);
+        }
 
-                -1 indexed option-
-                2   uint16    tag-2     34:36
-                32  bytes32   value-2   36:68
+        /* If single asset, convert token id to to token id array */
+        uint256[] memory underlyingCollateralTokenIds = new uint256[](1);
+        underlyingCollateralTokenIds[0] = collateralTokenId;
 
-                ...
+        return (collateralToken_, underlyingCollateralTokenIds);
+    }
 
-                -n indexed option-
-                2   uint16  tag-n       34n:34n+2
-                32  bytes32 value-n     34n+2:34n+34
-        */
+    /**
+     * @notice Helper function that calls delegate.cash registry to delegate token
+     * @param collateralTokenId Collateral token id
+     * @param options Options data that contains tag, length and address to delegate to
+     */
+    function _optionDelegateCash(uint256 collateralTokenId, bytes calldata options) internal {
+        /* Find tag location in options */
+        bytes calldata optionsData = _getOptionsData(options, uint16(BorrowOptions.DelegateCash));
 
-        bool delegated;
-        uint256 payloadSize = BORROW_OPTIONS_TAG_SIZE + BORROW_OPTIONS_VALUE_SIZE;
+        /* If option tag is found, the minimum offset would be 4 bytes */
+        if (optionsData.length != 0) {
+            if (optionsData.length != 20) revert InvalidBorrowOptionsEncoding();
+            address delegate = address(uint160(bytes20(optionsData)));
 
-        if (options.length % payloadSize != 0) revert InvalidBorrowOptionsEncoding();
-
-        for (uint256 i = 0; i < options.length / payloadSize; i++) {
-            uint256 offset = i * payloadSize;
-
-            uint16 tag = uint16(bytes2(options[offset:offset + BORROW_OPTIONS_TAG_SIZE]));
-            bytes32 value = bytes32(options[offset + BORROW_OPTIONS_TAG_SIZE:offset + payloadSize]);
-
-            /* delegate.cash */
-            if (tag == uint256(BorrowOptions.DelegateCash)) {
-                if (delegated) revert InvalidBorrowOptions(i);
-                delegated = true;
-
-                address delegate = address(uint160(uint256(value)));
-                _delegationRegistry.delegateForToken(delegate, collateralToken_, collateralTokenId, true);
-            }
+            _delegationRegistry.delegateForToken(delegate, address(_collateralToken), collateralTokenId, true);
         }
     }
 
@@ -574,20 +632,21 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @dev Helper function to quote a loan
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
-     * @param collateralTokenIds Collateral token IDs
+     * @param collateralToken_ Collateral token address
+     * @param collateralTokenIds List of collateral token ids
      * @return Repayment amount in currency tokens
      */
     function _quote(
         uint256 principal,
         uint64 duration,
+        address collateralToken_,
         uint256[] memory collateralTokenIds
     ) internal view returns (uint256) {
-        /* FIXME implement bundle support */
-        require(collateralTokenIds.length == 1, "Bundles not supported");
-
         /* Verify collateral is supported */
-        if (!_collateralFilter.supported(address(_collateralToken), collateralTokenIds[0], ""))
-            revert UnsupportedCollateral(0);
+        for (uint256 i = 0; i < collateralTokenIds.length; i++) {
+            if (!_collateralFilter.supported(collateralToken_, collateralTokenIds[i], ""))
+                revert UnsupportedCollateral(0);
+        }
 
         /* Validate loan duration */
         if (duration > _maxLoanDuration) revert UnsupportedLoanDuration();
@@ -634,9 +693,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @dev Helper function to handle borrow accounting
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
-     * @param collateralTokenIds Collateral token IDs
-     * @param maxRepayment Maximum repayment amount in currency tokens
+     * @param collateralToken_ Collateral token address
+     * @param collateralTokenId Collateral token id
+     *  @param maxRepayment Maximum repayment amount in currency tokens
      * @param depths Liquidity node depths
+     * @param collateralContext Collateral context data
      * @return Repayment Amount in currency tokens
      * @return EncodedLoanReceipt Encoded loan receipt
      * @return LoanReceiptHash Loan receipt hash
@@ -644,12 +705,21 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     function _borrow(
         uint256 principal,
         uint64 duration,
-        uint256[] memory collateralTokenIds,
+        address collateralToken_,
+        uint256 collateralTokenId,
         uint256 maxRepayment,
-        uint256[] calldata depths
+        uint256[] calldata depths,
+        bytes memory collateralContext
     ) internal returns (uint256, bytes memory, bytes32) {
+        /* Get underlying collateral */
+        (address underlyingCollateralToken, uint256[] memory underlyingCollateralTokenIds) = _getUnderlyingCollateral(
+            collateralToken_,
+            collateralTokenId,
+            collateralContext
+        );
+
         /* Quote repayment */
-        uint256 repayment = _quote(principal, duration, collateralTokenIds);
+        uint256 repayment = _quote(principal, duration, underlyingCollateralToken, underlyingCollateralTokenIds);
 
         /* Validate repayment */
         if (repayment > maxRepayment) revert RepaymentTooHigh();
@@ -676,8 +746,10 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
             borrower: msg.sender,
             maturity: uint64(block.timestamp + duration),
             duration: duration,
-            collateralToken: address(_collateralToken),
-            collateralTokenId: collateralTokenIds[0],
+            collateralToken: collateralToken_,
+            collateralTokenId: collateralTokenId,
+            collateralContextLength: uint16(collateralContext.length),
+            collateralContextData: collateralContext,
             nodeReceipts: new LoanReceipt.NodeReceipt[](count)
         });
 
@@ -797,14 +869,37 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     function quote(
         uint256 principal,
         uint64 duration,
-        uint256[] calldata collateralTokenIds,
-        bytes calldata
+        uint256[] calldata collateralTokenIds
     ) external view returns (uint256) {
         /* Check principal doesn't exceed max borrow available */
         if (principal > _liquidity.liquidityAvailable(type(uint256).max))
             revert LiquidityManager.InsufficientLiquidity();
 
-        return _quote(principal, duration, collateralTokenIds);
+        return _quote(principal, duration, address(_collateralToken), collateralTokenIds);
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
+    function quote(
+        uint256 principal,
+        uint64 duration,
+        address collateralToken_,
+        uint256 collateralTokenId,
+        bytes calldata collateralContext
+    ) external view returns (uint256) {
+        /* Check principal doesn't exceed max borrow available */
+        if (principal > _liquidity.liquidityAvailable(type(uint256).max))
+            revert LiquidityManager.InsufficientLiquidity();
+
+        /* Get underlying collateral */
+        (address underlyingCollateralToken, uint256[] memory underlyingCollateralTokenIds) = _getUnderlyingCollateral(
+            collateralToken_,
+            collateralTokenId,
+            collateralContext
+        );
+
+        return _quote(principal, duration, underlyingCollateralToken, underlyingCollateralTokenIds);
     }
 
     /**
@@ -822,12 +917,15 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
-        /* Assign collateral token id to a dynamic array at index 0 */
-        uint256[] memory collateralTokenIds = new uint256[](1);
-        collateralTokenIds[0] = loanReceipt.collateralTokenId;
+        /* Get underlying collateral */
+        (address underlyingCollateralToken, uint256[] memory underlyingCollateralTokenIds) = _getUnderlyingCollateral(
+            loanReceipt.collateralToken,
+            loanReceipt.collateralTokenId,
+            loanReceipt.collateralContextData
+        );
 
         /* Quote repayment */
-        uint256 newRepayment = _quote(principal, duration, collateralTokenIds);
+        uint256 newRepayment = _quote(principal, duration, underlyingCollateralToken, underlyingCollateralTokenIds);
 
         /* Compute repayment using prorated interest */
         (uint256 proratedRepayment, ) = _prorateRepayment(loanReceipt);
@@ -841,27 +939,33 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     function borrow(
         uint256 principal,
         uint64 duration,
-        uint256[] calldata collateralTokenIds,
+        address collateralToken_,
+        uint256 collateralTokenId,
         uint256 maxRepayment,
         uint256[] calldata depths,
         bytes calldata options
     ) external nonReentrant returns (uint256) {
+        /* Get offset and length of bundle collateral options, returns (0,0) if none provided */
+        bytes calldata optionsData = _getOptionsData(options, uint16(BorrowOptions.CollateralWrapperContext));
+
         /* Handle borrow accounting */
         (uint256 repayment, bytes memory encodedLoanReceipt, bytes32 loanReceiptHash) = _borrow(
             principal,
             duration,
-            collateralTokenIds,
+            collateralToken_,
+            collateralTokenId,
             maxRepayment,
-            depths
+            depths,
+            optionsData
         );
 
-        /* Handle borrow options parameter */
-        if (options.length > 0) {
-            _processBorrowOptions(address(_collateralToken), collateralTokenIds[0], options);
+        /* Handle delegation for single asset collateral */
+        if (!_collateralWrappers.contains(collateralToken_) && options.length > 0) {
+            _optionDelegateCash(collateralTokenId, options);
         }
 
         /* Transfer collateral from borrower to pool */
-        IERC721(_collateralToken).safeTransferFrom(msg.sender, address(this), collateralTokenIds[0]);
+        IERC721(collateralToken_).safeTransferFrom(msg.sender, address(this), collateralTokenId);
 
         /* Transfer principal from pool to borrower */
         _currencyToken.safeTransfer(msg.sender, principal);
@@ -901,6 +1005,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     /**
      * @inheritdoc IPool
      */
+
     function refinance(
         bytes calldata encodedLoanReceipt,
         uint256 principal,
@@ -913,17 +1018,15 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
             encodedLoanReceipt
         );
 
-        /* Assign collateral token id to a dynamic array at index 0 */
-        uint256[] memory collateralTokenIds = new uint256[](1);
-        collateralTokenIds[0] = loanReceipt.collateralTokenId;
-
         /* Handle borrow accounting without delegating unlike in borrow() */
         (uint256 newRepayment, bytes memory newEncodedLoanReceipt, bytes32 newLoanReceiptHash) = _borrow(
             principal,
             duration,
-            collateralTokenIds,
+            loanReceipt.collateralToken,
+            loanReceipt.collateralTokenId,
             maxRepayment,
-            depths
+            depths,
+            loanReceipt.collateralContextData
         );
 
         /* Determine transfer direction */
@@ -1076,6 +1179,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
 
         /* Validate shares */
         if (shares > dep.shares) revert InvalidShares();
+
         /* Validate redemption isn't pending */
         if (dep.redemptionPending != 0) revert RedemptionInProgress();
 
