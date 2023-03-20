@@ -154,6 +154,12 @@ interface IPool {
      */
     function delegationRegistry() external view returns (address);
 
+    /**
+     * @notice Get bundle collateral wrapper contract
+     * @return Delegation registry contract
+     */
+    function bundleCollateralWrapper() external view returns (address);
+
     /**************************************************************************/
     /* Lend API */
     /**************************************************************************/

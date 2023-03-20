@@ -101,6 +101,8 @@ describe("ExternalCollateralLiquidator", function () {
     duration: 2592000,
     collateralToken: ethers.constants.AddressZero /* To be populated */,
     collateralTokenId: 0 /* To be populated */,
+    collateralContextLength: 0,
+    collateralContextData: "0x",
     nodeReceipts: [
       {
         depth: ethers.BigNumber.from("1000000000000000000"),
