@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "./ICollateralFilter.sol";
 import "./IInterestRateModel.sol";
 import "./ICollateralLiquidator.sol";
+import "./ICollateralWrapper.sol";
 
 /**
  * @title Interface to a Pool
@@ -154,6 +155,12 @@ interface IPool {
      */
     function delegationRegistry() external view returns (address);
 
+    /**
+     * @notice Get list of supported collateral wrappers
+     * @return Collateral wrappers
+     */
+    function supportedCollateralWrappers() external view returns (ICollateralWrapper[] memory);
+
     /**************************************************************************/
     /* Lend API */
     /**************************************************************************/
@@ -162,17 +169,30 @@ interface IPool {
      * @notice Quote repayment for a loan
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
-     * @param collateralToken Collateral token
-     * @param collateralTokenId Collateral token ID
-     * @param options Encoded options
+     * @param collateralTokenIds Collateral token ID
      * @return Repayment amount in currency tokens
      */
     function quote(
         uint256 principal,
         uint64 duration,
-        address collateralToken,
+        uint256[] memory collateralTokenIds
+    ) external view returns (uint256);
+
+    /**
+     * @notice Quote repayment for a loan with a collateral wrapper token
+     * @param principal Principal amount in currency tokens
+     * @param duration Duration in seconds
+     * @param collateralToken_ Collateral wrapper token
+     * @param collateralTokenId Collateral wrapper token ID
+     * @param context Collateral wrapper context
+     * @return Repayment amount in currency tokens
+     */
+    function quote(
+        uint256 principal,
+        uint64 duration,
+        address collateralToken_,
         uint256 collateralTokenId,
-        bytes calldata options
+        bytes calldata context
     ) external view returns (uint256);
 
     /**
