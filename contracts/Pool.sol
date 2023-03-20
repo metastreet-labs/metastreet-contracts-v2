@@ -66,6 +66,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     uint256 internal constant BORROW_OPTIONS_LENGTH_SIZE = 2;
 
     /**
+     * @notice Pool borrow options length size in bytes
+     */
+    uint256 internal constant BORROW_OPTIONS_LENGTH_SIZE = 2;
+
+    /**
      * @notice Pool borrow options value size in bytes
      */
     uint256 internal constant BORROW_OPTIONS_VALUE_SIZE = 32;

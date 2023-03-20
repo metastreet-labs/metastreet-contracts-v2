@@ -1550,11 +1550,44 @@ describe("Pool", function () {
       ).to.be.revertedWithCustomError(bundleCollateralWrapper, "InvalidContext");
     });
 
-    it("fails on unsupported collateral", async function () {
-      /* FIXME implement */
+    it("fails on bundle with invalid option encoding", async function () {
+      /* Mint bundle */
+      await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
+      const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
+      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleCollateralWrapperTokenMinted"))
+        .args.tokenId;
+
+      await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
+
+      /* set length of tokenId to 31 instead of 32 */
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .borrow(
+            ethers.utils.parseEther("25"),
+            30 * 86400,
+            bundleCollateralWrapper.address,
+            bundleTokenId,
+            ethers.utils.parseEther("26"),
+            await sourceLiquidity(ethers.utils.parseEther("25")),
+            ethers.utils.solidityPack(
+              ["uint16", "uint16", "address", "uint256[]"],
+              [2, 20 + 31 * 3, nft1.address, [123, 124, 125]]
+            )
+          )
+      ).to.be.revertedWithCustomError(bundleCollateralWrapper, "InvalidContext");
     });
 
-    it("fails on exceeded max repayment", async function () {
+    it("fails on bundle with invalid option encoding", async function () {
+      /* Mint bundle */
+      await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
+      const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
+      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleCollateralWrapperTokenMinted"))
+        .args.tokenId;
+
+      await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
+
+      /* set length of tokenId to 31 instead of 32 */
       await expect(
         pool
           .connect(accountBorrower)
@@ -1565,25 +1598,31 @@ describe("Pool", function () {
             123,
             ethers.utils.parseEther("25.01"),
             await sourceLiquidity(ethers.utils.parseEther("25")),
-            "0x"
+            ethers.utils.solidityPack(
+              ["uint16", "uint16", "address", "uint256[]"],
+              [2, 20 + 31 * 3, nft1.address, [123, 124, 125]]
+            )
           )
-      ).to.be.revertedWithCustomError(pool, "RepaymentTooHigh");
+      ).to.be.revertedWithCustomError(pool, "InvalidBorrowOptionsEncoding");
     });
 
-    it("fails on insufficient liquidity", async function () {
+    it("fails on single asset loan with collateral context data", async function () {
       await expect(
         pool
           .connect(accountBorrower)
           .borrow(
-            ethers.utils.parseEther("30"),
+            ethers.utils.parseEther("25"),
             30 * 86400,
             nft1.address,
             123,
             ethers.utils.parseEther("31"),
             await sourceLiquidity(ethers.utils.parseEther("25")),
-            "0x"
+            ethers.utils.solidityPack(
+              ["uint16", "uint16", "address", "uint256[]"],
+              [2, 20 + 31 * 3, nft1.address, [123, 124, 125]]
+            )
           )
-      ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
+      ).to.be.revertedWithCustomError(pool, "InvalidBorrowOptionsEncoding");
     });
   });
 
