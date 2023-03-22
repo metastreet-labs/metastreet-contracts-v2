@@ -497,8 +497,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityAvailable(uint256 maxDepth) external view returns (uint256) {
-        return _liquidity.liquidityAvailable(maxDepth);
+    function liquidityAvailable(uint256 maxDepth, uint256 itemCount) external view returns (uint256) {
+        return _liquidity.liquidityAvailable(maxDepth, itemCount);
     }
 
     /**
@@ -857,10 +857,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         uint256 collateralTokenId,
         bytes calldata options
     ) external view returns (uint256) {
-        /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint256).max))
-            revert LiquidityManager.InsufficientLiquidity();
-
         (uint256 collateralContextOffset, uint256 collateralContextLength) = _optionFindTag(
             options,
             uint16(BorrowOptions.BundleCollateralWrapper)
@@ -872,6 +868,10 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
             collateralTokenId,
             options[collateralContextOffset:collateralContextOffset + collateralContextLength]
         );
+
+        /* Check principal doesn't exceed max borrow available */
+        if (principal > _liquidity.liquidityAvailable(type(uint256).max, assets.length))
+            revert LiquidityManager.InsufficientLiquidity();
 
         return _quote(principal, duration, assets);
     }
