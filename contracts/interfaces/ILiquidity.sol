@@ -64,9 +64,10 @@ interface ILiquidity {
     /**
      * Get liquidity available up to max depth
      * @param maxDepth Max depth
+     * @param itemCount Number of items requiring liquidity
      * @return Liquidity available
      */
-    function liquidityAvailable(uint256 maxDepth) external view returns (uint256);
+    function liquidityAvailable(uint256 maxDepth, uint256 itemCount) external view returns (uint256);
 
     /**
      * Get liquidity nodes spanning [startDepth, endDepth] range

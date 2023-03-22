@@ -1008,31 +1008,40 @@ describe("LiquidityManager", function () {
 
     it("returns liquidity available", async function () {
       /* Check liquidity available with no usage */
-      expect(await liquidityManager.liquidityAvailable(ethers.constants.MaxUint256)).to.equal(toFixedPoint("40"));
+      expect(await liquidityManager.liquidityAvailable(ethers.constants.MaxUint256, 1)).to.equal(toFixedPoint("40"));
+      expect(await liquidityManager.liquidityAvailable(ethers.constants.MaxUint256, 5)).to.equal(toFixedPoint("200"));
 
       /* Use from highest node (artifical) */
       await liquidityManager.use(toFixedPoint("40"), toFixedPoint("45"), toFixedPoint("46"));
 
       /* Check liquidity available after usage */
-      expect(await liquidityManager.liquidityAvailable(ethers.constants.MaxUint256)).to.equal(toFixedPoint("35"));
+      expect(await liquidityManager.liquidityAvailable(ethers.constants.MaxUint256, 1)).to.equal(toFixedPoint("35"));
 
       /* Deposit into lowest and highest nodes */
       await liquidityManager.deposit(toFixedPoint("10"), toFixedPoint("2"));
       await liquidityManager.deposit(toFixedPoint("40"), toFixedPoint("2"));
 
       /* Check liquidity available after deposit */
-      expect(await liquidityManager.liquidityAvailable(ethers.constants.MaxUint256)).to.equal(toFixedPoint("37"));
+      expect(await liquidityManager.liquidityAvailable(ethers.constants.MaxUint256, 1)).to.equal(toFixedPoint("37"));
 
       /* Check liquidity available at lower tiers */
-      expect(await liquidityManager.liquidityAvailable(toFixedPoint("20"))).to.equal(toFixedPoint("20"));
-      expect(await liquidityManager.liquidityAvailable(toFixedPoint("10"))).to.equal(toFixedPoint("10"));
+      expect(await liquidityManager.liquidityAvailable(toFixedPoint("20"), 1)).to.equal(toFixedPoint("20"));
+      expect(await liquidityManager.liquidityAvailable(toFixedPoint("10"), 1)).to.equal(toFixedPoint("10"));
+
+      /* Check liquidity available at lower tiers with 3 items */
+      expect(await liquidityManager.liquidityAvailable(toFixedPoint("10"), 3)).to.equal(toFixedPoint("30"));
+      expect(await liquidityManager.liquidityAvailable(toFixedPoint("20"), 3)).to.equal(toFixedPoint("60"));
 
       /* Use nearly all of the lowest node (leaving 2 ETH amount) */
       await liquidityManager.use(toFixedPoint("10"), toFixedPoint("50"), toFixedPoint("51"));
 
       /* Check liquidity available at lower tiers */
-      expect(await liquidityManager.liquidityAvailable(toFixedPoint("10"))).to.equal(toFixedPoint("2"));
-      expect(await liquidityManager.liquidityAvailable(toFixedPoint("20"))).to.equal(toFixedPoint("20"));
+      expect(await liquidityManager.liquidityAvailable(toFixedPoint("10"), 1)).to.equal(toFixedPoint("2"));
+      expect(await liquidityManager.liquidityAvailable(toFixedPoint("20"), 1)).to.equal(toFixedPoint("20"));
+
+      /* Check liquidity available at lower tiers with 3 items */
+      expect(await liquidityManager.liquidityAvailable(toFixedPoint("10"), 3)).to.equal(toFixedPoint("2"));
+      expect(await liquidityManager.liquidityAvailable(toFixedPoint("20"), 3)).to.equal(toFixedPoint("52"));
     });
   });
 });

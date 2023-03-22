@@ -73,8 +73,8 @@ contract TestLiquidityManager is ILiquidity {
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityAvailable(uint256 maxDepth) external view returns (uint256) {
-        return _liquidity.liquidityAvailable(maxDepth);
+    function liquidityAvailable(uint256 maxDepth, uint256 itemCount) external view returns (uint256) {
+        return _liquidity.liquidityAvailable(maxDepth, itemCount);
     }
 
     /**

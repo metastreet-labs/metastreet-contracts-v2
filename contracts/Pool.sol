@@ -427,8 +427,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityAvailable(uint256 maxDepth) external view returns (uint256) {
-        return _liquidity.liquidityAvailable(maxDepth);
+    function liquidityAvailable(uint256 maxDepth, uint256 itemCount) external view returns (uint256) {
+        return _liquidity.liquidityAvailable(maxDepth, itemCount);
     }
 
     /**
@@ -652,7 +652,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
         if (repayment > maxRepayment) revert RepaymentTooHigh();
 
         /* Source liquidity nodes */
-        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(principal, depths, 1);
+        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
+            principal,
+            depths,
+            underlyingCollateralTokenIds.length
+        );
 
         /* Compute admin fee */
         uint256 adminFee = Math.mulDiv(_adminFeeRate, repayment - principal, BASIS_POINTS_SCALE);
@@ -799,7 +803,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
         uint256[] calldata collateralTokenIds
     ) external view returns (uint256) {
         /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint256).max))
+        if (principal > _liquidity.liquidityAvailable(type(uint256).max, collateralTokenIds.length))
             revert LiquidityManager.InsufficientLiquidity();
 
         return _quote(principal, duration, address(_collateralToken), collateralTokenIds);
@@ -815,16 +819,16 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
         uint256 collateralTokenId,
         bytes calldata collateralContext
     ) external view returns (uint256) {
-        /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint256).max))
-            revert LiquidityManager.InsufficientLiquidity();
-
         /* Get underlying collateral */
         (address underlyingCollateralToken, uint256[] memory underlyingCollateralTokenIds) = _getUnderlyingCollateral(
             collateralToken_,
             collateralTokenId,
             collateralContext
         );
+
+        /* Check principal doesn't exceed max borrow available */
+        if (principal > _liquidity.liquidityAvailable(type(uint256).max, underlyingCollateralTokenIds.length))
+            revert LiquidityManager.InsufficientLiquidity();
 
         return _quote(principal, duration, underlyingCollateralToken, underlyingCollateralTokenIds);
     }
@@ -837,10 +841,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
         uint256 principal,
         uint64 duration
     ) external view returns (int256, uint256) {
-        /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint256).max))
-            revert LiquidityManager.InsufficientLiquidity();
-
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
@@ -850,6 +850,10 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
             loanReceipt.collateralTokenId,
             loanReceipt.collateralContextData
         );
+
+        /* Check principal doesn't exceed max borrow available */
+        if (principal > _liquidity.liquidityAvailable(type(uint256).max, underlyingCollateralTokenIds.length))
+            revert LiquidityManager.InsufficientLiquidity();
 
         /* Quote repayment */
         uint256 newRepayment = _quote(principal, duration, underlyingCollateralToken, underlyingCollateralTokenIds);
