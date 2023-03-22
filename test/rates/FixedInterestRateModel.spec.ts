@@ -202,11 +202,11 @@ describe("FixedInterestRateModel", function () {
         sources5.length
       );
       expect(pending.length).to.equal(5);
-      expect(pending[0]).to.equal(FixedPoint.from("0.070484581497797354"));
-      expect(pending[1]).to.equal(FixedPoint.from("0.422907488986784141"));
-      expect(pending[2]).to.equal(FixedPoint.from("0.792951541850220266"));
+      expect(pending[0]).to.equal(FixedPoint.from("0.079999999999999999"));
+      expect(pending[1]).to.equal(FixedPoint.from("0.479999999999999999"));
+      expect(pending[2]).to.equal(FixedPoint.from("0.900000000000000003"));
       expect(pending[3]).to.equal(ethers.constants.Zero);
-      expect(pending[4]).to.equal(FixedPoint.from("0.713656387665198239"));
+      expect(pending[4]).to.equal(FixedPoint.from("0.539999999999999999"));
     });
   });
 });
