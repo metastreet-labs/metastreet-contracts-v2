@@ -66,11 +66,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     uint256 internal constant BORROW_OPTIONS_LENGTH_SIZE = 2;
 
     /**
-     * @notice Pool borrow options length size in bytes
-     */
-    uint256 internal constant BORROW_OPTIONS_LENGTH_SIZE = 2;
-
-    /**
      * @notice Pool borrow options value size in bytes
      */
     uint256 internal constant BORROW_OPTIONS_VALUE_SIZE = 32;
@@ -513,8 +508,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityAvailable(uint256 maxDepth) external view returns (uint256) {
-        return _liquidity.liquidityAvailable(maxDepth);
+    function liquidityAvailable(uint256 maxDepth, uint256 itemCount) external view returns (uint256) {
+        return _liquidity.liquidityAvailable(maxDepth, itemCount);
     }
 
     /**
@@ -880,12 +875,12 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         uint64 duration,
         uint256[] memory collateralTokenIds
     ) external view returns (uint256) {
-        /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint256).max))
-            revert LiquidityManager.InsufficientLiquidity();
-
         /* cache length of collateral token array */
         uint256 collateralTokensLength = collateralTokenIds.length;
+
+        /* Check principal doesn't exceed max borrow available */
+        if (principal > _liquidity.liquidityAvailable(type(uint256).max, collateralTokensLength))
+            revert LiquidityManager.InsufficientLiquidity();
 
         AssetInfo[] memory assets = new AssetInfo[](collateralTokensLength);
         for (uint256 i = 0; i < collateralTokensLength; i++) {
@@ -909,11 +904,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         uint256 collateralTokenId,
         bytes calldata context
     ) external view returns (uint256) {
-        /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint256).max))
-            revert LiquidityManager.InsufficientLiquidity();
-
         AssetInfo[] memory assets = _toAssetInfo(collateralToken_, collateralTokenId, context);
+
+        /* Check principal doesn't exceed max borrow available */
+        if (principal > _liquidity.liquidityAvailable(type(uint256).max, assets.length))
+            revert LiquidityManager.InsufficientLiquidity();
 
         return _quote(principal, duration, assets);
     }
@@ -926,10 +921,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         uint256 principal,
         uint64 duration
     ) external view returns (int256, uint256) {
-        /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint256).max))
-            revert LiquidityManager.InsufficientLiquidity();
-
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
@@ -938,6 +929,10 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
             loanReceipt.collateralTokenId,
             loanReceipt.collateralContextData
         );
+
+        /* Check principal doesn't exceed max borrow available */
+        if (principal > _liquidity.liquidityAvailable(type(uint256).max, assets.length))
+            revert LiquidityManager.InsufficientLiquidity();
 
         /* Quote repayment */
         uint256 newRepayment = _quote(principal, duration, assets);
