@@ -601,7 +601,11 @@ abstract contract Pool is
         if (repayment > maxRepayment) revert RepaymentTooHigh();
 
         /* Source liquidity nodes */
-        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(principal, depths, 1);
+        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
+            principal,
+            depths,
+            underlyingCollateralTokenIds.length
+        );
 
         /* Compute admin fee */
         uint256 adminFee = Math.mulDiv(_adminFeeRate, repayment - principal, BASIS_POINTS_SCALE);
@@ -736,7 +740,7 @@ abstract contract Pool is
         options;
 
         /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint256).max, 1))
+        if (principal > _liquidity.liquidityAvailable(type(uint256).max, collateralTokenIds.length))
             revert LiquidityManager.InsufficientLiquidity();
 
         return _quote(principal, duration, collateralToken, collateralTokenIds);
@@ -750,10 +754,6 @@ abstract contract Pool is
         uint256 principal,
         uint64 duration
     ) external view returns (int256, uint256) {
-        /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint256).max, 1))
-            revert LiquidityManager.InsufficientLiquidity();
-
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
@@ -763,6 +763,10 @@ abstract contract Pool is
             loanReceipt.collateralTokenId,
             loanReceipt.collateralContextData
         );
+
+        /* Check principal doesn't exceed max borrow available */
+        if (principal > _liquidity.liquidityAvailable(type(uint256).max, underlyingCollateralTokenIds.length))
+            revert LiquidityManager.InsufficientLiquidity();
 
         /* Quote repayment */
         uint256 newRepayment = _quote(principal, duration, underlyingCollateralToken, underlyingCollateralTokenIds);
