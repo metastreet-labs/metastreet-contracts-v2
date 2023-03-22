@@ -179,11 +179,11 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
         sources5.length
       );
       expect(pending.length).to.equal(5);
-      expect(pending[0]).to.equal(FixedPoint.from("0.032786885245901633"));
-      expect(pending[1]).to.equal(FixedPoint.from("0.262295081967213113"));
-      expect(pending[2]).to.equal(FixedPoint.from("0.655737704918032789"));
+      expect(pending[0]).to.equal(FixedPoint.from("0.044444444444444444"));
+      expect(pending[1]).to.equal(FixedPoint.from("0.355555555555555552"));
+      expect(pending[2]).to.equal(FixedPoint.from("0.888888888888888890"));
       expect(pending[3]).to.equal(ethers.constants.Zero);
-      expect(pending[4]).to.equal(FixedPoint.from("1.049180327868852465"));
+      expect(pending[4]).to.equal(FixedPoint.from("0.711111111111111114"));
     });
   });
 
