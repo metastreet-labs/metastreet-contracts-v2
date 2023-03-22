@@ -375,8 +375,8 @@ abstract contract Pool is
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityAvailable(uint256 maxDepth) external view returns (uint256) {
-        return _liquidity.liquidityAvailable(maxDepth);
+    function liquidityAvailable(uint256 maxDepth, uint256 multiplier) external view returns (uint256) {
+        return _liquidity.liquidityAvailable(maxDepth, multiplier);
     }
 
     /**
@@ -736,7 +736,7 @@ abstract contract Pool is
         options;
 
         /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint256).max))
+        if (principal > _liquidity.liquidityAvailable(type(uint256).max, 1))
             revert LiquidityManager.InsufficientLiquidity();
 
         return _quote(principal, duration, collateralToken, collateralTokenIds);
@@ -751,7 +751,7 @@ abstract contract Pool is
         uint64 duration
     ) external view returns (int256, uint256) {
         /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint256).max))
+        if (principal > _liquidity.liquidityAvailable(type(uint256).max, 1))
             revert LiquidityManager.InsufficientLiquidity();
 
         /* Decode loan receipt */
