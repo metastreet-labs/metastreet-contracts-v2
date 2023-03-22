@@ -152,6 +152,21 @@ interface IPool {
     ) external view returns (uint256);
 
     /**
+     * @notice Quote refinancing for a loan
+     *
+     * @param encodedLoanReceipt Encoded loan receipt
+     * @param principal New principal amount in currency tokens
+     * @param duration Duration in seconds
+     * @return downpayment Downpayment in currency tokens (positive for downpayment, negative for credit)
+     * @return repayment Repayment amount in currency tokens for new loan
+     */
+    function quoteRefinance(
+        bytes calldata encodedLoanReceipt,
+        uint256 principal,
+        uint64 duration
+    ) external view returns (int256 downpayment, uint256 repayment);
+
+    /**
      * @notice Originate a loan
      *
      * Emits a {LoanOriginated} event.
