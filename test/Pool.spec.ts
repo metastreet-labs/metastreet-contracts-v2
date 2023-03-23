@@ -1107,6 +1107,66 @@ describe("Pool", function () {
     });
   });
 
+  describe("#quoteRefinance", async function () {
+    let loanReceipt: string;
+    let loanReceiptHash: string;
+
+    beforeEach("setup liquidity and borrow", async function () {
+      await setupLiquidity();
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
+    });
+    it("correctly quotes refinance payment and repayment at original loan maturity with same principal", async function () {
+      // Get decoded loan receipt
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      // Fast forward to maturity timestamp
+      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
+      await network.provider.send("evm_mine");
+
+      // Get quote
+      const [payment, repayment] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("25"), 30 * 86400);
+
+      // Validate quote
+      expect(repayment).to.equal(decodedLoanReceipt.repayment);
+      expect(payment).to.equal(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("25")));
+    });
+
+    it("correctly quotes refinance payment and repayment at original loan maturity with smaller principal (1 ETH less)", async function () {
+      // Get decoded loan receipt
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      // Fast forward to maturity timestamp
+      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
+      await network.provider.send("evm_mine");
+
+      // Get quote
+      const [payment, _] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("24"), 30 * 86400);
+
+      // Validate quote
+      expect(payment).to.equal(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("24")));
+    });
+
+    it("correctly quotes refinance payment and repayment at original loan maturity with bigger principal (1 ETH more)", async function () {
+      // Get decoded loan receipt
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      // Fast forward to maturity timestamp
+      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
+      await network.provider.send("evm_mine");
+
+      // Get quote
+      const [payment, _] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("26"), 30 * 86400);
+
+      // Validate quote
+      expect(payment).to.equal(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("26")));
+    });
+    it("fails on insufficient liquidity", async function () {
+      await expect(
+        pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("100"), 30 * 86400)
+      ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
+    });
+  });
+
   describe("#borrow", async function () {
     beforeEach("setup liquidity", async function () {
       await setupLiquidity();
