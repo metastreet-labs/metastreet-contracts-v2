@@ -298,7 +298,7 @@ contract DynamicTargetUtilizationInterestRateModel is IInterestRateModel {
             uint256 index = count - i - 1;
 
             /* Skip tick if it's below threshold */
-            if (nodes[index].used < threshold) continue;
+            if (nodes[index].used <= threshold) continue;
 
             /* Calculate contribution of this tick to total amount */
             uint256 contribution = Math.mulDiv(nodes[index].used, FIXED_POINT_D_SCALE, amount);
