@@ -963,7 +963,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         }
 
         /* Transfer collateral from borrower to pool */
-        IERC721(collateralToken_).safeTransferFrom(msg.sender, address(this), collateralTokenId);
+        IERC721(collateralToken_).transferFrom(msg.sender, address(this), collateralTokenId);
 
         /* Transfer principal from pool to borrower */
         _currencyToken.safeTransfer(msg.sender, principal);
@@ -990,7 +990,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         _currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), repayment);
 
         /* Transfer collateral from pool to borrower */
-        IERC721(loanReceipt.collateralToken).safeTransferFrom(
+        IERC721(loanReceipt.collateralToken).transferFrom(
             address(this),
             loanReceipt.borrower,
             loanReceipt.collateralTokenId
