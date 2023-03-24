@@ -595,6 +595,9 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @param options Options data that contains tag, length and address to delegate to
      */
     function _optionDelegateCash(uint256 collateralTokenId, bytes calldata options) internal {
+        /* Revert if _delegationRegistry not set */
+        if (address(_delegationRegistry) == address(0)) revert InvalidBorrowOptions();
+
         /* Find tag location in options */
         bytes calldata optionsData = _getOptionsData(options, uint16(BorrowOptions.DelegateCash));
 
@@ -613,6 +616,9 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @param collateralTokenId Token id of token that delegation is being removed from
      */
     function _revokeDelegates(address collateralToken_, uint256 collateralTokenId) internal {
+        /* No operation if _delegationRegistry not set */
+        if (address(_delegationRegistry) == address(0)) return;
+
         /* Get delegates for collateral token and id */
         address[] memory delegates = _delegationRegistry.getDelegatesForToken(
             address(this),
