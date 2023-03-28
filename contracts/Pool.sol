@@ -110,11 +110,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     error InvalidLoanStatus();
 
     /**
-     * @notice Invalid borrow options encoding
-     */
-    error InvalidBorrowOptionsEncoding();
-
-    /**
      * @notice Invalid borrow options
      */
     error InvalidBorrowOptions();
@@ -585,7 +580,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
 
         /* If option tag is found, the minimum offset would be 4 bytes */
         if (optionsData.length != 0) {
-            if (optionsData.length != 20) revert InvalidBorrowOptionsEncoding();
+            if (optionsData.length != 20) revert InvalidBorrowOptions();
             address delegate = address(uint160(bytes20(optionsData)));
 
             _delegationRegistry.delegateForToken(delegate, address(_collateralToken), collateralTokenId, true);
