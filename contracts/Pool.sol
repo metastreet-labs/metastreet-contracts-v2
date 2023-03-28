@@ -374,6 +374,18 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
     }
 
     /**
+     * @notice Get total admin fee balance
+     * @return Total admin fee balance
+     */
+    function adminFeeBalance() external view returns (uint256) {
+        return _adminFeeBalance;
+    }
+
+    /**************************************************************************/
+    /* Loan Receipt External Helpers */
+    /**************************************************************************/
+
+    /**
      * @notice Decode loan receipt
      * @param loanReceipt Loan receipt
      * @return Decoded loan receipt
@@ -383,11 +395,12 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
     }
 
     /**
-     * @notice Get total admin fee balance
-     * @return Total admin fee balance
+     * @notice Hash loan receipt
+     * @param loanReceipt Loan receipt
+     * @return Hahshed loan receipt
      */
-    function adminFeeBalance() external view returns (uint256) {
-        return _adminFeeBalance;
+    function hashLoanReceipt(bytes calldata loanReceipt) external view returns (bytes32) {
+        return LoanReceipt.hash(loanReceipt);
     }
 
     /**************************************************************************/
