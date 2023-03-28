@@ -11,6 +11,61 @@ import "./ICollateralWrapper.sol";
  */
 interface IPool {
     /**************************************************************************/
+    /* Errors */
+    /**************************************************************************/
+
+    /**
+     * @notice Invalid caller
+     */
+    error InvalidCaller();
+
+    /**
+     * @notice Invalid shares
+     */
+    error InvalidShares();
+
+    /**
+     * @notice Invalid loan receipt
+     */
+    error InvalidLoanReceipt();
+
+    /**
+     * @notice Invalid borrow options
+     */
+    error InvalidBorrowOptions();
+
+    /**
+     * @notice Unsupported collateral
+     * @param index Index of unsupported asset
+     */
+    error UnsupportedCollateral(uint256 index);
+
+    /**
+     * @notice Unsupported loan duration
+     */
+    error UnsupportedLoanDuration();
+
+    /**
+     * @notice Repayment too high
+     */
+    error RepaymentTooHigh();
+
+    /**
+     * @notice Loan not expired
+     */
+    error LoanNotExpired();
+
+    /**
+     * @notice Loan expired
+     */
+    error LoanExpired();
+
+    /**
+     * @notice Redemption in progress
+     */
+    error RedemptionInProgress();
+
+    /**************************************************************************/
     /* Events */
     /**************************************************************************/
 
