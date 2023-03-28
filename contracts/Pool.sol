@@ -2,7 +2,6 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
@@ -26,20 +25,11 @@ import "./integrations/DelegateCash/IDelegationRegistry.sol";
  * @title Pool
  * @author MetaStreet Labs
  */
-contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard, Multicall, IPool, ILiquidity {
+contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall, IPool, ILiquidity {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
     using LoanReceipt for LoanReceipt.LoanReceiptV1;
     using LiquidityManager for LiquidityManager.Liquidity;
-
-    /**************************************************************************/
-    /* Access Control Roles */
-    /**************************************************************************/
-
-    /**
-     * @notice Emergency administrator role
-     */
-    bytes32 public constant EMERGENCY_ADMIN_ROLE = keccak256("EMERGENCY_ADMIN");
 
     /**************************************************************************/
     /* Constants */
@@ -295,7 +285,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
 
         /* Grant roles */
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
-        _grantRole(EMERGENCY_ADMIN_ROLE, msg.sender);
     }
 
     /**************************************************************************/
@@ -1188,22 +1177,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     }
 
     /**************************************************************************/
-    /* Admin API */
+    /* Admin Fees API */
     /**************************************************************************/
-
-    /**
-     * @notice Pause contract
-     */
-    function pause() external onlyRole(EMERGENCY_ADMIN_ROLE) {
-        _pause();
-    }
-
-    /**
-     * @notice Unpause contract
-     */
-    function unpause() external onlyRole(EMERGENCY_ADMIN_ROLE) {
-        _unpause();
-    }
 
     /**
      * @notice Set the admin fee rate
@@ -1217,10 +1192,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         _adminFeeRate = rate;
         emit AdminFeeRateUpdated(rate);
     }
-
-    /**************************************************************************/
-    /* Admin Fees API */
-    /**************************************************************************/
 
     /**
      * @notice Withdraw admin fees

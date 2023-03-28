@@ -930,27 +930,8 @@ describe("Pool", function () {
   }
 
   /****************************************************************************/
-  /* Privileged API Tests */
+  /* Admin Fee Tests */
   /****************************************************************************/
-
-  describe("#pause", async function () {
-    it("pauses", async function () {
-      expect(await pool.paused()).to.equal(false);
-
-      /* Pause pool */
-      await pool.pause();
-      expect(await pool.paused()).to.equal(true);
-
-      /* Unpause pool */
-      await pool.unpause();
-      expect(await pool.paused()).to.equal(false);
-    });
-    it("fails on invalid caller", async function () {
-      await expect(pool.connect(accountDepositors[0]).pause()).to.be.revertedWith(
-        /AccessControl: account .* is missing role .*/
-      );
-    });
-  });
 
   describe("#setAdminFeeRate", async function () {
     it("sets admin fee rate successfully", async function () {
