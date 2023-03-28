@@ -44,7 +44,6 @@ describe("Pool", function () {
 
     const testERC20Factory = await ethers.getContractFactory("TestERC20");
     const testERC721Factory = await ethers.getContractFactory("TestERC721");
-    const testNoteAdapterFactory = await ethers.getContractFactory("TestNoteAdapter");
     const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const collectionCollateralFilterFactory = await ethers.getContractFactory("CollectionCollateralFilter");
     const testLoanReceiptFactory = await ethers.getContractFactory("TestLoanReceipt");
