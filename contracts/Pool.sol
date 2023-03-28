@@ -136,21 +136,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     error UnsupportedLoanDuration();
 
     /**
-     * @notice Unsupported currency token
-     */
-    error UnsupportedCurrencyToken();
-
-    /**
-     * @notice Unsupported platform
-     */
-    error UnsupportedPlatform();
-
-    /**
-     * @notice Purchase price too low
-     */
-    error PurchasePriceTooLow();
-
-    /**
      * @notice Repayment too high
      */
     error RepaymentTooHigh();
@@ -164,11 +149,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @notice Redemption in progress
      */
     error RedemptionInProgress();
-
-    /**
-     * @notice Call failed
-     */
-    error CallFailed();
 
     /**************************************************************************/
     /* Structures */
