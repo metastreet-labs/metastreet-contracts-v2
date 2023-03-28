@@ -105,11 +105,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
     error InvalidLoanReceipt();
 
     /**
-     * @notice Invalid loan status
-     */
-    error InvalidLoanStatus();
-
-    /**
      * @notice Invalid borrow options
      */
     error InvalidBorrowOptions();
@@ -134,6 +129,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
      * @notice Repayment too high
      */
     error RepaymentTooHigh();
+
+    /**
+     * @notice Loan not expired
+     */
+    error LoanNotExpired();
 
     /**
      * @notice Loan expired
@@ -758,7 +758,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
 
         /* Validate no loan receipt hash collision */
-        if (_loans[loanReceiptHash] != LoanStatus.Uninitialized) revert InvalidLoanStatus();
+        if (_loans[loanReceiptHash] != LoanStatus.Uninitialized) revert InvalidLoanReceipt();
 
         /* Store loan status */
         _loans[loanReceiptHash] = LoanStatus.Active;
@@ -1042,7 +1042,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
         /* Validate loan is expired */
-        if (block.timestamp < loanReceipt.maturity) revert InvalidLoanStatus();
+        if (block.timestamp < loanReceipt.maturity) revert LoanNotExpired();
 
         /* Transfer collateral to _collateralLiquidator */
         IERC721(loanReceipt.collateralToken).safeTransferFrom(

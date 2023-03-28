@@ -2718,7 +2718,7 @@ describe("Pool", function () {
               await sourceLiquidity(ethers.utils.parseEther("1")),
             ]),
           ])
-      ).to.be.revertedWithCustomError(pool, "InvalidLoanStatus");
+      ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
     });
 
     it("bundle loan fails on borrow and refinance in same block with same loan receipt fields", async function () {
@@ -2787,7 +2787,7 @@ describe("Pool", function () {
               await sourceLiquidity(ethers.utils.parseEther("1")),
             ]),
           ])
-      ).to.be.revertedWithCustomError(pool, "InvalidLoanStatus");
+      ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
     });
 
     it("fails on invalid caller", async function () {
@@ -3075,7 +3075,7 @@ describe("Pool", function () {
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
 
-      await expect(pool.liquidate(loanReceipt)).to.be.revertedWithCustomError(pool, "InvalidLoanStatus");
+      await expect(pool.liquidate(loanReceipt)).to.be.revertedWithCustomError(pool, "LoanNotExpired");
     });
 
     it("fails on repaid loan", async function () {
