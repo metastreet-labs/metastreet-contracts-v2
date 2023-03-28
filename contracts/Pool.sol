@@ -631,7 +631,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, Pausable, ReentrancyGuard,
         /* Verify collateral is supported */
         for (uint256 i = 0; i < collateralTokenIds.length; i++) {
             if (!_collateralFilter.supported(collateralToken_, collateralTokenIds[i], ""))
-                revert UnsupportedCollateral(0);
+                revert UnsupportedCollateral(i);
         }
 
         /* Validate loan duration */
