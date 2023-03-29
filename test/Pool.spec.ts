@@ -853,7 +853,7 @@ describe("Pool", function () {
         ? 124
         : 125;
 
-    const repayment = await pool["quote(uint256,uint64,uint256[])"](principal, duration, [tokenId]);
+    const repayment = await pool.quote(principal, duration, [tokenId]);
 
     const borrowTx = await pool
       .connect(accountBorrower)
@@ -972,7 +972,7 @@ describe("Pool", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool["quote(uint256,uint64,uint256[])"](ethers.utils.parseEther("25"), 30 * 86400, [123]);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123]);
 
       /* Borrow */
       const borrowTx = await pool
@@ -1048,7 +1048,7 @@ describe("Pool", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool["quote(uint256,uint64,uint256[])"](ethers.utils.parseEther("25"), 30 * 86400, [123]);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123]);
 
       const borrowTx = await pool
         .connect(accountBorrower)
@@ -1145,68 +1145,35 @@ describe("Pool", function () {
     });
 
     it("correctly quotes repayment", async function () {
-      expect(await pool["quote(uint256,uint64,uint256[])"](ethers.utils.parseEther("10"), 30 * 86400, [123])).to.equal(
+      expect(await pool.quote(ethers.utils.parseEther("10"), 30 * 86400, [123])).to.equal(
         ethers.utils.parseEther("10.061438356146880000")
       );
 
-      expect(await pool["quote(uint256,uint64,uint256[])"](ethers.utils.parseEther("25"), 30 * 86400, [123])).to.equal(
+      expect(await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123])).to.equal(
         ethers.utils.parseEther("25.153595890367200000")
       );
     });
 
-    it("bundle loan correctly quotes repayment", async function () {
-      /* Mint bundle */
-      await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
-      const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
-      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+    it("correctly quotes repayment for bundle", async function () {
+      expect(await pool.quote(ethers.utils.parseEther("10"), 30 * 86400, [123, 124, 125])).to.equal(
+        ethers.utils.parseEther("10.061438356146880000")
+      );
 
-      /* Set approvals */
-      await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
-
-      expect(
-        await pool["quote(uint256,uint64,address,uint256,bytes)"](
-          ethers.utils.parseEther("10"),
-          30 * 86400,
-          bundleCollateralWrapper.address,
-          bundleTokenId,
-          ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 124, 125]])
-        )
-      ).to.equal(ethers.utils.parseEther("10.061438356146880000"));
-
-      expect(
-        await pool["quote(uint256,uint64,address,uint256,bytes)"](
-          ethers.utils.parseEther("25"),
-          30 * 86400,
-          bundleCollateralWrapper.address,
-          bundleTokenId,
-          ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 124, 125]])
-        )
-      ).to.equal(ethers.utils.parseEther("25.153595890367200000"));
+      expect(await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123, 124, 125])).to.equal(
+        ethers.utils.parseEther("25.153595890367200000")
+      );
     });
 
     it("fails on insufficient liquidity", async function () {
-      await expect(
-        pool["quote(uint256,uint64,uint256[])"](ethers.utils.parseEther("100"), 30 * 86400, [123])
-      ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
+      await expect(pool.quote(ethers.utils.parseEther("100"), 30 * 86400, [123])).to.be.revertedWithCustomError(
+        pool,
+        "InsufficientLiquidity"
+      );
     });
 
-    it("bundle loan fails on insufficient liquidity", async function () {
-      /* Mint bundle */
-      await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
-      const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
-      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
-
-      /* Set approvals */
-      await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
-
+    it("fails on insufficient liquidity for bundle", async function () {
       await expect(
-        pool["quote(uint256,uint64,address,uint256,bytes)"](
-          ethers.utils.parseEther("1000"),
-          30 * 86400,
-          bundleCollateralWrapper.address,
-          bundleTokenId,
-          ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 124, 125]])
-        )
+        pool.quote(ethers.utils.parseEther("1000"), 30 * 86400, [123, 124, 125])
       ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
     });
 
@@ -1346,7 +1313,7 @@ describe("Pool", function () {
 
     it("originates loan", async function () {
       /* Quote repayment */
-      const repayment = await pool["quote(uint256,uint64,uint256[])"](ethers.utils.parseEther("25"), 30 * 86400, [123]);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123]);
 
       /* Simulate borrow */
       const returnVal = await pool
@@ -1434,13 +1401,7 @@ describe("Pool", function () {
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
       /* Quote repayment */
-      const repayment = await pool["quote(uint256,uint64,address,uint256,bytes)"](
-        ethers.utils.parseEther("25"),
-        30 * 86400,
-        bundleCollateralWrapper.address,
-        bundleTokenId,
-        ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 124, 125]])
-      );
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123, 124, 125]);
 
       await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
 
@@ -1541,7 +1502,7 @@ describe("Pool", function () {
 
     it("originates loan with delegation", async function () {
       /* Quote repayment */
-      const repayment = await pool["quote(uint256,uint64,uint256[])"](ethers.utils.parseEther("25"), 30 * 86400, [123]);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123]);
 
       /* Simulate borrow */
       const returnVal = await pool
@@ -1640,7 +1601,7 @@ describe("Pool", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool["quote(uint256,uint64,uint256[])"](ethers.utils.parseEther("25"), 30 * 86400, [123]);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123]);
 
       /* Simulate borrow */
       const returnVal = await pool
@@ -1868,13 +1829,7 @@ describe("Pool", function () {
       expect(await bundleCollateralWrapper.ownerOf(bundleTokenId)).to.equal(accountBorrower.address);
 
       /* Quote repayment */
-      const repayment = await pool["quote(uint256,uint64,address,uint256,bytes)"](
-        ethers.utils.parseEther("25"),
-        30 * 86400,
-        bundleCollateralWrapper.address,
-        bundleTokenId,
-        ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [124, 125]])
-      );
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [124, 125]);
 
       await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
 

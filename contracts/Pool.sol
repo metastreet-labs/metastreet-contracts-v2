@@ -808,30 +808,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
     /**
      * @inheritdoc IPool
      */
-    function quote(
-        uint256 principal,
-        uint64 duration,
-        address collateralToken_,
-        uint256 collateralTokenId,
-        bytes calldata collateralContext
-    ) external view returns (uint256) {
-        /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint256).max))
-            revert LiquidityManager.InsufficientLiquidity();
-
-        /* Get underlying collateral */
-        (address underlyingCollateralToken, uint256[] memory underlyingCollateralTokenIds) = _getUnderlyingCollateral(
-            collateralToken_,
-            collateralTokenId,
-            collateralContext
-        );
-
-        return _quote(principal, duration, underlyingCollateralToken, underlyingCollateralTokenIds);
-    }
-
-    /**
-     * @inheritdoc IPool
-     */
     function quoteRefinance(
         bytes calldata encodedLoanReceipt,
         uint256 principal,

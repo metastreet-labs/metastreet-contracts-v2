@@ -211,23 +211,6 @@ interface IPool {
     ) external view returns (uint256);
 
     /**
-     * @notice Quote repayment for a loan with a collateral wrapper token
-     * @param principal Principal amount in currency tokens
-     * @param duration Duration in seconds
-     * @param collateralWrapperToken Collateral token
-     * @param collateralWrapperTokenId Collateral token ID
-     * @param collateralWrapperContext Collateral wrapper context
-     * @return Repayment amount in currency tokens
-     */
-    function quote(
-        uint256 principal,
-        uint64 duration,
-        address collateralWrapperToken,
-        uint256 collateralWrapperTokenId,
-        bytes calldata collateralWrapperContext
-    ) external view returns (uint256);
-
-    /**
      * @notice Quote refinancing for a loan
      *
      * @param encodedLoanReceipt Encoded loan receipt
