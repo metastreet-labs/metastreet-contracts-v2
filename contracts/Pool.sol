@@ -796,8 +796,11 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
     function quote(
         uint256 principal,
         uint64 duration,
-        uint256[] calldata collateralTokenIds
+        uint256[] calldata collateralTokenIds,
+        bytes calldata options
     ) external view returns (uint256) {
+        options;
+
         /* Check principal doesn't exceed max borrow available */
         if (principal > _liquidity.liquidityAvailable(type(uint256).max))
             revert LiquidityManager.InsufficientLiquidity();

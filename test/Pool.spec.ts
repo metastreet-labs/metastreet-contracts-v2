@@ -853,7 +853,7 @@ describe("Pool", function () {
         ? 124
         : 125;
 
-    const repayment = await pool.quote(principal, duration, [tokenId]);
+    const repayment = await pool.quote(principal, duration, [tokenId], "0x");
 
     const borrowTx = await pool
       .connect(accountBorrower)
@@ -972,7 +972,7 @@ describe("Pool", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123]);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x");
 
       /* Borrow */
       const borrowTx = await pool
@@ -1048,7 +1048,7 @@ describe("Pool", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123]);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x");
 
       const borrowTx = await pool
         .connect(accountBorrower)
@@ -1145,27 +1145,27 @@ describe("Pool", function () {
     });
 
     it("correctly quotes repayment", async function () {
-      expect(await pool.quote(ethers.utils.parseEther("10"), 30 * 86400, [123])).to.equal(
+      expect(await pool.quote(ethers.utils.parseEther("10"), 30 * 86400, [123], "0x")).to.equal(
         ethers.utils.parseEther("10.061438356146880000")
       );
 
-      expect(await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123])).to.equal(
+      expect(await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x")).to.equal(
         ethers.utils.parseEther("25.153595890367200000")
       );
     });
 
     it("correctly quotes repayment for bundle", async function () {
-      expect(await pool.quote(ethers.utils.parseEther("10"), 30 * 86400, [123, 124, 125])).to.equal(
+      expect(await pool.quote(ethers.utils.parseEther("10"), 30 * 86400, [123, 124, 125], "0x")).to.equal(
         ethers.utils.parseEther("10.061438356146880000")
       );
 
-      expect(await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123, 124, 125])).to.equal(
+      expect(await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123, 124, 125], "0x")).to.equal(
         ethers.utils.parseEther("25.153595890367200000")
       );
     });
 
     it("fails on insufficient liquidity", async function () {
-      await expect(pool.quote(ethers.utils.parseEther("100"), 30 * 86400, [123])).to.be.revertedWithCustomError(
+      await expect(pool.quote(ethers.utils.parseEther("100"), 30 * 86400, [123], "0x")).to.be.revertedWithCustomError(
         pool,
         "InsufficientLiquidity"
       );
@@ -1173,7 +1173,7 @@ describe("Pool", function () {
 
     it("fails on insufficient liquidity for bundle", async function () {
       await expect(
-        pool.quote(ethers.utils.parseEther("1000"), 30 * 86400, [123, 124, 125])
+        pool.quote(ethers.utils.parseEther("1000"), 30 * 86400, [123, 124, 125], "0x")
       ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
     });
 
@@ -1313,7 +1313,7 @@ describe("Pool", function () {
 
     it("originates loan", async function () {
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123]);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x");
 
       /* Simulate borrow */
       const returnVal = await pool
@@ -1401,7 +1401,7 @@ describe("Pool", function () {
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123, 124, 125]);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123, 124, 125], "0x");
 
       await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
 
@@ -1502,7 +1502,7 @@ describe("Pool", function () {
 
     it("originates loan with delegation", async function () {
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123]);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x");
 
       /* Simulate borrow */
       const returnVal = await pool
@@ -1601,7 +1601,7 @@ describe("Pool", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123]);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [123], "0x");
 
       /* Simulate borrow */
       const returnVal = await pool
@@ -1829,7 +1829,7 @@ describe("Pool", function () {
       expect(await bundleCollateralWrapper.ownerOf(bundleTokenId)).to.equal(accountBorrower.address);
 
       /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [124, 125]);
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, [124, 125], "0x");
 
       await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
 
