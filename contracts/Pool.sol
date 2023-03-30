@@ -793,9 +793,6 @@ abstract contract Pool is
         uint256[] calldata depths,
         bytes calldata options
     ) external nonReentrant returns (uint256) {
-        /* Get offset and length of bundle collateral options, returns (0,0) if none provided */
-        bytes calldata optionsData = _getOptionsData(options, uint16(BorrowOptions.CollateralWrapperContext));
-
         /* Handle borrow accounting */
         (uint256 repayment, bytes memory encodedLoanReceipt, bytes32 loanReceiptHash) = _borrow(
             principal,
@@ -804,7 +801,7 @@ abstract contract Pool is
             collateralTokenId,
             maxRepayment,
             depths,
-            optionsData
+            _getOptionsData(options, uint16(BorrowOptions.CollateralWrapperContext))
         );
 
         /* Handle delegate.cash option */
