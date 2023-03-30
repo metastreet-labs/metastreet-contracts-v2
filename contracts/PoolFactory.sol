@@ -68,14 +68,13 @@ contract PoolFactory is Ownable, IPoolFactory {
             IERC20 currencyToken,
             uint64 maxLoanDuration,
             uint256 originationFeeRate,
+            ICollateralLiquidator collateralLiquidator,
             IDelegationRegistry delegationRegistry,
             address[] memory collateralWrappers,
             address collateralFilterImpl,
             address interestRateModelImpl,
-            address collateralLiquidatorImpl,
             bytes memory collateralFilterParams,
-            bytes memory interestRateModelParams,
-            bytes memory collateralLiquidatorParams
+            bytes memory interestRateModelParams
         ) = abi.decode(
                 params,
                 (
@@ -83,12 +82,11 @@ contract PoolFactory is Ownable, IPoolFactory {
                     IERC20,
                     uint64,
                     uint256,
+                    ICollateralLiquidator,
                     IDelegationRegistry,
                     address[],
                     address,
                     address,
-                    address,
-                    bytes,
                     bytes,
                     bytes
                 )
@@ -106,14 +104,13 @@ contract PoolFactory is Ownable, IPoolFactory {
                     currencyToken,
                     maxLoanDuration,
                     originationFeeRate,
+                    collateralLiquidator,
                     delegationRegistry,
                     collateralWrappers,
                     collateralFilterImpl,
                     interestRateModelImpl,
-                    collateralLiquidatorImpl,
                     collateralFilterParams,
-                    interestRateModelParams,
-                    collateralLiquidatorParams
+                    interestRateModelParams
                 )
             )
         );

@@ -27,7 +27,6 @@ describe("Pool", function () {
   let loanReceiptLib: TestLoanReceipt;
   let collateralFilterImpl: CollectionCollateralFilter;
   let interestRateModelImpl: FixedInterestRateModel;
-  let collateralLiquidatorImpl: ExternalCollateralLiquidator;
   let collateralLiquidator: ExternalCollateralLiquidator;
   let poolImpl: Pool;
   let pool: Pool;
@@ -73,8 +72,19 @@ describe("Pool", function () {
     await interestRateModelImpl.deployed();
 
     /* Deploy external collateral liquidator implementation */
-    collateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
+    const collateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
     await collateralLiquidatorImpl.deployed();
+
+    /* Deploy collateral liquidator */
+    let proxy = await testProxyFactory.deploy(
+      collateralLiquidatorImpl.address,
+      collateralLiquidatorImpl.interface.encodeFunctionData("initialize", [accounts[6].address])
+    );
+    await proxy.deployed();
+    collateralLiquidator = (await ethers.getContractAt(
+      "ExternalCollateralLiquidator",
+      proxy.address
+    )) as ExternalCollateralLiquidator;
 
     /* Deploy test delegation registry */
     delegationRegistry = await delegationRegistryFactory.deploy();
@@ -90,7 +100,7 @@ describe("Pool", function () {
     await poolImpl.deployed();
 
     /* Deploy pool */
-    const proxy = await testProxyFactory.deploy(
+    proxy = await testProxyFactory.deploy(
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         accounts[0].address,
@@ -98,17 +108,16 @@ describe("Pool", function () {
         tok1.address,
         30 * 86400,
         45,
+        collateralLiquidator.address,
         delegationRegistry.address,
         [bundleCollateralWrapper.address],
         collateralFilterImpl.address,
         interestRateModelImpl.address,
-        collateralLiquidatorImpl.address,
         ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
         ethers.utils.defaultAbiCoder.encode(
           ["uint64", "uint64", "uint64"],
           [FixedPoint.normalizeRate("0.02"), FixedPoint.from("0.05"), FixedPoint.from("2.0")]
         ),
-        ethers.utils.defaultAbiCoder.encode(["address"], [accounts[6].address]),
       ])
     );
     await proxy.deployed();
@@ -459,10 +468,12 @@ describe("Pool", function () {
       await pool.liquidate(loanReceipt);
 
       /* Withdraw collateral */
-      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
+      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(pool.address, loanReceipt);
 
       /* Liquidate collateral and process liquidation */
-      await collateralLiquidator.connect(accountLiquidator).liquidateCollateral(loanReceipt, ethers.constants.Zero);
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .liquidateCollateral(pool.address, loanReceipt, ethers.constants.Zero);
 
       /* Redemption should be available */
       [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, ethers.utils.parseEther("10"));
@@ -686,10 +697,12 @@ describe("Pool", function () {
       await pool.liquidate(loanReceipt);
 
       /* Withdraw collateral */
-      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
+      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(pool.address, loanReceipt);
 
       /* Liquidate collateral and process liquidation */
-      await collateralLiquidator.connect(accountLiquidator).liquidateCollateral(loanReceipt, ethers.constants.Zero);
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .liquidateCollateral(pool.address, loanReceipt, ethers.constants.Zero);
 
       /* Withdraw */
       const withdrawTx = await pool.connect(accountDepositors[0]).withdraw(ethers.utils.parseEther("10"));
@@ -834,12 +847,12 @@ describe("Pool", function () {
     await pool.liquidate(loanReceipt);
 
     /* Withdraw collateral */
-    await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
+    await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(pool.address, loanReceipt);
 
     /* Liquidate collateral and process liquidation */
     await collateralLiquidator
       .connect(accountLiquidator)
-      .liquidateCollateral(loanReceipt, ethers.utils.parseEther("5"));
+      .liquidateCollateral(pool.address, loanReceipt, ethers.utils.parseEther("5"));
   }
 
   async function createActiveLoan(
@@ -3048,12 +3061,12 @@ describe("Pool", function () {
       await pool.liquidate(loanReceipt);
 
       /* Withdraw collateral */
-      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
+      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(pool.address, loanReceipt);
 
       /* Liquidate collateral and process liquidation */
       const onCollateralLiquidatedTx = await collateralLiquidator
         .connect(accountLiquidator)
-        .liquidateCollateral(loanReceipt, ethers.utils.parseEther("30"));
+        .liquidateCollateral(pool.address, loanReceipt, ethers.utils.parseEther("30"));
 
       /* Validate events */
       await expectEvent(
@@ -3110,11 +3123,11 @@ describe("Pool", function () {
       await pool.liquidate(loanReceipt);
 
       /* Withdraw collateral */
-      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(loanReceipt);
+      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(pool.address, loanReceipt);
 
       /* Liquidate collateral and process liquidation */
       const proceeds = decodedLoanReceipt.nodeReceipts[0].pending.add(decodedLoanReceipt.nodeReceipts[1].pending);
-      await collateralLiquidator.connect(accountLiquidator).liquidateCollateral(loanReceipt, proceeds);
+      await collateralLiquidator.connect(accountLiquidator).liquidateCollateral(pool.address, loanReceipt, proceeds);
 
       /* Validate state */
       expect(await pool.loans(loanReceiptHash)).to.equal(4);

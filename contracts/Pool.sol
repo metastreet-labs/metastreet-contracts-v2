@@ -218,13 +218,12 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
      * @param collateralToken_ Collateral token contract
      * @param currencyToken_ Currency token contract
      * @param maxLoanDuration_ Maximum loan duration in seconds
+     * @param collateralLiquidator_ Collateral liquidator
      * @param delegationRegistry_ Delegation registry contract
      * @param collateralFilterImpl Collateral filter implementation contract
      * @param interestRateModelImpl Interest rate model implementation contract
-     * @param collateralLiquidatorImpl Collateral liquidator implementation contract
      * @param collateralFilterParams Collateral filter initialization parameters
      * @param interestRateModelParams Interest rate model initialization parameters
-     * @param collateralLiquidatorParams Collateral liquidator initialization parameters
      */
     function initialize(
         address admin,
@@ -232,14 +231,13 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
         IERC20 currencyToken_,
         uint64 maxLoanDuration_,
         uint256 originationFeeRate_,
+        ICollateralLiquidator collateralLiquidator_,
         IDelegationRegistry delegationRegistry_,
         address[] memory collateralWrappers,
         address collateralFilterImpl,
         address interestRateModelImpl,
-        address collateralLiquidatorImpl,
         bytes memory collateralFilterParams,
-        bytes memory interestRateModelParams,
-        bytes memory collateralLiquidatorParams
+        bytes memory interestRateModelParams
     ) external {
         require(!_initialized, "Already initialized");
 
@@ -249,6 +247,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
         _currencyToken = currencyToken_;
         _maxLoanDuration = maxLoanDuration_;
         _originationFeeRate = originationFeeRate_;
+        _collateralLiquidator = collateralLiquidator_;
         _delegationRegistry = delegationRegistry_;
 
         /* Set collateral wrappers */
@@ -274,14 +273,6 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
             abi.encodeWithSignature("initialize(bytes)", interestRateModelParams)
         );
         _interestRateModel = IInterestRateModel(interestRateModelInstance);
-
-        /* Deploy collateral liquidator instance */
-        address collateralLiquidatorInstance = Clones.clone(collateralLiquidatorImpl);
-        Address.functionCall(
-            collateralLiquidatorInstance,
-            abi.encodeWithSignature("initialize(bytes)", collateralLiquidatorParams)
-        );
-        _collateralLiquidator = ICollateralLiquidator(collateralLiquidatorInstance);
 
         /* Grant roles */
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
