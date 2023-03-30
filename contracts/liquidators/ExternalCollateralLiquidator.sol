@@ -26,6 +26,11 @@ contract ExternalCollateralLiquidator is ICollateralLiquidator {
     error InvalidCaller();
 
     /**
+     * @notice Invalid transfer
+     */
+    error InvalidTransfer();
+
+    /**
      * @notice Invalid collateral state
      */
     error InvalidCollateralState();
@@ -35,32 +40,46 @@ contract ExternalCollateralLiquidator is ICollateralLiquidator {
     /**************************************************************************/
 
     /**
-     * @notice Emitted when collateral is withdrawn
-     * @param account Account
+     * @notice Emitted when collateral is received
+     * @param collateralHash Collateral hash
+     * @param pool Pool that provided collateral
      * @param collateralToken Collateral token contract
      * @param collateralTokenId Collateral token ID
-     * @param loanReceiptHash Loan receipt hash
+     */
+    event CollateralReceived(
+        bytes32 indexed collateralHash,
+        address indexed pool,
+        address collateralToken,
+        uint256 collateralTokenId
+    );
+
+    /**
+     * @notice Emitted when collateral is withdrawn
+     * @param collateralHash Collateral hash
+     * @param pool Pool that provided collateral
+     * @param collateralToken Collateral token contract
+     * @param collateralTokenId Collateral token ID
      */
     event CollateralWithdrawn(
-        address indexed account,
-        address indexed collateralToken,
-        uint256 collateralTokenId,
-        bytes32 loanReceiptHash
+        bytes32 indexed collateralHash,
+        address indexed pool,
+        address collateralToken,
+        uint256 collateralTokenId
     );
 
     /**
      * @notice Emitted when collateral is liquidated
-     * @param account Account
+     * @param collateralHash Collateral hash
+     * @param pool Pool that provided collateral
      * @param collateralToken Collateral token contract
      * @param collateralTokenId Collateral token ID
      * @param proceeds Proceeds in currency tokens
-     * @param loanReceiptHash Loan receipt hash
      */
     event CollateralLiquidated(
-        address indexed account,
-        address indexed collateralToken,
+        bytes32 indexed collateralHash,
+        address indexed pool,
+        address collateralToken,
         uint256 collateralTokenId,
-        bytes32 loanReceiptHash,
         uint256 proceeds
     );
 
@@ -85,11 +104,6 @@ contract ExternalCollateralLiquidator is ICollateralLiquidator {
      * @notice Initialized boolean
      */
     bool private _initialized;
-
-    /**
-     * @dev Associated pool
-     */
-    IPool private _pool;
 
     /**
      * @notice Admin
@@ -119,35 +133,24 @@ contract ExternalCollateralLiquidator is ICollateralLiquidator {
 
     /**
      * @notice Initializer
-     * @param params ABI-encoded parameters
      */
-    function initialize(bytes memory params) external {
+    function initialize(address admin) external {
         require(!_initialized, "Already initialized");
 
         _initialized = true;
-        _pool = IPool(msg.sender);
-        _admin = abi.decode(params, (address));
+        _admin = admin;
     }
 
     /**************************************************************************/
     /* Getters */
     /**************************************************************************/
-
-    /**
-     * Get associated pool
-     * @return Pool address
-     */
-    function pool() external view returns (address) {
-        return address(_pool);
-    }
-
     /**
      * Get collateral status
-     * @param loanReceiptHash Loan receipt hash
+     * @param collateralHash Collateral hash
      * @return Collateral tracker
      */
-    function collateralStatus(bytes32 loanReceiptHash) external view returns (CollateralStatus) {
-        return _collateralTracker[loanReceiptHash];
+    function collateralStatus(bytes32 collateralHash) external view returns (CollateralStatus) {
+        return _collateralTracker[collateralHash];
     }
 
     /**************************************************************************/
@@ -171,13 +174,22 @@ contract ExternalCollateralLiquidator is ICollateralLiquidator {
         bytes calldata data
     ) external virtual returns (bytes4) {
         /* Validate caller */
-        if (operator != from || from != address(_pool)) revert InvalidCaller();
+        if (operator != from) revert InvalidCaller();
 
-        /* Get loan receipt hash */
-        bytes32 loanReceiptHash = LoanReceipt.hash(data);
+        /* Decode loan receipt */
+        LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.decode(data);
+
+        /* Validate collateral is received */
+        if (IERC721(receipt.collateralToken).ownerOf(receipt.collateralTokenId) != address(this))
+            revert InvalidTransfer();
+
+        /* Compute collateral hash */
+        bytes32 collateralHash = keccak256(abi.encodePacked(block.chainid, from, data));
 
         /* Update collateral tracker */
-        _collateralTracker[loanReceiptHash] = CollateralStatus.Present;
+        _collateralTracker[collateralHash] = CollateralStatus.Present;
+
+        emit CollateralReceived(collateralHash, from, receipt.collateralToken, receipt.collateralTokenId);
 
         return this.onERC721Received.selector;
     }
@@ -187,16 +199,17 @@ contract ExternalCollateralLiquidator is ICollateralLiquidator {
      *
      * Emits a {CollateralWithdrawn} event.
      *
+     * @param pool Pool that provided the collateral
      * @param loanReceipt Loan receipt
      */
-    function withdrawCollateral(bytes calldata loanReceipt) external {
+    function withdrawCollateral(address pool, bytes calldata loanReceipt) external {
         if (msg.sender != _admin) revert InvalidCaller();
 
-        /* Look up collateral tracker */
-        bytes32 loanReceiptHash = LoanReceipt.hash(loanReceipt);
+        /* Compute collateral hash */
+        bytes32 collateralHash = keccak256(abi.encodePacked(block.chainid, pool, loanReceipt));
 
         /* Validate collateral is present */
-        if (_collateralTracker[loanReceiptHash] != CollateralStatus.Present) revert InvalidCollateralState();
+        if (_collateralTracker[collateralHash] != CollateralStatus.Present) revert InvalidCollateralState();
 
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.decode(loanReceipt);
@@ -205,9 +218,9 @@ contract ExternalCollateralLiquidator is ICollateralLiquidator {
         IERC721(receipt.collateralToken).safeTransferFrom(address(this), msg.sender, receipt.collateralTokenId);
 
         /* Update collateral tracker */
-        _collateralTracker[loanReceiptHash] = CollateralStatus.Withdrawn;
+        _collateralTracker[collateralHash] = CollateralStatus.Withdrawn;
 
-        emit CollateralWithdrawn(msg.sender, receipt.collateralToken, receipt.collateralTokenId, loanReceiptHash);
+        emit CollateralWithdrawn(collateralHash, pool, receipt.collateralToken, receipt.collateralTokenId);
     }
 
     /**
@@ -215,39 +228,34 @@ contract ExternalCollateralLiquidator is ICollateralLiquidator {
      *
      * Emits a {CollateralLiquidated} event.
      *
+     * @param pool Pool that provided the collateral
      * @param loanReceipt Loan receipt
      * @param proceeds Proceeds from collateral liquidation
      */
-    function liquidateCollateral(bytes calldata loanReceipt, uint256 proceeds) external {
+    function liquidateCollateral(address pool, bytes calldata loanReceipt, uint256 proceeds) external {
         if (msg.sender != _admin) revert InvalidCaller();
 
-        /* Look up collateral tracker */
-        bytes32 loanReceiptHash = LoanReceipt.hash(loanReceipt);
+        /* Compute collateral hash */
+        bytes32 collateralHash = keccak256(abi.encodePacked(block.chainid, pool, loanReceipt));
 
         /* Validate collateral is withdrawn */
-        if (_collateralTracker[loanReceiptHash] != CollateralStatus.Withdrawn) revert InvalidCollateralState();
+        if (_collateralTracker[collateralHash] != CollateralStatus.Withdrawn) revert InvalidCollateralState();
 
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.decode(loanReceipt);
 
         /* Transfer proceeds from caller to this contract */
-        IERC20(_pool.currencyToken()).safeTransferFrom(msg.sender, address(this), proceeds);
+        IERC20(IPool(pool).currencyToken()).safeTransferFrom(msg.sender, address(this), proceeds);
 
         /* Approve pool to pull funds from this contract */
-        IERC20(_pool.currencyToken()).approve(address(_pool), proceeds);
+        IERC20(IPool(pool).currencyToken()).approve(pool, proceeds);
 
         /* Callback into pool */
-        _pool.onCollateralLiquidated(loanReceipt, proceeds);
+        IPool(pool).onCollateralLiquidated(loanReceipt, proceeds);
 
         /* Remove collateral tracker */
-        delete _collateralTracker[loanReceiptHash];
+        delete _collateralTracker[collateralHash];
 
-        emit CollateralLiquidated(
-            msg.sender,
-            receipt.collateralToken,
-            receipt.collateralTokenId,
-            loanReceiptHash,
-            proceeds
-        );
+        emit CollateralLiquidated(collateralHash, pool, receipt.collateralToken, receipt.collateralTokenId, proceeds);
     }
 }

@@ -45,15 +45,9 @@ contract TestCollateralLiquidatorJig is ERC721Holder {
     /**
      * @notice TestLiquidator
      */
-    constructor(IERC20 currencyToken_, address collateralLiquidatorImpl, bytes memory collateralLiquidatorParams) {
+    constructor(IERC20 currencyToken_, address collateralLiquidator_) {
         _currencyToken = currencyToken_;
-
-        /* Deploy collateral liquidator instance */
-        _collateralLiquidator = Clones.clone(collateralLiquidatorImpl);
-        Address.functionCall(
-            _collateralLiquidator,
-            abi.encodeWithSignature("initialize(bytes)", collateralLiquidatorParams)
-        );
+        _collateralLiquidator = collateralLiquidator_;
     }
 
     /**************************************************************************/
