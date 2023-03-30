@@ -3,13 +3,13 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "../interfaces/IInterestRateModel.sol";
+import "../InterestRateModel.sol";
 
 /**
  * @title Fixed Interest Rate Model with a constant, fixed rate.
  * @author MetaStreet Labs
  */
-contract FixedInterestRateModel is IInterestRateModel {
+contract FixedInterestRateModel is InterestRateModel {
     /**************************************************************************/
     /* Constants */
     /**************************************************************************/
@@ -20,33 +20,29 @@ contract FixedInterestRateModel is IInterestRateModel {
     uint256 public constant FIXED_POINT_SCALE = 1e18;
 
     /**************************************************************************/
+    /* Structures */
+    /**************************************************************************/
+
+    /**
+     * @notice Parameters
+     * @param fixedInterestRate Fixed interest rate in interest per second
+     * @param tickThreshold Tick interest threhsold
+     * @param tickExponential Tick exponential base
+     */
+    struct Parameters {
+        uint64 fixedInterestRate;
+        uint64 tickThreshold;
+        uint64 tickExponential;
+    }
+
+    /**************************************************************************/
     /* State */
     /**************************************************************************/
 
     /**
-     * @notice Initialized boolean
+     * @notice Parameters
      */
-    bool private _initialized;
-
-    /**
-     * @notice Owner
-     */
-    address private _owner;
-
-    /**
-     * @notice Fixed interest rate
-     */
-    uint64 private _fixedInterestRate;
-
-    /**
-     * @notice Tick interest threshold
-     */
-    uint64 private _tickThreshold;
-
-    /**
-     * @notice Tick exponential base
-     */
-    uint64 private _tickExponential;
+    Parameters private _params;
 
     /**
      * @notice Utilization
@@ -55,38 +51,15 @@ contract FixedInterestRateModel is IInterestRateModel {
     uint64 private _utilization;
 
     /**************************************************************************/
-    /* Constructor */
-    /**************************************************************************/
-
-    /**
-     * @notice FixedInterestRateModel constructor
-     */
-    constructor() {
-        /* Disable initialization of implementation contract */
-        _initialized = true;
-    }
-
-    /**************************************************************************/
     /* Initializer */
     /**************************************************************************/
 
     /**
      * @notice Initializer
-     * @param params ABI-encoded parameters
+     * @param params Parameters
      */
-    function initialize(bytes memory params) external {
-        require(!_initialized, "Already initialized");
-
-        _initialized = true;
-        _owner = msg.sender;
-
-        (uint64 fixedInterestRate, uint64 tickThreshold, uint64 tickExponential) = abi.decode(
-            params,
-            (uint64, uint64, uint64)
-        );
-        _fixedInterestRate = fixedInterestRate;
-        _tickThreshold = tickThreshold;
-        _tickExponential = tickExponential;
+    function _initialize(Parameters memory params) internal {
+        _params = params;
     }
 
     /**************************************************************************/
@@ -94,33 +67,33 @@ contract FixedInterestRateModel is IInterestRateModel {
     /**************************************************************************/
 
     /**
-     * @inheritdoc IInterestRateModel
+     * @inheritdoc InterestRateModel
      */
-    function name() external pure returns (string memory) {
+    function interestRateModel() external pure override returns (string memory) {
         return "FixedInterestRateModel";
     }
 
     /**
-     * @inheritdoc IInterestRateModel
+     * @inheritdoc InterestRateModel
      */
-    function rate() external view returns (uint256) {
-        return _fixedInterestRate;
+    function rate() public view override returns (uint256) {
+        return _params.fixedInterestRate;
     }
 
     /**
-     * @inheritdoc IInterestRateModel
+     * @inheritdoc InterestRateModel
      */
     function distribute(
         uint256 amount,
         uint256 interest,
         ILiquidity.NodeSource[] memory nodes,
         uint16 count
-    ) external view returns (uint128[] memory) {
+    ) public view override returns (uint128[] memory) {
         /* Interest threshold for tick to receive interest */
-        uint256 threshold = Math.mulDiv(_tickThreshold, amount, FIXED_POINT_SCALE);
+        uint256 threshold = Math.mulDiv(_params.tickThreshold, amount, FIXED_POINT_SCALE);
 
         /* Interest weight starting at final tick */
-        uint256 base = _tickExponential;
+        uint256 base = _params.tickExponential;
         uint256 weight = Math.mulDiv(FIXED_POINT_SCALE, FIXED_POINT_SCALE, base);
 
         /* Interest normalization */
@@ -166,11 +139,9 @@ contract FixedInterestRateModel is IInterestRateModel {
     }
 
     /**
-     * @inheritdoc IInterestRateModel
+     * @inheritdoc InterestRateModel
      */
-    function onUtilizationUpdated(uint256 utilization) external {
-        if (msg.sender != _owner) revert("Invalid caller");
-
+    function _onUtilizationUpdated(uint256 utilization) internal override {
         _utilization = uint64(utilization);
     }
 }

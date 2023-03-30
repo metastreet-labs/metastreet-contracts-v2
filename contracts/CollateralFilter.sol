@@ -2,14 +2,14 @@
 pragma solidity ^0.8.0;
 
 /**
- * @title Interface to a Collateral Filter
+ * @title Collateral Filter API
  */
-interface ICollateralFilter {
+abstract contract CollateralFilter {
     /**
      * Get collateral filter name
      * @return Collateral filter name
      */
-    function name() external view returns (string memory);
+    function collateralFilter() external view virtual returns (string memory);
 
     /**
      * Query if collateral token is supported
@@ -18,5 +18,9 @@ interface ICollateralFilter {
      * @param context ABI-encoded context
      * @return True if supported, otherwise false
      */
-    function supported(address token, uint256 tokenId, bytes calldata context) external view returns (bool);
+    function collateralSupported(
+        address token,
+        uint256 tokenId,
+        bytes memory context
+    ) public view virtual returns (bool);
 }

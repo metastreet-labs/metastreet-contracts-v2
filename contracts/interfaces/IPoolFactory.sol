@@ -12,8 +12,9 @@ interface IPoolFactory {
     /**
      * @notice Emitted when a pool is created
      * @param pool Pool address
+     * @param deploymentHash Deployment hash
      */
-    event PoolCreated(address indexed pool);
+    event PoolCreated(address indexed pool, bytes32 indexed deploymentHash);
 
     /**************************************************************************/
     /* API */
@@ -21,10 +22,16 @@ interface IPoolFactory {
 
     /**
      * Create a pool
-     * @param params Constructor parameters
+     * @param poolImplementation Pool implementation contract
+     * @param params Pool parameters
+     * @param collateralLiquidator Collateral liquidator
      * @return Pool address
      */
-    function createPool(bytes calldata params) external returns (address);
+    function create(
+        address poolImplementation,
+        bytes calldata params,
+        address collateralLiquidator
+    ) external returns (address);
 
     /**
      * @notice Check if address is a pool

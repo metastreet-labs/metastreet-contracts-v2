@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./ICollateralFilter.sol";
-import "./IInterestRateModel.sol";
-import "./ICollateralLiquidator.sol";
-import "./ICollateralWrapper.sol";
-
 /**
  * @title Interface to a Pool
  */
@@ -164,22 +159,10 @@ interface IPool {
     function adminFeeRate() external view returns (uint256);
 
     /**
-     * @notice Get collateral filter contract
-     * @return Collateral filter contract
-     */
-    function collateralFilter() external view returns (ICollateralFilter);
-
-    /**
-     * @notice Get interest rate model contract
-     * @return Interest rate model contract
-     */
-    function interestRateModel() external view returns (IInterestRateModel);
-
-    /**
      * @notice Get collateral liquidator contract
      * @return Collateral liquidator contract
      */
-    function collateralLiquidator() external view returns (ICollateralLiquidator);
+    function collateralLiquidator() external view returns (address);
 
     /**
      * @notice Get delegation registry contract

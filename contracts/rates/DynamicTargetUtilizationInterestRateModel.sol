@@ -3,13 +3,13 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "../interfaces/IInterestRateModel.sol";
+import "../InterestRateModel.sol";
 
 /**
  * @title Dynamic Target Utilization Interest Rate Model
  * @author MetaStreet Labs
  */
-contract DynamicTargetUtilizationInterestRateModel is IInterestRateModel {
+contract DynamicTargetUtilizationInterestRateModel is InterestRateModel {
     /**************************************************************************/
     /* Constants */
     /**************************************************************************/
@@ -57,7 +57,7 @@ contract DynamicTargetUtilizationInterestRateModel is IInterestRateModel {
      * @param min Minimum output (rate)
      * @param max Maximum output (rate)
      */
-    struct Parameters {
+    struct ControllerParameters {
         uint64 margin;
         uint64 gain;
         uint64 min;
@@ -71,11 +71,27 @@ contract DynamicTargetUtilizationInterestRateModel is IInterestRateModel {
      * @param rate Current rate
      * @param timestamp Last update
      */
-    struct State {
+    struct ControllerState {
         uint64 target;
         uint64 utilization;
         uint64 rate;
         uint64 timestamp;
+    }
+
+    /**
+     * @notice Initialization Parameters
+     * @param controllerParameters Controller parameters
+     * @param controllerTarget Target utilization in fixed point decimal
+     * @param initialRate Initial rate in interest per second
+     * @param tickThreshold Tick interest threhsold
+     * @param tickExponential Tick exponential base
+     */
+    struct Parameters {
+        ControllerParameters controllerParameters;
+        uint64 controllerTarget;
+        uint64 initialRate;
+        uint64 tickThreshold;
+        uint64 tickExponential;
     }
 
     /**************************************************************************/
@@ -83,29 +99,14 @@ contract DynamicTargetUtilizationInterestRateModel is IInterestRateModel {
     /**************************************************************************/
 
     /**
-     * @notice Initialized boolean
-     */
-    bool private _initialized;
-
-    /**
-     * @notice Owner
-     */
-    address private _owner;
-
-    /**
-     * @notice Padding
-     */
-    uint88 private _padding;
-
-    /**
      * @notice Controller parameters
      */
-    Parameters private _parameters;
+    ControllerParameters private _parameters;
 
     /**
      * @notice Controller state
      */
-    State internal _state;
+    ControllerState internal _state;
 
     /**
      * @notice Tick interest threshold
@@ -118,18 +119,6 @@ contract DynamicTargetUtilizationInterestRateModel is IInterestRateModel {
     uint64 private _tickExponential;
 
     /**************************************************************************/
-    /* Constructor */
-    /**************************************************************************/
-
-    /**
-     * @notice FixedInterestRateModel constructor
-     */
-    constructor() {
-        /* Disable initialization of implementation contract */
-        _initialized = true;
-    }
-
-    /**************************************************************************/
     /* Initializer */
     /**************************************************************************/
 
@@ -137,26 +126,15 @@ contract DynamicTargetUtilizationInterestRateModel is IInterestRateModel {
      * @notice Initializer
      * @param params ABI-encoded parameters
      */
-    function initialize(bytes memory params) external {
-        require(!_initialized, "Already initialized");
+    function _initialize(Parameters memory params) internal {
+        _parameters = params.controllerParameters;
+        _tickThreshold = params.tickThreshold;
+        _tickExponential = params.tickExponential;
 
-        _initialized = true;
-        _owner = msg.sender;
-
-        (
-            Parameters memory parameters,
-            uint64 target,
-            uint64 initialRate,
-            uint64 tickThreshold,
-            uint64 tickExponential
-        ) = abi.decode(params, (Parameters, uint64, uint64, uint64, uint64));
-        _parameters = parameters;
-        _state.target = target;
+        _state.target = params.controllerTarget;
+        _state.rate = params.initialRate;
         _state.utilization = 0;
-        _state.rate = initialRate;
         _state.timestamp = uint64(block.timestamp);
-        _tickThreshold = tickThreshold;
-        _tickExponential = tickExponential;
     }
 
     /**************************************************************************/
@@ -209,8 +187,8 @@ contract DynamicTargetUtilizationInterestRateModel is IInterestRateModel {
      * @notice Compute current interest rate in UQ8.56
      */
     function _rate() internal view returns (uint64) {
-        Parameters memory parameters = _parameters;
-        State memory state = _state;
+        ControllerParameters memory parameters = _parameters;
+        ControllerState memory state = _state;
 
         /* Compute error = abs(target - utilization) */
         uint256 error = state.target > state.utilization
@@ -243,7 +221,7 @@ contract DynamicTargetUtilizationInterestRateModel is IInterestRateModel {
      * @notice Get parameters
      * @return Parameters
      */
-    function getParameters() external view returns (Parameters memory) {
+    function getControllerParameters() external view returns (ControllerParameters memory) {
         return _parameters;
     }
 
@@ -251,7 +229,7 @@ contract DynamicTargetUtilizationInterestRateModel is IInterestRateModel {
      * @notice Get internal state
      * @return State
      */
-    function getState() external view returns (State memory) {
+    function getControllerState() external view returns (ControllerState memory) {
         return _state;
     }
 
@@ -260,28 +238,28 @@ contract DynamicTargetUtilizationInterestRateModel is IInterestRateModel {
     /**************************************************************************/
 
     /**
-     * @inheritdoc IInterestRateModel
+     * @inheritdoc InterestRateModel
      */
-    function name() external pure returns (string memory) {
+    function interestRateModel() external pure override returns (string memory) {
         return "DynamicTargetUtilizationInterestRateModel";
     }
 
     /**
-     * @inheritdoc IInterestRateModel
+     * @inheritdoc InterestRateModel
      */
-    function rate() external view returns (uint256) {
+    function rate() public view override returns (uint256) {
         return _qToUD(_rate());
     }
 
     /**
-     * @inheritdoc IInterestRateModel
+     * @inheritdoc InterestRateModel
      */
     function distribute(
         uint256 amount,
         uint256 interest,
         ILiquidity.NodeSource[] memory nodes,
         uint16 count
-    ) external view returns (uint128[] memory) {
+    ) public view override returns (uint128[] memory) {
         /* Interest threshold for tick to receive interest */
         uint256 threshold = Math.mulDiv(_tickThreshold, amount, FIXED_POINT_D_SCALE);
 
@@ -332,11 +310,9 @@ contract DynamicTargetUtilizationInterestRateModel is IInterestRateModel {
     }
 
     /**
-     * @inheritdoc IInterestRateModel
+     * @inheritdoc InterestRateModel
      */
-    function onUtilizationUpdated(uint256 utilization) external {
-        if (msg.sender != _owner) revert("Invalid caller");
-
+    function _onUtilizationUpdated(uint256 utilization) internal override {
         /* Snapshot current rate */
         _state.rate = _rate();
         /* Update utilization and timestamp */

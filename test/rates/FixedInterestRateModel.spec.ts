@@ -24,35 +24,13 @@ describe("FixedInterestRateModel", function () {
   let snapshotId: string;
 
   before("deploy fixture", async () => {
-    const fixedInterestRateModelFactory = await ethers.getContractFactory("FixedInterestRateModel");
-    const testProxyFactory = await ethers.getContractFactory("TestProxy");
+    const fixedInterestRateModelFactory = await ethers.getContractFactory("TestFixedInterestRateModel");
 
-    const interestRateModelImpl = await fixedInterestRateModelFactory.deploy();
-    await interestRateModelImpl.deployed();
+    interestRateModel = await fixedInterestRateModelFactory.deploy(PARAMETERS_1);
+    await interestRateModel.deployed();
 
-    const proxy1 = await testProxyFactory.deploy(
-      interestRateModelImpl.address,
-      interestRateModelImpl.interface.encodeFunctionData("initialize", [
-        ethers.utils.defaultAbiCoder.encode(["uint64", "uint64", "uint64"], PARAMETERS_1),
-      ])
-    );
-    await proxy1.deployed();
-    interestRateModel = (await ethers.getContractAt(
-      "FixedInterestRateModel",
-      proxy1.address
-    )) as FixedInterestRateModel;
-
-    const proxy2 = await testProxyFactory.deploy(
-      interestRateModelImpl.address,
-      interestRateModelImpl.interface.encodeFunctionData("initialize", [
-        ethers.utils.defaultAbiCoder.encode(["uint64", "uint64", "uint64"], PARAMETERS_2),
-      ])
-    );
-    await proxy2.deployed();
-    interestRateModel2 = (await ethers.getContractAt(
-      "FixedInterestRateModel",
-      proxy2.address
-    )) as FixedInterestRateModel;
+    interestRateModel2 = await fixedInterestRateModelFactory.deploy(PARAMETERS_2);
+    await interestRateModel2.deployed();
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -65,7 +43,7 @@ describe("FixedInterestRateModel", function () {
 
   describe("constants", async function () {
     it("matches expected name", async function () {
-      expect(await interestRateModel.name()).to.equal("FixedInterestRateModel");
+      expect(await interestRateModel.interestRateModel()).to.equal("FixedInterestRateModel");
     });
   });
 

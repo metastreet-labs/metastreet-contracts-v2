@@ -6,12 +6,10 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import {
   TestERC20,
   TestERC721,
+  TestProxy,
   TestLoanReceipt,
   TestDelegationRegistry,
-  FixedInterestRateModel,
-  CollectionCollateralFilter,
   ExternalCollateralLiquidator,
-  ICollateralLiquidator,
   Pool,
   BundleCollateralWrapper,
 } from "../typechain";
@@ -25,8 +23,6 @@ describe("Pool", function () {
   let tok1: TestERC20;
   let nft1: TestERC721;
   let loanReceiptLib: TestLoanReceipt;
-  let collateralFilterImpl: CollectionCollateralFilter;
-  let interestRateModelImpl: FixedInterestRateModel;
   let collateralLiquidator: ExternalCollateralLiquidator;
   let poolImpl: Pool;
   let pool: Pool;
@@ -43,13 +39,12 @@ describe("Pool", function () {
 
     const testERC20Factory = await ethers.getContractFactory("TestERC20");
     const testERC721Factory = await ethers.getContractFactory("TestERC721");
-    const testProxyFactory = await ethers.getContractFactory("TestProxy");
-    const collectionCollateralFilterFactory = await ethers.getContractFactory("CollectionCollateralFilter");
     const testLoanReceiptFactory = await ethers.getContractFactory("TestLoanReceipt");
-    const fixedInterestRateModelFactory = await ethers.getContractFactory("FixedInterestRateModel");
+    const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
+    const poolImplFactory = await ethers.getContractFactory("FixedRateSingleCollectionPool");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;
@@ -62,14 +57,6 @@ describe("Pool", function () {
     /* Deploy loan receipt library */
     loanReceiptLib = await testLoanReceiptFactory.deploy();
     await loanReceiptLib.deployed();
-
-    /* Deploy collateral filter implementation */
-    collateralFilterImpl = await collectionCollateralFilterFactory.deploy();
-    await collateralFilterImpl.deployed();
-
-    /* Deploy interest rate model implementation */
-    interestRateModelImpl = await fixedInterestRateModelFactory.deploy();
-    await interestRateModelImpl.deployed();
 
     /* Deploy external collateral liquidator implementation */
     const collateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
@@ -95,39 +82,29 @@ describe("Pool", function () {
     await bundleCollateralWrapper.deployed();
 
     /* Deploy pool implementation */
-    const poolFactory = await ethers.getContractFactory("Pool");
-    poolImpl = await poolFactory.deploy();
+    poolImpl = (await poolImplFactory.deploy(delegationRegistry.address)) as Pool;
     await poolImpl.deployed();
 
     /* Deploy pool */
     proxy = await testProxyFactory.deploy(
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
-        accounts[0].address,
-        nft1.address,
-        tok1.address,
-        30 * 86400,
-        45,
-        collateralLiquidator.address,
-        delegationRegistry.address,
-        [bundleCollateralWrapper.address],
-        collateralFilterImpl.address,
-        interestRateModelImpl.address,
-        ethers.utils.defaultAbiCoder.encode(["address"], [nft1.address]),
         ethers.utils.defaultAbiCoder.encode(
-          ["uint64", "uint64", "uint64"],
-          [FixedPoint.normalizeRate("0.02"), FixedPoint.from("0.05"), FixedPoint.from("2.0")]
+          ["address", "address", "uint64", "uint256", "address[]", "tuple(uint64, uint64, uint64)"],
+          [
+            nft1.address,
+            tok1.address,
+            30 * 86400,
+            45,
+            [bundleCollateralWrapper.address],
+            [FixedPoint.normalizeRate("0.02"), FixedPoint.from("0.05"), FixedPoint.from("2.0")],
+          ]
         ),
+        collateralLiquidator.address,
       ])
     );
     await proxy.deployed();
     pool = (await ethers.getContractAt("Pool", proxy.address)) as Pool;
-
-    /* Attach collateral liquidator */
-    collateralLiquidator = (await ethers.getContractAt(
-      "ExternalCollateralLiquidator",
-      await pool.collateralLiquidator()
-    )) as ExternalCollateralLiquidator;
 
     /* Arrange accounts */
     accountDepositors = accounts.slice(1, 4);

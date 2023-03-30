@@ -4,28 +4,14 @@ import { ethers, network } from "hardhat";
 import { CollectionCollateralFilter } from "../../typechain";
 
 describe("CollectionCollateralFilter", function () {
-  let collateralFilter: CollectionCollateralFilter;
+  let collateralFilter: TestCollectionCollateralFilter;
   let snapshotId: string;
 
   before("deploy fixture", async () => {
-    const collectionCollateralFilterFactory = await ethers.getContractFactory("CollectionCollateralFilter");
-    const testProxyFactory = await ethers.getContractFactory("TestProxy");
+    const collectionCollateralFilterFactory = await ethers.getContractFactory("TestCollectionCollateralFilter");
 
-    const collateralFilterImpl = await collectionCollateralFilterFactory.deploy();
-    await collateralFilterImpl.deployed();
-
-    const proxy = await testProxyFactory.deploy(
-      collateralFilterImpl.address,
-      collateralFilterImpl.interface.encodeFunctionData("initialize", [
-        ethers.utils.defaultAbiCoder.encode(["address"], ["0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b"]),
-      ])
-    );
-    await proxy.deployed();
-
-    collateralFilter = (await ethers.getContractAt(
-      "CollectionCollateralFilter",
-      proxy.address
-    )) as CollectionCollateralFilter;
+    collateralFilter = await collectionCollateralFilterFactory.deploy("0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b");
+    await collateralFilter.deployed();
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -38,18 +24,30 @@ describe("CollectionCollateralFilter", function () {
 
   describe("constants", async function () {
     it("matches expected name", async function () {
-      expect(await collateralFilter.name()).to.equal("CollectionCollateralFilter");
+      expect(await collateralFilter.collateralFilter()).to.equal("CollectionCollateralFilter");
     });
   });
 
   describe("#supported", async function () {
     it("matches supported token", async function () {
-      expect(await collateralFilter.supported("0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b", 123, "0x")).to.equal(true);
-      expect(await collateralFilter.supported("0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b", 456, "0x")).to.equal(true);
-      expect(await collateralFilter.supported("0x822CB8a23b42Cf37DE879C382BCdA5E20D5764B7", 123, "0x")).to.equal(false);
-      expect(await collateralFilter.supported("0x822CB8a23b42Cf37DE879C382BCdA5E20D5764B7", 456, "0x")).to.equal(false);
-      expect(await collateralFilter.supported("0x4b1B53c6E31997f8954DaEA7A2bC0dD8fEF652Cc", 123, "0x")).to.equal(false);
-      expect(await collateralFilter.supported("0x4b1B53c6E31997f8954DaEA7A2bC0dD8fEF652Cc", 456, "0x")).to.equal(false);
+      expect(
+        await collateralFilter.collateralSupported("0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b", 123, "0x")
+      ).to.equal(true);
+      expect(
+        await collateralFilter.collateralSupported("0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b", 456, "0x")
+      ).to.equal(true);
+      expect(
+        await collateralFilter.collateralSupported("0x822CB8a23b42Cf37DE879C382BCdA5E20D5764B7", 123, "0x")
+      ).to.equal(false);
+      expect(
+        await collateralFilter.collateralSupported("0x822CB8a23b42Cf37DE879C382BCdA5E20D5764B7", 456, "0x")
+      ).to.equal(false);
+      expect(
+        await collateralFilter.collateralSupported("0x4b1B53c6E31997f8954DaEA7A2bC0dD8fEF652Cc", 123, "0x")
+      ).to.equal(false);
+      expect(
+        await collateralFilter.collateralSupported("0x4b1B53c6E31997f8954DaEA7A2bC0dD8fEF652Cc", 456, "0x")
+      ).to.equal(false);
     });
   });
 });

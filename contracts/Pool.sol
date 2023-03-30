@@ -14,18 +14,33 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
+import "./LoanReceipt.sol";
+import "./LiquidityManager.sol";
+import "./CollateralFilter.sol";
+import "./InterestRateModel.sol";
+
 import "./interfaces/IPool.sol";
 import "./interfaces/ILiquidity.sol";
 import "./interfaces/ICollateralWrapper.sol";
-import "./LoanReceipt.sol";
-import "./LiquidityManager.sol";
+import "./interfaces/ICollateralLiquidator.sol";
+
 import "./integrations/DelegateCash/IDelegationRegistry.sol";
 
 /**
  * @title Pool
  * @author MetaStreet Labs
  */
-contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall, IPool, ILiquidity {
+abstract contract Pool is
+    ERC165,
+    ERC721Holder,
+    AccessControl,
+    ReentrancyGuard,
+    Multicall,
+    CollateralFilter,
+    InterestRateModel,
+    IPool,
+    ILiquidity
+{
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
     using LoanReceipt for LoanReceipt.LoanReceiptV1;
@@ -118,13 +133,17 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
     }
 
     /**************************************************************************/
-    /* State */
+    /* Immutable State */
     /**************************************************************************/
 
     /**
-     * @notice Initialized boolean
+     * @notice Delegation registry contract
      */
-    bool private _initialized;
+    IDelegationRegistry internal immutable _delegationRegistry;
+
+    /**************************************************************************/
+    /* State */
+    /**************************************************************************/
 
     /**
      * @notice Collateral token contract
@@ -172,24 +191,9 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
     mapping(bytes32 => LoanStatus) internal _loans;
 
     /**
-     * @notice Collateral filter contract
-     */
-    ICollateralFilter internal _collateralFilter;
-
-    /**
-     * @notice Interest rate model contract
-     */
-    IInterestRateModel internal _interestRateModel;
-
-    /**
      * @notice Collateral liquidator contract
      */
     ICollateralLiquidator internal _collateralLiquidator;
-
-    /**
-     * @notice Delegation registry contract
-     */
-    IDelegationRegistry internal _delegationRegistry;
 
     /**
      * @notice  Collateral wrappers mapping
@@ -202,10 +206,10 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
 
     /**
      * @notice Pool constructor
+     * @param delegationRegistry_ Delegation registry contract
      */
-    constructor() {
-        /* Disable initialization of implementation contract */
-        _initialized = true;
+    constructor(address delegationRegistry_) {
+        _delegationRegistry = IDelegationRegistry(delegationRegistry_);
     }
 
     /**************************************************************************/
@@ -214,41 +218,26 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
 
     /**
      * @notice Pool initializer
-     * @param admin Admin account
      * @param collateralToken_ Collateral token contract
      * @param currencyToken_ Currency token contract
      * @param maxLoanDuration_ Maximum loan duration in seconds
-     * @param collateralLiquidator_ Collateral liquidator
-     * @param delegationRegistry_ Delegation registry contract
-     * @param collateralFilterImpl Collateral filter implementation contract
-     * @param interestRateModelImpl Interest rate model implementation contract
-     * @param collateralFilterParams Collateral filter initialization parameters
-     * @param interestRateModelParams Interest rate model initialization parameters
+     * @param originationFeeRate_ Origination fee rate in basis points
+     * @param collateralLiquidator_ Collateral liquidator contract
+     * @param collateralWrappers Collateral wrappers
      */
-    function initialize(
-        address admin,
-        IERC721 collateralToken_,
-        IERC20 currencyToken_,
+    function _initialize(
+        address collateralToken_,
+        address currencyToken_,
         uint64 maxLoanDuration_,
         uint256 originationFeeRate_,
-        ICollateralLiquidator collateralLiquidator_,
-        IDelegationRegistry delegationRegistry_,
         address[] memory collateralWrappers,
-        address collateralFilterImpl,
-        address interestRateModelImpl,
-        bytes memory collateralFilterParams,
-        bytes memory interestRateModelParams
-    ) external {
-        require(!_initialized, "Already initialized");
-
-        _initialized = true;
-        _collateralToken = collateralToken_;
-        /* FIXME verify 18 decimals */
-        _currencyToken = currencyToken_;
+        address collateralLiquidator_
+    ) internal {
+        _collateralToken = IERC721(collateralToken_);
+        _currencyToken = IERC20(currencyToken_); /* FIXME verify 18 decimals */
         _maxLoanDuration = maxLoanDuration_;
         _originationFeeRate = originationFeeRate_;
-        _collateralLiquidator = collateralLiquidator_;
-        _delegationRegistry = delegationRegistry_;
+        _collateralLiquidator = ICollateralLiquidator(collateralLiquidator_);
 
         /* Set collateral wrappers */
         for (uint256 i = 0; i < collateralWrappers.length; i++) {
@@ -258,24 +247,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
         /* Initialize liquidity */
         _liquidity.initialize();
 
-        /* Deploy collateral filter instance */
-        address collateralFilterInstance = Clones.clone(collateralFilterImpl);
-        Address.functionCall(
-            collateralFilterInstance,
-            abi.encodeWithSignature("initialize(bytes)", collateralFilterParams)
-        );
-        _collateralFilter = ICollateralFilter(collateralFilterInstance);
-
-        /* Deploy interest rate model instance */
-        address interestRateModelInstance = Clones.clone(interestRateModelImpl);
-        Address.functionCall(
-            interestRateModelInstance,
-            abi.encodeWithSignature("initialize(bytes)", interestRateModelParams)
-        );
-        _interestRateModel = IInterestRateModel(interestRateModelInstance);
-
-        /* Grant roles */
-        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        /* Grant admin role */
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     /**************************************************************************/
@@ -313,22 +286,8 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
     /**
      * @inheritdoc IPool
      */
-    function collateralFilter() external view returns (ICollateralFilter) {
-        return _collateralFilter;
-    }
-
-    /**
-     * @inheritdoc IPool
-     */
-    function interestRateModel() external view returns (IInterestRateModel) {
-        return _interestRateModel;
-    }
-
-    /**
-     * @inheritdoc IPool
-     */
-    function collateralLiquidator() external view returns (ICollateralLiquidator) {
-        return _collateralLiquidator;
+    function collateralLiquidator() external view returns (address) {
+        return address(_collateralLiquidator);
     }
 
     /**
@@ -562,8 +521,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
     ) internal view returns (uint256) {
         /* Verify collateral is supported */
         for (uint256 i = 0; i < collateralTokenIds.length; i++) {
-            if (!_collateralFilter.supported(collateralToken_, collateralTokenIds[i], ""))
-                revert UnsupportedCollateral(i);
+            if (!collateralSupported(collateralToken_, collateralTokenIds[i], "")) revert UnsupportedCollateral(i);
         }
 
         /* Validate loan duration */
@@ -573,7 +531,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
         return
             Math.mulDiv(
                 principal,
-                LiquidityManager.FIXED_POINT_SCALE + (_interestRateModel.rate() * duration),
+                LiquidityManager.FIXED_POINT_SCALE + (rate() * duration),
                 LiquidityManager.FIXED_POINT_SCALE
             ) + Math.mulDiv(principal, _originationFeeRate, BASIS_POINTS_SCALE);
     }
@@ -649,12 +607,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
         uint256 adminFee = Math.mulDiv(_adminFeeRate, repayment - principal, BASIS_POINTS_SCALE);
 
         /* Distribute interest */
-        uint128[] memory interest = _interestRateModel.distribute(
-            principal,
-            repayment - principal - adminFee,
-            nodes,
-            count
-        );
+        uint128[] memory interest = distribute(principal, repayment - principal - adminFee, nodes, count);
 
         /* Build the loan receipt */
         LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.LoanReceiptV1({
@@ -688,7 +641,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
         _liquidity.used += uint128(principal);
 
         /* Update utilization tracking */
-        _interestRateModel.onUtilizationUpdated(utilization());
+        _onUtilizationUpdated(utilization());
 
         /* Encode and hash the loan receipt */
         bytes memory encodedLoanReceipt = receipt.encode();
@@ -769,7 +722,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
         );
 
         /* Update utilization tracking */
-        _interestRateModel.onUtilizationUpdated(utilization());
+        _onUtilizationUpdated(utilization());
 
         /* Mark loan status repaid */
         _loans[loanReceiptHash] = LoanStatus.Repaid;
@@ -1025,7 +978,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
         _liquidity.used -= totalUsed;
 
         /* Update utilization tracking */
-        _interestRateModel.onUtilizationUpdated(utilization());
+        _onUtilizationUpdated(utilization());
 
         /* Mark loan status collateral liquidated */
         _loans[loanReceiptHash] = LoanStatus.CollateralLiquidated;
@@ -1055,7 +1008,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
         _deposits[msg.sender][uint128(depth)].shares += shares;
 
         /* Update utilization tracking */
-        _interestRateModel.onUtilizationUpdated(utilization());
+        _onUtilizationUpdated(utilization());
 
         /* Process redemptions from available cash */
         _liquidity.processRedemptions(uint128(depth));
@@ -1092,7 +1045,7 @@ contract Pool is ERC165, ERC721Holder, AccessControl, ReentrancyGuard, Multicall
         _liquidity.processRedemptions(uint128(depth));
 
         /* Update utilization tracking */
-        _interestRateModel.onUtilizationUpdated(utilization());
+        _onUtilizationUpdated(utilization());
 
         /* Emit Redeemed event */
         emit Redeemed(msg.sender, depth, shares);

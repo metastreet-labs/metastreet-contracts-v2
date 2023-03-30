@@ -19,23 +19,8 @@ contract PoolFactory is Ownable, IPoolFactory {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /**************************************************************************/
-    /* Events */
-    /**************************************************************************/
-
-    /**
-     * @notice Emitted when pool implementation is updated
-     * @param implementation New Pool implementation contract
-     */
-    event PoolImplementationUpdated(address indexed implementation);
-
-    /**************************************************************************/
     /* State */
     /**************************************************************************/
-
-    /**
-     * @notice Pool implementation
-     */
-    address private _poolImplementation;
 
     /**
      * @notice Set of deployed pools
@@ -48,11 +33,8 @@ contract PoolFactory is Ownable, IPoolFactory {
 
     /*
      * @notice PoolFactory constructor
-     * @param poolImplementation Pool implementation contract
      */
-    constructor(address poolImplementation_) {
-        _poolImplementation = poolImplementation_;
-    }
+    constructor() {}
 
     /**************************************************************************/
     /* Primary API */
@@ -61,65 +43,26 @@ contract PoolFactory is Ownable, IPoolFactory {
     /*
      * @inheritdoc IPoolFactory
      */
-    function createPool(bytes calldata params) external returns (address) {
-        /* Decode pool constructor arguments */
-        (
-            IERC721 collateralToken,
-            IERC20 currencyToken,
-            uint64 maxLoanDuration,
-            uint256 originationFeeRate,
-            ICollateralLiquidator collateralLiquidator,
-            IDelegationRegistry delegationRegistry,
-            address[] memory collateralWrappers,
-            address collateralFilterImpl,
-            address interestRateModelImpl,
-            bytes memory collateralFilterParams,
-            bytes memory interestRateModelParams
-        ) = abi.decode(
-                params,
-                (
-                    IERC721,
-                    IERC20,
-                    uint64,
-                    uint256,
-                    ICollateralLiquidator,
-                    IDelegationRegistry,
-                    address[],
-                    address,
-                    address,
-                    bytes,
-                    bytes
-                )
-            );
+    function create(
+        address poolImplementation,
+        bytes calldata params,
+        address collateralLiquidator
+    ) external returns (address) {
+        /* Compute deployment hash */
+        bytes32 deploymentHash = keccak256(abi.encodePacked(block.chainid, poolImplementation, collateralLiquidator));
 
         /* Create pool instance */
-        address poolInstance = Clones.clone(_poolImplementation);
+        address poolInstance = Clones.clone(poolImplementation);
         Address.functionCall(
             poolInstance,
-            abi.encodeCall(
-                Pool.initialize,
-                (
-                    msg.sender,
-                    collateralToken,
-                    currencyToken,
-                    maxLoanDuration,
-                    originationFeeRate,
-                    collateralLiquidator,
-                    delegationRegistry,
-                    collateralWrappers,
-                    collateralFilterImpl,
-                    interestRateModelImpl,
-                    collateralFilterParams,
-                    interestRateModelParams
-                )
-            )
+            abi.encodeWithSignature("initialize(bytes,address)", params, collateralLiquidator)
         );
 
         /* Add pool to registry */
         _pools.add(poolInstance);
 
         /* Emit Pool Created */
-        emit PoolCreated(poolInstance);
+        emit PoolCreated(poolInstance, deploymentHash);
 
         return poolInstance;
     }
@@ -155,25 +98,6 @@ contract PoolFactory is Ownable, IPoolFactory {
     /**************************************************************************/
     /* Admin API */
     /**************************************************************************/
-
-    /**
-     * @notice Get Pool Implementation
-     * @return Pool implementation contract address
-     */
-    function poolImplementation() external view returns (address) {
-        return _poolImplementation;
-    }
-
-    /**
-     * @notice Set Pool Implementation
-     * @param implementation New Pool implementation contract
-     */
-    function setPoolImplementation(address implementation) external onlyOwner {
-        _poolImplementation = implementation;
-
-        /* Emit Pool Implementation Updated */
-        emit PoolImplementationUpdated(implementation);
-    }
 
     /**
      * @notice Unregister Pool

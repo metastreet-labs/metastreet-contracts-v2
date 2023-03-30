@@ -29,27 +29,12 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
 
-    const fixedInterestRateModelFactory = await ethers.getContractFactory("DynamicTargetUtilizationInterestRateModel");
-    const testProxyFactory = await ethers.getContractFactory("TestProxy");
-
-    const interestRateModelImpl = await fixedInterestRateModelFactory.deploy();
-    await interestRateModelImpl.deployed();
-
-    const proxy = await testProxyFactory.deploy(
-      interestRateModelImpl.address,
-      interestRateModelImpl.interface.encodeFunctionData("initialize", [
-        ethers.utils.defaultAbiCoder.encode(
-          ["tuple(uint64 margin, uint64 gain, uint64 min, uint64 max)", "uint64", "uint64", "uint64", "uint64"],
-          PARAMETERS
-        ),
-      ])
+    const dynamicTargetUtilizationInterestRateModelFactory = await ethers.getContractFactory(
+      "TestDynamicTargetUtilizationInterestRateModel"
     );
-    await proxy.deployed();
 
-    interestRateModel = (await ethers.getContractAt(
-      "DynamicTargetUtilizationInterestRateModel",
-      proxy.address
-    )) as DynamicTargetUtilizationInterestRateModel;
+    interestRateModel = await dynamicTargetUtilizationInterestRateModelFactory.deploy(PARAMETERS);
+    await interestRateModel.deployed();
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -62,13 +47,13 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
 
   describe("constants", async function () {
     it("matches expected name", async function () {
-      expect(await interestRateModel.name()).to.equal("DynamicTargetUtilizationInterestRateModel");
+      expect(await interestRateModel.interestRateModel()).to.equal("DynamicTargetUtilizationInterestRateModel");
     });
   });
 
   describe("initial state", async function () {
     it("matches parameters", async function () {
-      const parameters = await interestRateModel.getParameters();
+      const parameters = await interestRateModel.getControllerParameters();
       expect(parameters.margin).to.equal(PARAMETERS[0].margin);
       expect(parameters.gain).to.equal(PARAMETERS[0].gain);
       expect(parameters.min).to.equal(PARAMETERS[0].min);
@@ -76,7 +61,7 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
     });
 
     it("matches initial state", async function () {
-      const state = await interestRateModel.getState();
+      const state = await interestRateModel.getControllerState();
       expect(state.target).to.equal(PARAMETERS[1]);
       expect(state.utilization).to.equal(0);
       expect(state.rate).to.equal(PARAMETERS[2]);
@@ -184,14 +169,6 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
       expect(pending[2]).to.equal(FixedPoint.from("0.888888888888888890"));
       expect(pending[3]).to.equal(ethers.constants.Zero);
       expect(pending[4]).to.equal(FixedPoint.from("0.711111111111111114"));
-    });
-  });
-
-  describe("#onUtilizationUpdated", async function () {
-    it("fails on invalid caller", async function () {
-      await expect(
-        interestRateModel.connect(accounts[1]).onUtilizationUpdated(FixedPoint.from("0.50"))
-      ).to.be.revertedWith("Invalid caller");
     });
   });
 });

@@ -9,19 +9,19 @@ async function main() {
 
   const TestERC20 = await ethers.getContractFactory("TestERC20", accounts[9]);
   const TestERC721 = await ethers.getContractFactory("TestERC721", accounts[9]);
-  const CollectionCollateralFilter = await ethers.getContractFactory("CollectionCollateralFilter", accounts[9]);
-  const FixedInterestRateModel = await ethers.getContractFactory("FixedInterestRateModel", accounts[9]);
+  const TestProxy = await ethers.getContractFactory("TestProxy", accounts[9]);
+  const BundleCollateralWrapper = await ethers.getContractFactory("BundleCollateralWrapper", accounts[9]);
   const ExternalCollateralLiquidator = await ethers.getContractFactory("ExternalCollateralLiquidator", accounts[9]);
-  const Pool = await ethers.getContractFactory("Pool", accounts[9]);
+  const Pool = await ethers.getContractFactory("FixedRateSingleCollectionPool", accounts[9]);
   const PoolFactory = await ethers.getContractFactory("PoolFactory", accounts[9]);
 
   /* Deploy Pool implementation */
-  const poolImpl = await Pool.deploy();
+  const poolImpl = await Pool.deploy(ethers.constants.AddressZero);
   await poolImpl.deployed();
   console.log("Pool Implementation:        ", poolImpl.address);
 
   /* Deploy Pool Factory */
-  const poolFactory = await PoolFactory.deploy(poolImpl.address);
+  const poolFactory = await PoolFactory.deploy();
   await poolFactory.deployed();
   console.log("Pool Factory:               ", poolFactory.address);
 
@@ -43,40 +43,41 @@ async function main() {
 
   console.log("");
 
-  /* Deploy Collection Collateral Filter Implementation */
-  const collectionCollateralFilterImpl = await CollectionCollateralFilter.deploy();
-  console.log("Collection Collateral Filter Impl:", collectionCollateralFilterImpl.address);
+  /* Deploy Bundle Collateral Wrapper */
+  const bundleCollateralWrapper = await BundleCollateralWrapper.deploy();
+  console.log("Bundle Collateral Wrapper:  ", bundleCollateralWrapper.address);
 
-  /* Deploy Fixed Interest Rate Model Implementation */
-  const fixedInterestRateModelImpl = await FixedInterestRateModel.deploy();
-  console.log("Fixed Interest Rate Model Impl:", fixedInterestRateModelImpl.address);
+  console.log("");
 
   /* Deploy External Collateral Liquidator Implementation */
   const externalCollateralLiquidatorImpl = await ExternalCollateralLiquidator.deploy();
-  console.log("External Collateral Liquidator Impl:", externalCollateralLiquidatorImpl.address);
+
+  /* Deploy External Collateral Liquidator (Proxied) */
+  const externalCollateralLiquidatorProxy = await TestProxy.deploy(
+    externalCollateralLiquidatorImpl.address,
+    externalCollateralLiquidatorImpl.interface.encodeFunctionData("initialize", [accounts[0].address])
+  );
+  console.log("Collateral Liquidator:     ", externalCollateralLiquidatorProxy.address);
 
   console.log("");
 
   /* Create WETH Pool */
-  const calldata = ethers.utils.defaultAbiCoder.encode(
-    ["address", "address", "uint64", "address", "address", "address", "address", "bytes", "bytes", "bytes"],
+  const params = ethers.utils.defaultAbiCoder.encode(
+    ["address", "address", "uint64", "uint256", "address[]", "tuple(uint64, uint64, uint64)"],
     [
       baycTokenContract.address,
       wethTokenContract.address,
       30 * 86400,
-      ethers.constants.AddressZero,
-      collectionCollateralFilterImpl.address,
-      fixedInterestRateModelImpl.address,
-      externalCollateralLiquidatorImpl.address,
-      ethers.utils.defaultAbiCoder.encode(["address"], [baycTokenContract.address]),
-      ethers.utils.defaultAbiCoder.encode(
-        ["uint64", "uint64", "uint64"],
-        [FixedPoint.normalizeRate("0.02"), FixedPoint.from("0.05"), FixedPoint.from("2")]
-      ),
-      ethers.utils.defaultAbiCoder.encode(["address"], [accounts[0].address]),
+      45,
+      [bundleCollateralWrapper.address],
+      [FixedPoint.normalizeRate("0.02"), FixedPoint.from("0.05"), FixedPoint.from("2.0")],
     ]
   );
-  const wethTestPoolCreationTx = await poolFactory.createPool(calldata);
+  const wethTestPoolCreationTx = await poolFactory.create(
+    poolImpl.address,
+    params,
+    externalCollateralLiquidatorProxy.address
+  );
   const wethTestPoolAddress = (await extractEvent(wethTestPoolCreationTx, poolFactory, "PoolCreated")).args.pool;
   console.log("WETH Test Pool:             ", wethTestPoolAddress);
 
