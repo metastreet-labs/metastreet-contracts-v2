@@ -17,6 +17,7 @@ type Pool @entity {
   loansDefaultedCount: BigInt! # uint
   loansLiquidatedCount: BigInt! # uint
   totalValueLocked: BigInt! # uint
+  totalBorrowed: BigInt! # uint
   ticks: [Tick!]! @derivedFrom(field: "pool")
   deposits: [Deposit!]! @derivedFrom(field: "pool")
   loans: [Loan!]! @derivedFrom(field: "pool")
@@ -46,6 +47,7 @@ type CollateralToken @entity {
   id: ID! # address
   name: String!
   totalValueLocked: BigInt! # uint256
+  totalBorrowed: BigInt! # uint
   maxBorrow: BigInt! # uint256
   maxLoanDuration: Int! # in seconds
   minAPR: Int! # percentage
