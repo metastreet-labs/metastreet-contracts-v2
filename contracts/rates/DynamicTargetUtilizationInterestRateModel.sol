@@ -15,6 +15,11 @@ contract DynamicTargetUtilizationInterestRateModel is InterestRateModel {
     /**************************************************************************/
 
     /**
+     * @notice Implementation version
+     */
+    string public constant IRM_IMPLEMENTATION_VERSION = "1.0";
+
+    /**
      * @notice Fixed point decimal scale
      */
     uint256 internal constant FIXED_POINT_D_SCALE = 1e18;
