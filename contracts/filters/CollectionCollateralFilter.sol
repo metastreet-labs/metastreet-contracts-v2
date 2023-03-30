@@ -9,6 +9,15 @@ import "../CollateralFilter.sol";
  */
 contract CollectionCollateralFilter is CollateralFilter {
     /**************************************************************************/
+    /* Constants */
+    /**************************************************************************/
+
+    /**
+     * @notice Implementation version
+     */
+    string public constant CF_IMPLEMENTATION_VERSION = "1.0";
+
+    /**************************************************************************/
     /* State */
     /**************************************************************************/
 

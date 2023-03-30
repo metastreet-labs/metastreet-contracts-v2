@@ -23,6 +23,10 @@ describe("CollectionCollateralFilter", function () {
   });
 
   describe("constants", async function () {
+    it("matches expected implementation version", async function () {
+      expect(await collateralFilter.CF_IMPLEMENTATION_VERSION()).to.equal("1.0");
+    });
+
     it("matches expected name", async function () {
       expect(await collateralFilter.collateralFilter()).to.equal("CollectionCollateralFilter");
     });
