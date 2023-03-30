@@ -135,12 +135,6 @@ interface IPool {
     /**************************************************************************/
 
     /**
-     * @notice Get collateral token
-     * @return Collateral token contract
-     */
-    function collateralToken() external view returns (address);
-
-    /**
      * @notice Get currency token
      * @return Currency token contract
      */
@@ -184,13 +178,15 @@ interface IPool {
      * @notice Quote repayment for a loan
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
-     * @param collateralTokenIds List of collateral token ids
+     * @param collateralToken Collateral token
+     * @param collateralTokenIds List of collateral token IDs
      * @param options Encoded options
      * @return Repayment amount in currency tokens
      */
     function quote(
         uint256 principal,
         uint64 duration,
+        address collateralToken,
         uint256[] calldata collateralTokenIds,
         bytes calldata options
     ) external view returns (uint256);

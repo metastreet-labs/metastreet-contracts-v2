@@ -53,7 +53,6 @@ contract FixedRateSingleCollectionPool is Pool, FixedInterestRateModel, Collecti
 
         /* Initialize Pool */
         Pool._initialize(
-            collateralToken_,
             currencyToken_,
             maxLoanDuration_,
             originationFeeRate_,

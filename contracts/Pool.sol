@@ -146,11 +146,6 @@ abstract contract Pool is
     /**************************************************************************/
 
     /**
-     * @notice Collateral token contract
-     */
-    IERC721 internal _collateralToken;
-
-    /**
      * @notice Currency token contract
      */
     IERC20 internal _currencyToken;
@@ -218,7 +213,6 @@ abstract contract Pool is
 
     /**
      * @notice Pool initializer
-     * @param collateralToken_ Collateral token contract
      * @param currencyToken_ Currency token contract
      * @param maxLoanDuration_ Maximum loan duration in seconds
      * @param originationFeeRate_ Origination fee rate in basis points
@@ -226,14 +220,12 @@ abstract contract Pool is
      * @param collateralWrappers Collateral wrappers
      */
     function _initialize(
-        address collateralToken_,
         address currencyToken_,
         uint64 maxLoanDuration_,
         uint256 originationFeeRate_,
         address[] memory collateralWrappers,
         address collateralLiquidator_
     ) internal {
-        _collateralToken = IERC721(collateralToken_);
         _currencyToken = IERC20(currencyToken_); /* FIXME verify 18 decimals */
         _maxLoanDuration = maxLoanDuration_;
         _originationFeeRate = originationFeeRate_;
@@ -254,13 +246,6 @@ abstract contract Pool is
     /**************************************************************************/
     /* Getters */
     /**************************************************************************/
-
-    /**
-     * @inheritdoc IPool
-     */
-    function collateralToken() external view returns (address) {
-        return address(_collateralToken);
-    }
 
     /**
      * @inheritdoc IPool
@@ -441,25 +426,25 @@ abstract contract Pool is
 
     /**
      * @notice Helper function that returns underlying collateral in (address, uint256[]) shape
-     * @param collateralToken_ Collateral token, either underlying token or collateral wrapper
+     * @param collateralToken Collateral token, either underlying token or collateral wrapper
      * @param collateralTokenId Collateral token ID
      * @param collateralContext Collateral context
      */
     function _getUnderlyingCollateral(
-        address collateralToken_,
+        address collateralToken,
         uint256 collateralTokenId,
         bytes memory collateralContext
     ) internal view returns (address, uint256[] memory) {
         /* Enumerate bundle if collateral token is a collateral wrapper */
-        if (_collateralWrappers.contains(collateralToken_)) {
-            return ICollateralWrapper(collateralToken_).enumerate(collateralTokenId, collateralContext);
+        if (_collateralWrappers.contains(collateralToken)) {
+            return ICollateralWrapper(collateralToken).enumerate(collateralTokenId, collateralContext);
         }
 
         /* If single asset, convert token id to to token id array */
         uint256[] memory underlyingCollateralTokenIds = new uint256[](1);
         underlyingCollateralTokenIds[0] = collateralTokenId;
 
-        return (collateralToken_, underlyingCollateralTokenIds);
+        return (collateralToken, underlyingCollateralTokenIds);
     }
 
     /**
@@ -483,23 +468,23 @@ abstract contract Pool is
 
     /**
      * @dev Helper function to revoke token delegate
-     * @param collateralToken_ Contract address of token that delegation is being removed from
+     * @param collateralToken Contract address of token that delegation is being removed from
      * @param collateralTokenId Token id of token that delegation is being removed from
      */
-    function _revokeDelegates(address collateralToken_, uint256 collateralTokenId) internal {
+    function _revokeDelegates(address collateralToken, uint256 collateralTokenId) internal {
         /* No operation if _delegationRegistry not set */
         if (address(_delegationRegistry) == address(0)) return;
 
         /* Get delegates for collateral token and id */
         address[] memory delegates = _delegationRegistry.getDelegatesForToken(
             address(this),
-            collateralToken_,
+            collateralToken,
             collateralTokenId
         );
 
         for (uint256 i = 0; i < delegates.length; i++) {
             /* Revoke by setting value to false */
-            _delegationRegistry.delegateForToken(delegates[i], collateralToken_, collateralTokenId, false);
+            _delegationRegistry.delegateForToken(delegates[i], collateralToken, collateralTokenId, false);
         }
     }
 
@@ -507,19 +492,19 @@ abstract contract Pool is
      * @dev Helper function to quote a loan
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
-     * @param collateralToken_ Collateral token address
+     * @param collateralToken Collateral token address
      * @param collateralTokenIds List of collateral token ids
      * @return Repayment amount in currency tokens
      */
     function _quote(
         uint256 principal,
         uint64 duration,
-        address collateralToken_,
+        address collateralToken,
         uint256[] memory collateralTokenIds
     ) internal view returns (uint256) {
         /* Verify collateral is supported */
         for (uint256 i = 0; i < collateralTokenIds.length; i++) {
-            if (!collateralSupported(collateralToken_, collateralTokenIds[i], "")) revert UnsupportedCollateral(i);
+            if (!collateralSupported(collateralToken, collateralTokenIds[i], "")) revert UnsupportedCollateral(i);
         }
 
         /* Validate loan duration */
@@ -567,9 +552,9 @@ abstract contract Pool is
      * @dev Helper function to handle borrow accounting
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
-     * @param collateralToken_ Collateral token address
-     * @param collateralTokenId Collateral token id
-     *  @param maxRepayment Maximum repayment amount in currency tokens
+     * @param collateralToken Collateral token address
+     * @param collateralTokenId Collateral token ID
+     * @param maxRepayment Maximum repayment amount in currency tokens
      * @param depths Liquidity node depths
      * @param collateralContext Collateral context data
      * @return Repayment Amount in currency tokens
@@ -579,7 +564,7 @@ abstract contract Pool is
     function _borrow(
         uint256 principal,
         uint64 duration,
-        address collateralToken_,
+        address collateralToken,
         uint256 collateralTokenId,
         uint256 maxRepayment,
         uint256[] calldata depths,
@@ -587,7 +572,7 @@ abstract contract Pool is
     ) internal returns (uint256, bytes memory, bytes32) {
         /* Get underlying collateral */
         (address underlyingCollateralToken, uint256[] memory underlyingCollateralTokenIds) = _getUnderlyingCollateral(
-            collateralToken_,
+            collateralToken,
             collateralTokenId,
             collateralContext
         );
@@ -615,7 +600,7 @@ abstract contract Pool is
             borrower: msg.sender,
             maturity: uint64(block.timestamp + duration),
             duration: duration,
-            collateralToken: collateralToken_,
+            collateralToken: collateralToken,
             collateralTokenId: collateralTokenId,
             collateralContextLength: uint16(collateralContext.length),
             collateralContextData: collateralContext,
@@ -738,6 +723,7 @@ abstract contract Pool is
     function quote(
         uint256 principal,
         uint64 duration,
+        address collateralToken,
         uint256[] calldata collateralTokenIds,
         bytes calldata options
     ) external view returns (uint256) {
@@ -747,7 +733,7 @@ abstract contract Pool is
         if (principal > _liquidity.liquidityAvailable(type(uint256).max))
             revert LiquidityManager.InsufficientLiquidity();
 
-        return _quote(principal, duration, address(_collateralToken), collateralTokenIds);
+        return _quote(principal, duration, collateralToken, collateralTokenIds);
     }
 
     /**
@@ -787,7 +773,7 @@ abstract contract Pool is
     function borrow(
         uint256 principal,
         uint64 duration,
-        address collateralToken_,
+        address collateralToken,
         uint256 collateralTokenId,
         uint256 maxRepayment,
         uint256[] calldata depths,
@@ -797,7 +783,7 @@ abstract contract Pool is
         (uint256 repayment, bytes memory encodedLoanReceipt, bytes32 loanReceiptHash) = _borrow(
             principal,
             duration,
-            collateralToken_,
+            collateralToken,
             collateralTokenId,
             maxRepayment,
             depths,
@@ -805,10 +791,10 @@ abstract contract Pool is
         );
 
         /* Handle delegate.cash option */
-        _optionDelegateCash(collateralToken_, collateralTokenId, options);
+        _optionDelegateCash(collateralToken, collateralTokenId, options);
 
         /* Transfer collateral from borrower to pool */
-        IERC721(collateralToken_).transferFrom(msg.sender, address(this), collateralTokenId);
+        IERC721(collateralToken).transferFrom(msg.sender, address(this), collateralTokenId);
 
         /* Transfer principal from pool to borrower */
         _currencyToken.safeTransfer(msg.sender, principal);

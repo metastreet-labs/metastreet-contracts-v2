@@ -29,6 +29,18 @@ contract CollectionCollateralFilter is CollateralFilter {
     }
 
     /**************************************************************************/
+    /* Getters */
+    /**************************************************************************/
+
+    /**
+     * @notice Get collateral token
+     * @return Collateral token contract
+     */
+    function collateralToken() external view returns (address) {
+        return _token;
+    }
+
+    /**************************************************************************/
     /* Implementation */
     /**************************************************************************/
 
