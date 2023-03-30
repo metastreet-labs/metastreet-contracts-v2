@@ -15,6 +15,11 @@ contract FixedInterestRateModel is InterestRateModel {
     /**************************************************************************/
 
     /**
+     * @notice Implementation version
+     */
+    string public constant IRM_IMPLEMENTATION_VERSION = "1.0";
+
+    /**
      * @notice Fixed point scale
      */
     uint256 public constant FIXED_POINT_SCALE = 1e18;
