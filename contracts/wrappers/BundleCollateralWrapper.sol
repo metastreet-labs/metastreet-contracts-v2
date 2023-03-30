@@ -109,7 +109,7 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder {
      */
     function _hash(bytes memory encodedBundle) internal view returns (bytes32) {
         /* Take hash of chain ID (32 bytes) concatenated with encoded bundle */
-        return keccak256(bytes.concat(abi.encodePacked(block.chainid), encodedBundle));
+        return keccak256(abi.encodePacked(block.chainid, encodedBundle));
     }
 
     /**************************************************************************/
