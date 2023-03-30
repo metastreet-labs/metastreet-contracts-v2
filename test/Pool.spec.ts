@@ -82,7 +82,7 @@ describe("Pool", function () {
     await bundleCollateralWrapper.deployed();
 
     /* Deploy pool implementation */
-    poolImpl = (await poolImplFactory.deploy(delegationRegistry.address)) as Pool;
+    poolImpl = (await poolImplFactory.deploy(delegationRegistry.address, [bundleCollateralWrapper.address])) as Pool;
     await poolImpl.deployed();
 
     /* Deploy pool */
@@ -90,13 +90,12 @@ describe("Pool", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address", "address", "uint64", "uint256", "address[]", "tuple(uint64, uint64, uint64)"],
+          ["address", "address", "uint64", "uint256", "tuple(uint64, uint64, uint64)"],
           [
             nft1.address,
             tok1.address,
             30 * 86400,
             45,
-            [bundleCollateralWrapper.address],
             [FixedPoint.normalizeRate("0.02"), FixedPoint.from("0.05"), FixedPoint.from("2.0")],
           ]
         ),
@@ -153,7 +152,8 @@ describe("Pool", function () {
     });
 
     it("returns expected supported collateral wrappers", async () => {
-      const collateralWrappers = await pool.supportedCollateralWrappers();
+      const collateralWrappers = await pool.collateralWrappers();
+      expect(collateralWrappers.length).to.equal(1);
       expect(collateralWrappers[0]).to.equal(bundleCollateralWrapper.address);
     });
   });

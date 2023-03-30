@@ -73,7 +73,7 @@ describe("PoolFactory", function () {
     await bundleCollateralWrapper.deployed();
 
     /* Deploy pool implementation */
-    poolImpl = (await poolImplFactory.deploy(delegationRegistry.address)) as Pool;
+    poolImpl = (await poolImplFactory.deploy(delegationRegistry.address, [bundleCollateralWrapper.address])) as Pool;
     await poolImpl.deployed();
 
     /* Deploy Pool Factory */
@@ -93,13 +93,12 @@ describe("PoolFactory", function () {
     it("creates a pool", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint64", "uint256", "address[]", "tuple(uint64, uint64, uint64)"],
+        ["address", "address", "uint64", "uint256", "tuple(uint64, uint64, uint64)"],
         [
           nft1.address,
           tok1.address,
           30 * 86400,
           45,
-          [bundleCollateralWrapper.address],
           [FixedPoint.normalizeRate("0.02"), FixedPoint.from("0.05"), FixedPoint.from("2.0")],
         ]
       );
@@ -125,13 +124,12 @@ describe("PoolFactory", function () {
     it("fails on invalid params", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint64", "uint256", "address[]"],
+        ["address", "address", "uint64", "uint256"],
         [
           nft1.address,
           tok1.address,
           30 * 86400,
           45,
-          [bundleCollateralWrapper.address],
           /* Missing interest rate model params */
         ]
       );
@@ -142,13 +140,12 @@ describe("PoolFactory", function () {
   /* Helper function to create a pool */
   async function createPool(): Promise<string> {
     const params = ethers.utils.defaultAbiCoder.encode(
-      ["address", "address", "uint64", "uint256", "address[]", "tuple(uint64, uint64, uint64)"],
+      ["address", "address", "uint64", "uint256", "tuple(uint64, uint64, uint64)"],
       [
         nft1.address,
         tok1.address,
         30 * 86400,
         45,
-        [bundleCollateralWrapper.address],
         [FixedPoint.normalizeRate("0.02"), FixedPoint.from("0.05"), FixedPoint.from("2.0")],
       ]
     );

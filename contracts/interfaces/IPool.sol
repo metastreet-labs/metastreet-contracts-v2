@@ -153,6 +153,12 @@ interface IPool {
     function adminFeeRate() external view returns (uint256);
 
     /**
+     * @notice Get list of supported collateral wrappers
+     * @return Collateral wrappers
+     */
+    function collateralWrappers() external view returns (address[] memory);
+
+    /**
      * @notice Get collateral liquidator contract
      * @return Collateral liquidator contract
      */
@@ -163,12 +169,6 @@ interface IPool {
      * @return Delegation registry contract
      */
     function delegationRegistry() external view returns (address);
-
-    /**
-     * @notice Get list of supported collateral wrappers
-     * @return Collateral wrappers
-     */
-    function supportedCollateralWrappers() external view returns (address[] memory);
 
     /**************************************************************************/
     /* Lend API */

@@ -137,6 +137,13 @@ abstract contract Pool is
     /**************************************************************************/
 
     /**
+     * @notice Collateral wrappers (max 3)
+     */
+    address internal immutable _collateralWrapper1;
+    address internal immutable _collateralWrapper2;
+    address internal immutable _collateralWrapper3;
+
+    /**
      * @notice Delegation registry contract
      */
     IDelegationRegistry internal immutable _delegationRegistry;
@@ -190,11 +197,6 @@ abstract contract Pool is
      */
     ICollateralLiquidator internal _collateralLiquidator;
 
-    /**
-     * @notice  Collateral wrappers mapping
-     */
-    EnumerableSet.AddressSet internal _collateralWrappers;
-
     /**************************************************************************/
     /* Constructor */
     /**************************************************************************/
@@ -202,9 +204,15 @@ abstract contract Pool is
     /**
      * @notice Pool constructor
      * @param delegationRegistry_ Delegation registry contract
+     * @param collateralWrappers_ Collateral wrappers
      */
-    constructor(address delegationRegistry_) {
+    constructor(address delegationRegistry_, address[] memory collateralWrappers_) {
         _delegationRegistry = IDelegationRegistry(delegationRegistry_);
+
+        if (collateralWrappers_.length > 3) revert ParameterOutOfBounds();
+        _collateralWrapper1 = (collateralWrappers_.length > 0) ? collateralWrappers_[0] : address(0);
+        _collateralWrapper2 = (collateralWrappers_.length > 1) ? collateralWrappers_[1] : address(0);
+        _collateralWrapper3 = (collateralWrappers_.length > 2) ? collateralWrappers_[2] : address(0);
     }
 
     /**************************************************************************/
@@ -217,24 +225,17 @@ abstract contract Pool is
      * @param maxLoanDuration_ Maximum loan duration in seconds
      * @param originationFeeRate_ Origination fee rate in basis points
      * @param collateralLiquidator_ Collateral liquidator contract
-     * @param collateralWrappers Collateral wrappers
      */
     function _initialize(
         address currencyToken_,
         uint64 maxLoanDuration_,
         uint256 originationFeeRate_,
-        address[] memory collateralWrappers,
         address collateralLiquidator_
     ) internal {
         _currencyToken = IERC20(currencyToken_); /* FIXME verify 18 decimals */
         _maxLoanDuration = maxLoanDuration_;
         _originationFeeRate = originationFeeRate_;
         _collateralLiquidator = ICollateralLiquidator(collateralLiquidator_);
-
-        /* Set collateral wrappers */
-        for (uint256 i = 0; i < collateralWrappers.length; i++) {
-            _collateralWrappers.add(collateralWrappers[i]);
-        }
 
         /* Initialize liquidity */
         _liquidity.initialize();
@@ -271,6 +272,22 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
+    function collateralWrappers() external view returns (address[] memory) {
+        uint256 count = (_collateralWrapper3 != address(0)) ? 3 : (_collateralWrapper2 != address(0))
+            ? 2
+            : (_collateralWrapper1 != address(0))
+            ? 1
+            : 0;
+        address[] memory collateralWrappers_ = new address[](count);
+        if (count > 0) collateralWrappers_[0] = _collateralWrapper1;
+        if (count > 1) collateralWrappers_[1] = _collateralWrapper2;
+        if (count > 2) collateralWrappers_[2] = _collateralWrapper3;
+        return collateralWrappers_;
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
     function collateralLiquidator() external view returns (address) {
         return address(_collateralLiquidator);
     }
@@ -280,13 +297,6 @@ abstract contract Pool is
      */
     function delegationRegistry() external view returns (address) {
         return address(_delegationRegistry);
-    }
-
-    /**
-     * @inheritdoc IPool
-     */
-    function supportedCollateralWrappers() external view returns (address[] memory) {
-        return _collateralWrappers.values();
     }
 
     /**
@@ -436,7 +446,11 @@ abstract contract Pool is
         bytes memory collateralContext
     ) internal view returns (address, uint256[] memory) {
         /* Enumerate bundle if collateral token is a collateral wrapper */
-        if (_collateralWrappers.contains(collateralToken)) {
+        if (
+            collateralToken == _collateralWrapper1 ||
+            collateralToken == _collateralWrapper2 ||
+            collateralToken == _collateralWrapper3
+        ) {
             return ICollateralWrapper(collateralToken).enumerate(collateralTokenId, collateralContext);
         }
 

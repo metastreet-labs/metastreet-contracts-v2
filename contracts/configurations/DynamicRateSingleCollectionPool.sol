@@ -31,7 +31,10 @@ contract DynamicRateSingleCollectionPool is
     /**
      * @notice Pool constructor
      */
-    constructor(address delegationRegistry_) Pool(delegationRegistry_) {
+    constructor(
+        address delegationRegistry_,
+        address[] memory collateralWrappers
+    ) Pool(delegationRegistry_, collateralWrappers) {
         /* Disable initialization of implementation contract */
         _initialized = true;
     }
@@ -51,21 +54,14 @@ contract DynamicRateSingleCollectionPool is
             address currencyToken_,
             uint64 maxLoanDuration_,
             uint256 originationFeeRate_,
-            address[] memory collateralWrappers,
             DynamicTargetUtilizationInterestRateModel.Parameters memory rateParameters
         ) = abi.decode(
                 params,
-                (address, address, uint64, uint256, address[], DynamicTargetUtilizationInterestRateModel.Parameters)
+                (address, address, uint64, uint256, DynamicTargetUtilizationInterestRateModel.Parameters)
             );
 
         /* Initialize Pool */
-        Pool._initialize(
-            currencyToken_,
-            maxLoanDuration_,
-            originationFeeRate_,
-            collateralWrappers,
-            collateralLiquidator_
-        );
+        Pool._initialize(currencyToken_, maxLoanDuration_, originationFeeRate_, collateralLiquidator_);
 
         /* Initialize Collateral Filter */
         CollectionCollateralFilter._initialize(collateralToken_);

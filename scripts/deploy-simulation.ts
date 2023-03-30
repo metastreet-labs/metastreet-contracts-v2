@@ -15,18 +15,6 @@ async function main() {
   const Pool = await ethers.getContractFactory("FixedRateSingleCollectionPool", accounts[9]);
   const PoolFactory = await ethers.getContractFactory("PoolFactory", accounts[9]);
 
-  /* Deploy Pool implementation */
-  const poolImpl = await Pool.deploy(ethers.constants.AddressZero);
-  await poolImpl.deployed();
-  console.log("Pool Implementation:        ", poolImpl.address);
-
-  /* Deploy Pool Factory */
-  const poolFactory = await PoolFactory.deploy();
-  await poolFactory.deployed();
-  console.log("Pool Factory:               ", poolFactory.address);
-
-  console.log("");
-
   /* Deploy WETH */
   const wethTokenContract = await TestERC20.deploy("WETH", "WETH", 18, ethers.utils.parseEther("1000000"));
   await wethTokenContract.deployed();
@@ -57,7 +45,19 @@ async function main() {
     externalCollateralLiquidatorImpl.address,
     externalCollateralLiquidatorImpl.interface.encodeFunctionData("initialize", [accounts[0].address])
   );
-  console.log("Collateral Liquidator:     ", externalCollateralLiquidatorProxy.address);
+  console.log("Collateral Liquidator:      ", externalCollateralLiquidatorProxy.address);
+
+  console.log("");
+
+  /* Deploy Pool implementation */
+  const poolImpl = await Pool.deploy(ethers.constants.AddressZero, [bundleCollateralWrapper.address]);
+  await poolImpl.deployed();
+  console.log("Pool Implementation:        ", poolImpl.address);
+
+  /* Deploy Pool Factory */
+  const poolFactory = await PoolFactory.deploy();
+  await poolFactory.deployed();
+  console.log("Pool Factory:               ", poolFactory.address);
 
   console.log("");
 
