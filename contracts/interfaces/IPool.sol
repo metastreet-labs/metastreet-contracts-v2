@@ -147,6 +147,12 @@ interface IPool {
     function maxLoanDuration() external view returns (uint64);
 
     /**
+     * @notice Get origination fee rate
+     * @return Origination fee rate in basis points
+     */
+    function originationFeeRate() external view returns (uint256);
+
+    /**
      * @notice Get admin fee rate
      * @return Admin fee rate in basis points
      */

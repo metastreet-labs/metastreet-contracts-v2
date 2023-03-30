@@ -265,6 +265,13 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
+    function originationFeeRate() external view returns (uint256) {
+        return _originationFeeRate;
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
     function adminFeeRate() external view returns (uint256) {
         return _adminFeeRate;
     }
