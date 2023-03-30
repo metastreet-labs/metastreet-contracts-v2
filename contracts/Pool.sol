@@ -464,22 +464,20 @@ abstract contract Pool is
 
     /**
      * @notice Helper function that calls delegate.cash registry to delegate token
-     * @param collateralTokenId Collateral token id
-     * @param options Options data that contains tag, length and address to delegate to
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
+     * @param options Options data
      */
-    function _optionDelegateCash(uint256 collateralTokenId, bytes calldata options) internal {
-        /* Revert if _delegationRegistry not set */
-        if (address(_delegationRegistry) == address(0)) revert InvalidBorrowOptions();
+    function _optionDelegateCash(address collateralToken, uint256 collateralTokenId, bytes calldata options) internal {
+        /* Find delegate.cash tagged data in options */
+        bytes calldata delegateData = _getOptionsData(options, uint16(BorrowOptions.DelegateCash));
 
-        /* Find tag location in options */
-        bytes calldata optionsData = _getOptionsData(options, uint16(BorrowOptions.DelegateCash));
+        if (delegateData.length != 0) {
+            if (address(_delegationRegistry) == address(0)) revert InvalidBorrowOptions();
+            if (delegateData.length != 20) revert InvalidBorrowOptions();
 
-        /* If option tag is found, the minimum offset would be 4 bytes */
-        if (optionsData.length != 0) {
-            if (optionsData.length != 20) revert InvalidBorrowOptions();
-            address delegate = address(uint160(bytes20(optionsData)));
-
-            _delegationRegistry.delegateForToken(delegate, address(_collateralToken), collateralTokenId, true);
+            address delegate = address(uint160(bytes20(delegateData)));
+            _delegationRegistry.delegateForToken(delegate, collateralToken, collateralTokenId, true);
         }
     }
 
@@ -809,10 +807,8 @@ abstract contract Pool is
             optionsData
         );
 
-        /* Handle delegation for single asset collateral */
-        if (!_collateralWrappers.contains(collateralToken_) && options.length > 0) {
-            _optionDelegateCash(collateralTokenId, options);
-        }
+        /* Handle delegate.cash option */
+        _optionDelegateCash(collateralToken_, collateralTokenId, options);
 
         /* Transfer collateral from borrower to pool */
         IERC721(collateralToken_).transferFrom(msg.sender, address(this), collateralTokenId);
