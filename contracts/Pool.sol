@@ -641,9 +641,6 @@ abstract contract Pool is
             });
         }
 
-        /* Update top level liquidity statistics */
-        _liquidity.used += uint128(principal);
-
         /* Update utilization tracking */
         _onUtilizationUpdated(utilization());
 
@@ -690,7 +687,6 @@ abstract contract Pool is
 
         /* Restore liquidity nodes */
         uint128 totalPending;
-        uint128 totalUsed;
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
             /* Restore node */
             _liquidity.restore(
@@ -707,16 +703,9 @@ abstract contract Pool is
                     )
             );
 
-            /* Track totals */
+            /* Accumulate pending */
             totalPending += loanReceipt.nodeReceipts[i].pending;
-            totalUsed += loanReceipt.nodeReceipts[i].used;
         }
-
-        /* Update top level liquidity statistics with prorated interest earned by pool */
-        _liquidity.total += uint128(
-            Math.mulDiv(totalPending - totalUsed, proration, LiquidityManager.FIXED_POINT_SCALE)
-        );
-        _liquidity.used -= totalUsed;
 
         /* Update admin fee total balance with prorated admin fee */
         _adminFeeBalance += Math.mulDiv(
@@ -952,7 +941,6 @@ abstract contract Pool is
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
         /* Restore liquidity nodes */
-        uint128 totalUsed;
         uint128 proceedsRemaining = uint128(proceeds);
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
             /* Restore node */
@@ -966,16 +954,9 @@ abstract contract Pool is
                 restored
             );
 
-            /* Track totals */
+            /* Update proceeds remaining */
             proceedsRemaining -= restored;
-            totalUsed += loanReceipt.nodeReceipts[i].used;
         }
-
-        /* Update top level liquidity statistics */
-        _liquidity.total = (uint128(proceeds) > totalUsed)
-            ? (_liquidity.total + uint128(proceeds) - totalUsed)
-            : (_liquidity.total - totalUsed + uint128(proceeds));
-        _liquidity.used -= totalUsed;
 
         /* Update utilization tracking */
         _onUtilizationUpdated(utilization());

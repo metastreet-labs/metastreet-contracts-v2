@@ -398,7 +398,6 @@ library LiquidityManager {
 
     /**
      * @notice Use liquidity from node
-     * @dev Note, does not update liquidity statistics
      * @param liquidity Liquidity state
      * @param depth Depth
      * @param used Used amount
@@ -410,12 +409,13 @@ library LiquidityManager {
         unchecked {
             node.available -= used;
             node.pending += pending;
+
+            liquidity.used += used;
         }
     }
 
     /**
      * @notice Restore liquidity and process pending redemptions
-     * @dev Note, does not update liquidity statistics
      * @param liquidity Liquidity state
      * @param depth Depth
      * @param used Used amount
@@ -432,9 +432,14 @@ library LiquidityManager {
         Node storage node = liquidity.nodes[depth];
 
         unchecked {
-            node.value = (restored > used) ? (node.value + restored - used) : (node.value - used + restored);
+            uint128 delta = (restored > used) ? (restored - used) : (used - restored);
+
+            node.value = (restored > used) ? (node.value + delta) : (node.value - delta);
             node.available += restored;
             node.pending -= pending;
+
+            liquidity.total = (restored > used) ? (liquidity.total + delta) : (liquidity.total - delta);
+            liquidity.used -= used;
         }
 
         /* If node became insolvent */

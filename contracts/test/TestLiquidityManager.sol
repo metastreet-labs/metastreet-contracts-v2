@@ -126,9 +126,6 @@ contract TestLiquidityManager is ILiquidity {
      */
     function use(uint128 depth, uint128 amount, uint128 pending) external {
         _liquidity.use(depth, amount, pending);
-
-        /* Update liquidity statistics */
-        _liquidity.used += amount;
     }
 
     /**
@@ -136,12 +133,6 @@ contract TestLiquidityManager is ILiquidity {
      */
     function restore(uint128 depth, uint128 used, uint128 pending, uint128 restored) external {
         _liquidity.restore(depth, used, pending, restored);
-
-        /* Update liquidity statistics */
-        _liquidity.total = (restored > used)
-            ? (_liquidity.total + restored - used)
-            : (_liquidity.total - used + restored);
-        _liquidity.used -= used;
     }
 
     /**
