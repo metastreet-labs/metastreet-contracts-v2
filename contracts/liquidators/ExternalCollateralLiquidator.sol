@@ -9,6 +9,7 @@ import "../interfaces/ICollateralLiquidator.sol";
 import "../interfaces/IPool.sol";
 import "../LoanReceipt.sol";
 
+//
 /**
  * @title External Collateral Liquidator (trusted)
  * @author MetaStreet Labs

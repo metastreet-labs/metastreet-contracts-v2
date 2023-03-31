@@ -23,6 +23,7 @@ import "./interfaces/IPool.sol";
 import "./interfaces/ILiquidity.sol";
 import "./interfaces/ICollateralWrapper.sol";
 import "./interfaces/ICollateralLiquidator.sol";
+import "./interfaces/ICollateralLiquidationReceiver.sol";
 
 import "./integrations/DelegateCash/IDelegationRegistry.sol";
 
@@ -39,7 +40,8 @@ abstract contract Pool is
     CollateralFilter,
     InterestRateModel,
     IPool,
-    ILiquidity
+    ILiquidity,
+    ICollateralLiquidationReceiver
 {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -914,10 +916,14 @@ abstract contract Pool is
         if (block.timestamp < loanReceipt.maturity) revert LoanNotExpired();
 
         /* Transfer collateral to _collateralLiquidator */
-        IERC721(loanReceipt.collateralToken).safeTransferFrom(
-            address(this),
-            address(_collateralLiquidator),
+        IERC721(loanReceipt.collateralToken).approve(address(_collateralLiquidator), loanReceipt.collateralTokenId);
+
+        /* Start liquidation with collateral liquidator */
+        _collateralLiquidator.liquidate(
+            address(_currencyToken),
+            loanReceipt.collateralToken,
             loanReceipt.collateralTokenId,
+            loanReceipt.collateralContextData,
             encodedLoanReceipt
         );
 
@@ -936,9 +942,16 @@ abstract contract Pool is
     /**************************************************************************/
 
     /**
-     * @inheritdoc IPool
+     * @inheritdoc ICollateralLiquidationReceiver
      */
-    function onCollateralLiquidated(bytes calldata encodedLoanReceipt, uint256 proceeds) external nonReentrant {
+    function onCollateralLiquidated(
+        address,
+        address,
+        uint256,
+        bytes calldata,
+        bytes calldata encodedLoanReceipt,
+        uint256 proceeds
+    ) external nonReentrant {
         /* Validate caller is collateral liquidator */
         if (msg.sender != address(_collateralLiquidator)) revert InvalidCaller();
 
@@ -982,9 +995,6 @@ abstract contract Pool is
 
         /* Mark loan status collateral liquidated */
         _loans[loanReceiptHash] = LoanStatus.CollateralLiquidated;
-
-        /* Transfer proceeds from liquidator to pool */
-        _currencyToken.safeTransferFrom(address(_collateralLiquidator), address(this), proceeds);
 
         /* Emit Collateral Liquidated */
         emit CollateralLiquidated(loanReceiptHash, proceeds);
