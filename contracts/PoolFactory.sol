@@ -2,14 +2,10 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts/proxy/Clones.sol";
 
 import "./interfaces/IPoolFactory.sol";
-import "./interfaces/ICollateralLiquidator.sol";
-import "./interfaces/ICollateralWrapper.sol";
-import "./Pool.sol";
-import "./integrations/DelegateCash/IDelegationRegistry.sol";
 
 /*
  * @title PoolFactory
