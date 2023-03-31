@@ -848,10 +848,27 @@ describe("Integration", function () {
 
       /* Execute liquidate on Pool */
       console.log(`Params => proceeds: ${proceeds}`);
-      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(pool.address, encodedLoanReceipt);
       await collateralLiquidator
         .connect(accountLiquidator)
-        .liquidateCollateral(pool.address, encodedLoanReceipt, proceeds);
+        .withdrawCollateral(
+          pool.address,
+          tok1.address,
+          decodedLoanReceipt.collateralToken,
+          decodedLoanReceipt.collateralTokenId,
+          "0x",
+          encodedLoanReceipt
+        );
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .liquidateCollateral(
+          pool.address,
+          tok1.address,
+          decodedLoanReceipt.collateralToken,
+          decodedLoanReceipt.collateralTokenId,
+          "0x",
+          encodedLoanReceipt,
+          proceeds
+        );
       const [total, used, _] = await pool.liquidityStatistics();
 
       /* Execute liquidate on PoolModel */

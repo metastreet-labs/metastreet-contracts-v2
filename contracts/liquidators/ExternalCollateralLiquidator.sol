@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
+import "../interfaces/ICollateralLiquidationReceiver.sol";
 import "../interfaces/ICollateralLiquidator.sol";
 import "../interfaces/IPool.sol";
-import "../LoanReceipt.sol";
 
 /**
  * @title External Collateral Liquidator (trusted)
  * @author MetaStreet Labs
  */
-contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator {
+contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     /**************************************************************************/
@@ -40,14 +41,19 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator {
     /**************************************************************************/
 
     /**
+     * @notice Invalid token
+     */
+    error InvalidToken();
+
+    /**
      * @notice Invalid caller
      */
     error InvalidCaller();
 
     /**
-     * @notice Invalid transfer
+     * @notice Invalid liquidation
      */
-    error InvalidTransfer();
+    error InvalidLiquidation();
 
     /**
      * @notice Invalid collateral state
@@ -61,13 +67,13 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator {
     /**
      * @notice Emitted when collateral is received
      * @param collateralHash Collateral hash
-     * @param pool Pool that provided collateral
+     * @param source Source that provided collateral
      * @param collateralToken Collateral token contract
      * @param collateralTokenId Collateral token ID
      */
     event CollateralReceived(
         bytes32 indexed collateralHash,
-        address indexed pool,
+        address indexed source,
         address collateralToken,
         uint256 collateralTokenId
     );
@@ -75,13 +81,13 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator {
     /**
      * @notice Emitted when collateral is withdrawn
      * @param collateralHash Collateral hash
-     * @param pool Pool that provided collateral
+     * @param source Source that provided collateral
      * @param collateralToken Collateral token contract
      * @param collateralTokenId Collateral token ID
      */
     event CollateralWithdrawn(
         bytes32 indexed collateralHash,
-        address indexed pool,
+        address indexed source,
         address collateralToken,
         uint256 collateralTokenId
     );
@@ -89,14 +95,12 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator {
     /**
      * @notice Emitted when collateral is liquidated
      * @param collateralHash Collateral hash
-     * @param pool Pool that provided collateral
      * @param collateralToken Collateral token contract
      * @param collateralTokenId Collateral token ID
      * @param proceeds Proceeds in currency tokens
      */
     event CollateralLiquidated(
         bytes32 indexed collateralHash,
-        address indexed pool,
         address collateralToken,
         uint256 collateralTokenId,
         uint256 proceeds
@@ -156,6 +160,41 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator {
     }
 
     /**************************************************************************/
+    /* Helper Functions */
+    /**************************************************************************/
+
+    /**
+     * @notice Helper function to compute collateral hash
+     * @param source Source that provided collateral
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
+     * @param currencyToken Curreny token
+     * @param collateralContext Collateral context for collateral wrapper
+     * @param liquidationContext Liquidation callback context
+     */
+    function _collateralHash(
+        address source,
+        address collateralToken,
+        uint256 collateralTokenId,
+        address currencyToken,
+        bytes calldata collateralContext,
+        bytes calldata liquidationContext
+    ) internal view returns (bytes32) {
+        return
+            keccak256(
+                abi.encodePacked(
+                    block.chainid,
+                    source,
+                    collateralToken,
+                    collateralTokenId,
+                    collateralContext,
+                    currencyToken,
+                    liquidationContext
+                )
+            );
+    }
+
+    /**************************************************************************/
     /* Getters */
     /**************************************************************************/
     /**
@@ -179,37 +218,39 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator {
     }
 
     /**
-     * @inheritdoc IERC721Receiver
+     * @inheritdoc ICollateralLiquidator
      */
-    function onERC721Received(
-        address operator,
-        address from,
-        uint256 tokenId,
-        bytes calldata data
-    ) external virtual returns (bytes4) {
-        /* Validate caller */
-        if (operator != from) revert InvalidCaller();
+    function liquidate(
+        address currencyToken,
+        address collateralToken,
+        uint256 collateralTokenId,
+        bytes calldata collateralContext,
+        bytes calldata liquidationContext
+    ) external nonReentrant {
+        /* Check collateralToken and currencyToken is not zero address */
+        if (collateralToken == address(0) || currencyToken == address(0)) revert InvalidToken();
 
-        /* Decode loan receipt */
-        LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.decode(data);
+        /* Compute liquidation hash */
+        bytes32 collateralHash = _collateralHash(
+            msg.sender,
+            collateralToken,
+            collateralTokenId,
+            currencyToken,
+            collateralContext,
+            liquidationContext
+        );
 
-        /* Compute collateral hash */
-        bytes32 collateralHash = keccak256(abi.encodePacked(block.chainid, from, data));
-
-        /* Validate token id matches receipt */
-        if (tokenId != receipt.collateralTokenId) revert InvalidTransfer();
-        /* Validate collateral is received */
-        if (IERC721(receipt.collateralToken).ownerOf(receipt.collateralTokenId) != address(this))
-            revert InvalidTransfer();
         /* Validate collateral is not already present */
-        if (_collateralTracker[collateralHash] != CollateralStatus.Absent) revert InvalidTransfer();
+        if (_collateralTracker[collateralHash] != CollateralStatus.Absent) revert InvalidLiquidation();
+
+        /* Transfer collateral token from source to this contract */
+        IERC721(collateralToken).transferFrom(msg.sender, address(this), collateralTokenId);
 
         /* Update collateral tracker */
         _collateralTracker[collateralHash] = CollateralStatus.Present;
 
-        emit CollateralReceived(collateralHash, from, receipt.collateralToken, receipt.collateralTokenId);
-
-        return this.onERC721Received.selector;
+        /* Emit CollateralReceived */
+        emit CollateralReceived(collateralHash, msg.sender, collateralToken, collateralTokenId);
     }
 
     /**
@@ -217,29 +258,41 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator {
      *
      * Emits a {CollateralWithdrawn} event.
      *
-     * @param pool Pool that provided the collateral
-     * @param loanReceipt Loan receipt
+     * @param source Source that provided collateral
+     * @param currencyToken Curreny token
+     * @param collateralToken Collateral token, either underlying token or collateral wrapper
+     * @param collateralTokenId Collateral token ID
+     * @param collateralContext Collateral context for collateral wrapper
+     * @param liquidationContext Liquidation callback context
      */
     function withdrawCollateral(
-        address pool,
-        bytes calldata loanReceipt
+        address source,
+        address currencyToken,
+        address collateralToken,
+        uint256 collateralTokenId,
+        bytes calldata collateralContext,
+        bytes calldata liquidationContext
     ) external onlyRole(COLLATERAL_LIQUIDATOR_ROLE) {
         /* Compute collateral hash */
-        bytes32 collateralHash = keccak256(abi.encodePacked(block.chainid, pool, loanReceipt));
+        bytes32 collateralHash = _collateralHash(
+            source,
+            collateralToken,
+            collateralTokenId,
+            currencyToken,
+            collateralContext,
+            liquidationContext
+        );
 
         /* Validate collateral is present */
         if (_collateralTracker[collateralHash] != CollateralStatus.Present) revert InvalidCollateralState();
 
-        /* Decode loan receipt */
-        LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.decode(loanReceipt);
-
         /* Transfer collateral to caller */
-        IERC721(receipt.collateralToken).safeTransferFrom(address(this), msg.sender, receipt.collateralTokenId);
+        IERC721(collateralToken).safeTransferFrom(address(this), msg.sender, collateralTokenId);
 
         /* Update collateral tracker */
         _collateralTracker[collateralHash] = CollateralStatus.Withdrawn;
 
-        emit CollateralWithdrawn(collateralHash, pool, receipt.collateralToken, receipt.collateralTokenId);
+        emit CollateralWithdrawn(collateralHash, source, collateralToken, collateralTokenId);
     }
 
     /**
@@ -247,36 +300,57 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator {
      *
      * Emits a {CollateralLiquidated} event.
      *
-     * @param pool Pool that provided the collateral
-     * @param loanReceipt Loan receipt
-     * @param proceeds Proceeds from collateral liquidation
+     * @param source Source that provided collateral
+     * @param collateralToken Collateral token from liquidate parameter earlier
+     * @param collateralTokenId Collateral token ID from liquidate parameter earlier
+     * @param collateralContext Collateral context
+     * @param liquidationContext Liquidation context
      */
     function liquidateCollateral(
-        address pool,
-        bytes calldata loanReceipt,
+        address source,
+        address currencyToken,
+        address collateralToken,
+        uint256 collateralTokenId,
+        bytes calldata collateralContext,
+        bytes calldata liquidationContext,
         uint256 proceeds
     ) external onlyRole(COLLATERAL_LIQUIDATOR_ROLE) {
         /* Compute collateral hash */
-        bytes32 collateralHash = keccak256(abi.encodePacked(block.chainid, pool, loanReceipt));
+        bytes32 collateralHash = _collateralHash(
+            source,
+            collateralToken,
+            collateralTokenId,
+            currencyToken,
+            collateralContext,
+            liquidationContext
+        );
 
-        /* Validate collateral is withdrawn */
+        /* Validate collateral is present */
         if (_collateralTracker[collateralHash] != CollateralStatus.Withdrawn) revert InvalidCollateralState();
 
-        /* Decode loan receipt */
-        LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.decode(loanReceipt);
-
         /* Transfer proceeds from caller to this contract */
-        IERC20(IPool(pool).currencyToken()).safeTransferFrom(msg.sender, address(this), proceeds);
+        IERC20(currencyToken).safeTransferFrom(msg.sender, address(this), proceeds);
 
-        /* Approve pool to pull funds from this contract */
-        IERC20(IPool(pool).currencyToken()).approve(pool, proceeds);
+        /* Transfer collateral to caller */
+        IERC20(currencyToken).transfer(source, proceeds);
 
-        /* Callback into pool */
-        IPool(pool).onCollateralLiquidated(loanReceipt, proceeds);
+        /* If transfer is successful and source is a contract, try collateral liquidation callback */
+        if (Address.isContract(source))
+            try
+                ICollateralLiquidationReceiver(source).onCollateralLiquidated(
+                    currencyToken,
+                    collateralToken,
+                    collateralTokenId,
+                    collateralContext,
+                    liquidationContext,
+                    proceeds
+                )
+            {} catch {}
 
-        /* Remove collateral tracker */
+        /* Emit CollateralLiquidated() */
+        emit CollateralLiquidated(collateralHash, collateralToken, collateralTokenId, proceeds);
+
+        /* Delete underlying collateral */
         delete _collateralTracker[collateralHash];
-
-        emit CollateralLiquidated(collateralHash, pool, receipt.collateralToken, receipt.collateralTokenId, proceeds);
     }
 }

@@ -320,15 +320,4 @@ interface IPool {
      * @param loanReceipt Loan receipt
      */
     function liquidate(bytes calldata loanReceipt) external;
-
-    /**************************************************************************/
-    /* Callbacks */
-    /**************************************************************************/
-
-    /**
-     * @notice Callback on loan collateral liquidated
-     * @param loanReceipt Loan receipt
-     * @param proceeds Liquidation proceeds in currency tokens
-     */
-    function onCollateralLiquidated(bytes calldata loanReceipt, uint256 proceeds) external;
 }

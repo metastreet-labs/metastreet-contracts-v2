@@ -7,12 +7,12 @@ import {
   TestERC20,
   TestERC721,
   TestLoanReceipt,
-  TestProxy,
   ExternalCollateralLiquidator,
   TestCollateralLiquidatorJig,
+  TestCollateralLiquidatorJigTruncated,
 } from "../../typechain";
 
-import { expectEvent } from "../helpers/EventUtilities";
+import { extractEvent, expectEvent } from "../helpers/EventUtilities";
 
 describe("ExternalCollateralLiquidator", function () {
   let accounts: SignerWithAddress[];
@@ -21,8 +21,12 @@ describe("ExternalCollateralLiquidator", function () {
   let loanReceiptLibrary: TestLoanReceipt;
   let collateralLiquidator: ExternalCollateralLiquidator;
   let testCollateralLiquidatorJig: TestCollateralLiquidatorJig;
+  let testCollateralLiquidatorJigRevert: TestCollateralLiquidatorJig;
+  let testCollateralLiquidatorJigTruncated: TestCollateralLiquidatorJigTruncated;
   let snapshotId: string;
   let accountLiquidator: SignerWithAddress;
+  let accountEOA: SignerWithAddress;
+  let bundleTokenId: ethers.BigNumber;
 
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
@@ -33,6 +37,9 @@ describe("ExternalCollateralLiquidator", function () {
     const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const testCollateralLiquidatorJigFactory = await ethers.getContractFactory("TestCollateralLiquidatorJig");
+    const testCollateralLiquidatorJigTruncatedFactory = await ethers.getContractFactory(
+      "TestCollateralLiquidatorJigTruncated"
+    );
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("1000"))) as TestERC20;
@@ -53,7 +60,7 @@ describe("ExternalCollateralLiquidator", function () {
     /* Deploy collateral liquidator */
     const proxy = await testProxyFactory.deploy(
       collateralLiquidatorImpl.address,
-      collateralLiquidatorImpl.interface.encodeFunctionData("initialize")
+      collateralLiquidatorImpl.interface.encodeFunctionData("initialize", [])
     );
     await proxy.deployed();
     collateralLiquidator = (await ethers.getContractAt(
@@ -68,12 +75,22 @@ describe("ExternalCollateralLiquidator", function () {
     );
     await testCollateralLiquidatorJig.deployed();
 
-    /* Mint NFT to testing jig to simulate default */
-    await nft1.mint(testCollateralLiquidatorJig.address, 123);
-    await nft1.mint(testCollateralLiquidatorJig.address, 456);
+    /* Deploy collateral liquidator testing jig that reverts onCollateralLiquidate */
+    testCollateralLiquidatorJigRevert = await testCollateralLiquidatorJigFactory.deploy(
+      tok1.address,
+      collateralLiquidator.address
+    );
+    await testCollateralLiquidatorJigRevert.deployed();
 
-    /* Arrange accounts */
-    accountLiquidator = accounts[3];
+    /* Deploy collateral liquidator testing jig that does not implement onCollateralLiquidate */
+    testCollateralLiquidatorJigTruncated = await testCollateralLiquidatorJigTruncatedFactory.deploy(
+      tok1.address,
+      collateralLiquidator.address
+    );
+    await testCollateralLiquidatorJigRevert.deployed();
+
+    accountLiquidator = accounts[0];
+    accountEOA = accounts[1];
 
     /* Grant liquidator role to liquidator account */
     await collateralLiquidator.grantRole(
@@ -81,11 +98,26 @@ describe("ExternalCollateralLiquidator", function () {
       accountLiquidator.address
     );
 
-    /* Transfer token to liquidator account */
+    /* Mint NFT to testing jig to simulate default */
+    await nft1.mint(testCollateralLiquidatorJig.address, 122);
+
+    /* Mint NFT to an EOA */
+    await nft1.mint(accountEOA.address, 129);
+    await nft1.connect(accountEOA).approve(collateralLiquidator.address, 129);
+
+    /* Mint NFT to a testing jig that reverts onCollateralLiquidate() */
+    await nft1.mint(testCollateralLiquidatorJigRevert.address, 130);
+
+    /* Mint NFT to a testing jig that does not implement onCollateralLiquidate() */
+    await nft1.mint(testCollateralLiquidatorJigTruncated.address, 131);
+
+    /* Transfer token to liquidator account and EOA account */
     await tok1.transfer(accountLiquidator.address, ethers.utils.parseEther("100"));
+    await tok1.transfer(accountEOA.address, ethers.utils.parseEther("100"));
 
     /* Approve collateral liquidator to transfer token */
     await tok1.connect(accountLiquidator).approve(collateralLiquidator.address, ethers.constants.MaxUint256);
+    await tok1.connect(accountEOA).approve(collateralLiquidator.address, ethers.constants.MaxUint256);
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -115,8 +147,6 @@ describe("ExternalCollateralLiquidator", function () {
 
   const loanReceiptTemplate = {
     version: 1,
-    platform: "0x8552B1f50a85ae8e5198Cb286c435bb0cb951de5",
-    loanId: 123,
     principal: ethers.BigNumber.from("3000000000000000000"),
     repayment: ethers.BigNumber.from("3040000000000000000"),
     borrower: "0x0CD36Fa7D9634994231Bc76Fb36938D56C6FE70E",
@@ -145,81 +175,59 @@ describe("ExternalCollateralLiquidator", function () {
     ],
   };
 
-  function makeLoanReceipt(collateralToken: string, collateralTokenId: number) {
-    return { ...loanReceiptTemplate, collateralToken, collateralTokenId };
+  function makeLoanReceipt(
+    collateralToken: string,
+    collateralTokenId: number,
+    collateralContextLength: number,
+    collateralContextData: string
+  ) {
+    return {
+      ...loanReceiptTemplate,
+      collateralToken,
+      collateralTokenId,
+      collateralContextLength,
+      collateralContextData,
+    };
   }
 
   /****************************************************************************/
   /* Primay API */
   /****************************************************************************/
 
-  describe("#transferCollateral", async function () {
-    it("succeeds from pool", async function () {
+  describe("#liquidate", async function () {
+    it("succeeds calling liquidate on collateral", async function () {
       /* Construct loan reciept */
-      const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 123));
-      const collateralHash = ethers.utils.solidityKeccak256(
-        ["uint256", "address", "bytes"],
-        [network.config.chainId, testCollateralLiquidatorJig.address, loanReceipt]
-      );
+      const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
-      /* Transfer collateral to collateral liquidator */
-      const transferTx = await testCollateralLiquidatorJig.transferCollateral(
-        collateralLiquidator.address,
-        nft1.address,
-        123,
-        loanReceipt
-      );
+      /* Calling liquidate() */
+      const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
 
       /* Validate events */
-      await expectEvent(transferTx, nft1, "Transfer", {
-        from: testCollateralLiquidatorJig.address,
-        to: collateralLiquidator.address,
-        tokenId: 123,
-      });
-      await expectEvent(transferTx, collateralLiquidator, "CollateralReceived", {
-        collateralHash,
-        pool: testCollateralLiquidatorJig.address,
-        collateralToken: nft1.address,
-        collateralTokenId: 123,
-      });
+      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "CollateralReceived")).args[0];
 
       /* Validate state */
-      expect(await collateralLiquidator.collateralStatus(collateralHash)).to.equal(1);
+      const collateralStatus = await collateralLiquidator.collateralStatus(collateralHash);
+      await expect(collateralStatus).to.equal(1);
     });
-    it("fails on invalid token id", async function () {
-      /* Construct loan reciept */
-      const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 42));
 
-      /* Transfer different token ID than in loan receipt */
+    it("fails with invalid token", async function () {
+      /* Construct loan reciept */
+      const loanReceipt1 = await loanReceiptLibrary.encode(makeLoanReceipt(ethers.constants.AddressZero, 122, 0, "0x"));
+
+      /* Liquidate with invalid collateral token */
       await expect(
-        testCollateralLiquidatorJig.transferCollateral(collateralLiquidator.address, nft1.address, 123, loanReceipt)
-      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidTransfer");
-    });
-    it("fails on missing token transfer", async function () {
-      /* Construct loan reciept */
-      const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 123));
+        collateralLiquidator.liquidate(tok1.address, ethers.constants.AddressZero, 122, "0x", loanReceipt1)
+      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidToken");
 
-      /* Call onERC721Received() directly without transfer */
+      /* Construct loan reciept */
+      const loanReceipt2 = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
+
+      /* Liquidate with invalid currency token */
       await expect(
-        collateralLiquidator.onERC721Received(accounts[0].address, accounts[0].address, 123, loanReceipt)
-      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidTransfer");
-    });
-    it("fails on existing collateral", async function () {
-      /* Construct loan reciept */
-      const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 123));
-
-      /* Transfer collateral to collateral liquidator */
-      await testCollateralLiquidatorJig.transferCollateral(
-        collateralLiquidator.address,
-        nft1.address,
-        123,
-        loanReceipt
-      );
-
-      /* Call onERC721Received() directly again */
-      expect(
-        await collateralLiquidator.onERC721Received(accounts[0].address, accounts[0].address, 123, loanReceipt)
-      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidTransfer");
+        collateralLiquidator
+          .connect(accountEOA)
+          .liquidate(ethers.constants.AddressZero, nft1.address, 122, "0x", loanReceipt2)
+      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidToken");
     });
   });
 
@@ -227,40 +235,34 @@ describe("ExternalCollateralLiquidator", function () {
     let loanReceipt: string;
     let collateralHash: string;
 
-    beforeEach("transfer collateral", async function () {
+    beforeEach("liquidate collateral", async function () {
       /* Construct loan reciept */
-      loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 123));
-      collateralHash = ethers.utils.solidityKeccak256(
-        ["uint256", "address", "bytes"],
-        [network.config.chainId, testCollateralLiquidatorJig.address, loanReceipt]
-      );
+      loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
-      /* Transfer collateral to collateral liquidator */
-      await testCollateralLiquidatorJig.transferCollateral(
-        collateralLiquidator.address,
-        nft1.address,
-        123,
-        loanReceipt
-      );
+      /* Calling liquidate() */
+      const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
+
+      /* Get collateral hash */
+      collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "CollateralReceived")).args[0];
     });
 
     it("succeeds on present collateral", async function () {
       /* Withdraw collateral */
       const withdrawTx = await collateralLiquidator
         .connect(accountLiquidator)
-        .withdrawCollateral(testCollateralLiquidatorJig.address, loanReceipt);
+        .withdrawCollateral(testCollateralLiquidatorJig.address, tok1.address, nft1.address, 122, "0x", loanReceipt);
 
       /* Validate events */
       await expectEvent(withdrawTx, nft1, "Transfer", {
         from: collateralLiquidator.address,
         to: accountLiquidator.address,
-        tokenId: 123,
+        tokenId: 122,
       });
       await expectEvent(withdrawTx, collateralLiquidator, "CollateralWithdrawn", {
         collateralHash,
-        pool: testCollateralLiquidatorJig.address,
+        source: testCollateralLiquidatorJig.address,
         collateralToken: nft1.address,
-        collateralTokenId: 123,
+        collateralTokenId: 122,
       });
 
       /* Validate state */
@@ -268,36 +270,41 @@ describe("ExternalCollateralLiquidator", function () {
     });
     it("fails on non-existent collateral", async function () {
       /* Construct loan reciept */
-      const absentLoanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 42));
+      const absentLoanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 1, 0, "0x"));
 
       /* Try to withdraw non-existent collateral */
       await expect(
         collateralLiquidator
           .connect(accountLiquidator)
-          .withdrawCollateral(testCollateralLiquidatorJig.address, absentLoanReceipt)
+          .withdrawCollateral(
+            testCollateralLiquidatorJig.address,
+            tok1.address,
+            nft1.address,
+            1,
+            "0x",
+            absentLoanReceipt
+          )
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidCollateralState");
     });
-    it("fails on wrong pool", async function () {
-      await expect(
-        collateralLiquidator.connect(accountLiquidator).withdrawCollateral(accounts[5].address, loanReceipt)
-      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidCollateralState");
-    });
+
     it("fails on withdrawn collateral", async function () {
       /* Withdraw collateral */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .withdrawCollateral(testCollateralLiquidatorJig.address, loanReceipt);
+        .withdrawCollateral(testCollateralLiquidatorJig.address, tok1.address, nft1.address, 122, "0x", loanReceipt);
 
       /* Try to withdraw collateral again */
       await expect(
         collateralLiquidator
           .connect(accountLiquidator)
-          .withdrawCollateral(testCollateralLiquidatorJig.address, loanReceipt)
+          .withdrawCollateral(testCollateralLiquidatorJig.address, tok1.address, nft1.address, 122, "0x", loanReceipt)
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidCollateralState");
     });
     it("fails on invalid caller", async function () {
       await expect(
-        collateralLiquidator.withdrawCollateral(testCollateralLiquidatorJig.address, loanReceipt)
+        collateralLiquidator
+          .connect(accountEOA)
+          .withdrawCollateral(testCollateralLiquidatorJig.address, tok1.address, nft1.address, 122, "0x", loanReceipt)
       ).to.be.revertedWith(/AccessControl: account .* is missing role .*/);
     });
   });
@@ -306,33 +313,35 @@ describe("ExternalCollateralLiquidator", function () {
     let loanReceipt: string;
     let collateralHash: string;
 
-    beforeEach("transfer collateral", async function () {
+    beforeEach("liquidate collateral", async function () {
       /* Construct loan reciept */
-      loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 123));
-      collateralHash = ethers.utils.solidityKeccak256(
-        ["uint256", "address", "bytes"],
-        [network.config.chainId, testCollateralLiquidatorJig.address, loanReceipt]
-      );
+      loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
-      /* Transfer collateral to collateral liquidator */
-      await testCollateralLiquidatorJig.transferCollateral(
-        collateralLiquidator.address,
-        nft1.address,
-        123,
-        loanReceipt
-      );
+      /* Calling liquidate() */
+      const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
+
+      /* Get collateral hash */
+      collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "CollateralReceived")).args[0];
     });
 
     it("succeeds on withdrawn collateral", async function () {
       /* Withdraw collateral */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .withdrawCollateral(testCollateralLiquidatorJig.address, loanReceipt);
+        .withdrawCollateral(testCollateralLiquidatorJig.address, tok1.address, nft1.address, 122, "0x", loanReceipt);
 
       /* Liquidate collateral for 2.5 ETH */
       const liquidateTx = await collateralLiquidator
         .connect(accountLiquidator)
-        .liquidateCollateral(testCollateralLiquidatorJig.address, loanReceipt, ethers.utils.parseEther("2.5"));
+        .liquidateCollateral(
+          testCollateralLiquidatorJig.address,
+          tok1.address,
+          nft1.address,
+          122,
+          "0x",
+          loanReceipt,
+          ethers.utils.parseEther("2.5")
+        );
 
       /* Validate events */
       await expectEvent(
@@ -357,14 +366,11 @@ describe("ExternalCollateralLiquidator", function () {
         },
         1
       );
-      await expectEvent(liquidateTx, testCollateralLiquidatorJig, "CollateralLiquidated", {
-        proceeds: ethers.utils.parseEther("2.5"),
-      });
+
       await expectEvent(liquidateTx, collateralLiquidator, "CollateralLiquidated", {
         collateralHash,
-        pool: testCollateralLiquidatorJig.address,
         collateralToken: nft1.address,
-        collateralTokenId: 123,
+        collateralTokenId: 122,
         proceeds: ethers.utils.parseEther("2.5"),
       });
 
@@ -376,45 +382,55 @@ describe("ExternalCollateralLiquidator", function () {
       await expect(
         collateralLiquidator
           .connect(accountLiquidator)
-          .liquidateCollateral(testCollateralLiquidatorJig.address, loanReceipt, ethers.utils.parseEther("2.5"))
+          .liquidateCollateral(
+            testCollateralLiquidatorJig.address,
+            tok1.address,
+            nft1.address,
+            122,
+            "0x",
+            loanReceipt,
+            ethers.utils.parseEther("2.5")
+          )
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidCollateralState");
     });
     it("fails on non-existent collateral", async function () {
       /* Construct loan reciept */
-      const absentLoanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 42));
+      const absentLoanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 1, 0, "0x"));
 
       /* Try to liquidate non-existent collateral */
       await expect(
         collateralLiquidator
           .connect(accountLiquidator)
-          .liquidateCollateral(testCollateralLiquidatorJig.address, absentLoanReceipt, ethers.utils.parseEther("2.5"))
+          .liquidateCollateral(
+            testCollateralLiquidatorJig.address,
+            tok1.address,
+            nft1.address,
+            1,
+            "0x",
+            loanReceipt,
+            ethers.utils.parseEther("2.5")
+          )
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidCollateralState");
     });
-    it("fails on wrong pool", async function () {
-      /* Withdraw collateral */
-      await collateralLiquidator
-        .connect(accountLiquidator)
-        .withdrawCollateral(testCollateralLiquidatorJig.address, loanReceipt);
 
-      /* Try to liquidate collateral for wrong pool */
-      await expect(
-        collateralLiquidator
-          .connect(accountLiquidator)
-          .liquidateCollateral(accounts[5].address, loanReceipt, ethers.utils.parseEther("2.5"))
-      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidCollateralState");
-    });
     it("fails on invalid caller", async function () {
       /* Withdraw collateral */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .withdrawCollateral(testCollateralLiquidatorJig.address, loanReceipt);
+        .withdrawCollateral(testCollateralLiquidatorJig.address, tok1.address, nft1.address, 122, "0x", loanReceipt);
 
       await expect(
-        collateralLiquidator.liquidateCollateral(
-          testCollateralLiquidatorJig.address,
-          loanReceipt,
-          ethers.utils.parseEther("2.5")
-        )
+        collateralLiquidator
+          .connect(accountEOA)
+          .liquidateCollateral(
+            testCollateralLiquidatorJig.address,
+            tok1.address,
+            nft1.address,
+            122,
+            "0x",
+            loanReceipt,
+            ethers.utils.parseEther("2.5")
+          )
       ).to.be.revertedWith(/AccessControl: account .* is missing role .*/);
     });
   });

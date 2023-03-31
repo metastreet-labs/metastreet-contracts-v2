@@ -1,15 +1,29 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+pragma solidity 0.8.17;
 
 /**
  * @title Interface to a Collateral Liquidator
  */
-interface ICollateralLiquidator is IERC721Receiver {
+interface ICollateralLiquidator {
     /**
-     * Get collateral liquidator name
+     * @notice Get collateral liquidator name
      * @return Collateral liquidator name
      */
     function name() external view returns (string memory);
+
+    /**
+     * @notice Liquidate collateral
+     * @param currencyToken Curreny token
+     * @param collateralToken Collateral token, either underlying token or collateral wrapper
+     * @param collateralTokenId Collateral token ID
+     * @param collateralContext Collateral context for collateral wrapper
+     * @param liquidationContext Liquidation callback context
+     */
+    function liquidate(
+        address currencyToken,
+        address collateralToken,
+        uint256 collateralTokenId,
+        bytes calldata collateralContext,
+        bytes calldata liquidationContext
+    ) external;
 }

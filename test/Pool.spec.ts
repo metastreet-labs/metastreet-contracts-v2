@@ -489,12 +489,14 @@ describe("Pool", function () {
       await pool.liquidate(loanReceipt);
 
       /* Withdraw collateral */
-      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(pool.address, loanReceipt);
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
 
       /* Liquidate collateral and process liquidation */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .liquidateCollateral(pool.address, loanReceipt, ethers.constants.Zero);
+        .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, ethers.constants.Zero);
 
       /* Redemption should be available */
       [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, ethers.utils.parseEther("10"));
@@ -718,12 +720,14 @@ describe("Pool", function () {
       await pool.liquidate(loanReceipt);
 
       /* Withdraw collateral */
-      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(pool.address, loanReceipt);
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
 
       /* Liquidate collateral and process liquidation */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .liquidateCollateral(pool.address, loanReceipt, ethers.constants.Zero);
+        .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, ethers.constants.Zero);
 
       /* Withdraw */
       const withdrawTx = await pool.connect(accountDepositors[0]).withdraw(ethers.utils.parseEther("10"));
@@ -870,12 +874,22 @@ describe("Pool", function () {
     await pool.liquidate(loanReceipt);
 
     /* Withdraw collateral */
-    await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(pool.address, loanReceipt);
+    await collateralLiquidator
+      .connect(accountLiquidator)
+      .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
 
     /* Liquidate collateral and process liquidation */
     await collateralLiquidator
       .connect(accountLiquidator)
-      .liquidateCollateral(pool.address, loanReceipt, ethers.utils.parseEther("5"));
+      .liquidateCollateral(
+        pool.address,
+        tok1.address,
+        nft1.address,
+        123,
+        "0x",
+        loanReceipt,
+        ethers.utils.parseEther("5")
+      );
   }
 
   async function createActiveLoan(
@@ -2902,12 +2916,22 @@ describe("Pool", function () {
       await pool.liquidate(loanReceipt);
 
       /* Withdraw collateral */
-      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(pool.address, loanReceipt);
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
 
       /* Liquidate collateral and process liquidation */
       const onCollateralLiquidatedTx = await collateralLiquidator
         .connect(accountLiquidator)
-        .liquidateCollateral(pool.address, loanReceipt, ethers.utils.parseEther("30"));
+        .liquidateCollateral(
+          pool.address,
+          tok1.address,
+          nft1.address,
+          123,
+          "0x",
+          loanReceipt,
+          ethers.utils.parseEther("30")
+        );
 
       /* Validate events */
       await expectEvent(
@@ -2964,11 +2988,15 @@ describe("Pool", function () {
       await pool.liquidate(loanReceipt);
 
       /* Withdraw collateral */
-      await collateralLiquidator.connect(accountLiquidator).withdrawCollateral(pool.address, loanReceipt);
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
 
       /* Liquidate collateral and process liquidation */
       const proceeds = decodedLoanReceipt.nodeReceipts[0].pending.add(decodedLoanReceipt.nodeReceipts[1].pending);
-      await collateralLiquidator.connect(accountLiquidator).liquidateCollateral(pool.address, loanReceipt, proceeds);
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, proceeds);
 
       /* Validate state */
       expect(await pool.loans(loanReceiptHash)).to.equal(4);
