@@ -856,11 +856,12 @@ describe("Pool", function () {
   async function createActiveBundleLoan(
     principal: ethers.BigNumber,
     duration?: number = 30 * 86400
-  ): Promise<[string, string, ethers.BigNumbe]> {
+  ): Promise<[string, string, ethers.BigNumber, string]> {
     /* Mint bundle */
     await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
     const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
     const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+    const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
     await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
 
@@ -875,8 +876,8 @@ describe("Pool", function () {
         ethers.utils.parseEther("26"),
         await sourceLiquidity(ethers.utils.parseEther("25"), 3),
         ethers.utils.solidityPack(
-          ["uint16", "uint16", "address", "uint256[]"],
-          [2, 20 + 32 * 3, nft1.address, [123, 124, 125]]
+          ["uint16", "uint16", "bytes"],
+          [2, ethers.utils.hexDataLength(bundleData), bundleData]
         )
       );
 
@@ -884,7 +885,7 @@ describe("Pool", function () {
     const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
     const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
 
-    return [loanReceipt, loanReceiptHash, bundleTokenId];
+    return [loanReceipt, loanReceiptHash, bundleTokenId, bundleData];
   }
 
   async function createExpiredLoan(principal: ethers.BigNumber): Promise<[string, string]> {
@@ -1392,6 +1393,7 @@ describe("Pool", function () {
       await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
       const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+      const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
       /* Quote repayment */
       const repayment = await pool.quote(
@@ -1415,8 +1417,8 @@ describe("Pool", function () {
           ethers.utils.parseEther("26"),
           await sourceLiquidity(ethers.utils.parseEther("25"), 3),
           ethers.utils.solidityPack(
-            ["uint16", "uint16", "address", "uint256[]"],
-            [2, 20 + 32 * 3, nft1.address, [123, 124, 125]]
+            ["uint16", "uint16", "bytes"],
+            [2, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
@@ -1431,8 +1433,8 @@ describe("Pool", function () {
           ethers.utils.parseEther("26"),
           await sourceLiquidity(ethers.utils.parseEther("25"), 3),
           ethers.utils.solidityPack(
-            ["uint16", "uint16", "address", "uint256[]"],
-            [2, 20 + 32 * 3, nft1.address, [123, 124, 125]]
+            ["uint16", "uint16", "bytes"],
+            [2, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
@@ -1477,10 +1479,8 @@ describe("Pool", function () {
       expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
       expect(decodedLoanReceipt.collateralToken).to.equal(bundleCollateralWrapper.address);
       expect(decodedLoanReceipt.collateralTokenId).to.equal(bundleTokenId);
-      expect(decodedLoanReceipt.collateralContextLength).to.equal(20 + 32 * 3);
-      expect(decodedLoanReceipt.collateralContextData).to.equal(
-        ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 124, 125]])
-      );
+      expect(decodedLoanReceipt.collateralContextLength).to.equal(ethers.utils.hexDataLength(bundleData));
+      expect(decodedLoanReceipt.collateralContextData).to.equal(bundleData);
       expect(decodedLoanReceipt.nodeReceipts.length).to.equal(11);
 
       /* Sum used and pending totals from node receipts */
@@ -1504,6 +1504,7 @@ describe("Pool", function () {
       await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
       const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+      const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
       /* Quote repayment */
       const repayment = await pool.quote(
@@ -1527,8 +1528,8 @@ describe("Pool", function () {
           ethers.utils.parseEther("88"),
           await sourceLiquidity(ethers.utils.parseEther("85"), 3),
           ethers.utils.solidityPack(
-            ["uint16", "uint16", "address", "uint256[]"],
-            [2, 20 + 32 * 3, nft1.address, [123, 124, 125]]
+            ["uint16", "uint16", "bytes"],
+            [2, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
@@ -1546,8 +1547,8 @@ describe("Pool", function () {
           ethers.utils.parseEther("88"),
           await sourceLiquidity(ethers.utils.parseEther("85"), 3),
           ethers.utils.solidityPack(
-            ["uint16", "uint16", "address", "uint256[]"],
-            [2, 20 + 32 * 3, nft1.address, [123, 124, 125]]
+            ["uint16", "uint16", "bytes"],
+            [2, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
@@ -1589,10 +1590,8 @@ describe("Pool", function () {
       expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
       expect(decodedLoanReceipt.collateralToken).to.equal(bundleCollateralWrapper.address);
       expect(decodedLoanReceipt.collateralTokenId).to.equal(bundleTokenId);
-      expect(decodedLoanReceipt.collateralContextLength).to.equal(20 + 32 * 3);
-      expect(decodedLoanReceipt.collateralContextData).to.equal(
-        ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 124, 125]])
-      );
+      expect(decodedLoanReceipt.collateralContextLength).to.equal(ethers.utils.hexDataLength(bundleData));
+      expect(decodedLoanReceipt.collateralContextData).to.equal(bundleData);
       expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
 
       /* Sum used and pending totals from node receipts */
@@ -1820,6 +1819,7 @@ describe("Pool", function () {
       await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
       const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+      const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
       /* Set approvals */
       await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
@@ -1835,10 +1835,7 @@ describe("Pool", function () {
             bundleTokenId,
             ethers.utils.parseEther("26"),
             await sourceLiquidity(ethers.utils.parseEther("25"), 3),
-            ethers.utils.solidityPack(
-              ["uint16", "uint16", "address", "uint256[]"],
-              [2, 20 + 31 * 3, nft1.address, [123, 124, 125]]
-            )
+            ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [2, 20 + 31 * 3, bundleData])
           )
       ).to.be.revertedWithCustomError(bundleCollateralWrapper, "InvalidContext");
     });
@@ -1895,6 +1892,7 @@ describe("Pool", function () {
       await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
       const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+      const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
       await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
 
@@ -1909,8 +1907,8 @@ describe("Pool", function () {
             ethers.utils.parseEther("88"),
             await sourceLiquidity(ethers.utils.parseEther("85"), 3),
             ethers.utils.solidityPack(
-              ["uint16", "uint16", "address", "uint256[]"],
-              [2, 20 + 32 * 3, nft1.address, [123, 124, 125]]
+              ["uint16", "uint16", "bytes"],
+              [2, ethers.utils.hexDataLength(bundleData), bundleData]
             )
           )
       ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
@@ -1973,6 +1971,7 @@ describe("Pool", function () {
       await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
       const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [124, 125]);
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+      const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
       expect(await bundleCollateralWrapper.ownerOf(bundleTokenId)).to.equal(accountBorrower.address);
 
@@ -1991,8 +1990,8 @@ describe("Pool", function () {
           repayment,
           await sourceLiquidity(ethers.utils.parseEther("25"), 2),
           ethers.utils.solidityPack(
-            ["uint16", "uint16", "address", "uint256[]"],
-            [2, 20 + 32 * 2, nft1.address, [124, 125]]
+            ["uint16", "uint16", "bytes"],
+            [2, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
@@ -2251,6 +2250,7 @@ describe("Pool", function () {
     let loanReceipt: string;
     let loanReceiptHash: string;
     let bundleTokenId: ethers.BigNumber;
+    let bundleData: string;
 
     beforeEach("setup liquidity", async function () {
       await setupLiquidity();
@@ -2696,7 +2696,9 @@ describe("Pool", function () {
       /* setup liquidity and borrow */
       await setupLiquidity();
       pool.setAdminFeeRate(500);
-      [loanReceipt, loanReceiptHash, bundleTokenId] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
+      [loanReceipt, loanReceiptHash, bundleTokenId, bundleData] = await createActiveBundleLoan(
+        ethers.utils.parseEther("25")
+      );
 
       // Workaround to skip borrow() in beforeEach
       await pool.connect(accountBorrower).repay(loanReceipt);
@@ -2712,8 +2714,8 @@ describe("Pool", function () {
           ethers.utils.parseEther("2"),
           await sourceLiquidity(ethers.utils.parseEther("1"), 3),
           ethers.utils.solidityPack(
-            ["uint16", "uint16", "address", "uint256[]"],
-            [2, 20 + 32 * 3, nft1.address, [123, 124, 125]]
+            ["uint16", "uint16", "bytes"],
+            [2, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
@@ -2746,8 +2748,8 @@ describe("Pool", function () {
               ethers.utils.parseEther("2"),
               await sourceLiquidity(ethers.utils.parseEther("1"), 3),
               ethers.utils.solidityPack(
-                ["uint16", "uint16", "address", "uint256[]"],
-                [2, 20 + 32 * 3, nft1.address, [123, 124, 125]]
+                ["uint16", "uint16", "bytes"],
+                [2, ethers.utils.hexDataLength(bundleData), bundleData]
               ),
             ]),
             pool.interface.encodeFunctionData("refinance", [
