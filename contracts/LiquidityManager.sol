@@ -312,16 +312,13 @@ library LiquidityManager {
         uint256 prevDepth;
         uint256 taken;
         uint256 count;
-        uint256 carry;
         for (; count < depths.length && taken != amount; count++) {
             uint256 depth = depths[count];
             if (depth <= prevDepth) revert InvalidDepths();
 
             Node storage node = liquidity.nodes[depth];
 
-            uint256 depthAmount = (depth - prevDepth) * multiplier + carry;
-            uint128 take = uint128(Math.min(Math.min(depthAmount, node.available), amount - taken));
-            carry = node.available < depthAmount ? depthAmount - node.available : 0;
+            uint128 take = uint128(Math.min(Math.min(depth * multiplier - taken, node.available), amount - taken));
 
             sources[count] = ILiquidity.NodeSource({
                 depth: uint128(depth),
