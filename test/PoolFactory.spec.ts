@@ -137,6 +137,61 @@ describe("PoolFactory", function () {
     });
   });
 
+  describe("#createProxied", async function () {
+    let poolBeacon: ethers.Contract;
+
+    beforeEach("sets up pool beacon", async function () {
+      const upgradeableBeaconFactory = await ethers.getContractFactory("UpgradeableBeacon");
+      poolBeacon = await upgradeableBeaconFactory.deploy(poolImpl.address);
+      await poolBeacon.deployed();
+    });
+    it("creates a proxied pool", async function () {
+      /* Create a pool */
+      const params = ethers.utils.defaultAbiCoder.encode(
+        ["address", "address", "uint64", "uint256", "tuple(uint64, uint64, uint64)"],
+        [
+          nft1.address,
+          tok1.address,
+          30 * 86400,
+          45,
+          [FixedPoint.normalizeRate("0.02"), FixedPoint.from("0.05"), FixedPoint.from("2.0")],
+        ]
+      );
+      const createTx = await poolFactory
+        .connect(accounts[5])
+        .createProxied(poolBeacon.address, params, collateralLiquidator.address);
+
+      /* Validate events */
+      await expectEvent(createTx, poolFactory, "PoolCreated", {
+        deploymentHash: ethers.utils.solidityKeccak256(
+          ["uint256", "address", "address"],
+          [network.config.chainId, poolBeacon.address, collateralLiquidator.address]
+        ),
+      });
+
+      /* Get pool instance */
+      const poolAddress = (await extractEvent(createTx, poolFactory, "PoolCreated")).args.pool;
+      const pool = (await ethers.getContractAt("Pool", poolAddress)) as Pool;
+
+      /* Check pool factory is pool admin */
+      expect(await pool.hasRole(await pool.DEFAULT_ADMIN_ROLE(), poolFactory.address)).to.equal(true);
+    });
+    it("fails on invalid params", async function () {
+      /* Create a pool */
+      const params = ethers.utils.defaultAbiCoder.encode(
+        ["address", "address", "uint64", "uint256"],
+        [
+          nft1.address,
+          tok1.address,
+          30 * 86400,
+          45,
+          /* Missing interest rate model params */
+        ]
+      );
+      await expect(poolFactory.create(poolBeacon.address, params, collateralLiquidator.address)).to.be.reverted;
+    });
+  });
+
   /* Helper function to create a pool */
   async function createPool(): Promise<string> {
     const params = ethers.utils.defaultAbiCoder.encode(

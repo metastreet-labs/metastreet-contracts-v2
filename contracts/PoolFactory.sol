@@ -4,6 +4,8 @@ pragma solidity 0.8.17;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
+import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 
 import "./interfaces/IPoolFactory.sol";
 
@@ -52,6 +54,34 @@ contract PoolFactory is Ownable, IPoolFactory {
         Address.functionCall(
             poolInstance,
             abi.encodeWithSignature("initialize(bytes,address)", params, collateralLiquidator)
+        );
+
+        /* Add pool to registry */
+        _pools.add(poolInstance);
+
+        /* Emit Pool Created */
+        emit PoolCreated(poolInstance, deploymentHash);
+
+        return poolInstance;
+    }
+
+    /*
+     * @inheritdoc IPoolFactory
+     */
+    function createProxied(
+        address poolBeacon,
+        bytes calldata params,
+        address collateralLiquidator
+    ) external returns (address) {
+        /* Compute deployment hash */
+        bytes32 deploymentHash = keccak256(abi.encodePacked(block.chainid, poolBeacon, collateralLiquidator));
+
+        /* Create pool instance */
+        address poolInstance = address(
+            new BeaconProxy(
+                poolBeacon,
+                abi.encodeWithSignature("initialize(bytes,address)", params, collateralLiquidator)
+            )
         );
 
         /* Add pool to registry */
