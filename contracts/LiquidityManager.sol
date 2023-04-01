@@ -131,17 +131,11 @@ library LiquidityManager {
     ) internal view returns (uint256) {
         uint256 amount = 0;
 
-        uint256 depth = liquidity.nodes[0].next;
-        uint256 prevDepth;
-        uint256 carry;
-        uint256 depthAmount;
-        while (depth != type(uint128).max && depth <= maxDepth) {
-            Node storage node = liquidity.nodes[depth];
-            depthAmount = (depth - prevDepth) * multiplier + carry;
-            amount += Math.min(depthAmount, node.available);
-            carry = node.available < depthAmount ? depthAmount - node.available : 0;
-            prevDepth = depth;
-            depth = node.next;
+        uint256 d = liquidity.nodes[0].next;
+        while (d != type(uint128).max && d <= maxDepth) {
+            Node storage node = liquidity.nodes[d];
+            amount += Math.min(d * multiplier - amount, node.available);
+            d = node.next;
         }
 
         return amount;
