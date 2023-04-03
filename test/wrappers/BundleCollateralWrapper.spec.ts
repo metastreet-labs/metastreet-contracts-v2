@@ -296,4 +296,39 @@ describe("BundleCollateralWrapper", function () {
       expect(await nft1.ownerOf(768)).to.equal(accounts[2].address);
     });
   });
+
+  describe("#supportsInterface", async function () {
+    it("returns true on supported interfaces", async function () {
+      /* ERC165 */
+      expect(
+        await bundleCollateralWrapper.supportsInterface(
+          bundleCollateralWrapper.interface.getSighash("supportsInterface")
+        )
+      ).to.equal(true);
+
+      /* ERC721Receiver */
+      expect(
+        await bundleCollateralWrapper.supportsInterface(
+          bundleCollateralWrapper.interface.getSighash("onERC721Received")
+        )
+      ).to.equal(true);
+
+      /* ICollateralWrapper */
+      expect(
+        await bundleCollateralWrapper.supportsInterface(
+          ethers.utils.hexlify(
+            ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("name"))
+              .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("unwrap")))
+              .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("enumerate")))
+          )
+        )
+      ).to.equal(true);
+
+      it("returns false on unsupported interfaces", async function () {
+        expect(await bundleCollateralWrapper.supportsInterface("0xaabbccdd")).to.equal(false);
+        expect(await bundleCollateralWrapper.supportsInterface("0x00000000")).to.equal(false);
+        expect(await bundleCollateralWrapper.supportsInterface("0xffffffff")).to.equal(false);
+      });
+    });
+  });
 });
