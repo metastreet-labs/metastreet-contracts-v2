@@ -297,7 +297,11 @@ describe("BundleCollateralWrapper", function () {
     });
   });
 
+<<<<<<< HEAD
   describe("#supportsInterface", async function () {
+=======
+  describe.only("#supportsInterface", async function () {
+>>>>>>> b4bc0d4 (contracts/wrappers: add erc165 support to bundles)
     it("returns true on supported interfaces", async function () {
       /* ERC165 */
       expect(
