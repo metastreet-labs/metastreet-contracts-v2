@@ -124,12 +124,4 @@ contract PoolFactory is Ownable, IPoolFactory {
     /**************************************************************************/
     /* Admin API */
     /**************************************************************************/
-
-    /**
-     * @notice Unregister Pool
-     * @param pool Pool address
-     */
-    function unregisterPool(address pool) external onlyOwner {
-        _pools.remove(pool);
-    }
 }

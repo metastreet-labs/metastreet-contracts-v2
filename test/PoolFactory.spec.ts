@@ -241,25 +241,4 @@ describe("PoolFactory", function () {
       await expect(poolFactory.getPoolAt(2)).to.be.reverted;
     });
   });
-
-  describe("#unregisterPool", async function () {
-    it("unregisters a pool", async function () {
-      const pool1 = await createPool();
-      const pool2 = await createPool();
-
-      expect(await poolFactory.getPools()).to.deep.equal([pool1, pool2]);
-
-      await poolFactory.unregisterPool(pool1);
-
-      expect(await poolFactory.isPool(pool1)).to.equal(false);
-      expect(await poolFactory.getPools()).to.deep.equal([pool2]);
-    });
-    it("fails on invalid caller", async function () {
-      const pool1 = await createPool();
-
-      await expect(poolFactory.connect(accounts[3]).unregisterPool(pool1)).to.be.revertedWith(
-        "Ownable: caller is not the owner"
-      );
-    });
-  });
 });
