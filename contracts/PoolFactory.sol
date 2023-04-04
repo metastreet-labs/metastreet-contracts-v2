@@ -3,6 +3,8 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
@@ -13,12 +15,17 @@ import "./interfaces/IPoolFactory.sol";
  * @title PoolFactory
  * @author MetaStreet Labs
  */
-contract PoolFactory is Ownable, IPoolFactory {
+contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /**************************************************************************/
     /* State */
     /**************************************************************************/
+
+    /**
+     * @notice Initialized boolean
+     */
+    bool private _initialized;
 
     /**
      * @notice Set of deployed pools
@@ -29,10 +36,30 @@ contract PoolFactory is Ownable, IPoolFactory {
     /* Constructor */
     /**************************************************************************/
 
-    /*
+    /**
      * @notice PoolFactory constructor
      */
-    constructor() {}
+    constructor() {
+        /* Disable initialization of implementation contract */
+        _initialized = true;
+
+        /* Disable owner of implementation contract */
+        renounceOwnership();
+    }
+
+    /**************************************************************************/
+    /* Initializer */
+    /**************************************************************************/
+
+    /**
+     * @notice PoolFactory initializator
+     */
+    function initialize() external {
+        require(!_initialized, "Already initialized");
+
+        _initialized = true;
+        _transferOwnership(msg.sender);
+    }
 
     /**************************************************************************/
     /* Primary API */
@@ -124,4 +151,21 @@ contract PoolFactory is Ownable, IPoolFactory {
     /**************************************************************************/
     /* Admin API */
     /**************************************************************************/
+
+    /**
+     * @notice Get Proxy Implementation
+     * @return Implementation address
+     */
+    function getImplementation() external view returns (address) {
+        return _getImplementation();
+    }
+
+    /**
+     * @notice Upgrade Proxy
+     * @param newImplementation New implementation contract
+     * @param data Optional calldata
+     */
+    function upgradeToAndCall(address newImplementation, bytes calldata data) external onlyOwner {
+        _upgradeToAndCall(newImplementation, data, false);
+    }
 }

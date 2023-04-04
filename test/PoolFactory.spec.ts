@@ -35,8 +35,9 @@ describe("PoolFactory", function () {
     const testERC20Factory = await ethers.getContractFactory("TestERC20");
     const testERC721Factory = await ethers.getContractFactory("TestERC721");
     const testProxyFactory = await ethers.getContractFactory("TestProxy");
+    const erc1967ProxyFactory = await ethers.getContractFactory("ERC1967Proxy");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
-    const poolFactoryFactory = await ethers.getContractFactory("PoolFactory");
+    const poolFactoryImplFactory = await ethers.getContractFactory("PoolFactory");
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
     const poolImplFactory = await ethers.getContractFactory("FixedRateSingleCollectionPool");
@@ -54,7 +55,7 @@ describe("PoolFactory", function () {
     await collateralLiquidatorImpl.deployed();
 
     /* Deploy collateral liquidator */
-    const proxy = await testProxyFactory.deploy(
+    let proxy = await testProxyFactory.deploy(
       collateralLiquidatorImpl.address,
       collateralLiquidatorImpl.interface.encodeFunctionData("initialize", [accounts[5].address])
     );
@@ -76,9 +77,17 @@ describe("PoolFactory", function () {
     poolImpl = (await poolImplFactory.deploy(delegationRegistry.address, [bundleCollateralWrapper.address])) as Pool;
     await poolImpl.deployed();
 
-    /* Deploy Pool Factory */
-    poolFactory = await poolFactoryFactory.deploy();
-    await poolFactory.deployed();
+    /* Deploy pool factory implementation */
+    const poolFactoryImpl = await poolFactoryImplFactory.deploy();
+    await poolFactoryImpl.deployed();
+
+    /* Deploy pool factory */
+    proxy = await erc1967ProxyFactory.deploy(
+      poolFactoryImpl.address,
+      poolFactoryImpl.interface.encodeFunctionData("initialize")
+    );
+    await proxy.deployed();
+    poolFactory = (await ethers.getContractAt("PoolFactory", proxy.address)) as PoolFactory;
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -239,6 +248,29 @@ describe("PoolFactory", function () {
       const pool2 = await createPool();
 
       await expect(poolFactory.getPoolAt(2)).to.be.reverted;
+    });
+  });
+
+  describe("#upgradeToAndCall", async function () {
+    it("upgrades to new implementation contract", async function () {
+      const poolFactoryImplFactory = await ethers.getContractFactory("PoolFactory");
+      const poolFactoryImpl = await poolFactoryImplFactory.deploy();
+      await poolFactoryImpl.deployed();
+
+      const upgradeToAndCallTx = await poolFactory.upgradeToAndCall(poolFactoryImpl.address, "0x");
+
+      /* Validate events */
+      await expectEvent(upgradeToAndCallTx, poolFactory, "Upgraded", {
+        implementation: poolFactoryImpl.address,
+      });
+
+      /* Validate state */
+      expect(await poolFactory.getImplementation()).to.equal(poolFactoryImpl.address);
+    });
+    it("fails on invalid owner", async function () {
+      await expect(poolFactory.connect(accounts[1]).upgradeToAndCall(tok1.address, "0x")).to.be.revertedWith(
+        "Ownable: caller is not the owner"
+      );
     });
   });
 });

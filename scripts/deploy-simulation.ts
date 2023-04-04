@@ -10,6 +10,7 @@ async function main() {
   const TestERC20 = await ethers.getContractFactory("TestERC20", accounts[9]);
   const TestERC721 = await ethers.getContractFactory("TestERC721", accounts[9]);
   const TestProxy = await ethers.getContractFactory("TestProxy", accounts[9]);
+  const ERC1967Proxy = await ethers.getContractFactory("ERC1967Proxy", accounts[9]);
   const BundleCollateralWrapper = await ethers.getContractFactory("BundleCollateralWrapper", accounts[9]);
   const ExternalCollateralLiquidator = await ethers.getContractFactory("ExternalCollateralLiquidator", accounts[9]);
   const Pool = await ethers.getContractFactory("FixedRateSingleCollectionPool", accounts[9]);
@@ -54,9 +55,21 @@ async function main() {
   await poolImpl.deployed();
   console.log("Pool Implementation:        ", poolImpl.address);
 
+  console.log("");
+
+  /* Deploy Pool Factory implementation */
+  const poolFactoryImpl = await PoolFactory.deploy();
+  await poolFactoryImpl.deployed();
+  console.log("Pool Factory Implementation:", poolFactoryImpl.address);
+
   /* Deploy Pool Factory */
-  const poolFactory = await PoolFactory.deploy();
-  await poolFactory.deployed();
+  const poolFactoryProxy = await ERC1967Proxy.deploy(
+    poolFactoryImpl.address,
+    poolFactoryImpl.interface.encodeFunctionData("initialize")
+  );
+  await poolFactoryProxy.deployed();
+  const poolFactory = (await ethers.getContractAt("PoolFactory", poolFactoryProxy.address)) as PoolFactory;
+
   console.log("Pool Factory:               ", poolFactory.address);
 
   console.log("");
