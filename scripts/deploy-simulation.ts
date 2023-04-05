@@ -44,7 +44,7 @@ async function main() {
   /* Deploy External Collateral Liquidator (Proxied) */
   const externalCollateralLiquidatorProxy = await TestProxy.deploy(
     externalCollateralLiquidatorImpl.address,
-    externalCollateralLiquidatorImpl.interface.encodeFunctionData("initialize", [accounts[0].address])
+    externalCollateralLiquidatorImpl.interface.encodeFunctionData("initialize")
   );
   console.log("Collateral Liquidator:      ", externalCollateralLiquidatorProxy.address);
 

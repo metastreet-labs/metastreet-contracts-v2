@@ -53,7 +53,7 @@ describe("ExternalCollateralLiquidator", function () {
     /* Deploy collateral liquidator */
     const proxy = await testProxyFactory.deploy(
       collateralLiquidatorImpl.address,
-      collateralLiquidatorImpl.interface.encodeFunctionData("initialize", [accounts[3].address])
+      collateralLiquidatorImpl.interface.encodeFunctionData("initialize")
     );
     await proxy.deployed();
     collateralLiquidator = (await ethers.getContractAt(
@@ -72,7 +72,14 @@ describe("ExternalCollateralLiquidator", function () {
     await nft1.mint(testCollateralLiquidatorJig.address, 123);
     await nft1.mint(testCollateralLiquidatorJig.address, 456);
 
+    /* Arrange accounts */
     accountLiquidator = accounts[3];
+
+    /* Grant liquidator role to liquidator account */
+    await collateralLiquidator.grantRole(
+      await collateralLiquidator.COLLATERAL_LIQUIDATOR_ROLE(),
+      accountLiquidator.address
+    );
 
     /* Transfer token to liquidator account */
     await tok1.transfer(accountLiquidator.address, ethers.utils.parseEther("100"));
@@ -249,7 +256,7 @@ describe("ExternalCollateralLiquidator", function () {
     it("fails on invalid caller", async function () {
       await expect(
         collateralLiquidator.withdrawCollateral(testCollateralLiquidatorJig.address, loanReceipt)
-      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidCaller");
+      ).to.be.revertedWith(/AccessControl: account .* is missing role .*/);
     });
   });
 
@@ -366,7 +373,7 @@ describe("ExternalCollateralLiquidator", function () {
           loanReceipt,
           ethers.utils.parseEther("2.5")
         )
-      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidCaller");
+      ).to.be.revertedWith(/AccessControl: account .* is missing role .*/);
     });
   });
 });

@@ -57,7 +57,7 @@ describe("PoolFactory", function () {
     /* Deploy collateral liquidator */
     let proxy = await testProxyFactory.deploy(
       collateralLiquidatorImpl.address,
-      collateralLiquidatorImpl.interface.encodeFunctionData("initialize", [accounts[5].address])
+      collateralLiquidatorImpl.interface.encodeFunctionData("initialize")
     );
     await proxy.deployed();
     collateralLiquidator = (await ethers.getContractAt(

@@ -107,7 +107,7 @@ describe("Integration", function () {
     /* Deploy collateral liquidator */
     let proxy = await testProxyFactory.deploy(
       collateralLiquidatorImpl.address,
-      collateralLiquidatorImpl.interface.encodeFunctionData("initialize", [accounts[19].address])
+      collateralLiquidatorImpl.interface.encodeFunctionData("initialize")
     );
     await proxy.deployed();
     collateralLiquidator = (await ethers.getContractAt(
@@ -155,6 +155,12 @@ describe("Integration", function () {
     accountBorrowers = accounts.slice(10, 10 + CONFIG.numberOfBorrowers + 1);
     accountLender = accounts[19];
     accountLiquidator = accountLender;
+
+    /* Grant liquidator role to liquidator account */
+    await collateralLiquidator.grantRole(
+      await collateralLiquidator.COLLATERAL_LIQUIDATOR_ROLE(),
+      accountLiquidator.address
+    );
 
     /* Transfer TOK1 to depositors and approve Pool */
     for (const depositor of accountDepositors) {

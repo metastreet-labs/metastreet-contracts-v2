@@ -4,6 +4,7 @@ pragma solidity 0.8.17;
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
 import "../interfaces/ICollateralLiquidator.sol";
 import "../interfaces/IPool.sol";
@@ -13,8 +14,17 @@ import "../LoanReceipt.sol";
  * @title External Collateral Liquidator (trusted)
  * @author MetaStreet Labs
  */
-contract ExternalCollateralLiquidator is ICollateralLiquidator {
+contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator {
     using SafeERC20 for IERC20;
+
+    /**************************************************************************/
+    /* Access Control Roles */
+    /**************************************************************************/
+
+    /**
+     * @notice Collateral liquidator role
+     */
+    bytes32 public constant COLLATERAL_LIQUIDATOR_ROLE = keccak256("COLLATERAL_LIQUIDATOR");
 
     /**************************************************************************/
     /* Errors */
@@ -106,11 +116,6 @@ contract ExternalCollateralLiquidator is ICollateralLiquidator {
     bool private _initialized;
 
     /**
-     * @notice Admin
-     */
-    address private _admin;
-
-    /**
      * @dev Collateral tracker
      */
     mapping(bytes32 => CollateralStatus) private _collateralTracker;
@@ -134,11 +139,11 @@ contract ExternalCollateralLiquidator is ICollateralLiquidator {
     /**
      * @notice Initializer
      */
-    function initialize(address admin) external {
+    function initialize() external {
         require(!_initialized, "Already initialized");
 
         _initialized = true;
-        _admin = admin;
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     /**************************************************************************/
@@ -202,9 +207,10 @@ contract ExternalCollateralLiquidator is ICollateralLiquidator {
      * @param pool Pool that provided the collateral
      * @param loanReceipt Loan receipt
      */
-    function withdrawCollateral(address pool, bytes calldata loanReceipt) external {
-        if (msg.sender != _admin) revert InvalidCaller();
-
+    function withdrawCollateral(
+        address pool,
+        bytes calldata loanReceipt
+    ) external onlyRole(COLLATERAL_LIQUIDATOR_ROLE) {
         /* Compute collateral hash */
         bytes32 collateralHash = keccak256(abi.encodePacked(block.chainid, pool, loanReceipt));
 
@@ -232,9 +238,11 @@ contract ExternalCollateralLiquidator is ICollateralLiquidator {
      * @param loanReceipt Loan receipt
      * @param proceeds Proceeds from collateral liquidation
      */
-    function liquidateCollateral(address pool, bytes calldata loanReceipt, uint256 proceeds) external {
-        if (msg.sender != _admin) revert InvalidCaller();
-
+    function liquidateCollateral(
+        address pool,
+        bytes calldata loanReceipt,
+        uint256 proceeds
+    ) external onlyRole(COLLATERAL_LIQUIDATOR_ROLE) {
         /* Compute collateral hash */
         bytes32 collateralHash = keccak256(abi.encodePacked(block.chainid, pool, loanReceipt));
 
