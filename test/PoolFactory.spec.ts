@@ -98,6 +98,12 @@ describe("PoolFactory", function () {
     await network.provider.send("evm_revert", [snapshotId]);
   });
 
+  describe("constants", async function () {
+    it("matches expected implementation", async function () {
+      expect(await poolFactory.IMPLEMENTATION_VERSION()).to.equal("1.0");
+    });
+  });
+
   describe("#create", async function () {
     it("creates a pool", async function () {
       /* Create a pool */

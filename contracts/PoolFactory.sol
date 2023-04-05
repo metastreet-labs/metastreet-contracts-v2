@@ -19,6 +19,15 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /**************************************************************************/
+    /* Constants */
+    /**************************************************************************/
+
+    /**
+     * @notice Implementation version
+     */
+    string public constant IMPLEMENTATION_VERSION = "1.0";
+
+    /**************************************************************************/
     /* State */
     /**************************************************************************/
 
