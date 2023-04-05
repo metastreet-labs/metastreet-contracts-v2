@@ -85,7 +85,9 @@ function updatePoolEntity(): PoolEntity {
     log.error("No Pool entity for this event", []);
     throw new Error("No Pool entity");
   }
-  poolEntity.totalValueLocked = poolContract.liquidityStatistics().value0;
+  const liquidity = poolContract.liquidityStatistics();
+  poolEntity.totalValueLocked = liquidity.value0;
+  poolEntity.totalValueUsed = liquidity.value1;
   poolEntity.utilization = poolContract.utilization();
   poolEntity.maxBorrow = poolContract.liquidityAvailable(MAX_UINT256, BigInt.fromI32(1));
   poolEntity.save();
@@ -96,15 +98,18 @@ function updateCollateralTokenEntity(id: string): void {
   const collateralTokenEntity = CollateralTokenEntity.load(id);
   if (collateralTokenEntity) {
     let tvl = BigInt.zero();
+    let used = BigInt.zero();
     let maxBorrow = BigInt.zero();
     for (let i = 0; i < collateralTokenEntity.poolIds.length; i++) {
       const pool = PoolEntity.load(collateralTokenEntity.poolIds[i]);
       if (pool) {
         tvl = tvl.plus(pool.totalValueLocked);
+        used = used.plus(pool.totalValueUsed);
         if (maxBorrow.lt(pool.maxBorrow)) maxBorrow = pool.maxBorrow;
       }
     }
     collateralTokenEntity.totalValueLocked = tvl;
+    collateralTokenEntity.totalValueUsed = used;
     collateralTokenEntity.maxBorrow = maxBorrow;
     collateralTokenEntity.save();
   }

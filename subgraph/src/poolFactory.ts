@@ -24,6 +24,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   poolEntity.loansDefaultedCount = BigInt.zero();
   poolEntity.loansLiquidatedCount = BigInt.zero();
   poolEntity.totalValueLocked = BigInt.zero();
+  poolEntity.totalValueUsed = BigInt.zero();
   poolEntity.maxBorrow = BigInt.zero();
   poolEntity.collateralToken = collateralTokenID;
   poolEntity.save();
@@ -42,6 +43,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
     collateralTokenEntity = new CollateralTokenEntity(collateralTokenID);
     collateralTokenEntity.poolIds = [poolId];
     collateralTokenEntity.totalValueLocked = BigInt.zero();
+    collateralTokenEntity.totalValueUsed = BigInt.zero();
     collateralTokenEntity.maxLoanDuration = poolEntity.maxLoanDuration;
     collateralTokenEntity.minAPR = 0;
     const erc721Contract = ERC721.bind(collateralTokenAddress);
