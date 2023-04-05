@@ -17,9 +17,9 @@ import {
   Deposited,
   LoanLiquidated,
   LoanOriginated,
+  Pool__decodeLoanReceiptResultValue0Struct as LoanReceipt,
   LoanRepaid,
   Pool,
-  Pool__decodeLoanReceiptResultValue0Struct as LoanReceipt,
   Redeemed,
   Withdrawn,
 } from "../generated/templates/Pool/Pool";
@@ -87,7 +87,7 @@ function updatePoolEntity(): PoolEntity {
   }
   poolEntity.totalValueLocked = poolContract.liquidityStatistics().value0;
   poolEntity.utilization = poolContract.utilization();
-  poolEntity.maxBorrow = poolContract.liquidityAvailable(MAX_UINT256);
+  poolEntity.maxBorrow = poolContract.liquidityAvailable(MAX_UINT256, BigInt.fromI32(1));
   poolEntity.save();
   return poolEntity;
 }

@@ -6,8 +6,8 @@ dataSources:
     name: PoolFactory
     network: localhost
     source:
-      address: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
-      abi: IPoolFactory
+      address: "0x8ce361602B935680E8DeC218b820ff5056BeB7af"
+      abi: PoolFactory
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.6
@@ -15,16 +15,16 @@ dataSources:
       entities:
         - Pool
       abis:
-        - name: IPoolFactory
-          file: ../artifacts/contracts/interfaces/IPoolFactory.sol/IPoolFactory.json
-        - name: IPool
-          file: ../artifacts/contracts/interfaces/IPool.sol/IPool.json
-        - name: ICollateralFilter
-          file: ../artifacts/contracts/interfaces/ICollateralFilter.sol/ICollateralFilter.json
+        - name: PoolFactory
+          file: ../artifacts/contracts/PoolFactory.sol/PoolFactory.json
+        - name: Pool
+          file: ../artifacts/contracts/Pool.sol/Pool.json
+        - name: CollectionCollateralFilter
+          file: ../artifacts/contracts/filters/CollectionCollateralFilter.sol/CollectionCollateralFilter.json
         - name: ERC721
           file: extra-abis/ERC721.json
       eventHandlers:
-        - event: PoolCreated(indexed address)
+        - event: PoolCreated(indexed address,indexed bytes32)
           handler: handlePoolCreated
       file: src/poolFactory.ts
 templates:
@@ -52,8 +52,6 @@ templates:
       abis:
         - name: Pool
           file: ../artifacts/contracts/Pool.sol/Pool.json
-        - name: ILiquidity
-          file: ../artifacts/contracts/interfaces/ILiquidity.sol/ILiquidity.json
         - name: LoanReceipt
           file: ../artifacts/contracts/LoanReceipt.sol/LoanReceipt.json
       eventHandlers:

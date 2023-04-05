@@ -8,36 +8,43 @@ async function main() {
   const accounts = await ethers.getSigners();
 
   /**************************************************************************/
-  /* Libs and Implementations */
-
-  /* Deploy Pool implementation */
-  const Pool = await ethers.getContractFactory("Pool");
-  const poolImpl = await Pool.deploy();
-  await poolImpl.deployed();
-
-  /* Deploy Collection Collateral Filter Implementation */
-  const CollectionCollateralFilter = await ethers.getContractFactory("CollectionCollateralFilter", accounts[9]);
-  const collectionCollateralFilterImpl = await CollectionCollateralFilter.deploy();
-  console.log("CollectionCollateralFilter Impl: ", collectionCollateralFilterImpl.address);
-
-  /* Deploy Fixed Interest Rate Model Implementation */
-  const FixedInterestRateModel = await ethers.getContractFactory("FixedInterestRateModel", accounts[9]);
-  const fixedInterestRateModelImpl = await FixedInterestRateModel.deploy();
-  console.log("FixedInterestRateModel Impl: ", fixedInterestRateModelImpl.address);
-
-  /* Deploy ExternalCollateralLiquidator Implementation */
+  /* Misc */
+  /**************************************************************************/
+  /* Deploy Bundle Collateral Wrapper */
+  const BundleCollateralWrapper = await ethers.getContractFactory("BundleCollateralWrapper", accounts[9]);
+  const bundleCollateralWrapper = await BundleCollateralWrapper.deploy();
+  /* Deploy External Collateral Liquidator Implementation */
   const ExternalCollateralLiquidator = await ethers.getContractFactory("ExternalCollateralLiquidator", accounts[9]);
   const externalCollateralLiquidatorImpl = await ExternalCollateralLiquidator.deploy();
-  console.log("ExternalCollateralLiquidator Impl:", externalCollateralLiquidatorImpl.address);
-
+  /* Deploy External Collateral Liquidator (Proxied) */
+  const TestProxy = await ethers.getContractFactory("TestProxy", accounts[9]);
+  const externalCollateralLiquidatorProxy = await TestProxy.deploy(
+    externalCollateralLiquidatorImpl.address,
+    externalCollateralLiquidatorImpl.interface.encodeFunctionData("initialize", [accounts[0].address])
+  );
   /**************************************************************************/
   /* PoolFactory */
   /**************************************************************************/
+  /* Deploy Pool Factory implementation */
   const PoolFactory = await ethers.getContractFactory("PoolFactory");
-  const poolFactory = await PoolFactory.deploy(poolImpl.address);
-  await poolFactory.deployed();
+  const poolFactoryImpl = await PoolFactory.deploy();
+  await poolFactoryImpl.deployed();
+  /* Deploy Pool Factory */
+  const ERC1967Proxy = await ethers.getContractFactory("ERC1967Proxy", accounts[9]);
+  const poolFactoryProxy = await ERC1967Proxy.deploy(
+    poolFactoryImpl.address,
+    poolFactoryImpl.interface.encodeFunctionData("initialize")
+  );
+  await poolFactoryProxy.deployed();
+  const poolFactory = await ethers.getContractAt("PoolFactory", poolFactoryProxy.address);
   console.log("PoolFactory: ", poolFactory.address);
-
+  /**************************************************************************/
+  /* Pool implementation */
+  /**************************************************************************/
+  const Pool = await ethers.getContractFactory("FixedRateSingleCollectionPool", accounts[9]);
+  const poolImpl = await Pool.deploy(ethers.constants.AddressZero, [bundleCollateralWrapper.address]);
+  await poolImpl.deployed();
+  console.log("Pool Implementation: ", poolImpl.address);
   /**************************************************************************/
   /* Currency token */
   /**************************************************************************/
@@ -46,7 +53,6 @@ async function main() {
   await wethTokenContract.deployed();
   await wethTokenContract.transfer(accounts[0].address, ethers.utils.parseEther("10000000"));
   console.log("WETH : ", wethTokenContract.address);
-
   /**************************************************************************/
   /* NFT contracts */
   /**************************************************************************/
@@ -64,44 +70,33 @@ async function main() {
     ]);
     console.log("%s: %s", name, nftContract.address);
   }
-
   /**************************************************************************/
   /* Pools */
   /**************************************************************************/
   for (let i = 0; i < collateralTokens.length; i++) {
-    const durations = [30, 14, 7];
-    for (let j = 0; j < durations.length; j++) {
-      const calldata = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint64", "address", "address", "address", "address", "bytes", "bytes", "bytes"],
-        [
-          collateralTokens[i],
-          wethTokenContract.address,
-          durations[j] * 86400,
-          ethers.constants.AddressZero,
-          collectionCollateralFilterImpl.address,
-          fixedInterestRateModelImpl.address,
-          externalCollateralLiquidatorImpl.address,
-          ethers.utils.defaultAbiCoder.encode(["address"], [collateralTokens[i]]),
-          ethers.utils.defaultAbiCoder.encode(["uint256"], [FixedPoint.from("0.0000002")]),
-          ethers.utils.defaultAbiCoder.encode(["address"], [accounts[0].address]),
-        ]
-      );
-      const createPoolTx = await poolFactory.createPool(calldata);
-      const poolAddress = await (await extractEvent(createPoolTx, poolFactory, "PoolCreated")).args.pool;
-      const poolContract = Pool__factory.connect(poolAddress, accounts[0]);
-      const erc20Contract = ERC20__factory.connect(wethTokenContract.address, accounts[0]);
-      await erc20Contract.approve(poolAddress, ethers.constants.MaxUint256);
+    const params = ethers.utils.defaultAbiCoder.encode(
+      ["address", "address", "uint64", "uint256", "address[]", "tuple(uint64, uint64, uint64)"],
+      [
+        collateralTokens[i],
+        wethTokenContract.address,
+        7 * 86400,
+        45,
+        [bundleCollateralWrapper.address],
+        [FixedPoint.normalizeRate("0.02"), FixedPoint.from("0.05"), FixedPoint.from("2.0")],
+      ]
+    );
+    const createPoolTx = await poolFactory.create(poolImpl.address, params, externalCollateralLiquidatorProxy.address);
+    const poolAddress = (await extractEvent(createPoolTx, poolFactory, "PoolCreated")).args.pool;
+    const poolContract = Pool__factory.connect(poolAddress, accounts[0]);
+    const erc20Contract = ERC20__factory.connect(wethTokenContract.address, accounts[0]);
+    await erc20Contract.approve(poolAddress, ethers.constants.MaxUint256);
 
-      console.log("DEPOSITING TO: ", poolAddress);
-      const maxBorrow = 20;
-      let depth = maxBorrow - i - j;
-      for (let k = 0; k < 3; k++) {
-        await poolContract.deposit(
-          ethers.utils.parseEther(`${depth}`),
-          ethers.utils.parseEther(`${maxBorrow / depth}`)
-        );
-        depth *= 1.26;
-      }
+    console.log("DEPOSITING TO: ", poolAddress);
+    const maxBorrow = 20;
+    let depth = maxBorrow - i;
+    for (let k = 0; k < 3; k++) {
+      await poolContract.deposit(ethers.utils.parseEther(`${depth}`), ethers.utils.parseEther(`${maxBorrow / depth}`));
+      depth *= 1.26;
     }
   }
 }

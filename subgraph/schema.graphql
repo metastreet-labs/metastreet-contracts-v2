@@ -6,8 +6,6 @@ type Pool @entity {
   id: ID! # address
   currencyToken: Bytes! # address
   maxLoanDuration: Int! # i32 (in seconds)
-  collateralFilter: Bytes! # address
-  interestRateModel: Bytes! # address
   collateralLiquidator: Bytes! # address
   noteTokens: [NoteToken!]! @derivedFrom(field: "pool")
   lendPlatforms: [LendPlatform!]! @derivedFrom(field: "pool")
