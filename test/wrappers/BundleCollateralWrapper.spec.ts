@@ -58,6 +58,15 @@ describe("BundleCollateralWrapper", function () {
     await network.provider.send("evm_revert", [snapshotId]);
   });
 
+  describe("constants", async function () {
+    it("returns correct name", async function () {
+      expect(await bundleCollateralWrapper.name()).to.equal("MetaStreet Bundle Collateral Wrapper");
+    });
+    it("returns correct symbol", async function () {
+      expect(await bundleCollateralWrapper.symbol()).to.equal("MSBCW");
+    });
+  });
+
   describe("#mint", async function () {
     it("mints bundle", async function () {
       /* Mint two bundles */
@@ -167,12 +176,6 @@ describe("BundleCollateralWrapper", function () {
         bundleCollateralWrapper,
         "InvalidContext"
       );
-    });
-  });
-
-  describe("#name", async function () {
-    it("returns correct name", async function () {
-      expect(await bundleCollateralWrapper.name()).to.equal("MetaStreet Bundle Collateral Wrapper");
     });
   });
 

@@ -61,7 +61,14 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder {
      * @inheritdoc ICollateralWrapper
      */
     function name() public view override(ERC721, ICollateralWrapper) returns (string memory) {
-        return super.name();
+        return "MetaStreet Bundle Collateral Wrapper";
+    }
+
+    /**
+     * @inheritdoc ERC721
+     */
+    function symbol() public view override returns (string memory) {
+        return "MSBCW";
     }
 
     /**
