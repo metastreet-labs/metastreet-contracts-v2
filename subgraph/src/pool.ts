@@ -146,7 +146,16 @@ function updateDepositEntity(account: Address, depth: BigInt, timestamp: BigInt)
     return;
   }
   let depositEntity = DepositEntity.load(depositEntityID);
-  if (!depositEntity) depositEntity = new DepositEntity(depositEntityID);
+  if (!depositEntity) {
+    const tickID = `${poolAddress}-tick-${depth}`;
+    let tickEntity = Tick.load(tickID);
+    if (!tickEntity) {
+      log.error("No Tick entity found for this deposit", []);
+      throw new Error("updateDepositEntity: Tick not found");
+    }
+    depositEntity = new DepositEntity(depositEntityID);
+    depositEntity.sharePrice = tickEntity.value.times(BigInt.fromI32(10).pow(18)).div(tickEntity.shares);
+  }
   depositEntity.pool = poolAddress;
   depositEntity.account = account;
   depositEntity.tick = `${poolAddress}-tick-${depth}`;
