@@ -27,6 +27,15 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator {
     bytes32 public constant COLLATERAL_LIQUIDATOR_ROLE = keccak256("COLLATERAL_LIQUIDATOR");
 
     /**************************************************************************/
+    /* Constants */
+    /**************************************************************************/
+
+    /**
+     * @notice Implementation version
+     */
+    string public constant IMPLEMENTATION_VERSION = "1.0";
+
+    /**************************************************************************/
     /* Errors */
     /**************************************************************************/
 
