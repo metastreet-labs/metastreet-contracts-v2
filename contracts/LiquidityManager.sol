@@ -281,7 +281,8 @@ library LiquidityManager {
      * @return True if insolvent, otherwise false
      */
     function _isInsolvent(Node storage node) internal view returns (bool) {
-        return node.shares != 0 && node.value == 0;
+        /* If there's shares, but insufficient value to compute a non-zero share price */
+        return node.shares != 0 && (node.value * FIXED_POINT_SCALE < node.shares);
     }
 
     /**************************************************************************/
@@ -458,6 +459,13 @@ library LiquidityManager {
             node.next = 0;
             node.prev = 0;
             liquidity.numNodes--;
+
+            /* Handle insolvent dust */
+            if (node.value > 0) {
+                liquidity.total -= node.value;
+                node.value = 0;
+                node.available = 0;
+            }
         }
 
         processRedemptions(liquidity, depth);
