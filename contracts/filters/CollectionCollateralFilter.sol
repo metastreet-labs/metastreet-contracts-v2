@@ -13,9 +13,14 @@ contract CollectionCollateralFilter is CollateralFilter {
     /**************************************************************************/
 
     /**
-     * @notice Implementation version
+     * @notice Collateral filter name
      */
-    string public constant CF_IMPLEMENTATION_VERSION = "1.0";
+    string public constant COLLATERAL_FILTER_NAME = "CollectionCollateralFilter";
+
+    /**
+     * @notice Collateral filter version
+     */
+    string public constant COLLATERAL_FILTER_VERSION = "1.0";
 
     /**************************************************************************/
     /* State */
@@ -52,13 +57,6 @@ contract CollectionCollateralFilter is CollateralFilter {
     /**************************************************************************/
     /* Implementation */
     /**************************************************************************/
-
-    /**
-     * @inheritdoc CollateralFilter
-     */
-    function collateralFilter() external pure override returns (string memory) {
-        return "CollectionCollateralFilter";
-    }
 
     /**
      * @inheritdoc CollateralFilter

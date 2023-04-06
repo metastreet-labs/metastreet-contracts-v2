@@ -6,12 +6,6 @@ pragma solidity ^0.8.0;
  */
 abstract contract CollateralFilter {
     /**
-     * Get collateral filter name
-     * @return Collateral filter name
-     */
-    function collateralFilter() external view virtual returns (string memory);
-
-    /**
      * Query if collateral token is supported
      * @param token Collateral token contract
      * @param tokenId Collateral Token ID
