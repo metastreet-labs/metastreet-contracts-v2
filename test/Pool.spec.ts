@@ -156,11 +156,31 @@ describe("Pool", function () {
     it("matches expected implementation", async function () {
       expect(await pool.IMPLEMENTATION_VERSION()).to.equal("1.0");
     });
+  });
 
-    it("returns expected supported collateral wrappers", async () => {
+  describe("getters", async function () {
+    it("returns expected currency token", async function () {
+      expect(await pool.currencyToken()).to.equal(tok1.address);
+    });
+    it("returns expected max loan duration", async function () {
+      expect(await pool.maxLoanDuration()).to.equal(30 * 86400);
+    });
+    it("returns expected origination fee rate", async function () {
+      expect(await pool.originationFeeRate()).to.equal(45);
+    });
+    it("returns expected admin fee rate", async function () {
+      expect(await pool.adminFeeRate()).to.equal(0);
+    });
+    it("returns expected collateral wrappers", async function () {
       const collateralWrappers = await pool.collateralWrappers();
       expect(collateralWrappers.length).to.equal(1);
       expect(collateralWrappers[0]).to.equal(bundleCollateralWrapper.address);
+    });
+    it("returns expected collateral liquidator", async function () {
+      expect(await pool.collateralLiquidator()).to.equal(collateralLiquidator.address);
+    });
+    it("returns expected delegation registry", async function () {
+      expect(await pool.delegationRegistry()).to.equal(delegationRegistry.address);
     });
   });
 
