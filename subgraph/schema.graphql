@@ -149,6 +149,7 @@ type PoolEvent @entity {
   account: Bytes! # address
   type: PoolEventType!
   pool: Pool!
+  deposit: Deposit # set only if type == Deposited
   loanOriginated: LoanOriginated
   loanPurchased: LoanPurchased
   LoanRepaid: LoanRepaid
