@@ -46,12 +46,11 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
   });
 
   describe("constants", async function () {
-    it("matches expected implementation version", async function () {
-      expect(await interestRateModel.IRM_IMPLEMENTATION_VERSION()).to.equal("1.0");
-    });
-
     it("matches expected name", async function () {
-      expect(await interestRateModel.interestRateModel()).to.equal("DynamicTargetUtilizationInterestRateModel");
+      expect(await interestRateModel.INTEREST_RATE_MODEL_NAME()).to.equal("DynamicTargetUtilizationInterestRateModel");
+    });
+    it("matches expected implementation version", async function () {
+      expect(await interestRateModel.INTEREST_RATE_MODEL_VERSION()).to.equal("1.0");
     });
   });
 

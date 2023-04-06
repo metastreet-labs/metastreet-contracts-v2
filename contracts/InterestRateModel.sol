@@ -8,12 +8,6 @@ import "./interfaces/ILiquidity.sol";
  */
 abstract contract InterestRateModel {
     /**
-     * Get interest rate model name
-     * @return Interest rate model name
-     */
-    function interestRateModel() external view virtual returns (string memory);
-
-    /**
      * Get interest rate
      * @return Interest per second
      */

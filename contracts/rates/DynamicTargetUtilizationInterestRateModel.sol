@@ -15,9 +15,14 @@ contract DynamicTargetUtilizationInterestRateModel is InterestRateModel {
     /**************************************************************************/
 
     /**
-     * @notice Implementation version
+     * @notice Interest rate model name
      */
-    string public constant IRM_IMPLEMENTATION_VERSION = "1.0";
+    string public constant INTEREST_RATE_MODEL_NAME = "DynamicTargetUtilizationInterestRateModel";
+
+    /**
+     * @notice Interest rate model version
+     */
+    string public constant INTEREST_RATE_MODEL_VERSION = "1.0";
 
     /**
      * @notice Fixed point decimal scale
@@ -241,13 +246,6 @@ contract DynamicTargetUtilizationInterestRateModel is InterestRateModel {
     /**************************************************************************/
     /* Implementation */
     /**************************************************************************/
-
-    /**
-     * @inheritdoc InterestRateModel
-     */
-    function interestRateModel() external pure override returns (string memory) {
-        return "DynamicTargetUtilizationInterestRateModel";
-    }
 
     /**
      * @inheritdoc InterestRateModel
