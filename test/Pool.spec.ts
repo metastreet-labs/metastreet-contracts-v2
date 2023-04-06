@@ -1193,17 +1193,17 @@ describe("Pool", function () {
       /* Create Loan */
       [loanReceipt] = await createActiveLoan(ethers.utils.parseEther("25"));
 
-      // Get decoded loan receipt
+      /* Get decoded loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
-      // Fast forward to maturity timestamp
+      /* Fast forward to maturity timestamp */
       elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
       await network.provider.send("evm_mine");
 
-      // Get quote
+      /* Get quote */
       const [payment, repayment] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("25"), 30 * 86400);
 
-      // Validate quote
+      /* Validate quote */
       expect(repayment).to.equal(decodedLoanReceipt.repayment);
       expect(payment).to.equal(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("25")));
     });
@@ -1212,17 +1212,17 @@ describe("Pool", function () {
       /* Create Loan */
       [loanReceipt] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
 
-      // Get decoded loan receipt
+      /* Get decoded loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
-      // Fast forward to maturity timestamp
+      /* Fast forward to maturity timestamp */
       elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
       await network.provider.send("evm_mine");
 
-      // Get quote
+      /* Get quote */
       const [payment, repayment] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("25"), 30 * 86400);
 
-      // Validate quote
+      /* Validate quote */
       expect(repayment).to.equal(decodedLoanReceipt.repayment);
       expect(payment).to.equal(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("25")));
     });
@@ -1231,17 +1231,17 @@ describe("Pool", function () {
       /* Create Loan */
       [loanReceipt] = await createActiveLoan(ethers.utils.parseEther("25"));
 
-      // Get decoded loan receipt
+      /* Get decoded loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
-      // Fast forward to maturity timestamp
+      /* Fast forward to maturity timestamp */
       elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
       await network.provider.send("evm_mine");
 
-      // Get quote
+      /* Get quote */
       const [payment, _] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("24"), 30 * 86400);
 
-      // Validate quote
+      /* Validate quote */
       expect(payment).to.equal(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("24")));
     });
 
@@ -1249,17 +1249,17 @@ describe("Pool", function () {
       /* Create Loan */
       [loanReceipt] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
 
-      // Get decoded loan receipt
+      /* Get decoded loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
-      // Fast forward to maturity timestamp
+      /* Fast forward to maturity timestamp */
       elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
       await network.provider.send("evm_mine");
 
-      // Get quote
+      /* Get quote */
       const [payment, _] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("24"), 30 * 86400);
 
-      // Validate quote
+      /* Validate quote */
       expect(payment).to.equal(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("24")));
     });
 
@@ -1267,17 +1267,17 @@ describe("Pool", function () {
       /* Create Loan */
       [loanReceipt] = await createActiveLoan(ethers.utils.parseEther("25"));
 
-      // Get decoded loan receipt
+      /* Get decoded loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
-      // Fast forward to maturity timestamp
+      /* Fast forward to maturity timestamp */
       elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
       await network.provider.send("evm_mine");
 
-      // Get quote
+      /* Get quote */
       const [payment, _] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("26"), 30 * 86400);
 
-      // Validate quote
+      /* Validate quote */
       expect(payment).to.equal(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("26")));
     });
 
@@ -1285,17 +1285,17 @@ describe("Pool", function () {
       /* Create Loan */
       [loanReceipt] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
 
-      // Get decoded loan receipt
+      /* Get decoded loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
-      // Fast forward to maturity timestamp
+      /* Fast forward to maturity timestamp */
       elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
       await network.provider.send("evm_mine");
 
-      // Get quote
+      /* Get quote */
       const [payment] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("26"), 30 * 86400);
 
-      // Validate quote
+      /* Validate quote */
       expect(payment).to.equal(decodedLoanReceipt.repayment.sub(ethers.utils.parseEther("26")));
     });
 
@@ -2573,7 +2573,7 @@ describe("Pool", function () {
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
 
-      // Validate inability to do both refinance() and refinance() with the same loan receipt fields
+      /* Validate inability to do both refinance() and refinance() with the same loan receipt fields */
       await expect(
         pool
           .connect(accountBorrower)
@@ -2603,7 +2603,7 @@ describe("Pool", function () {
       /* Create Loan */
       [loanReceipt, loanReceiptHash, bundleTokenId] = await createActiveBundleLoan(ethers.utils.parseEther("25"));
 
-      // Validate inability to do both refinance() and refinance() with the same loan receipt fields
+      /* Validate inability to do both refinance() and refinance() with the same loan receipt fields */
       await expect(
         pool
           .connect(accountBorrower)
@@ -2633,10 +2633,10 @@ describe("Pool", function () {
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(ethers.utils.parseEther("25"));
 
-      // Workaround to skip borrow() in beforeEach
+      /* Workaround to skip borrow() in beforeEach */
       await pool.connect(accountBorrower).repay(loanReceipt);
 
-      // Get token id
+      /* Get token id */
       const tokenId =
         (await nft1.ownerOf(123)) === accountBorrower.address
           ? 123
@@ -2644,7 +2644,7 @@ describe("Pool", function () {
           ? 124
           : 125;
 
-      // Borrow to get loan receipt object
+      /* Borrow to get loan receipt object */
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
@@ -2660,20 +2660,20 @@ describe("Pool", function () {
       let encodedLoanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
       await pool.connect(accountBorrower).repay(encodedLoanReceipt);
 
-      // Use existing loan receipt with the parameters we want
+      /* Use existing loan receipt with the parameters we want */
       const decodedExistingLoanReceipt = await loanReceiptLib.decode(encodedLoanReceipt);
 
-      // Mutate nft address in loan receipt and encode it
+      /* Mutate NFT address in loan receipt and encode it */
       const nodeReceipt = { ...decodedExistingLoanReceipt };
       nodeReceipt.collateralToken = nft1.address;
       nodeReceipt.borrower = accountBorrower.address;
       nodeReceipt.maturity = ethers.BigNumber.from("10000000001");
       encodedLoanReceipt = await loanReceiptLib.encode(nodeReceipt);
 
-      // Force timestamp so maturity timestamp is constant and give us the same loanReceipt from borrow()
+      /* Force timestamp so maturity timestamp is constant and give us the same loanReceipt from borrow() */
       await elapseUntilTimestamp(9999999999);
 
-      // Validate inability to do both borrow() and refinance() with the same loan receipt fields
+      /* Validate inability to do both borrow() and refinance() with the same loan receipt fields */
       await expect(
         pool
           .connect(accountBorrower)
@@ -2706,10 +2706,10 @@ describe("Pool", function () {
         ethers.utils.parseEther("25")
       );
 
-      // Workaround to skip borrow() in beforeEach
+      /* Workaround to skip borrow() in beforeEach */
       await pool.connect(accountBorrower).repay(loanReceipt);
 
-      // Borrow to get loan receipt object
+      /* Borrow to get loan receipt object */
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
@@ -2728,20 +2728,20 @@ describe("Pool", function () {
       let encodedLoanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
       await pool.connect(accountBorrower).repay(encodedLoanReceipt);
 
-      // Use existing loan receipt with the parameters we want
+      /* Use existing loan receipt with the parameters we want */
       const decodedExistingLoanReceipt = await loanReceiptLib.decode(encodedLoanReceipt);
 
-      // Mutate nft address in loan receipt and encode it
+      /* Mutate NFT address in loan receipt and encode it */
       const nodeReceipt = { ...decodedExistingLoanReceipt };
       nodeReceipt.collateralToken = bundleCollateralWrapper.address;
       nodeReceipt.borrower = accountBorrower.address;
       nodeReceipt.maturity = ethers.BigNumber.from("10000000001");
       encodedLoanReceipt = await loanReceiptLib.encode(nodeReceipt);
 
-      // Force timestamp so maturity timestamp is constant and give us the same loanReceipt from borrow()
+      /* Force timestamp so maturity timestamp is constant and give us the same loanReceipt from borrow() */
       await elapseUntilTimestamp(9999999999);
 
-      // Validate inability to do both borrow() and refinance() with the same loan receipt fields
+      /* Validate inability to do both borrow() and refinance() with the same loan receipt fields */
       await expect(
         pool
           .connect(accountBorrower)
