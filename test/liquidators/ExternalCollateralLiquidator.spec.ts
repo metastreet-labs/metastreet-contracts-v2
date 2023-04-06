@@ -178,9 +178,36 @@ describe("ExternalCollateralLiquidator", function () {
       /* Construct loan reciept */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 42));
 
+      /* Transfer different token ID than in loan receipt */
       await expect(
-        testCollateralLiquidatorJig.transferCollateral(collateralLiquidator.address, nft1.address, 42, loanReceipt)
-      ).to.be.revertedWith("ERC721: invalid token ID");
+        testCollateralLiquidatorJig.transferCollateral(collateralLiquidator.address, nft1.address, 123, loanReceipt)
+      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidTransfer");
+    });
+    it("fails on missing token transfer", async function () {
+      /* Construct loan reciept */
+      const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 123));
+
+      /* Call onERC721Received() directly without transfer */
+      await expect(
+        collateralLiquidator.onERC721Received(accounts[0].address, accounts[0].address, 123, loanReceipt)
+      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidTransfer");
+    });
+    it("fails on existing collateral", async function () {
+      /* Construct loan reciept */
+      const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 123));
+
+      /* Transfer collateral to collateral liquidator */
+      await testCollateralLiquidatorJig.transferCollateral(
+        collateralLiquidator.address,
+        nft1.address,
+        123,
+        loanReceipt
+      );
+
+      /* Call onERC721Received() directly again */
+      expect(
+        await collateralLiquidator.onERC721Received(accounts[0].address, accounts[0].address, 123, loanReceipt)
+      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidTransfer");
     });
   });
 

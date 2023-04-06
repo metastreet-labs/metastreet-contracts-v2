@@ -184,7 +184,7 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator {
     function onERC721Received(
         address operator,
         address from,
-        uint256,
+        uint256 tokenId,
         bytes calldata data
     ) external virtual returns (bytes4) {
         /* Validate caller */
@@ -193,12 +193,16 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator {
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.decode(data);
 
+        /* Compute collateral hash */
+        bytes32 collateralHash = keccak256(abi.encodePacked(block.chainid, from, data));
+
+        /* Validate token id matches receipt */
+        if (tokenId != receipt.collateralTokenId) revert InvalidTransfer();
         /* Validate collateral is received */
         if (IERC721(receipt.collateralToken).ownerOf(receipt.collateralTokenId) != address(this))
             revert InvalidTransfer();
-
-        /* Compute collateral hash */
-        bytes32 collateralHash = keccak256(abi.encodePacked(block.chainid, from, data));
+        /* Validate collateral is not already present */
+        if (_collateralTracker[collateralHash] != CollateralStatus.Absent) revert InvalidTransfer();
 
         /* Update collateral tracker */
         _collateralTracker[collateralHash] = CollateralStatus.Present;
