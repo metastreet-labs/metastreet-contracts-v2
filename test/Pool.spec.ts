@@ -1330,7 +1330,7 @@ describe("Pool", function () {
       const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, [123], "0x");
 
       /* Simulate borrow */
-      const returnVal = await pool
+      const simulatedRepayment = await pool
         .connect(accountBorrower)
         .callStatic.borrow(
           ethers.utils.parseEther("25"),
@@ -1356,7 +1356,7 @@ describe("Pool", function () {
         );
 
       /* Validate return value from borrow() */
-      expect(returnVal).to.equal(repayment);
+      expect(simulatedRepayment).to.equal(repayment);
 
       /* Validate events */
       await expectEvent(borrowTx, nft1, "Transfer", {
@@ -1427,7 +1427,7 @@ describe("Pool", function () {
       await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
 
       /* Simulate borrow */
-      const returnVal = await pool
+      const simulatedRepayment = await pool
         .connect(accountBorrower)
         .callStatic.borrow(
           ethers.utils.parseEther("25"),
@@ -1459,7 +1459,7 @@ describe("Pool", function () {
         );
 
       /* Validate return value from borrow() */
-      expect(returnVal).to.equal(repayment);
+      expect(simulatedRepayment).to.equal(repayment);
 
       /* Validate events */
       await expectEvent(mintTx, bundleCollateralWrapper, "Transfer", {
@@ -1538,7 +1538,7 @@ describe("Pool", function () {
       await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
 
       /* Simulate borrow */
-      const returnVal = await pool
+      const simulatedRepayment = await pool
         .connect(accountBorrower)
         .callStatic.borrow(
           ethers.utils.parseEther("85"),
@@ -1554,7 +1554,7 @@ describe("Pool", function () {
         );
 
       /* Validate return value from borrow() */
-      expect(returnVal).to.equal(repayment);
+      expect(simulatedRepayment).to.equal(repayment);
 
       /* Borrow */
       const borrowTx = await pool
@@ -1635,7 +1635,7 @@ describe("Pool", function () {
       const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, [123], "0x");
 
       /* Simulate borrow */
-      const returnVal = await pool
+      const simulatedRepayment = await pool
         .connect(accountBorrower)
         .callStatic.borrow(
           ethers.utils.parseEther("25"),
@@ -1661,7 +1661,7 @@ describe("Pool", function () {
         );
 
       /* Validate return value from borrow() */
-      expect(returnVal).to.equal(repayment);
+      expect(simulatedRepayment).to.equal(repayment);
 
       /* Validate events */
       await expectEvent(borrowTx, nft1, "Transfer", {
@@ -1734,7 +1734,7 @@ describe("Pool", function () {
       const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, [123], "0x");
 
       /* Simulate borrow */
-      const returnVal = await pool
+      const simulatedRepayment = await pool
         .connect(accountBorrower)
         .callStatic.borrow(
           ethers.utils.parseEther("25"),
@@ -1760,7 +1760,7 @@ describe("Pool", function () {
         );
 
       /* Validate return value from borrow() */
-      expect(returnVal).to.equal(repayment);
+      expect(simulatedRepayment).to.equal(repayment);
 
       /* Validate events */
       await expectEvent(borrowTx, nft1, "Transfer", {
