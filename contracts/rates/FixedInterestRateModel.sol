@@ -22,7 +22,7 @@ contract FixedInterestRateModel is InterestRateModel {
     /**
      * @notice Fixed point scale
      */
-    uint256 public constant FIXED_POINT_SCALE = 1e18;
+    uint256 internal constant FIXED_POINT_SCALE = 1e18;
 
     /**************************************************************************/
     /* Structures */
