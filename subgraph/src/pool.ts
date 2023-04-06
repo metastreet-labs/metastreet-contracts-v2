@@ -8,21 +8,21 @@ import {
   LoanOriginated as LoanOriginatedEntity,
   LoanRepaid as LoanRepaidEntity,
   Pool as PoolEntity,
-  PoolEvent,
+  PoolEvent as PoolEventEntity,
   Redeemed as RedeemedEntity,
-  Tick,
+  Tick as TickEntity,
   Withdrawn as WithdrawnEntity,
 } from "../generated/schema";
 import {
-  CollateralLiquidated,
-  Deposited,
-  LoanLiquidated,
-  LoanOriginated,
+  CollateralLiquidated as CollateralLiquidatedEvent,
+  Deposited as DepositedEvent,
+  LoanLiquidated as LoanLiquidatedEvent,
+  LoanOriginated as LoanOriginatedEvent,
   Pool__decodeLoanReceiptResultValue0Struct as LoanReceipt,
-  LoanRepaid,
+  LoanRepaid as LoanRepaidEvent,
   Pool as PoolContract,
-  Redeemed,
-  Withdrawn,
+  Redeemed as RedeemedEvent,
+  Withdrawn as WithdrawnEvent,
 } from "../generated/templates/Pool/Pool";
 
 const poolContract = PoolContract.bind(dataSource.address());
@@ -68,7 +68,7 @@ function createPoolEventEntity(
   depositEntityId: string | null
 ): string {
   const id = `${poolAddress}-${event.transaction.hash.toHexString()}`;
-  const eventEntity = new PoolEvent(id);
+  const eventEntity = new PoolEventEntity(id);
   eventEntity.pool = poolAddress;
   eventEntity.deposit = depositEntityId;
   eventEntity.transactionHash = event.transaction.hash;
@@ -124,9 +124,9 @@ function updateCollateralTokenEntity(id: string): void {
 
 function updateTickEntity(depth: BigInt): void {
   const node = poolContract.liquidityNodes(depth, depth)[0];
-  const tickID = `${poolAddress}-tick-${depth}`;
-  let tickEntity = Tick.load(tickID);
-  if (!tickEntity) tickEntity = new Tick(tickID);
+  const tickId = `${poolAddress}-tick-${depth}`;
+  let tickEntity = TickEntity.load(tickId);
+  if (!tickEntity) tickEntity = new TickEntity(tickId);
   tickEntity.pool = poolAddress;
   tickEntity.depth = depth;
   tickEntity.value = node.value;
@@ -146,21 +146,21 @@ function updateDepositEntity(account: Address, depth: BigInt, timestamp: BigInt)
     log.error("No Pool entity for this event", []);
     throw new Error("createOrUpdateDepositEntity: Pool not found");
   }
-  const depositEntityID = `${poolAddress}-pool-${account.toHexString()}-${depth}`;
+  const depositEntityId = `${poolAddress}-pool-${account.toHexString()}-${depth}`;
   const deposit = poolContract.deposits(account, depth);
   if (deposit.shares.isZero()) {
-    store.remove("Deposit", depositEntityID);
-    return depositEntityID;
+    store.remove("Deposit", depositEntityId);
+    return depositEntityId;
   }
-  let depositEntity = DepositEntity.load(depositEntityID);
+  let depositEntity = DepositEntity.load(depositEntityId);
   if (!depositEntity) {
-    const tickID = `${poolAddress}-tick-${depth}`;
-    let tickEntity = Tick.load(tickID);
+    const tickId = `${poolAddress}-tick-${depth}`;
+    let tickEntity = TickEntity.load(tickId);
     if (!tickEntity) {
       log.error("No Tick entity found for this deposit", []);
       throw new Error("updateDepositEntity: Tick not found");
     }
-    depositEntity = new DepositEntity(depositEntityID);
+    depositEntity = new DepositEntity(depositEntityId);
     depositEntity.sharePrice = tickEntity.value.times(BigInt.fromI32(10).pow(18)).div(tickEntity.shares);
   }
   depositEntity.pool = poolAddress;
@@ -175,7 +175,7 @@ function updateDepositEntity(account: Address, depth: BigInt, timestamp: BigInt)
   depositEntity.depth = depth;
   depositEntity.updatedAt = timestamp;
   depositEntity.save();
-  return depositEntityID;
+  return depositEntityId;
 }
 
 function createLoanEntity(receipt: LoanReceipt, encodedReceipt: Bytes, receiptHash: Bytes, timestamp: BigInt): void {
@@ -229,13 +229,13 @@ function createLoanEntity(receipt: LoanReceipt, encodedReceipt: Bytes, receiptHa
 /* mappings */
 /**************************************************************************/
 
-export function handleDeposited(event: Deposited): void {
+export function handleDeposited(event: DepositedEvent): void {
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.depth);
   const depositEntityId = updateDepositEntity(event.params.account, event.params.depth, event.block.timestamp);
-  const poolEventID = createPoolEventEntity(event, PoolEventType.Deposited, event.params.account, depositEntityId);
-  const depositedEntity = new DepositedEntity(poolEventID);
+  const poolEventId = createPoolEventEntity(event, PoolEventType.Deposited, event.params.account, depositEntityId);
+  const depositedEntity = new DepositedEntity(poolEventId);
   depositedEntity.account = event.params.account;
   depositedEntity.depth = event.params.depth;
   depositedEntity.amount = event.params.amount;
@@ -243,26 +243,26 @@ export function handleDeposited(event: Deposited): void {
   depositedEntity.save();
 }
 
-export function handleRedeemed(event: Redeemed): void {
+export function handleRedeemed(event: RedeemedEvent): void {
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.depth);
   const depositEntityId = updateDepositEntity(event.params.account, event.params.depth, event.block.timestamp);
-  const poolEventID = createPoolEventEntity(event, PoolEventType.Redeemed, event.params.account, depositEntityId);
-  const redeemedEntity = new RedeemedEntity(poolEventID);
+  const poolEventId = createPoolEventEntity(event, PoolEventType.Redeemed, event.params.account, depositEntityId);
+  const redeemedEntity = new RedeemedEntity(poolEventId);
   redeemedEntity.account = event.params.account;
   redeemedEntity.depth = event.params.depth;
   redeemedEntity.shares = event.params.shares;
   redeemedEntity.save();
 }
 
-export function handleWithdrawn(event: Withdrawn): void {
+export function handleWithdrawn(event: WithdrawnEvent): void {
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.depth);
   const depositEntityId = updateDepositEntity(event.params.account, event.params.depth, event.block.timestamp);
-  const poolEventID = createPoolEventEntity(event, PoolEventType.Withdrawn, event.params.account, depositEntityId);
-  const withdrawnEntity = new WithdrawnEntity(poolEventID);
+  const poolEventId = createPoolEventEntity(event, PoolEventType.Withdrawn, event.params.account, depositEntityId);
+  const withdrawnEntity = new WithdrawnEntity(poolEventId);
   withdrawnEntity.account = event.params.account;
   withdrawnEntity.depth = event.params.depth;
   withdrawnEntity.amount = event.params.amount;
@@ -270,18 +270,18 @@ export function handleWithdrawn(event: Withdrawn): void {
   withdrawnEntity.save();
 }
 
-export function handleLoanOriginated(event: LoanOriginated): void {
+export function handleLoanOriginated(event: LoanOriginatedEvent): void {
   const receipt = poolContract.decodeLoanReceipt(event.params.loanReceipt);
   createLoanEntity(receipt, event.params.loanReceipt, event.params.loanReceiptHash, event.block.timestamp);
 
-  const poolEventID = createPoolEventEntity(event, PoolEventType.LoanOriginated, receipt.borrower, null);
+  const poolEventId = createPoolEventEntity(event, PoolEventType.LoanOriginated, receipt.borrower, null);
 
-  const loanOriginatedEntity = new LoanOriginatedEntity(poolEventID);
+  const loanOriginatedEntity = new LoanOriginatedEntity(poolEventId);
   loanOriginatedEntity.loan = event.params.loanReceiptHash.toHexString();
   loanOriginatedEntity.save();
 }
 
-export function handleLoanRepaid(event: LoanRepaid): void {
+export function handleLoanRepaid(event: LoanRepaidEvent): void {
   const loanEntity = LoanEntity.load(event.params.loanReceiptHash.toHexString());
 
   if (loanEntity) {
@@ -292,30 +292,30 @@ export function handleLoanRepaid(event: LoanRepaid): void {
     updateCollateralTokenEntity(poolEntity.collateralToken);
     for (let i = 0; i < loanEntity.depths.length; i++) updateTickEntity(loanEntity.depths[i]);
 
-    const poolEventID = createPoolEventEntity(event, PoolEventType.LoanRepaid, loanEntity.borrower, null);
+    const poolEventId = createPoolEventEntity(event, PoolEventType.LoanRepaid, loanEntity.borrower, null);
 
-    const loanRepaidEntity = new LoanRepaidEntity(poolEventID);
+    const loanRepaidEntity = new LoanRepaidEntity(poolEventId);
     loanRepaidEntity.loan = loanEntity.id;
     loanRepaidEntity.save();
   }
 }
 
-export function handleLoanLiquidated(event: LoanLiquidated): void {
+export function handleLoanLiquidated(event: LoanLiquidatedEvent): void {
   const loanEntity = LoanEntity.load(event.params.loanReceiptHash.toHexString());
 
   if (loanEntity) {
     loanEntity.status = LoanStatus.Liquidated;
     loanEntity.save();
 
-    const poolEventID = createPoolEventEntity(event, PoolEventType.LoanLiquidated, loanEntity.borrower, null);
+    const poolEventId = createPoolEventEntity(event, PoolEventType.LoanLiquidated, loanEntity.borrower, null);
 
-    const loanLiquidatedEntity = new LoanRepaidEntity(poolEventID);
+    const loanLiquidatedEntity = new LoanRepaidEntity(poolEventId);
     loanLiquidatedEntity.loan = loanEntity.id;
     loanLiquidatedEntity.save();
   }
 }
 
-export function handleCollateralLiquidated(event: CollateralLiquidated): void {
+export function handleCollateralLiquidated(event: CollateralLiquidatedEvent): void {
   const loanEntity = LoanEntity.load(event.params.loanReceiptHash.toHexString());
 
   if (loanEntity) {
