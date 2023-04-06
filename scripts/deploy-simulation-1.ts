@@ -20,7 +20,7 @@ async function main() {
   const TestProxy = await ethers.getContractFactory("TestProxy", accounts[9]);
   const externalCollateralLiquidatorProxy = await TestProxy.deploy(
     externalCollateralLiquidatorImpl.address,
-    externalCollateralLiquidatorImpl.interface.encodeFunctionData("initialize", [accounts[0].address])
+    externalCollateralLiquidatorImpl.interface.encodeFunctionData("initialize")
   );
   /**************************************************************************/
   /* PoolFactory */
