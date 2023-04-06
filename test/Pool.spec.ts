@@ -2278,7 +2278,7 @@ describe("Pool", function () {
       await setupLiquidity();
     });
 
-    it("refinance loan at maturity with delegation, admin fee, and same principal as original loan", async function () {
+    it("refinance loan at maturity with admin fee and same principal", async function () {
       /* Set Admin Fee */
       pool.setAdminFeeRate(500);
 
@@ -2338,9 +2338,7 @@ describe("Pool", function () {
 
       /* Validate state */
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
-
       expect(await pool.loans(newLoanReceiptHash)).to.equal(1);
-
       expect(await pool.adminFeeBalance()).to.equal(adminFee);
 
       /* Validate liquidity statistics */
@@ -2354,7 +2352,7 @@ describe("Pool", function () {
       expect(liquidityStatistics[1]).to.equal(decodedLoanReceipt.principal);
     });
 
-    it("refinance loan at maturity with delegation, admin fee and where new principal is 1 ETH less than original loan", async function () {
+    it("refinance loan at maturity with admin fee and smaller principal (1 ETH less)", async function () {
       /* Set Admin Fee */
       pool.setAdminFeeRate(500);
 
@@ -2414,9 +2412,7 @@ describe("Pool", function () {
 
       /* Validate state */
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
-
       expect(await pool.loans(newLoanReceiptHash)).to.equal(1);
-
       expect(await pool.adminFeeBalance()).to.equal(adminFee);
 
       /* Validate liquidity statistics */
@@ -2430,7 +2426,7 @@ describe("Pool", function () {
       expect(liquidityStatistics[1]).to.equal(decodedLoanReceipt.principal.sub(ethers.utils.parseEther("1")));
     });
 
-    it("refinance loan at maturity with delegation, admin fee and where new principal is 1 ETH more than original loan", async function () {
+    it("refinance loan at maturity with admin fee and bigger principal (1 ETH more)", async function () {
       /* Set Admin Fee */
       pool.setAdminFeeRate(500);
 
@@ -2490,9 +2486,7 @@ describe("Pool", function () {
 
       /* Validate state */
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
-
       expect(await pool.loans(newLoanReceiptHash)).to.equal(1);
-
       expect(await pool.adminFeeBalance()).to.equal(adminFee);
 
       /* Validate liquidity statistics */
@@ -2506,7 +2500,7 @@ describe("Pool", function () {
       expect(liquidityStatistics[1]).to.equal(decodedLoanReceipt.principal.add(ethers.utils.parseEther("1")));
     });
 
-    it("refinance bundle loan at maturity admin fee, and same principal as original loan", async function () {
+    it("refinance bundle loan at maturity with admin fee and same principal", async function () {
       /* Set Admin Fee */
       pool.setAdminFeeRate(500);
 
