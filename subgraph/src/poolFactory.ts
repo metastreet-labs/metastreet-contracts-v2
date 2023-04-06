@@ -1,7 +1,7 @@
 import { BigInt } from "@graphprotocol/graph-ts";
 import { ERC721 } from "../generated/PoolFactory/ERC721";
 
-import { CollectionCollateralFilter } from "../generated/PoolFactory/CollectionCollateralFilter";
+import { CollectionCollateralFilter as CollectionCollateralFilterContract } from "../generated/PoolFactory/CollectionCollateralFilter";
 import { Pool as PoolContract } from "../generated/PoolFactory/Pool";
 import { PoolCreated as PoolCreatedEvent } from "../generated/PoolFactory/PoolFactory";
 import { CollateralToken as CollateralTokenEntity, Pool as PoolEntity } from "../generated/schema";
@@ -11,9 +11,9 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   const poolAddress = event.params.pool;
   const poolId = poolAddress.toHexString();
   const poolContract = PoolContract.bind(poolAddress);
-  const collectionCollateralFilterContract = CollectionCollateralFilter.bind(poolAddress);
+  const collectionCollateralFilterContract = CollectionCollateralFilterContract.bind(poolAddress);
   const collateralTokenAddress = collectionCollateralFilterContract.collateralToken();
-  const collateralTokenID = collateralTokenAddress.toHexString();
+  const collateralTokenId = collateralTokenAddress.toHexString();
   /* create pool entity */
   const poolEntity = new PoolEntity(poolId);
   poolEntity.currencyToken = poolContract.currencyToken();
@@ -26,10 +26,10 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   poolEntity.totalValueLocked = BigInt.zero();
   poolEntity.totalValueUsed = BigInt.zero();
   poolEntity.maxBorrow = BigInt.zero();
-  poolEntity.collateralToken = collateralTokenID;
+  poolEntity.collateralToken = collateralTokenId;
   poolEntity.save();
 
-  let collateralTokenEntity = CollateralTokenEntity.load(collateralTokenID);
+  let collateralTokenEntity = CollateralTokenEntity.load(collateralTokenId);
   if (collateralTokenEntity) {
     /* Update collateral token entity if it exists */
     const poolIds = collateralTokenEntity.poolIds;
@@ -40,7 +40,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
     }
   } else {
     /* Create collateral token entity if it doesn't exists */
-    collateralTokenEntity = new CollateralTokenEntity(collateralTokenID);
+    collateralTokenEntity = new CollateralTokenEntity(collateralTokenId);
     collateralTokenEntity.poolIds = [poolId];
     collateralTokenEntity.totalValueLocked = BigInt.zero();
     collateralTokenEntity.totalValueUsed = BigInt.zero();
