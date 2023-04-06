@@ -13,11 +13,11 @@ type LoanReceipt = {
 };
 
 export class PoolModel {
-  // hardcoded variables
+  /* Constants */
   private BASIS_POINTS_SCALE = ethers.BigNumber.from(10000);
   private FIXED_POINT_SCALE = ethers.utils.parseEther("1");
 
-  // states we are using for comparison
+  /* States we are using for comparison */
   public adminFeeBalance: ethers.BigNumber = ethers.constants.Zero;
   public liquidity: Liquidity = {
     total: ethers.constants.Zero,
@@ -26,10 +26,10 @@ export class PoolModel {
   public collateralBalances: ethers.BigNumber = ethers.constants.Zero;
   public tokenBalances: ethers.BigNumber = ethers.constants.Zero;
 
-  // helper to keep track of loan receipts
+  /* Helper state to keep track of loan receipts */
   public loanReceipts: Map<string, Map<string, LoanReceipt>> = new Map<string, Map<string, LoanReceipt>>();
 
-  // variables to be initialized
+  /* Variables to be initialized */
   public _adminFeeRate: ethers.BigNumber;
   public _originationFeeRate: ethers.BigNumber;
 
@@ -76,10 +76,10 @@ export class PoolModel {
     /* Update top level liquidity statistics */
     this.liquidity.used = this.liquidity.used.add(principal);
 
-    // to be updated when we have bundles
+    /* FIXME update with bundles */
     this.collateralBalances = this.collateralBalances.add(1);
 
-    // send principal to borrower
+    /* Send principal to borrower */
     this.tokenBalances = this.tokenBalances.sub(principal);
 
     let receipt: LoanReceipt = {
@@ -109,42 +109,42 @@ export class PoolModel {
       throw new Error("repay(): loanReceipt === undefined");
     }
 
-    // Compute admin fee
+    /* Compute admin fee */
     const adminFee = this._adminFeeRate
       .mul(loanReceipt.repayment.sub(loanReceipt.principal))
       .div(this.BASIS_POINTS_SCALE);
 
     const [repayment, proration] = this._prorateRepayment(blockTimestamp, loanReceipt);
 
-    // Total pending is essential repayment less admin fee
+    /* Total pending is essential repayment less admin fee */
     const repaymentLessAdminFee = loanReceipt.repayment.sub(adminFee);
 
-    // Prorated admin fee
+    /* Prorated admin fee */
     const proratedAdminFee = loanReceipt.repayment
       .sub(repaymentLessAdminFee)
       .mul(proration)
       .div(this.FIXED_POINT_SCALE);
 
-    // Update admin fee total balance with prorated admin fee
+    /* Update admin fee total balance with prorated admin fee */
     this.adminFeeBalance = this.adminFeeBalance.add(proratedAdminFee);
 
-    // Update liquidity used
+    /* Update liquidity used */
     this.liquidity.used = this.liquidity.used.sub(loanReceipt.principal);
 
-    // Update liquidity total
+    /* Update liquidity total */
     this.liquidity.total = total;
 
-    // Update token balances
+    /* Update token balances */
     this.tokenBalances = this.tokenBalances.add(repayment);
 
-    // Update collateral balances
+    /* Update collateral balances */
     this.collateralBalances = this.collateralBalances.sub(1);
 
     return repayment;
   }
 
   public redeem(amount: ethers.BigNumber) {
-    // Subtract amount from total liquidity if not node not insolvent
+    /* Subtract amount from total liquidity if not node not insolvent */
     this.liquidity.total = this.liquidity.total.sub(amount);
   }
 
@@ -170,7 +170,7 @@ export class PoolModel {
   }
 
   public liquidate() {
-    // Transfer collateral to liquidator contract
+    /* Transfer collateral to liquidator contract */
     this.collateralBalances = this.collateralBalances.sub(1);
   }
 
@@ -188,11 +188,11 @@ export class PoolModel {
       throw new Error("repay(): loanReceipt === undefined");
     }
 
-    // Update top level liquidity statistics
+    /* Update top level liquidity statistics */
     this.liquidity.total = total;
     this.liquidity.used = this.liquidity.used.sub(loanReceipt.principal);
 
-    // Transfer proceeds from liquidator to pool
+    /* Transfer proceeds from liquidator to pool */
     this.tokenBalances = this.tokenBalances.add(proceeds);
   }
 }
