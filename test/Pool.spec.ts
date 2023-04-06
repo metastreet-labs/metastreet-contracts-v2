@@ -2196,15 +2196,6 @@ describe("Pool", function () {
           ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [1, 20, accountBorrower.address])
         );
 
-      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-      const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
-
-      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-
-      /* Repay */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
-      await pool.connect(accountBorrower).repay(loanReceipt);
-
       /* Validate events */
       await expectEvent(borrowTx, delegationRegistry, "DelegateForToken", {
         vault: pool.address,
@@ -2212,6 +2203,23 @@ describe("Pool", function () {
         contract_: nft1.address,
         tokenId: 124,
         value: true,
+      });
+
+      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+      const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      /* Repay */
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
+      const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
+
+      /* Validate events */
+      await expectEvent(repayTx, delegationRegistry, "DelegateForToken", {
+        vault: pool.address,
+        delegate: accountBorrower.address,
+        contract_: nft1.address,
+        tokenId: 124,
+        value: false,
       });
 
       /* Validate loan state */
