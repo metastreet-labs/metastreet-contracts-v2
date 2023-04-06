@@ -1,5 +1,6 @@
 import { expect } from "chai";
 import { ethers, network } from "hardhat";
+import * as helpers from "@nomicfoundation/hardhat-network-helpers";
 
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
@@ -14,7 +15,6 @@ import {
 } from "../typechain";
 
 import { extractEvent } from "./helpers/EventUtilities";
-import { elapseUntilTimestamp } from "./helpers/BlockchainUtilities";
 import { FixedPoint } from "./helpers/FixedPoint.ts";
 import { PoolModel } from "./integration/PoolModel";
 
@@ -507,7 +507,7 @@ describe("Integration", function () {
 
       /* Go fast forward to a random timestamp that is before maturity */
       const randomTimestamp = getRandomBN(maturity.sub(timestamp)).add(timestamp);
-      elapseUntilTimestamp(randomTimestamp);
+      await helpers.time.increaseTo(randomTimestamp);
 
       /* Execute repay() on Pool */
       const repayTx = await pool.connect(borrower).repay(encodedLoanReceipt);
@@ -584,7 +584,7 @@ describe("Integration", function () {
 
       /* Go fast forward to a random timestamp that is before maturity */
       const randomTimestamp = getRandomBN(maturity.sub(timestamp)).add(timestamp);
-      elapseUntilTimestamp(randomTimestamp);
+      await helpers.time.increaseTo(randomTimestamp);
 
       /* Check if liquidity available */
       const liquidity = await pool.liquidityAvailable(ethers.constants.MaxUint256, ethers.BigNumber.from(1));
@@ -793,7 +793,7 @@ describe("Integration", function () {
       /* Check if expired */
       if (maturity.gte(timestamp)) {
         /* Fast forward to one second after maturity */
-        elapseUntilTimestamp(maturity.add(1).toNumber());
+        await helpers.time.increaseTo(maturity.add(1).toNumber());
       }
 
       /* Execute liquidate on Pool */

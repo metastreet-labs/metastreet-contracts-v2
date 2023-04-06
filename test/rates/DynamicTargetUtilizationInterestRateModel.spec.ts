@@ -1,10 +1,10 @@
 import { expect } from "chai";
 import { ethers, network } from "hardhat";
+import * as helpers from "@nomicfoundation/hardhat-network-helpers";
 
 import { DynamicTargetUtilizationInterestRateModel } from "../../typechain";
 
 import { FixedPoint } from "../helpers/FixedPoint.ts";
-import { getBlockTimestamp, elapseForDuration } from "../helpers/BlockchainUtilities.ts";
 
 describe("DynamicTargetUtilizationInterestRateModel", function () {
   const PARAMETERS = [
@@ -81,7 +81,7 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
   }
 
   async function rateAfterDuration(duration: number): Promise<ethers.BigNumber> {
-    await elapseForDuration(duration);
+    await helpers.time.increase(duration);
     return await interestRateModel.rate();
   }
 

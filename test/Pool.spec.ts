@@ -1,5 +1,6 @@
 import { expect } from "chai";
 import { ethers, network } from "hardhat";
+import * as helpers from "@nomicfoundation/hardhat-network-helpers";
 
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
@@ -15,7 +16,6 @@ import {
 } from "../typechain";
 
 import { extractEvent, expectEvent } from "./helpers/EventUtilities";
-import { elapseUntilTimestamp } from "./helpers/BlockchainUtilities";
 import { FixedPoint } from "./helpers/FixedPoint.ts";
 
 describe("Pool", function () {
@@ -445,7 +445,7 @@ describe("Pool", function () {
 
       /* Wait for loan expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
 
       /* Process expiration */
       await pool.liquidate(loanReceipt);
@@ -674,7 +674,7 @@ describe("Pool", function () {
 
       /* Wait for loan expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
 
       /* Process expiration */
       await pool.liquidate(loanReceipt);
@@ -900,7 +900,7 @@ describe("Pool", function () {
 
     /* Wait for loan expiration */
     const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-    await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+    await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
 
     return [loanReceipt, loanReceiptHash];
   }
@@ -1010,7 +1010,7 @@ describe("Pool", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(1);
 
       /* Repay */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
       await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Validate total adminFee balance */
@@ -1065,7 +1065,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Repay */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - (2 * 30 * 86400) / 3);
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber() - (2 * 30 * 86400) / 3);
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Calculate repayment proration */
@@ -1197,8 +1197,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Fast forward to maturity timestamp */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
-      await network.provider.send("evm_mine");
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber());
 
       /* Get quote */
       const [payment, repayment] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("25"), 30 * 86400);
@@ -1216,8 +1215,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Fast forward to maturity timestamp */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
-      await network.provider.send("evm_mine");
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber());
 
       /* Get quote */
       const [payment, repayment] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("25"), 30 * 86400);
@@ -1235,8 +1233,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Fast forward to maturity timestamp */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
-      await network.provider.send("evm_mine");
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber());
 
       /* Get quote */
       const [payment, _] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("24"), 30 * 86400);
@@ -1253,8 +1250,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Fast forward to maturity timestamp */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
-      await network.provider.send("evm_mine");
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber());
 
       /* Get quote */
       const [payment, _] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("24"), 30 * 86400);
@@ -1271,8 +1267,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Fast forward to maturity timestamp */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
-      await network.provider.send("evm_mine");
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber());
 
       /* Get quote */
       const [payment, _] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("26"), 30 * 86400);
@@ -1289,8 +1284,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Fast forward to maturity timestamp */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
-      await network.provider.send("evm_mine");
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber());
 
       /* Get quote */
       const [payment] = await pool.quoteRefinance(loanReceipt, ethers.utils.parseEther("26"), 30 * 86400);
@@ -1804,7 +1798,7 @@ describe("Pool", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(1);
 
       /* Repay */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Validate total adminFee balance */
@@ -1933,7 +1927,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Repay */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Validate events */
@@ -2010,7 +2004,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(bundleLoanReceipt);
 
       /* Repay */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
       const repayTx = await pool.connect(accountBorrower).repay(bundleLoanReceipt);
 
       /* Validate events */
@@ -2063,7 +2057,9 @@ describe("Pool", function () {
         const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
         /* Repay */
-        elapseUntilTimestamp(decodedLoanReceipt.maturity - decodedLoanReceipt.duration + timeElapsed);
+        await helpers.time.setNextBlockTimestamp(
+          decodedLoanReceipt.maturity - decodedLoanReceipt.duration + timeElapsed
+        );
         const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
         /* Calculate proration */
@@ -2141,7 +2137,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Repay */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Calculate prorated repayment amount */
@@ -2186,7 +2182,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Repay */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
       await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Validate events */
@@ -2215,7 +2211,7 @@ describe("Pool", function () {
 
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
 
       await expect(pool.connect(accountBorrower).repay(loanReceipt)).to.be.revertedWithCustomError(pool, "LoanExpired");
     });
@@ -2240,7 +2236,7 @@ describe("Pool", function () {
 
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
 
       /* Process expiration */
       await pool.liquidate(loanReceipt);
@@ -2273,7 +2269,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Refinance */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
       const refinanceTx = await pool
         .connect(accountBorrower)
         .refinance(
@@ -2349,7 +2345,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Refinance */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
       const refinanceTx = await pool
         .connect(accountBorrower)
         .refinance(
@@ -2425,7 +2421,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Refinance */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
       const refinanceTx = await pool
         .connect(accountBorrower)
         .refinance(
@@ -2501,7 +2497,7 @@ describe("Pool", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Refinance */
-      elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() - 1);
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
       const refinanceTx = await pool
         .connect(accountBorrower)
         .refinance(
@@ -2671,7 +2667,7 @@ describe("Pool", function () {
       encodedLoanReceipt = await loanReceiptLib.encode(nodeReceipt);
 
       /* Force timestamp so maturity timestamp is constant and give us the same loanReceipt from borrow() */
-      await elapseUntilTimestamp(9999999999);
+      await helpers.time.increaseTo(9999999999);
 
       /* Validate inability to do both borrow() and refinance() with the same loan receipt fields */
       await expect(
@@ -2739,7 +2735,7 @@ describe("Pool", function () {
       encodedLoanReceipt = await loanReceiptLib.encode(nodeReceipt);
 
       /* Force timestamp so maturity timestamp is constant and give us the same loanReceipt from borrow() */
-      await elapseUntilTimestamp(9999999999);
+      await helpers.time.increaseTo(9999999999);
 
       /* Validate inability to do both borrow() and refinance() with the same loan receipt fields */
       await expect(
@@ -2815,7 +2811,7 @@ describe("Pool", function () {
 
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
 
       await expect(
         pool
@@ -2838,7 +2834,7 @@ describe("Pool", function () {
 
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
 
       await expect(
         pool
@@ -2942,7 +2938,7 @@ describe("Pool", function () {
 
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
 
       /* Process expiration */
       await pool.liquidate(loanReceipt);
@@ -2970,7 +2966,7 @@ describe("Pool", function () {
 
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
 
       /* Process expiration */
       await pool.liquidate(loanReceipt);
@@ -3005,7 +3001,7 @@ describe("Pool", function () {
 
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
 
       /* Process expiration */
       const liquidateTx = await pool.liquidate(loanReceipt);
@@ -3030,7 +3026,7 @@ describe("Pool", function () {
 
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await elapseUntilTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
 
       /* Process expiration */
       const liquidateTx = await pool.liquidate(loanReceipt);
