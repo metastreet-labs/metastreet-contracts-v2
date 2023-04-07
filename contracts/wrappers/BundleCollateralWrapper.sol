@@ -189,13 +189,8 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder {
      */
     function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
         return
-<<<<<<< HEAD
             interfaceId == type(ICollateralWrapper).interfaceId ||
             interfaceId == type(IERC721Receiver).interfaceId ||
-=======
-            interfaceId == type(IERC721Receiver).interfaceId ||
-            interfaceId == type(ICollateralWrapper).interfaceId ||
->>>>>>> 6eea9e0 (contracts/wrappers: add erc165 support to bundles)
             super.supportsInterface(interfaceId);
     }
 }

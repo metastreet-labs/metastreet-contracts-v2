@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import "./LoanReceipt.sol";
 import "./LiquidityManager.sol";
@@ -39,6 +40,7 @@ abstract contract Pool is
     ILiquidity
 {
     using SafeERC20 for IERC20;
+    using SafeCast for uint256;
     using LoanReceipt for LoanReceipt.LoanReceiptV1;
     using LiquidityManager for LiquidityManager.Liquidity;
 
@@ -308,7 +310,7 @@ abstract contract Pool is
      * @return Deposit information
      */
     function deposits(address account, uint256 depth) external view returns (Deposit memory) {
-        return _deposits[account][uint128(depth)];
+        return _deposits[account][depth.toUint128()];
     }
 
     /**
@@ -942,7 +944,7 @@ abstract contract Pool is
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
         /* Restore liquidity nodes */
-        uint128 proceedsRemaining = uint128(proceeds);
+        uint128 proceedsRemaining = proceeds.toUint128();
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
             /* Restore node */
             uint128 restored = (i == loanReceipt.nodeReceipts.length - 1)
@@ -979,21 +981,24 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function deposit(uint256 depth, uint256 amount) external nonReentrant {
+    function deposit(uint256 depth_, uint256 amount_) external nonReentrant {
+        /* cast to 128 */
+        (uint128 depth, uint128 amount) = (depth_.toUint128(), amount_.toUint128());
+
         /* Instantiate liquidity node */
-        _liquidity.instantiate(uint128(depth));
+        _liquidity.instantiate(depth);
 
         /* Deposit into liquidity node */
-        uint128 shares = _liquidity.deposit(uint128(depth), uint128(amount));
+        uint128 shares = _liquidity.deposit(depth, amount);
 
         /* Add to deposit */
-        _deposits[msg.sender][uint128(depth)].shares += shares;
+        _deposits[msg.sender][depth].shares += shares;
 
         /* Update utilization tracking */
         _onUtilizationUpdated(utilization());
 
         /* Process redemptions from available cash */
-        _liquidity.processRedemptions(uint128(depth));
+        _liquidity.processRedemptions(depth);
 
         /* Transfer Deposit Amount */
         _currencyToken.safeTransferFrom(msg.sender, address(this), amount);
@@ -1005,9 +1010,12 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function redeem(uint256 depth, uint256 shares) external nonReentrant {
+    function redeem(uint256 depth_, uint256 shares_) external nonReentrant {
+        /* cast to 128 */
+        (uint128 depth, uint128 shares) = (depth_.toUint128(), shares_.toUint128());
+
         /* Look up Deposit */
-        Deposit storage dep = _deposits[msg.sender][uint128(depth)];
+        Deposit storage dep = _deposits[msg.sender][depth];
 
         /* Validate shares */
         if (shares > dep.shares) revert InvalidShares();
@@ -1016,15 +1024,15 @@ abstract contract Pool is
         if (dep.redemptionPending != 0) revert RedemptionInProgress();
 
         /* Redeem shares in tick with liquidity manager */
-        (uint128 redemptionIndex, uint128 redemptionTarget) = _liquidity.redeem(uint128(depth), uint128(shares));
+        (uint128 redemptionIndex, uint128 redemptionTarget) = _liquidity.redeem(depth, shares);
 
         /* Update deposit state */
-        dep.redemptionPending = uint128(shares);
+        dep.redemptionPending = shares;
         dep.redemptionIndex = redemptionIndex;
         dep.redemptionTarget = redemptionTarget;
 
         /* Process redemptions from available cash */
-        _liquidity.processRedemptions(uint128(depth));
+        _liquidity.processRedemptions(depth);
 
         /* Update utilization tracking */
         _onUtilizationUpdated(utilization());
@@ -1038,36 +1046,36 @@ abstract contract Pool is
      */
     function redemptionAvailable(
         address account,
-        uint256 depth
+        uint256 depth_
     ) external view returns (uint256 shares, uint256 amount) {
+        /* cast to 128 */
+        uint128 depth = depth_.toUint128();
+
         /* Look up Deposit */
-        Deposit storage dep = _deposits[account][uint128(depth)];
+        Deposit storage dep = _deposits[account][depth];
 
         /* If no redemption is pending */
         if (dep.redemptionPending == 0) return (0, 0);
 
-        return
-            _liquidity.redemptionAvailable(
-                uint128(depth),
-                dep.redemptionPending,
-                dep.redemptionIndex,
-                dep.redemptionTarget
-            );
+        return _liquidity.redemptionAvailable(depth, dep.redemptionPending, dep.redemptionIndex, dep.redemptionTarget);
     }
 
     /**
      * @inheritdoc IPool
      */
-    function withdraw(uint256 depth) external nonReentrant returns (uint256) {
+    function withdraw(uint256 depth_) external nonReentrant returns (uint256) {
+        /* cast to 128 */
+        uint128 depth = depth_.toUint128();
+
         /* Look up Deposit */
-        Deposit storage dep = _deposits[msg.sender][uint128(depth)];
+        Deposit storage dep = _deposits[msg.sender][depth];
 
         /* If no redemption is pending */
         if (dep.redemptionPending == 0) return 0;
 
         /* Look up redemption available */
         (uint128 shares, uint128 amount) = _liquidity.redemptionAvailable(
-            uint128(depth),
+            depth,
             dep.redemptionPending,
             dep.redemptionIndex,
             dep.redemptionTarget
@@ -1089,7 +1097,7 @@ abstract contract Pool is
         _currencyToken.safeTransfer(msg.sender, amount);
 
         /* Emit Withdrawn */
-        emit Withdrawn(msg.sender, uint128(depth), shares, amount);
+        emit Withdrawn(msg.sender, depth, shares, amount);
 
         return amount;
     }
