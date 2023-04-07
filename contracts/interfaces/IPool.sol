@@ -242,8 +242,9 @@ interface IPool {
      * Emits a {LoanRepaid} event.
      *
      * @param encodedLoanReceipt Encoded loan receipt
+     * @return Repayment amount in currency tokens
      */
-    function repay(bytes calldata encodedLoanReceipt) external;
+    function repay(bytes calldata encodedLoanReceipt) external returns (uint256);
 
     /**
      * @notice Refinance a loan

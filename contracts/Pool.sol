@@ -817,7 +817,7 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function repay(bytes calldata encodedLoanReceipt) external nonReentrant {
+    function repay(bytes calldata encodedLoanReceipt) external nonReentrant returns (uint256) {
         /* Handle repay accounting */
         (LoanReceipt.LoanReceiptV1 memory loanReceipt, bytes32 loanReceiptHash, uint256 repayment) = _repay(
             encodedLoanReceipt
@@ -838,6 +838,8 @@ abstract contract Pool is
 
         /* Emit Loan Repaid */
         emit LoanRepaid(loanReceiptHash, repayment);
+
+        return repayment;
     }
 
     /**
