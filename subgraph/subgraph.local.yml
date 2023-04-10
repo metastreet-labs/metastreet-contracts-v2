@@ -22,7 +22,7 @@ dataSources:
         - name: CollectionCollateralFilter
           file: ../artifacts/contracts/filters/CollectionCollateralFilter.sol/CollectionCollateralFilter.json
         - name: ERC721
-          file: extra-abis/ERC721.json
+          file: ../artifacts/@openzeppelin/contracts/token/ERC721/ERC721.sol/ERC721.json
       eventHandlers:
         - event: PoolCreated(indexed address,indexed bytes32)
           handler: handlePoolCreated
