@@ -24,6 +24,7 @@ async function main() {
     externalCollateralLiquidatorImpl.address,
     externalCollateralLiquidatorImpl.interface.encodeFunctionData("initialize")
   );
+  console.log("ExternalCollateralLiquidator: ", externalCollateralLiquidatorProxy.address);
   /**************************************************************************/
   /* PoolFactory */
   /**************************************************************************/

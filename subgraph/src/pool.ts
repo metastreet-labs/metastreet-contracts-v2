@@ -14,15 +14,15 @@ import {
   Withdrawn as WithdrawnEntity,
 } from "../generated/schema";
 import {
-  CollateralLiquidated,
-  Deposited,
-  LoanLiquidated,
-  LoanOriginated,
+  CollateralLiquidated as CollateralLiquidatedEvent,
+  Deposited as DepositedEvent,
+  LoanLiquidated as LoanLiquidatedEvent,
+  LoanOriginated as LoanOriginatedEvent,
   Pool__decodeLoanReceiptResultValue0Struct as LoanReceipt,
-  LoanRepaid,
+  LoanRepaid as LoanRepaidEvent,
   Pool as PoolContract,
-  Redeemed,
-  Withdrawn,
+  Redeemed as RedeemedEvent,
+  Withdrawn as WithdrawnEvent,
 } from "../generated/templates/Pool/Pool";
 
 const poolContract = PoolContract.bind(dataSource.address());
@@ -229,7 +229,7 @@ function createLoanEntity(receipt: LoanReceipt, encodedReceipt: Bytes, receiptHa
 /* mappings */
 /**************************************************************************/
 
-export function handleDeposited(event: Deposited): void {
+export function handleDeposited(event: DepositedEvent): void {
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.depth);
@@ -243,7 +243,7 @@ export function handleDeposited(event: Deposited): void {
   depositedEntity.save();
 }
 
-export function handleRedeemed(event: Redeemed): void {
+export function handleRedeemed(event: RedeemedEvent): void {
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.depth);
@@ -256,7 +256,7 @@ export function handleRedeemed(event: Redeemed): void {
   redeemedEntity.save();
 }
 
-export function handleWithdrawn(event: Withdrawn): void {
+export function handleWithdrawn(event: WithdrawnEvent): void {
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.depth);
@@ -270,7 +270,7 @@ export function handleWithdrawn(event: Withdrawn): void {
   withdrawnEntity.save();
 }
 
-export function handleLoanOriginated(event: LoanOriginated): void {
+export function handleLoanOriginated(event: LoanOriginatedEvent): void {
   const receipt = poolContract.decodeLoanReceipt(event.params.loanReceipt);
   createLoanEntity(receipt, event.params.loanReceipt, event.params.loanReceiptHash, event.block.timestamp);
 
@@ -281,7 +281,7 @@ export function handleLoanOriginated(event: LoanOriginated): void {
   loanOriginatedEntity.save();
 }
 
-export function handleLoanRepaid(event: LoanRepaid): void {
+export function handleLoanRepaid(event: LoanRepaidEvent): void {
   const loanEntity = LoanEntity.load(event.params.loanReceiptHash.toHexString());
 
   if (loanEntity) {
@@ -300,7 +300,7 @@ export function handleLoanRepaid(event: LoanRepaid): void {
   }
 }
 
-export function handleLoanLiquidated(event: LoanLiquidated): void {
+export function handleLoanLiquidated(event: LoanLiquidatedEvent): void {
   const loanEntity = LoanEntity.load(event.params.loanReceiptHash.toHexString());
 
   if (loanEntity) {
@@ -315,7 +315,7 @@ export function handleLoanLiquidated(event: LoanLiquidated): void {
   }
 }
 
-export function handleCollateralLiquidated(event: CollateralLiquidated): void {
+export function handleCollateralLiquidated(event: CollateralLiquidatedEvent): void {
   const loanEntity = LoanEntity.load(event.params.loanReceiptHash.toHexString());
 
   if (loanEntity) {
