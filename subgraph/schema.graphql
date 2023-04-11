@@ -102,6 +102,18 @@ type Deposit @entity {
 }
 
 ################################################################################
+# Bundle Entity
+################################################################################
+
+type Bundle @entity {
+  id: ID! # bundle token id
+  owner: Bytes! # address
+  collateralContextData: Bytes!
+  underlyingCollateralToken: Bytes! # address
+  underlyingCollateralTokenIds: [BigInt!]! # uint256[]
+}
+
+################################################################################
 # Loan Entity
 ################################################################################
 
@@ -125,12 +137,13 @@ type Loan @entity {
   pool: Pool!
   status: LoanStatus!
   timestamp: Int! # uint64 (in seconds since epoch)
+  bundle: Bundle # set only if this is a bundle loan
   # Decoded Loan Receipt
   borrower: Bytes! # address
   maturity: Int! # uint64 (in seconds since epoch)
   duration: Int! # uint64 (in seconds)
-  collateralToken: CollateralToken!
-  collateralTokenId: BigInt! # uint256
+  collateralToken: CollateralToken! # in case of a bundle, this will still refer to the underlying collateral token
+  collateralTokenIds: [BigInt!]! # uint256[]
   depths: [BigInt!]! # uint256[]
   principal: BigInt! # uint256
   repayment: BigInt! # uint256

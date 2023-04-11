@@ -1,5 +1,6 @@
 import { Address, BigInt, Bytes, dataSource, ethereum, log, store } from "@graphprotocol/graph-ts";
 import {
+  Bundle as BundleEntity,
   CollateralToken as CollateralTokenEntity,
   Deposit as DepositEntity,
   Deposited as DepositedEntity,
@@ -19,12 +20,12 @@ import {
   LoanOriginated,
   Pool__decodeLoanReceiptResultValue0Struct as LoanReceipt,
   LoanRepaid,
-  Pool,
+  Pool as PoolContract,
   Redeemed,
   Withdrawn,
 } from "../generated/templates/Pool/Pool";
 
-const poolContract = Pool.bind(dataSource.address());
+const poolContract = PoolContract.bind(dataSource.address());
 const poolAddress = dataSource.address().toHexString();
 
 /**************************************************************************/
@@ -208,8 +209,18 @@ function createLoanEntity(receipt: LoanReceipt, encodedReceipt: Bytes, receiptHa
   loanEntity.borrower = receipt.borrower;
   loanEntity.maturity = receipt.maturity.toI32();
   loanEntity.duration = receipt.duration.toI32();
-  loanEntity.collateralToken = receipt.collateralToken.toHexString();
-  loanEntity.collateralTokenId = receipt.collateralTokenId;
+
+  if (receipt.collateralToken.toHexString() == poolEntity.collateralToken) {
+    loanEntity.collateralToken = receipt.collateralToken.toHexString();
+    loanEntity.collateralTokenIds = [receipt.collateralTokenId];
+  } else {
+    const bundleId = receipt.collateralTokenId.toString();
+    const bundleEntity = BundleEntity.load(bundleId);
+    if (!bundleEntity) throw new Error("Bundle entity not found for this bundle loan");
+    loanEntity.collateralToken = bundleEntity.underlyingCollateralToken.toHexString();
+    loanEntity.collateralTokenIds = bundleEntity.underlyingCollateralTokenIds;
+    loanEntity.bundle = bundleId;
+  }
 
   loanEntity.save();
 }

@@ -1,8 +1,9 @@
 /* eslint-disable camelcase */
+import { BigNumber } from "@ethersproject/bignumber";
 import { ethers } from "hardhat";
 import { extractEvent } from "../test/helpers/EventUtilities";
 import { FixedPoint } from "../test/helpers/FixedPoint";
-import { ERC20__factory, Pool__factory } from "../typechain";
+import { ERC20__factory, ERC721__factory, Pool__factory } from "../typechain";
 
 async function main() {
   const accounts = await ethers.getSigners();
@@ -13,6 +14,7 @@ async function main() {
   /* Deploy Bundle Collateral Wrapper */
   const BundleCollateralWrapper = await ethers.getContractFactory("BundleCollateralWrapper", accounts[9]);
   const bundleCollateralWrapper = await BundleCollateralWrapper.deploy();
+  console.log("BundleCollateralWrapper: ", bundleCollateralWrapper.address);
   /* Deploy External Collateral Liquidator Implementation */
   const ExternalCollateralLiquidator = await ethers.getContractFactory("ExternalCollateralLiquidator", accounts[9]);
   const externalCollateralLiquidatorImpl = await ExternalCollateralLiquidator.deploy();
@@ -73,6 +75,8 @@ async function main() {
   /**************************************************************************/
   /* Pools */
   /**************************************************************************/
+  const pools: string[] = [];
+  const poolsTicks: Record<string, BigNumber[]> = {};
   for (let i = 0; i < collateralTokens.length; i++) {
     const params = ethers.utils.defaultAbiCoder.encode(
       ["address", "address", "uint64", "uint256", "address[]", "tuple(uint64, uint64, uint64)"],
@@ -94,11 +98,53 @@ async function main() {
     console.log("DEPOSITING TO: ", poolAddress);
     const maxBorrow = 20;
     let depth = maxBorrow - i;
+    const ticks: BigNumber[] = [];
     for (let k = 0; k < 3; k++) {
-      await poolContract.deposit(ethers.utils.parseEther(`${depth}`), ethers.utils.parseEther(`${maxBorrow / depth}`));
+      const depthBN = ethers.utils.parseEther(`${depth}`);
+      await poolContract.deposit(depthBN, ethers.utils.parseEther(`${maxBorrow / depth}`));
+      ticks.push(depthBN);
       depth *= 1.26;
     }
+
+    pools.push(poolAddress);
+    poolsTicks[poolAddress] = ticks;
   }
+  /**************************************************************************/
+  /* Loans */
+  /**************************************************************************/
+  const collateralToken = collateralTokens[0];
+  const poolAddress = pools[0];
+  const poolTicks = poolsTicks[poolAddress];
+  const poolContract = Pool__factory.connect(pools[0], accounts[0]);
+  const nftContract = ERC721__factory.connect(collateralToken, accounts[0]);
+
+  // originate simple loan
+  await nftContract.setApprovalForAll(poolAddress, true);
+  await poolContract.borrow(
+    ethers.utils.parseEther("1"),
+    7 * 86400,
+    collateralToken,
+    0,
+    ethers.utils.parseEther("99"),
+    poolTicks,
+    "0x"
+  );
+
+  // originate bundle loan
+  await nftContract.setApprovalForAll(bundleCollateralWrapper.address, true);
+  const mintTx = await bundleCollateralWrapper.connect(accounts[0]).mint(collateralToken, [1, 2]);
+  const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+  const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
+  await bundleCollateralWrapper.connect(accounts[0]).setApprovalForAll(poolAddress, true);
+  await poolContract.borrow(
+    ethers.utils.parseEther("1"),
+    7 * 86400,
+    bundleCollateralWrapper.address,
+    bundleTokenId,
+    ethers.utils.parseEther("99"),
+    poolTicks,
+    ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [2, ethers.utils.hexDataLength(bundleData), bundleData])
+  );
 }
 
 main().catch((error) => {
