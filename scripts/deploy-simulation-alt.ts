@@ -102,9 +102,9 @@ async function main() {
     let depth = maxBorrow - i;
     const ticks: BigNumber[] = [];
     for (let k = 0; k < 3; k++) {
-      const depthBN = ethers.utils.parseEther(`${depth}`);
-      await poolContract.deposit(Tick.encode(depthBN), ethers.utils.parseEther(`${maxBorrow / depth}`));
-      ticks.push(Tick.encode(depthBN));
+      const tick = Tick.encode(ethers.utils.parseEther(`${depth}`));
+      await poolContract.deposit(tick, ethers.utils.parseEther(`${maxBorrow * depth}`));
+      ticks.push(tick);
       depth *= 1.26;
     }
 
