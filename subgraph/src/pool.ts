@@ -142,7 +142,12 @@ function updateTickEntity(depth: BigInt): TickEntity {
   return tickEntity;
 }
 
-function updateDepositEntity(account: Address, depth: BigInt, timestamp: BigInt): string {
+function updateDepositEntity(
+  account: Address,
+  depth: BigInt,
+  timestamp: BigInt,
+  depositedAmountUpdate: BigInt
+): string {
   const poolEntity = PoolEntity.load(poolAddress);
   if (!poolEntity) {
     log.error("No Pool entity for this event", []);
@@ -154,17 +159,10 @@ function updateDepositEntity(account: Address, depth: BigInt, timestamp: BigInt)
     store.remove("Deposit", depositEntityId);
     return depositEntityId;
   }
+
   let depositEntity = DepositEntity.load(depositEntityId);
-  if (!depositEntity) {
-    const tickId = `${poolAddress}-tick-${depth}`;
-    let tickEntity = TickEntity.load(tickId);
-    if (!tickEntity) {
-      log.error("No Tick entity found for this deposit", []);
-      throw new Error("updateDepositEntity: Tick not found");
-    }
-    depositEntity = new DepositEntity(depositEntityId);
-    depositEntity.sharePrice = tickEntity.value.times(BigInt.fromI32(10).pow(18)).div(tickEntity.shares);
-  }
+  if (!depositEntity) depositEntity = new DepositEntity(depositEntityId);
+
   depositEntity.pool = poolAddress;
   depositEntity.account = account;
   depositEntity.tick = `${poolAddress}-tick-${depth}`;
@@ -176,6 +174,7 @@ function updateDepositEntity(account: Address, depth: BigInt, timestamp: BigInt)
   depositEntity.maxLoanDuration = poolEntity.maxLoanDuration;
   depositEntity.depth = depth;
   depositEntity.updatedAt = timestamp;
+  depositEntity.depositedAmount = depositEntity.depositedAmount.plus(depositedAmountUpdate);
   depositEntity.save();
   return depositEntityId;
 }
@@ -235,7 +234,12 @@ export function handleDeposited(event: DepositedEvent): void {
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.depth);
-  const depositEntityId = updateDepositEntity(event.params.account, event.params.depth, event.block.timestamp);
+  const depositEntityId = updateDepositEntity(
+    event.params.account,
+    event.params.depth,
+    event.block.timestamp,
+    event.params.amount
+  );
   const poolEventId = createPoolEventEntity(event, PoolEventType.Deposited, event.params.account, depositEntityId);
   const depositedEntity = new DepositedEntity(poolEventId);
   depositedEntity.account = event.params.account;
@@ -249,7 +253,12 @@ export function handleRedeemed(event: RedeemedEvent): void {
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
   const tickEntity = updateTickEntity(event.params.depth);
-  const depositEntityId = updateDepositEntity(event.params.account, event.params.depth, event.block.timestamp);
+  const depositEntityId = updateDepositEntity(
+    event.params.account,
+    event.params.depth,
+    event.block.timestamp,
+    BigInt.zero()
+  );
   const poolEventId = createPoolEventEntity(event, PoolEventType.Redeemed, event.params.account, depositEntityId);
   const redeemedEntity = new RedeemedEntity(poolEventId);
   redeemedEntity.account = event.params.account;
@@ -263,7 +272,12 @@ export function handleWithdrawn(event: WithdrawnEvent): void {
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.depth);
-  const depositEntityId = updateDepositEntity(event.params.account, event.params.depth, event.block.timestamp);
+  const depositEntityId = updateDepositEntity(
+    event.params.account,
+    event.params.depth,
+    event.block.timestamp,
+    event.params.amount.times(BigInt.fromI32(-1))
+  );
   const poolEventId = createPoolEventEntity(event, PoolEventType.Withdrawn, event.params.account, depositEntityId);
   const withdrawnEntity = new WithdrawnEntity(poolEventId);
   withdrawnEntity.account = event.params.account;

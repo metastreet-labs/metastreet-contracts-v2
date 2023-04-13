@@ -90,7 +90,7 @@ type Deposit @entity {
   account: Bytes! # address
   tick: Tick!
   shares: BigInt! # uint128
-  sharePrice: BigInt! # uint256 (share price at deposit time)
+  depositedAmount: BigInt! # increases on Deposited events and decreases on Withdrawn ones
   redemptionPending: BigInt! # uint128
   redemptionIndex: BigInt! # uint128
   redemptionTarget: BigInt! # uint128
