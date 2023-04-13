@@ -161,7 +161,10 @@ function updateDepositEntity(
   }
 
   let depositEntity = DepositEntity.load(depositEntityId);
-  if (!depositEntity) depositEntity = new DepositEntity(depositEntityId);
+  if (!depositEntity) {
+    depositEntity = new DepositEntity(depositEntityId);
+    depositEntity.createdAt = timestamp;
+  }
 
   depositEntity.pool = poolAddress;
   depositEntity.account = account;

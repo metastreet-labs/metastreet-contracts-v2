@@ -94,7 +94,8 @@ type Deposit @entity {
   redemptionPending: BigInt! # uint128
   redemptionIndex: BigInt! # uint128
   redemptionTarget: BigInt! # uint128
-  updatedAt: BigInt # uint64
+  updatedAt: BigInt! # uint64 (seconds since epoch)
+  createdAt: BigInt! # uint64 (seconds since epoch)
   # below fields already exist in the related Pool and Tick entities, but are needed here for filtering/sorting
   collateralToken: Bytes! # address
   maxLoanDuration: Int! # i32
