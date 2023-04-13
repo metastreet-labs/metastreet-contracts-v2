@@ -214,6 +214,7 @@ type Redeemed @entity {
   account: Bytes! # address
   depth: BigInt! # uint256
   shares: BigInt! # uint256
+  amount: BigInt! # uint256
 }
 
 type Withdrawn @entity {

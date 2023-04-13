@@ -122,7 +122,7 @@ function updateCollateralTokenEntity(id: string): void {
   }
 }
 
-function updateTickEntity(depth: BigInt): void {
+function updateTickEntity(depth: BigInt): TickEntity {
   const node = poolContract.liquidityNodes(depth, depth)[0];
   const tickId = `${poolAddress}-tick-${depth}`;
   let tickEntity = TickEntity.load(tickId);
@@ -138,6 +138,8 @@ function updateTickEntity(depth: BigInt): void {
   tickEntity.prev = node.prev;
   tickEntity.next = node.next;
   tickEntity.save();
+
+  return tickEntity;
 }
 
 function updateDepositEntity(account: Address, depth: BigInt, timestamp: BigInt): string {
@@ -246,13 +248,14 @@ export function handleDeposited(event: DepositedEvent): void {
 export function handleRedeemed(event: RedeemedEvent): void {
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
-  updateTickEntity(event.params.depth);
+  const tickEntity = updateTickEntity(event.params.depth);
   const depositEntityId = updateDepositEntity(event.params.account, event.params.depth, event.block.timestamp);
   const poolEventId = createPoolEventEntity(event, PoolEventType.Redeemed, event.params.account, depositEntityId);
   const redeemedEntity = new RedeemedEntity(poolEventId);
   redeemedEntity.account = event.params.account;
   redeemedEntity.depth = event.params.depth;
   redeemedEntity.shares = event.params.shares;
+  redeemedEntity.amount = tickEntity.value.div(tickEntity.shares).times(event.params.shares);
   redeemedEntity.save();
 }
 
