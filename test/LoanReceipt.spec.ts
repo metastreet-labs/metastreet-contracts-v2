@@ -24,6 +24,10 @@ describe("LoanReceipt", function () {
     await network.provider.send("evm_revert", [snapshotId]);
   });
 
+  /****************************************************************************/
+  /* Loan Reciept Test Vectors */
+  /****************************************************************************/
+
   const loanReceipt = {
     version: 1,
     principal: ethers.BigNumber.from("3000000000000000000"),
@@ -85,6 +89,24 @@ describe("LoanReceipt", function () {
     ],
   };
 
+  /****************************************************************************/
+  /* Primary API */
+  /****************************************************************************/
+
+  describe("#hash", async function () {
+    it("matches expected hash", async function () {
+      expect(await loanReceiptLibrary.hash(await loanReceiptLibrary.encode(loanReceipt))).to.equal(
+        "0x1b8e4a0db3ebef226f2a75983bb2f089c048a4985244aa0b68dd153d6bd4f576"
+      );
+    });
+
+    it("matches expected hash - bundle loan", async function () {
+      expect(await loanReceiptLibrary.hash(await loanReceiptLibrary.encode(bundleLoanReceipt))).to.equal(
+        "0xfabd21001cf8b28b972577a3a9e29fcb10fcf2e6af0ddb53e035b0018e73b9e6"
+      );
+    });
+  });
+
   describe("#encode", async function () {
     it("successfully encodes loan receipt", async function () {
       const encodedLoanReceipt = await loanReceiptLibrary.encode(loanReceipt);
@@ -99,20 +121,6 @@ describe("LoanReceipt", function () {
       expect(encodedLoanReceipt.length).to.equal(2 + (155 + 20 + 32 * 2 + 48 * 3) * 2);
       expect(encodedLoanReceipt).to.equal(
         "0x0100000000000000000000000000000000000000000000000029a2241af62c00000000000000000000000000000000000000000000000000002a303fe4b53000000cd36fa7d9634994231bc76fb36938d56c6fe70e00000000647825d00000000000278d000dcd1bf9a1b36ce34237eeafef220932846bcd82627186392ce4c7e6bbeefb220f87587bf7b64195606e45cc778cced10a691bbe0054b7f8bc63bbcad18155201308c8f3540b07f84f5e0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000200000000000000000de0b6b3a764000000000000000000000de0b6b3a764000000000000000000000e043da61725000000000000000000001bc16d674ec8000000000000000000000de0b6b3a764000000000000000000000e043da617250000000000000000000029a2241af62c000000000000000000000de0b6b3a764000000000000000000000e27c49886e60000"
-      );
-    });
-  });
-
-  describe("#hash", async function () {
-    it("matches expected hash", async function () {
-      expect(await loanReceiptLibrary.hash(await loanReceiptLibrary.encode(loanReceipt))).to.equal(
-        "0x1b8e4a0db3ebef226f2a75983bb2f089c048a4985244aa0b68dd153d6bd4f576"
-      );
-    });
-
-    it("matches expected hash - bundle loan", async function () {
-      expect(await loanReceiptLibrary.hash(await loanReceiptLibrary.encode(bundleLoanReceipt))).to.equal(
-        "0xfabd21001cf8b28b972577a3a9e29fcb10fcf2e6af0ddb53e035b0018e73b9e6"
       );
     });
   });
