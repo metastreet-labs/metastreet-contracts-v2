@@ -177,6 +177,52 @@ interface IPool {
     function delegationRegistry() external view returns (address);
 
     /**************************************************************************/
+    /* Deposit API */
+    /**************************************************************************/
+
+    /**
+     * @notice Deposit amount at depth
+     *
+     * Emits a {Deposited} event.
+     *
+     * @param depth Loan limit depth
+     * @param amount Amount of currency tokens
+     */
+    function deposit(uint128 depth, uint256 amount) external;
+
+    /**
+     * @notice Redeem deposit shares for currency tokens. Currency tokens can
+     * be withdrawn with the `withdraw()` method once the redemption is
+     * processed.
+     *
+     * Emits a {Redeemed} event.
+     *
+     * @param depth Loan limit depth
+     * @param shares Amount of deposit shares to redeem
+     */
+    function redeem(uint128 depth, uint256 shares) external;
+
+    /**
+     * @notice Get redemption available
+     *
+     * @param account Account
+     * @param depth Loan limit depth
+     * @return shares Amount of deposit shares redeemed
+     * @return amount Amount of currency tokens available for withdrawal
+     */
+    function redemptionAvailable(address account, uint128 depth) external view returns (uint256 shares, uint256 amount);
+
+    /**
+     * @notice Withdraw a redemption that is available
+     *
+     * Emits a {Withdrawn} event.
+     *
+     * @param depth Loan limit depth
+     * @return amount Amount of currency tokens withdrawn
+     */
+    function withdraw(uint128 depth) external returns (uint256 amount);
+
+    /**************************************************************************/
     /* Lend API */
     /**************************************************************************/
 
@@ -285,50 +331,4 @@ interface IPool {
      * @param proceeds Liquidation proceeds in currency tokens
      */
     function onCollateralLiquidated(bytes calldata loanReceipt, uint256 proceeds) external;
-
-    /**************************************************************************/
-    /* Deposit API */
-    /**************************************************************************/
-
-    /**
-     * @notice Deposit amount at depth
-     *
-     * Emits a {Deposited} event.
-     *
-     * @param depth Loan limit depth
-     * @param amount Amount of currency tokens
-     */
-    function deposit(uint128 depth, uint256 amount) external;
-
-    /**
-     * @notice Redeem deposit shares for currency tokens. Currency tokens can
-     * be withdrawn with the `withdraw()` method once the redemption is
-     * processed.
-     *
-     * Emits a {Redeemed} event.
-     *
-     * @param depth Loan limit depth
-     * @param shares Amount of deposit shares to redeem
-     */
-    function redeem(uint128 depth, uint256 shares) external;
-
-    /**
-     * @notice Get redemption available
-     *
-     * @param account Account
-     * @param depth Loan limit depth
-     * @return shares Amount of deposit shares redeemed
-     * @return amount Amount of currency tokens available for withdrawal
-     */
-    function redemptionAvailable(address account, uint128 depth) external view returns (uint256 shares, uint256 amount);
-
-    /**
-     * @notice Withdraw a redemption that is available
-     *
-     * Emits a {Withdrawn} event.
-     *
-     * @param depth Loan limit depth
-     * @return amount Amount of currency tokens withdrawn
-     */
-    function withdraw(uint128 depth) external returns (uint256 amount);
 }
