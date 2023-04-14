@@ -140,8 +140,14 @@ describe("Pool", function () {
     /* Approve pool to transfer NFT */
     await nft1.connect(accountBorrower).setApprovalForAll(pool.address, true);
 
-    /* Approve pool to tranasfer token (for repayment) */
+    /* Approve pool to transfer token (for repayment) */
     await tok1.connect(accountBorrower).approve(pool.address, ethers.constants.MaxUint256);
+
+    /* Approve bundle to transfer NFT */
+    await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
+
+    /* Approve pool to transfer bundle NFT */
+    await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -898,12 +904,9 @@ describe("Pool", function () {
     duration?: number = 30 * 86400
   ): Promise<[string, string, ethers.BigNumber, string]> {
     /* Mint bundle */
-    await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
     const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
     const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
     const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
-
-    await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
 
     /* Borrow */
     const borrowTx = await pool
@@ -1215,7 +1218,6 @@ describe("Pool", function () {
 
     it("originates bundle loan", async function () {
       /* Mint bundle */
-      await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
       const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
@@ -1228,8 +1230,6 @@ describe("Pool", function () {
         [123, 124, 125],
         "0x"
       );
-
-      await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
 
       /* Simulate borrow */
       const simulatedRepayment = await pool
@@ -1326,7 +1326,6 @@ describe("Pool", function () {
 
     it("originates bundle loan for a 85 ETH principal", async function () {
       /* Mint bundle */
-      await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
       const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
@@ -1339,8 +1338,6 @@ describe("Pool", function () {
         [123, 124, 125],
         "0x"
       );
-
-      await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
 
       /* Simulate borrow */
       const simulatedRepayment = await pool
@@ -1641,13 +1638,9 @@ describe("Pool", function () {
 
     it("fails on bundle with invalid option encoding", async function () {
       /* Mint bundle */
-      await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
       const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
-
-      /* Set approvals */
-      await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
 
       /* Set length of tokenId to 31 instead of 32 */
       await expect(
@@ -1714,12 +1707,9 @@ describe("Pool", function () {
     });
 
     it("fails on insufficient liquidity with bundle", async function () {
-      await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
       const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
-
-      await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
 
       await expect(
         pool
@@ -1793,7 +1783,6 @@ describe("Pool", function () {
     });
 
     it("repays bundle loan at maturity", async function () {
-      await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
       const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [124, 125]);
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
@@ -1802,8 +1791,6 @@ describe("Pool", function () {
 
       /* Quote repayment */
       const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, [124, 125], "0x");
-
-      await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
 
       const borrowTx = await pool
         .connect(accountBorrower)
