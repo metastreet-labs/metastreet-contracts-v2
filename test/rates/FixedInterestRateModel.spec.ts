@@ -16,18 +16,17 @@ describe("FixedInterestRateModel", function () {
     FixedPoint.from("0.05") /* tick threshold: 0.05 */,
     FixedPoint.from("1.5") /* tick exp base: 1.5 */,
   ];
-
   const FIXED_INTEREST_RATE = FixedPoint.normalizeRate("0.02");
 
-  let interestRateModel: FixedInterestRateModel;
+  let interestRateModel1: FixedInterestRateModel;
   let interestRateModel2: FIxedInterestRateModel;
   let snapshotId: string;
 
   before("deploy fixture", async () => {
     const fixedInterestRateModelFactory = await ethers.getContractFactory("TestFixedInterestRateModel");
 
-    interestRateModel = await fixedInterestRateModelFactory.deploy(PARAMETERS_1);
-    await interestRateModel.deployed();
+    interestRateModel1 = await fixedInterestRateModelFactory.deploy(PARAMETERS_1);
+    await interestRateModel1.deployed();
 
     interestRateModel2 = await fixedInterestRateModelFactory.deploy(PARAMETERS_2);
     await interestRateModel2.deployed();
@@ -41,20 +40,22 @@ describe("FixedInterestRateModel", function () {
     await network.provider.send("evm_revert", [snapshotId]);
   });
 
+  /****************************************************************************/
+  /* Constants */
+  /****************************************************************************/
+
   describe("constants", async function () {
     it("matches expected name", async function () {
-      expect(await interestRateModel.INTEREST_RATE_MODEL_NAME()).to.equal("FixedInterestRateModel");
+      expect(await interestRateModel1.INTEREST_RATE_MODEL_NAME()).to.equal("FixedInterestRateModel");
     });
     it("matches expected implementation version", async function () {
-      expect(await interestRateModel.INTEREST_RATE_MODEL_VERSION()).to.equal("1.0");
+      expect(await interestRateModel1.INTEREST_RATE_MODEL_VERSION()).to.equal("1.0");
     });
   });
 
-  describe("rate", async function () {
-    it("returns correct rate", async function () {
-      expect(await interestRateModel.rate()).to.equal(FIXED_INTEREST_RATE);
-    });
-  });
+  /****************************************************************************/
+  /* Primary API */
+  /****************************************************************************/
 
   const sources1 = [
     {
@@ -125,9 +126,15 @@ describe("FixedInterestRateModel", function () {
     },
   ];
 
-  describe("distribute (base 2)", async function () {
+  describe("#rate", async function () {
+    it("returns correct rate", async function () {
+      expect(await interestRateModel1.rate()).to.equal(FIXED_INTEREST_RATE);
+    });
+  });
+
+  describe("#distribute (base 2)", async function () {
     it("distributes interest to one node", async function () {
-      const pending = await interestRateModel.distribute(
+      const pending = await interestRateModel1.distribute(
         FixedPoint.from("10"),
         FixedPoint.from("3"),
         sources1,
@@ -137,7 +144,7 @@ describe("FixedInterestRateModel", function () {
       expect(pending[0]).to.equal(FixedPoint.from("3"));
     });
     it("distributes interest to four nodes", async function () {
-      const pending = await interestRateModel.distribute(
+      const pending = await interestRateModel1.distribute(
         FixedPoint.from("12"),
         FixedPoint.from("2"),
         sources4,
@@ -151,7 +158,7 @@ describe("FixedInterestRateModel", function () {
     });
   });
 
-  describe("distribute (base 1.5, threshold 0.05)", async function () {
+  describe("#distribute (base 1.5, threshold 0.05)", async function () {
     it("distributes interest to one node", async function () {
       const pending = await interestRateModel2.distribute(
         FixedPoint.from("10"),
