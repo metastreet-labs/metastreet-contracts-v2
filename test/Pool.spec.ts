@@ -152,11 +152,19 @@ describe("Pool", function () {
     await network.provider.send("evm_revert", [snapshotId]);
   });
 
+  /****************************************************************************/
+  /* Constants */
+  /****************************************************************************/
+
   describe("constants", async function () {
     it("matches expected implementation", async function () {
       expect(await pool.IMPLEMENTATION_VERSION()).to.equal("1.0");
     });
   });
+
+  /****************************************************************************/
+  /* Getters */
+  /****************************************************************************/
 
   describe("getters", async function () {
     it("returns expected currency token", async function () {
@@ -183,6 +191,10 @@ describe("Pool", function () {
       expect(await pool.delegationRegistry()).to.equal(delegationRegistry.address);
     });
   });
+
+  /****************************************************************************/
+  /* Deposit API */
+  /****************************************************************************/
 
   describe("#deposit", async function () {
     it("successfully deposits", async function () {
@@ -803,7 +815,7 @@ describe("Pool", function () {
   });
 
   /****************************************************************************/
-  /* Helper functions */
+  /* Liquidity and Loan Helper functions */
   /****************************************************************************/
 
   const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
@@ -948,216 +960,7 @@ describe("Pool", function () {
   }
 
   /****************************************************************************/
-  /* Admin Fee Tests */
-  /****************************************************************************/
-
-  describe("#setAdminFeeRate", async function () {
-    it("sets admin fee rate successfully", async function () {
-      const rate = 500;
-
-      /* Set admin fee rate */
-      const tx = await pool.setAdminFeeRate(rate);
-
-      /* Validate events */
-      await expectEvent(tx, pool, "AdminFeeRateUpdated", {
-        rate: rate,
-      });
-
-      /* Validate rate was successfully set */
-      expect(await pool.adminFeeRate()).to.equal(rate);
-    });
-
-    it("fails on invalid value", async function () {
-      await expect(pool.setAdminFeeRate(0)).to.be.revertedWithCustomError(pool, "ParameterOutOfBounds");
-      await expect(pool.setAdminFeeRate(10000)).to.be.revertedWithCustomError(pool, "ParameterOutOfBounds");
-    });
-
-    it("fails on invalid caller", async function () {
-      const rate = 500;
-
-      await expect(pool.connect(accounts[1]).setAdminFeeRate(rate)).to.be.revertedWith(
-        /AccessControl: account .* is missing role .*/
-      );
-    });
-  });
-
-  describe("#withdrawAdminFees", async function () {
-    beforeEach("setup liquidity", async function () {
-      await setupLiquidity();
-    });
-
-    it("withdraws admin fees with repayment at loan maturity", async function () {
-      /* set admin fee */
-      await pool.setAdminFeeRate(500);
-
-      /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, [123], "0x");
-
-      /* Borrow */
-      const borrowTx = await pool
-        .connect(accountBorrower)
-        .borrow(
-          ethers.utils.parseEther("25"),
-          30 * 86400,
-          nft1.address,
-          123,
-          ethers.utils.parseEther("26"),
-          await sourceLiquidity(ethers.utils.parseEther("25")),
-          "0x"
-        );
-
-      /* Extract loan receipt */
-      const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
-      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-
-      /* Validate loan receipt */
-      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-
-      /* Sum used and pending totals from node receipts */
-      let totalUsed = ethers.constants.Zero;
-      let totalPending = ethers.constants.Zero;
-      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
-        totalUsed = totalUsed.add(nodeReceipt.used);
-        totalPending = totalPending.add(nodeReceipt.pending);
-      }
-
-      /* Calculate admin fee */
-      const adminFee = (await pool.adminFeeRate()).mul(repayment.sub(ethers.utils.parseEther("25"))).div(10000);
-
-      /* Validate used and pending totals */
-      expect(totalUsed).to.equal(ethers.utils.parseEther("25"));
-      expect(totalPending).to.equal(repayment.sub(adminFee));
-
-      /* Validate loan state */
-      expect(await pool.loans(loanReceiptHash)).to.equal(1);
-
-      /* Repay */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
-      await pool.connect(accountBorrower).repay(loanReceipt);
-
-      /* Validate total adminFee balance */
-      expect(await pool.adminFeeBalance()).to.equal(adminFee);
-
-      const startingBalance = await tok1.balanceOf(accounts[1].address);
-
-      /* Withdraw */
-      const withdrawTx = await pool.withdrawAdminFees(accounts[1].address, adminFee);
-
-      /* Validate events */
-      await expectEvent(withdrawTx, tok1, "Transfer", {
-        from: pool.address,
-        to: accounts[1].address,
-        value: adminFee,
-      });
-
-      await expectEvent(withdrawTx, pool, "AdminFeesWithdrawn", {
-        account: accounts[1].address,
-        amount: adminFee,
-      });
-
-      /* Validate balance in account */
-      expect(await tok1.balanceOf(accounts[1].address)).to.equal(startingBalance.add(adminFee));
-
-      /* Validate total admin fee balance */
-      expect(await pool.adminFeeBalance()).to.equal(0);
-    });
-
-    it("withdraws admin fees with repayment after one third of loan maturity", async function () {
-      /* Set admin fee */
-      await pool.setAdminFeeRate(500);
-
-      /* Quote repayment */
-      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, [123], "0x");
-
-      /* Borrow */
-      const borrowTx = await pool
-        .connect(accountBorrower)
-        .borrow(
-          ethers.utils.parseEther("25"),
-          30 * 86400,
-          nft1.address,
-          123,
-          ethers.utils.parseEther("26"),
-          await sourceLiquidity(ethers.utils.parseEther("25")),
-          "0x"
-        );
-
-      /* Decode loan receipt */
-      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-
-      /* Repay */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber() - (2 * 30 * 86400) / 3);
-      const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
-
-      /* Calculate repayment proration */
-      const repayTxTimestamp = (await ethers.provider.getBlock((await repayTx.wait()).blockNumber)).timestamp;
-      const proration = FixedPoint.from(
-        repayTxTimestamp - (decodedLoanReceipt.maturity - decodedLoanReceipt.duration)
-      ).div(decodedLoanReceipt.duration);
-
-      /* Calculate admin fee */
-      const adminFee = (await pool.adminFeeRate())
-        .mul(repayment.sub(ethers.utils.parseEther("25")))
-        .div(10000)
-        .mul(proration)
-        .div(ethers.constants.WeiPerEther);
-
-      /* Validate total admin fee balance */
-      expect(await pool.adminFeeBalance()).to.equal(adminFee);
-
-      /* Withdraw */
-      const withdrawTx = await pool.withdrawAdminFees(accounts[1].address, adminFee);
-
-      /* Validate events */
-      await expectEvent(withdrawTx, pool, "AdminFeesWithdrawn", {
-        account: accounts[1].address,
-        amount: adminFee,
-      });
-
-      /* Validate total admin fee balance */
-      expect(await pool.adminFeeBalance()).to.equal(0);
-    });
-
-    it("fails on invalid caller", async function () {
-      /* Set admin fee */
-      await pool.setAdminFeeRate(500);
-
-      /* Create repaid loan */
-      await createRepaidLoan(ethers.utils.parseEther("25"));
-
-      await expect(
-        pool.connect(accounts[1]).withdrawAdminFees(accounts[1].address, ethers.utils.parseEther("0.00001"))
-      ).to.be.revertedWith(/AccessControl: account .* is missing role .*/);
-    });
-
-    it("fails on invalid address", async function () {
-      /* Set admin fee */
-      await pool.setAdminFeeRate(500);
-
-      /* Create repaid loan */
-      await createRepaidLoan(ethers.utils.parseEther("25"));
-
-      await expect(
-        pool.withdrawAdminFees(ethers.constants.AddressZero, ethers.utils.parseEther("0.00001"))
-      ).to.be.revertedWithCustomError(pool, "InvalidAddress");
-    });
-
-    it("fails on parameter out of bounds", async function () {
-      /* set admin fee */
-      await pool.setAdminFeeRate(500);
-
-      /* Create repaid loan */
-      await createRepaidLoan(ethers.utils.parseEther("25"));
-
-      await expect(
-        pool.withdrawAdminFees(accounts[1].address, ethers.utils.parseEther("10"))
-      ).to.be.revertedWithCustomError(pool, "ParameterOutOfBounds");
-    });
-  });
-
-  /****************************************************************************/
-  /* Lend Tests */
+  /* Lend API */
   /****************************************************************************/
 
   describe("#quote", async function () {
@@ -3201,6 +3004,215 @@ describe("Pool", function () {
         expect(node.available).to.equal(ethers.utils.parseEther("25"));
         expect(node.pending).to.equal(ethers.constants.Zero);
       }
+    });
+  });
+
+  /****************************************************************************/
+  /* Admin Fee API */
+  /****************************************************************************/
+
+  describe("#setAdminFeeRate", async function () {
+    it("sets admin fee rate successfully", async function () {
+      const rate = 500;
+
+      /* Set admin fee rate */
+      const tx = await pool.setAdminFeeRate(rate);
+
+      /* Validate events */
+      await expectEvent(tx, pool, "AdminFeeRateUpdated", {
+        rate: rate,
+      });
+
+      /* Validate rate was successfully set */
+      expect(await pool.adminFeeRate()).to.equal(rate);
+    });
+
+    it("fails on invalid value", async function () {
+      await expect(pool.setAdminFeeRate(0)).to.be.revertedWithCustomError(pool, "ParameterOutOfBounds");
+      await expect(pool.setAdminFeeRate(10000)).to.be.revertedWithCustomError(pool, "ParameterOutOfBounds");
+    });
+
+    it("fails on invalid caller", async function () {
+      const rate = 500;
+
+      await expect(pool.connect(accounts[1]).setAdminFeeRate(rate)).to.be.revertedWith(
+        /AccessControl: account .* is missing role .*/
+      );
+    });
+  });
+
+  describe("#withdrawAdminFees", async function () {
+    beforeEach("setup liquidity", async function () {
+      await setupLiquidity();
+    });
+
+    it("withdraws admin fees with repayment at loan maturity", async function () {
+      /* set admin fee */
+      await pool.setAdminFeeRate(500);
+
+      /* Quote repayment */
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, [123], "0x");
+
+      /* Borrow */
+      const borrowTx = await pool
+        .connect(accountBorrower)
+        .borrow(
+          ethers.utils.parseEther("25"),
+          30 * 86400,
+          nft1.address,
+          123,
+          ethers.utils.parseEther("26"),
+          await sourceLiquidity(ethers.utils.parseEther("25")),
+          "0x"
+        );
+
+      /* Extract loan receipt */
+      const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
+      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+
+      /* Validate loan receipt */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      /* Sum used and pending totals from node receipts */
+      let totalUsed = ethers.constants.Zero;
+      let totalPending = ethers.constants.Zero;
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+        totalUsed = totalUsed.add(nodeReceipt.used);
+        totalPending = totalPending.add(nodeReceipt.pending);
+      }
+
+      /* Calculate admin fee */
+      const adminFee = (await pool.adminFeeRate()).mul(repayment.sub(ethers.utils.parseEther("25"))).div(10000);
+
+      /* Validate used and pending totals */
+      expect(totalUsed).to.equal(ethers.utils.parseEther("25"));
+      expect(totalPending).to.equal(repayment.sub(adminFee));
+
+      /* Validate loan state */
+      expect(await pool.loans(loanReceiptHash)).to.equal(1);
+
+      /* Repay */
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await pool.connect(accountBorrower).repay(loanReceipt);
+
+      /* Validate total adminFee balance */
+      expect(await pool.adminFeeBalance()).to.equal(adminFee);
+
+      const startingBalance = await tok1.balanceOf(accounts[1].address);
+
+      /* Withdraw */
+      const withdrawTx = await pool.withdrawAdminFees(accounts[1].address, adminFee);
+
+      /* Validate events */
+      await expectEvent(withdrawTx, tok1, "Transfer", {
+        from: pool.address,
+        to: accounts[1].address,
+        value: adminFee,
+      });
+
+      await expectEvent(withdrawTx, pool, "AdminFeesWithdrawn", {
+        account: accounts[1].address,
+        amount: adminFee,
+      });
+
+      /* Validate balance in account */
+      expect(await tok1.balanceOf(accounts[1].address)).to.equal(startingBalance.add(adminFee));
+
+      /* Validate total admin fee balance */
+      expect(await pool.adminFeeBalance()).to.equal(0);
+    });
+
+    it("withdraws admin fees with repayment after one third of loan maturity", async function () {
+      /* Set admin fee */
+      await pool.setAdminFeeRate(500);
+
+      /* Quote repayment */
+      const repayment = await pool.quote(ethers.utils.parseEther("25"), 30 * 86400, nft1.address, [123], "0x");
+
+      /* Borrow */
+      const borrowTx = await pool
+        .connect(accountBorrower)
+        .borrow(
+          ethers.utils.parseEther("25"),
+          30 * 86400,
+          nft1.address,
+          123,
+          ethers.utils.parseEther("26"),
+          await sourceLiquidity(ethers.utils.parseEther("25")),
+          "0x"
+        );
+
+      /* Decode loan receipt */
+      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      /* Repay */
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber() - (2 * 30 * 86400) / 3);
+      const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
+
+      /* Calculate repayment proration */
+      const repayTxTimestamp = (await ethers.provider.getBlock((await repayTx.wait()).blockNumber)).timestamp;
+      const proration = FixedPoint.from(
+        repayTxTimestamp - (decodedLoanReceipt.maturity - decodedLoanReceipt.duration)
+      ).div(decodedLoanReceipt.duration);
+
+      /* Calculate admin fee */
+      const adminFee = (await pool.adminFeeRate())
+        .mul(repayment.sub(ethers.utils.parseEther("25")))
+        .div(10000)
+        .mul(proration)
+        .div(ethers.constants.WeiPerEther);
+
+      /* Validate total admin fee balance */
+      expect(await pool.adminFeeBalance()).to.equal(adminFee);
+
+      /* Withdraw */
+      const withdrawTx = await pool.withdrawAdminFees(accounts[1].address, adminFee);
+
+      /* Validate events */
+      await expectEvent(withdrawTx, pool, "AdminFeesWithdrawn", {
+        account: accounts[1].address,
+        amount: adminFee,
+      });
+
+      /* Validate total admin fee balance */
+      expect(await pool.adminFeeBalance()).to.equal(0);
+    });
+
+    it("fails on invalid caller", async function () {
+      /* Set admin fee */
+      await pool.setAdminFeeRate(500);
+
+      /* Create repaid loan */
+      await createRepaidLoan(ethers.utils.parseEther("25"));
+
+      await expect(
+        pool.connect(accounts[1]).withdrawAdminFees(accounts[1].address, ethers.utils.parseEther("0.00001"))
+      ).to.be.revertedWith(/AccessControl: account .* is missing role .*/);
+    });
+
+    it("fails on invalid address", async function () {
+      /* Set admin fee */
+      await pool.setAdminFeeRate(500);
+
+      /* Create repaid loan */
+      await createRepaidLoan(ethers.utils.parseEther("25"));
+
+      await expect(
+        pool.withdrawAdminFees(ethers.constants.AddressZero, ethers.utils.parseEther("0.00001"))
+      ).to.be.revertedWithCustomError(pool, "InvalidAddress");
+    });
+
+    it("fails on parameter out of bounds", async function () {
+      /* set admin fee */
+      await pool.setAdminFeeRate(500);
+
+      /* Create repaid loan */
+      await createRepaidLoan(ethers.utils.parseEther("25"));
+
+      await expect(
+        pool.withdrawAdminFees(accounts[1].address, ethers.utils.parseEther("10"))
+      ).to.be.revertedWithCustomError(pool, "ParameterOutOfBounds");
     });
   });
 
