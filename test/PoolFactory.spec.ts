@@ -24,6 +24,7 @@ describe("PoolFactory", function () {
   let nft1: TestERC721;
   let collateralLiquidator: ExternalCollateralLiquidator;
   let poolImpl: Pool;
+  let poolFactoryImpl: PoolFactory;
   let poolFactory: PoolFactory;
   let snapshotId: string;
   let delegationRegistry: TestDelegationRegistry;
@@ -78,7 +79,7 @@ describe("PoolFactory", function () {
     await poolImpl.deployed();
 
     /* Deploy pool factory implementation */
-    const poolFactoryImpl = await poolFactoryImplFactory.deploy();
+    poolFactoryImpl = await poolFactoryImplFactory.deploy();
     await poolFactoryImpl.deployed();
 
     /* Deploy pool factory */
@@ -98,11 +99,19 @@ describe("PoolFactory", function () {
     await network.provider.send("evm_revert", [snapshotId]);
   });
 
+  /****************************************************************************/
+  /* Constants */
+  /****************************************************************************/
+
   describe("constants", async function () {
     it("matches expected implementation", async function () {
       expect(await poolFactory.IMPLEMENTATION_VERSION()).to.equal("1.0");
     });
   });
+
+  /****************************************************************************/
+  /* Primary API */
+  /****************************************************************************/
 
   describe("#create", async function () {
     it("creates a pool", async function () {
@@ -207,6 +216,10 @@ describe("PoolFactory", function () {
     });
   });
 
+  /****************************************************************************/
+  /* Getters */
+  /****************************************************************************/
+
   /* Helper function to create a pool */
   async function createPool(): Promise<string> {
     const params = ethers.utils.defaultAbiCoder.encode(
@@ -257,21 +270,31 @@ describe("PoolFactory", function () {
     });
   });
 
+  /****************************************************************************/
+  /* Admin API */
+  /****************************************************************************/
+
+  describe("#getImplementation", async function () {
+    it("returns correct implementation", async function () {
+      expect(await poolFactory.getImplementation()).to.equal(poolFactoryImpl.address);
+    });
+  });
+
   describe("#upgradeToAndCall", async function () {
     it("upgrades to new implementation contract", async function () {
       const poolFactoryImplFactory = await ethers.getContractFactory("PoolFactory");
-      const poolFactoryImpl = await poolFactoryImplFactory.deploy();
-      await poolFactoryImpl.deployed();
+      const newPoolFactoryImpl = await poolFactoryImplFactory.deploy();
+      await newPoolFactoryImpl.deployed();
 
-      const upgradeToAndCallTx = await poolFactory.upgradeToAndCall(poolFactoryImpl.address, "0x");
+      const upgradeToAndCallTx = await poolFactory.upgradeToAndCall(newPoolFactoryImpl.address, "0x");
 
       /* Validate events */
       await expectEvent(upgradeToAndCallTx, poolFactory, "Upgraded", {
-        implementation: poolFactoryImpl.address,
+        implementation: newPoolFactoryImpl.address,
       });
 
       /* Validate state */
-      expect(await poolFactory.getImplementation()).to.equal(poolFactoryImpl.address);
+      expect(await poolFactory.getImplementation()).to.equal(newPoolFactoryImpl.address);
     });
     it("fails on invalid owner", async function () {
       await expect(poolFactory.connect(accounts[1]).upgradeToAndCall(tok1.address, "0x")).to.be.revertedWith(
