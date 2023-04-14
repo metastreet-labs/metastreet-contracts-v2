@@ -87,7 +87,7 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
   function expectApproxEqual(
     a: ethers.BigNumber,
     b: ethers.BigNumber,
-    epsilon?: ethers.BigNumber = ethers.utils.parseEther("0.000000000001")
+    epsilon?: ethers.BigNumber = FixedPoint.from("0.000000000001")
   ): void {
     expect(a.sub(b).abs()).to.be.lt(epsilon);
   }
