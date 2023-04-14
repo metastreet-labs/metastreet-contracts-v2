@@ -12,6 +12,15 @@ import "../interfaces/ICollateralWrapper.sol";
  */
 contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder {
     /**************************************************************************/
+    /* Constants */
+    /**************************************************************************/
+
+    /**
+     * @notice Implementation version
+     */
+    string public constant IMPLEMENTATION_VERSION = "1.0";
+
+    /**************************************************************************/
     /* Errors */
     /**************************************************************************/
 
