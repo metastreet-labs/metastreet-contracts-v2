@@ -28,7 +28,7 @@ describe("LiquidityManager", function () {
 
   const toFixedPoint = ethers.utils.parseEther;
 
-  const NODE_END = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
+  const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
 
   describe("#instantiate", async function () {
     it("instantiates a new liquidity node", async function () {
@@ -36,19 +36,19 @@ describe("LiquidityManager", function () {
       await liquidityManager.instantiate(toFixedPoint("1"));
 
       /* Validate nodes */
-      let nodes = await liquidityManager.liquidityNodes(ethers.constants.Zero, ethers.constants.MaxUint256);
+      let nodes = await liquidityManager.liquidityNodes(ethers.constants.Zero, MaxUint128);
       expect(nodes.length).to.equal(2);
       expect(nodes[0].prev).to.equal(0);
       expect(nodes[0].next).to.equal(toFixedPoint("1"));
       expect(nodes[1].prev).to.equal(0);
-      expect(nodes[1].next).to.equal(NODE_END);
+      expect(nodes[1].next).to.equal(MaxUint128);
 
       /* Instantiate two additional nodes */
       await liquidityManager.instantiate(toFixedPoint("10"));
       await liquidityManager.instantiate(toFixedPoint("50"));
 
       /* Validate nodes */
-      nodes = await liquidityManager.liquidityNodes(ethers.constants.Zero, ethers.constants.MaxUint256);
+      nodes = await liquidityManager.liquidityNodes(ethers.constants.Zero, MaxUint128);
       expect(nodes.length).to.equal(4);
       expect(nodes[0].prev).to.equal(0);
       expect(nodes[0].next).to.equal(toFixedPoint("1"));
@@ -57,7 +57,7 @@ describe("LiquidityManager", function () {
       expect(nodes[2].prev).to.equal(toFixedPoint("1"));
       expect(nodes[2].next).to.equal(toFixedPoint("50"));
       expect(nodes[3].prev).to.equal(toFixedPoint("10"));
-      expect(nodes[3].next).to.equal(NODE_END);
+      expect(nodes[3].next).to.equal(MaxUint128);
 
       /* Validate statistics */
       const statistics = await liquidityManager.liquidityStatistics();
@@ -70,23 +70,23 @@ describe("LiquidityManager", function () {
       await liquidityManager.instantiate(toFixedPoint("1"));
 
       /* Validate nodes */
-      let nodes = await liquidityManager.liquidityNodes(ethers.constants.Zero, ethers.constants.MaxUint256);
+      let nodes = await liquidityManager.liquidityNodes(ethers.constants.Zero, MaxUint128);
       expect(nodes.length).to.equal(2);
       expect(nodes[0].prev).to.equal(0);
       expect(nodes[0].next).to.equal(toFixedPoint("1"));
       expect(nodes[1].prev).to.equal(0);
-      expect(nodes[1].next).to.equal(NODE_END);
+      expect(nodes[1].next).to.equal(MaxUint128);
 
       /* Instantiate same node again */
       await liquidityManager.instantiate(toFixedPoint("1"));
 
       /* Validate nodes */
-      nodes = await liquidityManager.liquidityNodes(ethers.constants.Zero, ethers.constants.MaxUint256);
+      nodes = await liquidityManager.liquidityNodes(ethers.constants.Zero, MaxUint128);
       expect(nodes.length).to.equal(2);
       expect(nodes[0].prev).to.equal(0);
       expect(nodes[0].next).to.equal(toFixedPoint("1"));
       expect(nodes[1].prev).to.equal(0);
-      expect(nodes[1].next).to.equal(NODE_END);
+      expect(nodes[1].next).to.equal(MaxUint128);
 
       /* Validate statistics */
       const statistics = await liquidityManager.liquidityStatistics();
@@ -361,7 +361,7 @@ describe("LiquidityManager", function () {
       /* Validate head node linkage */
       node = await liquidityManager.liquidityNode(ethers.constants.Zero);
       expect(node.prev).to.equal(ethers.constants.Zero);
-      expect(node.next).to.equal(NODE_END);
+      expect(node.next).to.equal(MaxUint128);
     });
     it("restores less than pending and becomes insolvent dust", async function () {
       /* Use */
@@ -388,7 +388,7 @@ describe("LiquidityManager", function () {
       /* Validate head node linkage */
       node = await liquidityManager.liquidityNode(ethers.constants.Zero);
       expect(node.prev).to.equal(ethers.constants.Zero);
-      expect(node.next).to.equal(NODE_END);
+      expect(node.next).to.equal(MaxUint128);
     });
   });
 
@@ -1131,21 +1131,21 @@ describe("LiquidityManager", function () {
 
     it("returns liquidity available", async function () {
       /* Check liquidity available with no usage */
-      expect(await liquidityManager.liquidityAvailable(ethers.constants.MaxUint256, 1)).to.equal(toFixedPoint("40"));
-      expect(await liquidityManager.liquidityAvailable(ethers.constants.MaxUint256, 5)).to.equal(toFixedPoint("200"));
+      expect(await liquidityManager.liquidityAvailable(MaxUint128, 1)).to.equal(toFixedPoint("40"));
+      expect(await liquidityManager.liquidityAvailable(MaxUint128, 5)).to.equal(toFixedPoint("200"));
 
       /* Use from highest node (artifical) */
       await liquidityManager.use(toFixedPoint("40"), toFixedPoint("45"), toFixedPoint("46"));
 
       /* Check liquidity available after usage */
-      expect(await liquidityManager.liquidityAvailable(ethers.constants.MaxUint256, 1)).to.equal(toFixedPoint("35"));
+      expect(await liquidityManager.liquidityAvailable(MaxUint128, 1)).to.equal(toFixedPoint("35"));
 
       /* Deposit into lowest and highest nodes */
       await liquidityManager.deposit(toFixedPoint("10"), toFixedPoint("2"));
       await liquidityManager.deposit(toFixedPoint("40"), toFixedPoint("2"));
 
       /* Check liquidity available after deposit */
-      expect(await liquidityManager.liquidityAvailable(ethers.constants.MaxUint256, 1)).to.equal(toFixedPoint("37"));
+      expect(await liquidityManager.liquidityAvailable(MaxUint128, 1)).to.equal(toFixedPoint("37"));
 
       /* Check liquidity available at lower tiers */
       expect(await liquidityManager.liquidityAvailable(toFixedPoint("20"), 1)).to.equal(toFixedPoint("20"));

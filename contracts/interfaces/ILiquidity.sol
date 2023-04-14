@@ -67,7 +67,7 @@ interface ILiquidity {
      * @param multiplier Multiplier in amount
      * @return Liquidity available
      */
-    function liquidityAvailable(uint256 maxDepth, uint256 multiplier) external view returns (uint256);
+    function liquidityAvailable(uint128 maxDepth, uint256 multiplier) external view returns (uint256);
 
     /**
      * Get liquidity nodes spanning [startDepth, endDepth] range
@@ -75,12 +75,12 @@ interface ILiquidity {
      * @param endDepth Loan limit end depth
      * @return Liquidity nodes
      */
-    function liquidityNodes(uint256 startDepth, uint256 endDepth) external view returns (NodeInfo[] memory);
+    function liquidityNodes(uint128 startDepth, uint128 endDepth) external view returns (NodeInfo[] memory);
 
     /**
      * Get liquidity node at depth
      * @param depth Depth
      * @return Liquidity node
      */
-    function liquidityNode(uint256 depth) external view returns (NodeInfo memory);
+    function liquidityNode(uint128 depth) external view returns (NodeInfo memory);
 }

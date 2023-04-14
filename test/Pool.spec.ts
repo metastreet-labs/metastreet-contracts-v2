@@ -806,6 +806,8 @@ describe("Pool", function () {
   /* Helper functions */
   /****************************************************************************/
 
+  const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
+
   async function setupLiquidity(): Promise<void> {
     const NUM_TICKS = 16;
     const TICK_SPACING_BASIS_POINTS = await pool.TICK_SPACING_BASIS_POINTS();
@@ -818,7 +820,7 @@ describe("Pool", function () {
   }
 
   async function sourceLiquidity(amount: ethers.BigNumber, multiplier?: number = 1): Promise<ethers.BigNumber[]> {
-    const nodes = await pool.liquidityNodes(0, ethers.constants.MaxUint256);
+    const nodes = await pool.liquidityNodes(0, MaxUint128);
     const depths = [];
 
     const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);

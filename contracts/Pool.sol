@@ -309,8 +309,8 @@ abstract contract Pool is
      * @param depth Depth
      * @return Deposit information
      */
-    function deposits(address account, uint256 depth) external view returns (Deposit memory) {
-        return _deposits[account][depth.toUint128()];
+    function deposits(address account, uint128 depth) external view returns (Deposit memory) {
+        return _deposits[account][depth];
     }
 
     /**
@@ -376,21 +376,21 @@ abstract contract Pool is
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityAvailable(uint256 maxDepth, uint256 multiplier) external view returns (uint256) {
+    function liquidityAvailable(uint128 maxDepth, uint256 multiplier) external view returns (uint256) {
         return _liquidity.liquidityAvailable(maxDepth, multiplier);
     }
 
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityNodes(uint256 startDepth, uint256 endDepth) external view returns (NodeInfo[] memory) {
+    function liquidityNodes(uint128 startDepth, uint128 endDepth) external view returns (NodeInfo[] memory) {
         return _liquidity.liquidityNodes(startDepth, endDepth);
     }
 
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityNode(uint256 depth) external view returns (NodeInfo memory) {
+    function liquidityNode(uint128 depth) external view returns (NodeInfo memory) {
         return _liquidity.liquidityNode(depth);
     }
 
@@ -585,7 +585,7 @@ abstract contract Pool is
         address collateralToken,
         uint256 collateralTokenId,
         uint256 maxRepayment,
-        uint256[] calldata depths,
+        uint128[] calldata depths,
         bytes memory collateralContext
     ) internal returns (uint256, bytes memory, bytes32) {
         /* Get underlying collateral */
@@ -741,7 +741,7 @@ abstract contract Pool is
         options;
 
         /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint256).max, collateralTokenIds.length))
+        if (principal > _liquidity.liquidityAvailable(type(uint128).max, collateralTokenIds.length))
             revert LiquidityManager.InsufficientLiquidity();
 
         return _quote(principal, duration, collateralToken, collateralTokenIds);
@@ -766,7 +766,7 @@ abstract contract Pool is
         );
 
         /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint256).max, underlyingCollateralTokenIds.length))
+        if (principal > _liquidity.liquidityAvailable(type(uint128).max, underlyingCollateralTokenIds.length))
             revert LiquidityManager.InsufficientLiquidity();
 
         /* Quote repayment */
@@ -787,7 +787,7 @@ abstract contract Pool is
         address collateralToken,
         uint256 collateralTokenId,
         uint256 maxRepayment,
-        uint256[] calldata depths,
+        uint128[] calldata depths,
         bytes calldata options
     ) external nonReentrant returns (uint256) {
         /* Handle borrow accounting */
@@ -853,7 +853,7 @@ abstract contract Pool is
         uint256 principal,
         uint64 duration,
         uint256 maxRepayment,
-        uint256[] calldata depths
+        uint128[] calldata depths
     ) external nonReentrant returns (uint256) {
         /* Handle repay accounting without revoking delegates unlike in repay() */
         (LoanReceipt.LoanReceiptV1 memory loanReceipt, bytes32 loanReceiptHash, uint256 repayment) = _repay(
@@ -981,9 +981,9 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function deposit(uint256 depth_, uint256 amount_) external nonReentrant {
+    function deposit(uint128 depth, uint256 amount_) external nonReentrant {
         /* Cast to uint128 */
-        (uint128 depth, uint128 amount) = (depth_.toUint128(), amount_.toUint128());
+        uint128 amount = amount_.toUint128();
 
         /* Instantiate liquidity node */
         _liquidity.instantiate(depth);
@@ -1010,9 +1010,9 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function redeem(uint256 depth_, uint256 shares_) external nonReentrant {
+    function redeem(uint128 depth, uint256 shares_) external nonReentrant {
         /* Cast to uint128 */
-        (uint128 depth, uint128 shares) = (depth_.toUint128(), shares_.toUint128());
+        uint128 shares = shares_.toUint128();
 
         /* Look up Deposit */
         Deposit storage dep = _deposits[msg.sender][depth];
@@ -1046,11 +1046,8 @@ abstract contract Pool is
      */
     function redemptionAvailable(
         address account,
-        uint256 depth_
+        uint128 depth
     ) external view returns (uint256 shares, uint256 amount) {
-        /* Cast to uint128 */
-        uint128 depth = depth_.toUint128();
-
         /* Look up Deposit */
         Deposit storage dep = _deposits[account][depth];
 
@@ -1063,10 +1060,7 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function withdraw(uint256 depth_) external nonReentrant returns (uint256) {
-        /* Cast to uint128 */
-        uint128 depth = depth_.toUint128();
-
+    function withdraw(uint128 depth) external nonReentrant returns (uint256) {
         /* Look up Deposit */
         Deposit storage dep = _deposits[msg.sender][depth];
 

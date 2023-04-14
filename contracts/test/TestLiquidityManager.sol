@@ -73,21 +73,21 @@ contract TestLiquidityManager is ILiquidity {
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityAvailable(uint256 maxDepth, uint256 itemCount) external view returns (uint256) {
-        return _liquidity.liquidityAvailable(maxDepth, itemCount);
+    function liquidityAvailable(uint128 maxDepth, uint256 multiplier) external view returns (uint256) {
+        return _liquidity.liquidityAvailable(maxDepth, multiplier);
     }
 
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityNodes(uint256 startDepth, uint256 endDepth) external view returns (ILiquidity.NodeInfo[] memory) {
+    function liquidityNodes(uint128 startDepth, uint128 endDepth) external view returns (ILiquidity.NodeInfo[] memory) {
         return _liquidity.liquidityNodes(startDepth, endDepth);
     }
 
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityNode(uint256 depth) external view returns (ILiquidity.NodeInfo memory) {
+    function liquidityNode(uint128 depth) external view returns (ILiquidity.NodeInfo memory) {
         return _liquidity.liquidityNode(depth);
     }
 
@@ -100,7 +100,7 @@ contract TestLiquidityManager is ILiquidity {
      */
     function source(
         uint256 amount,
-        uint256[] calldata depths,
+        uint128[] calldata depths,
         uint256 multiplier
     ) external view returns (ILiquidity.NodeSource[] memory, uint16 count) {
         return _liquidity.source(amount, depths, multiplier);

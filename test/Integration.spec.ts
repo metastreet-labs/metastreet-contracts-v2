@@ -223,6 +223,8 @@ describe("Integration", function () {
   /* Helper functions */
   /****************************************************************************/
 
+  const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
+
   function getRandomInteger(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min)) + min;
   }
@@ -273,7 +275,7 @@ describe("Integration", function () {
   }
 
   async function sourceLiquidity(amount: ethers.BigNumber, itemCount: ethers.BigNumber): Promise<ethers.BigNumber[]> {
-    const nodes = await pool.liquidityNodes(0, ethers.constants.MaxUint256);
+    const nodes = await pool.liquidityNodes(0, MaxUint128);
     const depths = [];
 
     const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
@@ -403,7 +405,7 @@ describe("Integration", function () {
       );
 
       /* Check if liquidity available */
-      const liquidity = await pool.liquidityAvailable(ethers.constants.MaxUint256, ethers.BigNumber.from(1));
+      const liquidity = await pool.liquidityAvailable(MaxUint128, ethers.BigNumber.from(1));
       if (liquidity.lt(principal)) {
         console.log("Insufficient liquidity");
         return;
@@ -587,7 +589,7 @@ describe("Integration", function () {
       await helpers.time.increaseTo(randomTimestamp);
 
       /* Check if liquidity available */
-      const liquidity = await pool.liquidityAvailable(ethers.constants.MaxUint256, ethers.BigNumber.from(1));
+      const liquidity = await pool.liquidityAvailable(MaxUint128, ethers.BigNumber.from(1));
       if (liquidity.lt(principal)) {
         console.log("Insufficient liquidity");
         return;
