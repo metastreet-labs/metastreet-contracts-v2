@@ -2,10 +2,13 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import "./interfaces/ILiquidity.sol";
 
 library LiquidityManager {
+    using SafeCast for uint256;
+
     /**************************************************************************/
     /* Constants */
     /**************************************************************************/
@@ -247,7 +250,7 @@ library LiquidityManager {
                 uint256 price = Math.mulDiv(redemption.amount, FIXED_POINT_SCALE, redemption.shares);
 
                 totalRedeemedShares += shares;
-                totalRedeemedAmount += uint128(Math.mulDiv(shares, price, FIXED_POINT_SCALE));
+                totalRedeemedAmount += Math.mulDiv(shares, price, FIXED_POINT_SCALE).toUint128();
             }
         }
 
@@ -394,7 +397,7 @@ library LiquidityManager {
                 FIXED_POINT_SCALE,
                 node.shares
             );
-        uint128 shares = uint128(Math.mulDiv(amount, FIXED_POINT_SCALE, price));
+        uint128 shares = Math.mulDiv(amount, FIXED_POINT_SCALE, price).toUint128();
 
         node.value += amount;
         node.shares += shares;
@@ -543,10 +546,10 @@ library LiquidityManager {
 
             /* Redeem as many shares as possible and pending from available cash */
             uint256 price = Math.mulDiv(node.value, FIXED_POINT_SCALE, node.shares);
-            uint128 shares = uint128(
-                Math.min(Math.mulDiv(node.available, FIXED_POINT_SCALE, price), node.redemptions.pending)
-            );
-            uint128 amount = uint128(Math.mulDiv(shares, price, FIXED_POINT_SCALE));
+            uint128 shares = Math
+                .min(Math.mulDiv(node.available, FIXED_POINT_SCALE, price), node.redemptions.pending)
+                .toUint128();
+            uint128 amount = Math.mulDiv(shares, price, FIXED_POINT_SCALE).toUint128();
 
             /* Record fullfiled redemption */
             node.redemptions.fulfilled[node.redemptions.index] = FulfilledRedemption({shares: shares, amount: amount});
