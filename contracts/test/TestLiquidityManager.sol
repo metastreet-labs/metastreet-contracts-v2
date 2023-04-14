@@ -60,7 +60,10 @@ contract TestLiquidityManager is ILiquidity {
      * @inheritdoc ILiquidity
      */
     function utilization() public view returns (uint256) {
-        return Math.mulDiv(_liquidity.used, LiquidityManager.FIXED_POINT_SCALE, _liquidity.total);
+        return
+            (_liquidity.total == 0)
+                ? 0
+                : Math.mulDiv(_liquidity.used, LiquidityManager.FIXED_POINT_SCALE, _liquidity.total);
     }
 
     /**
@@ -96,14 +99,15 @@ contract TestLiquidityManager is ILiquidity {
     /**************************************************************************/
 
     /**
-     * @dev External wrapper function for LiquidityManager.source()
+     * @dev External wrapper function for LiquidityManager.redemptionAvailable()
      */
-    function source(
-        uint256 amount,
-        uint128[] calldata depths,
-        uint256 multiplier
-    ) external view returns (ILiquidity.NodeSource[] memory, uint16 count) {
-        return _liquidity.source(amount, depths, multiplier);
+    function redemptionAvailable(
+        uint128 depth,
+        uint128 pending,
+        uint128 index,
+        uint128 target
+    ) external view returns (uint128, uint128) {
+        return _liquidity.redemptionAvailable(depth, pending, index, target);
     }
 
     /**
@@ -155,14 +159,13 @@ contract TestLiquidityManager is ILiquidity {
     }
 
     /**
-     * @dev External wrapper function for LiquidityManager.redemptionAvailable()
+     * @dev External wrapper function for LiquidityManager.source()
      */
-    function redemptionAvailable(
-        uint128 depth,
-        uint128 pending,
-        uint128 index,
-        uint128 target
-    ) external view returns (uint128, uint128) {
-        return _liquidity.redemptionAvailable(depth, pending, index, target);
+    function source(
+        uint256 amount,
+        uint128[] calldata depths,
+        uint256 multiplier
+    ) external view returns (ILiquidity.NodeSource[] memory, uint16 count) {
+        return _liquidity.source(amount, depths, multiplier);
     }
 }
