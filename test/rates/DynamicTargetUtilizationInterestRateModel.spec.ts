@@ -45,6 +45,10 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
     await network.provider.send("evm_revert", [snapshotId]);
   });
 
+  /****************************************************************************/
+  /* Constants */
+  /****************************************************************************/
+
   describe("constants", async function () {
     it("matches expected name", async function () {
       expect(await interestRateModel.INTEREST_RATE_MODEL_NAME()).to.equal("DynamicTargetUtilizationInterestRateModel");
@@ -53,6 +57,10 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
       expect(await interestRateModel.INTEREST_RATE_MODEL_VERSION()).to.equal("1.0");
     });
   });
+
+  /****************************************************************************/
+  /* Initial State */
+  /****************************************************************************/
 
   describe("initial state", async function () {
     it("matches parameters", async function () {
@@ -72,6 +80,10 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
     });
   });
 
+  /****************************************************************************/
+  /* Helpers */
+  /****************************************************************************/
+
   function expectApproxEqual(
     a: ethers.BigNumber,
     b: ethers.BigNumber,
@@ -85,7 +97,11 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
     return await interestRateModel.rate();
   }
 
-  describe("#rate()", async function () {
+  /****************************************************************************/
+  /* Primay API */
+  /****************************************************************************/
+
+  describe("#rate", async function () {
     it("returns initial rate", async function () {
       expectApproxEqual(await interestRateModel.rate(), FixedPoint.from("20"));
     });
@@ -125,7 +141,7 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
     });
   });
 
-  describe("#distribute() (base 2, threshold 0.05)", async function () {
+  describe("#distribute (base 2, threshold 0.05)", async function () {
     const sources5 = [
       {
         depth: FixedPoint.from("1"),
