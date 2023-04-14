@@ -22,6 +22,10 @@ describe("CollectionCollateralFilter", function () {
     await network.provider.send("evm_revert", [snapshotId]);
   });
 
+  /****************************************************************************/
+  /* Constants */
+  /****************************************************************************/
+
   describe("constants", async function () {
     it("matches expected name", async function () {
       expect(await collateralFilter.COLLATERAL_FILTER_NAME()).to.equal("CollectionCollateralFilter");
@@ -31,7 +35,21 @@ describe("CollectionCollateralFilter", function () {
     });
   });
 
-  describe("#supported", async function () {
+  /****************************************************************************/
+  /* Getters */
+  /****************************************************************************/
+
+  describe("#collateralToken", async function () {
+    it("matches expected collateral token", async function () {
+      expect(await collateralFilter.collateralToken()).to.equal("0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b");
+    });
+  });
+
+  /****************************************************************************/
+  /* Primary API */
+  /****************************************************************************/
+
+  describe("#collateralSupported", async function () {
     it("matches supported token", async function () {
       expect(
         await collateralFilter.collateralSupported("0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b", 123, "0x")
