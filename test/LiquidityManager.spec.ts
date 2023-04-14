@@ -23,12 +23,44 @@ describe("LiquidityManager", function () {
   });
 
   /****************************************************************************/
+  /* Initial State */
+  /****************************************************************************/
+
+  const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
+
+  describe("initial state", async function () {
+    it("matches expected initial state", async function () {
+      /* Validate nodes */
+      let nodes = await liquidityManager.liquidityNodes(ethers.constants.Zero, MaxUint128);
+      expect(nodes.length).to.equal(1);
+      expect(nodes[0].depth).to.equal(0);
+      expect(nodes[0].value).to.equal(0);
+      expect(nodes[0].shares).to.equal(0);
+      expect(nodes[0].available).to.equal(0);
+      expect(nodes[0].pending).to.equal(0);
+      expect(nodes[0].redemptions).to.equal(0);
+      expect(nodes[0].prev).to.equal(0);
+      expect(nodes[0].next).to.equal(MaxUint128);
+
+      /* Validate liquidity available */
+      expect(await liquidityManager.liquidityAvailable(MaxUint128, 1)).to.equal(0);
+
+      /* Validate liquidity statistics */
+      const statistics = await liquidityManager.liquidityStatistics();
+      expect(statistics[0]).to.equal(ethers.constants.Zero);
+      expect(statistics[1]).to.equal(ethers.constants.Zero);
+      expect(statistics[2]).to.equal(0);
+
+      /* Validate utilization */
+      expect(await liquidityManager.utilization()).to.equal(0);
+    });
+  });
+
+  /****************************************************************************/
   /* Primary API */
   /****************************************************************************/
 
   const toFixedPoint = ethers.utils.parseEther;
-
-  const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
 
   describe("#instantiate", async function () {
     it("instantiates a new liquidity node", async function () {
@@ -926,7 +958,7 @@ describe("LiquidityManager", function () {
   });
 
   /****************************************************************************/
-  /* API that interacts with multiple nodes */
+  /* Source API */
   /****************************************************************************/
 
   async function setupLiquidity(): Promise<void> {
