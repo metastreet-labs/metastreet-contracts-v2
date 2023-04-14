@@ -58,6 +58,10 @@ describe("BundleCollateralWrapper", function () {
     await network.provider.send("evm_revert", [snapshotId]);
   });
 
+  /****************************************************************************/
+  /* Constants */
+  /****************************************************************************/
+
   describe("constants", async function () {
     it("matches expected implementation version", async function () {
       expect(await bundleCollateralWrapper.IMPLEMENTATION_VERSION()).to.equal("1.0");
@@ -67,6 +71,50 @@ describe("BundleCollateralWrapper", function () {
     });
     it("returns correct symbol", async function () {
       expect(await bundleCollateralWrapper.symbol()).to.equal("MSBCW");
+    });
+  });
+
+  /****************************************************************************/
+  /* Primary API */
+  /****************************************************************************/
+
+  describe("#enumerate", async function () {
+    it("enumerate bundle", async function () {
+      /* Mint bundle */
+      const mintTx1 = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 456, 768]);
+
+      /* Get token id */
+      const tokenId1 = (await extractEvent(mintTx1, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+
+      /* Create context */
+      const context = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 456, 768]]);
+
+      /* Enumerate */
+      const [token, tokenIds] = await bundleCollateralWrapper.enumerate(tokenId1, context);
+
+      /* Validate return */
+      expect(token).to.equal(nft1.address);
+      expect(tokenIds[0]).to.equal(123);
+      expect(tokenIds[1]).to.equal(456);
+      expect(tokenIds[2]).to.equal(768);
+    });
+
+    it("fails on incorrect tokenId", async function () {
+      /* Mint bundle */
+      await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 456, 768]);
+
+      /* Use different token id */
+      const badTokenId = BigNumber.from(
+        "80530570786821071483259871300278421257638987008682429097249700923201294947214"
+      );
+
+      /* Create context */
+      const context = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 456, 768]]);
+
+      await expect(bundleCollateralWrapper.enumerate(badTokenId, context)).to.be.revertedWithCustomError(
+        bundleCollateralWrapper,
+        "InvalidContext"
+      );
     });
   });
 
@@ -139,46 +187,6 @@ describe("BundleCollateralWrapper", function () {
       await expect(
         bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 456, 3])
       ).to.be.revertedWith("ERC721: invalid token ID");
-    });
-  });
-
-  describe("#enumerate", async function () {
-    it("enumerate bundle", async function () {
-      /* Mint bundle */
-      const mintTx1 = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 456, 768]);
-
-      /* Get token id */
-      const tokenId1 = (await extractEvent(mintTx1, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
-
-      /* Create context */
-      const context = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 456, 768]]);
-
-      /* Enumerate */
-      const [token, tokenIds] = await bundleCollateralWrapper.enumerate(tokenId1, context);
-
-      /* Validate return */
-      expect(token).to.equal(nft1.address);
-      expect(tokenIds[0]).to.equal(123);
-      expect(tokenIds[1]).to.equal(456);
-      expect(tokenIds[2]).to.equal(768);
-    });
-
-    it("fails on incorrect tokenId", async function () {
-      /* Mint bundle */
-      await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 456, 768]);
-
-      /* Use different token id */
-      const badTokenId = BigNumber.from(
-        "80530570786821071483259871300278421257638987008682429097249700923201294947214"
-      );
-
-      /* Create context */
-      const context = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 456, 768]]);
-
-      await expect(bundleCollateralWrapper.enumerate(badTokenId, context)).to.be.revertedWithCustomError(
-        bundleCollateralWrapper,
-        "InvalidContext"
-      );
     });
   });
 
@@ -299,6 +307,10 @@ describe("BundleCollateralWrapper", function () {
       expect(await nft1.ownerOf(768)).to.equal(accounts[2].address);
     });
   });
+
+  /****************************************************************************/
+  /* ERC165 Interface */
+  /****************************************************************************/
 
   describe("#supportsInterface", async function () {
     it("returns true on supported interfaces", async function () {
