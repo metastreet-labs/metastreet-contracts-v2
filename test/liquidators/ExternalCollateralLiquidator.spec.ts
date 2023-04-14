@@ -96,6 +96,10 @@ describe("ExternalCollateralLiquidator", function () {
     await network.provider.send("evm_revert", [snapshotId]);
   });
 
+  /****************************************************************************/
+  /* Constants */
+  /****************************************************************************/
+
   describe("constants", async function () {
     it("matches expected implementation", async function () {
       expect(await collateralLiquidator.IMPLEMENTATION_VERSION()).to.equal("1.0");
@@ -104,6 +108,10 @@ describe("ExternalCollateralLiquidator", function () {
       expect(await collateralLiquidator.name()).to.equal("ExternalCollateralLiquidator");
     });
   });
+
+  /****************************************************************************/
+  /* Helper Functions */
+  /****************************************************************************/
 
   const loanReceiptTemplate = {
     version: 1,
@@ -141,7 +149,11 @@ describe("ExternalCollateralLiquidator", function () {
     return { ...loanReceiptTemplate, collateralToken, collateralTokenId };
   }
 
-  describe("transfer collateral", async function () {
+  /****************************************************************************/
+  /* Primay API */
+  /****************************************************************************/
+
+  describe("#transferCollateral", async function () {
     it("succeeds from pool", async function () {
       /* Construct loan reciept */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 123));
