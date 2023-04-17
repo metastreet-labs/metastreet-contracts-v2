@@ -67,11 +67,7 @@ async function main() {
     const nftContract = await TestERC721.deploy(name, name, "ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/");
     await nftContract.deployed();
     collateralTokens.push(nftContract.address);
-    await Promise.all([
-      nftContract.mint(accounts[0].address, 0),
-      nftContract.mint(accounts[0].address, 1),
-      nftContract.mint(accounts[0].address, 2),
-    ]);
+    await Promise.all([[0, 1, 2, 3].map((id) => nftContract.mint(accounts[0].address, id))]);
     console.log("%s: %s", name, nftContract.address);
   }
   /**************************************************************************/
