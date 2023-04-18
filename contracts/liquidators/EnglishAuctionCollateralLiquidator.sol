@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import "../interfaces/ICollateralLiquidationReceiver.sol";
 import "../interfaces/ICollateralLiquidator.sol";
@@ -26,6 +27,11 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      * @notice Implementation version
      */
     string public constant IMPLEMENTATION_VERSION = "1.0";
+
+    /**
+     * @notice Basis points scale
+     */
+    uint256 internal constant BASIS_POINTS_SCALE = 10_000;
 
     /**************************************************************************/
     /* Errors */
@@ -194,6 +200,11 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
     uint64 private _timeExtension;
 
     /**
+     * @notice Minimum bid increment from previous bid
+     */
+    uint64 private _minimumBidBasisPoints;
+
+    /**
      * @notice Admin
      */
     address private _admin;
@@ -237,6 +248,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         uint64 auctionDuration,
         uint64 timeExtensionWindow,
         uint64 timeExtension,
+        uint64 minimumBidBasisPoints,
         address[] calldata collateralWrappers
     ) external {
         require(!_initialized, "Already initialized");
@@ -249,6 +261,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         _auctionDuration = auctionDuration;
         _timeExtensionWindow = timeExtensionWindow;
         _timeExtension = timeExtension;
+        _minimumBidBasisPoints = minimumBidBasisPoints;
 
         for (uint256 i = 0; i < collateralWrappers.length; i++) {
             _collateralWrappers[collateralWrappers[i]] = true;
@@ -489,8 +502,12 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         /* Validate auction has not ended */
         if (auction_.endTime != 0 && auction_.endTime < uint64(block.timestamp)) revert InvalidBid();
 
-        /* Validate bid amount is bigger than previous */
-        if (amount <= auction_.highestBid.amount) revert InvalidBid();
+        /* Validate bid amount is bigger than the minimum bid amount */
+        if (
+            amount <= auction_.highestBid.amount ||
+            amount - auction_.highestBid.amount <
+            Math.mulDiv(auction_.highestBid.amount, _minimumBidBasisPoints, BASIS_POINTS_SCALE)
+        ) revert InvalidBid();
 
         /* If auction has not started */
         if (auction_.endTime == 0) {
