@@ -19,6 +19,15 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
     using SafeERC20 for IERC20;
 
     /**************************************************************************/
+    /* Constants */
+    /**************************************************************************/
+
+    /**
+     * @notice Implementation version
+     */
+    string public constant IMPLEMENTATION_VERSION = "1.0";
+
+    /**************************************************************************/
     /* Errors */
     /**************************************************************************/
 

@@ -182,6 +182,9 @@ describe("EnglishAuctionCollateralLiquidator", function () {
   /****************************************************************************/
 
   describe("constants", async function () {
+    it("matches expected implementation", async function () {
+      expect(await collateralLiquidator.IMPLEMENTATION_VERSION()).to.equal("1.0");
+    });
     it("matches expected name", async function () {
       expect(await collateralLiquidator.name()).to.equal("EnglishAuctionCollateralLiquidator");
     });
