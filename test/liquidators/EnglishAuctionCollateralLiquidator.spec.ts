@@ -83,6 +83,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
         ethers.BigNumber.from(86400),
         ethers.BigNumber.from(60 * 10),
         ethers.BigNumber.from(60 * 20),
+        ethers.BigNumber.from(199),
         [bundleCollateralWrapper.address],
       ])
     );
@@ -157,10 +158,10 @@ describe("EnglishAuctionCollateralLiquidator", function () {
     await nft1.mint(testCollateralLiquidatorJigTruncated.address, 131);
 
     /* Transfer token to liquidator account and bidder accounts */
-    await tok1.transfer(accountLiquidator.address, ethers.utils.parseEther("100"));
-    await tok1.transfer(accountBidder1.address, ethers.utils.parseEther("100"));
-    await tok1.transfer(accountBidder2.address, ethers.utils.parseEther("100"));
-    await tok1.transfer(accountBidder3.address, ethers.utils.parseEther("100"));
+    await tok1.transfer(accountLiquidator.address, ethers.utils.parseEther("200"));
+    await tok1.transfer(accountBidder1.address, ethers.utils.parseEther("200"));
+    await tok1.transfer(accountBidder2.address, ethers.utils.parseEther("200"));
+    await tok1.transfer(accountBidder3.address, ethers.utils.parseEther("200"));
 
     /* Approve collateral liquidator to transfer token */
     await tok1.connect(accountLiquidator).approve(collateralLiquidator.address, ethers.constants.MaxUint256);
@@ -422,13 +423,13 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       /* Bid with accountBidder1 */
       const bid1Tx = await collateralLiquidator
         .connect(accountBidder1)
-        .bid(collateralHash, ethers.utils.parseEther("1"));
+        .bid(collateralHash, ethers.utils.parseEther("100"));
 
       /* Validate events */
       await expectEvent(bid1Tx, tok1, "Transfer", {
         from: accountBidder1.address,
         to: collateralLiquidator.address,
-        value: ethers.utils.parseEther("1"),
+        value: ethers.utils.parseEther("100"),
       });
 
       await expectEvent(bid1Tx, collateralLiquidator, "AuctionStarted", {
@@ -440,7 +441,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expectEvent(bid1Tx, collateralLiquidator, "AuctionBid", {
         collateralHash: collateralHash,
         bidder: accountBidder1.address,
-        amount: ethers.utils.parseEther("1"),
+        amount: ethers.utils.parseEther("100"),
       });
 
       /* Validate state */
@@ -452,19 +453,19 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expect(auction.collateralTokenId).to.equal(122);
       await expect(auction.startTime).to.equal(transactionTime);
       await expect(auction.endTime).to.equal(transactionTime + 86400);
-      await expect(auction.highestBid.amount).to.equal(ethers.utils.parseEther("1"));
+      await expect(auction.highestBid.amount).to.equal(ethers.utils.parseEther("100"));
       await expect(auction.highestBid.bidder).to.equal(accountBidder1.address);
 
       /* Bid with accountBidder2 */
       const bid2Tx = await collateralLiquidator
         .connect(accountBidder2)
-        .bid(collateralHash, ethers.utils.parseEther("2"));
+        .bid(collateralHash, ethers.utils.parseEther("102"));
 
       /* Validate events */
       await expectEvent(bid2Tx, tok1, "Transfer", {
         from: collateralLiquidator.address,
         to: accountBidder1.address,
-        value: ethers.utils.parseEther("1"),
+        value: ethers.utils.parseEther("100"),
       });
 
       await expectEvent(
@@ -474,7 +475,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
         {
           from: accountBidder2.address,
           to: collateralLiquidator.address,
-          value: ethers.utils.parseEther("2"),
+          value: ethers.utils.parseEther("102"),
         },
         1
       );
@@ -482,7 +483,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expectEvent(bid2Tx, collateralLiquidator, "AuctionBid", {
         collateralHash: collateralHash,
         bidder: accountBidder2.address,
-        amount: ethers.utils.parseEther("2"),
+        amount: ethers.utils.parseEther("102"),
       });
 
       /* Validate state */
@@ -493,19 +494,19 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expect(auction.collateralTokenId).to.equal(122);
       await expect(auction.startTime).to.equal(transactionTime);
       await expect(auction.endTime).to.equal(transactionTime + 86400);
-      await expect(auction.highestBid.amount).to.equal(ethers.utils.parseEther("2"));
+      await expect(auction.highestBid.amount).to.equal(ethers.utils.parseEther("102"));
       await expect(auction.highestBid.bidder).to.equal(accountBidder2.address);
 
       /* Bid with accountBidder1 */
       const bid3Tx = await collateralLiquidator
         .connect(accountBidder1)
-        .bid(collateralHash, ethers.utils.parseEther("3"));
+        .bid(collateralHash, ethers.utils.parseEther("105"));
 
       /* Validate events */
       await expectEvent(bid3Tx, tok1, "Transfer", {
         from: collateralLiquidator.address,
         to: accountBidder2.address,
-        value: ethers.utils.parseEther("2"),
+        value: ethers.utils.parseEther("102"),
       });
 
       await expectEvent(
@@ -515,7 +516,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
         {
           from: accountBidder1.address,
           to: collateralLiquidator.address,
-          value: ethers.utils.parseEther("3"),
+          value: ethers.utils.parseEther("105"),
         },
         1
       );
@@ -523,7 +524,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expectEvent(bid3Tx, collateralLiquidator, "AuctionBid", {
         collateralHash: collateralHash,
         bidder: accountBidder1.address,
-        amount: ethers.utils.parseEther("3"),
+        amount: ethers.utils.parseEther("105"),
       });
 
       /* Validate state */
@@ -534,7 +535,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expect(auction.collateralTokenId).to.equal(122);
       await expect(auction.startTime).to.equal(transactionTime);
       await expect(auction.endTime).to.equal(transactionTime + 86400);
-      await expect(auction.highestBid.amount).to.equal(ethers.utils.parseEther("3"));
+      await expect(auction.highestBid.amount).to.equal(ethers.utils.parseEther("105"));
       await expect(auction.highestBid.bidder).to.equal(accountBidder1.address);
     });
 
@@ -629,6 +630,25 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidBid");
     });
 
+    it("fails when bid with amount smaller than minimum bid increment", async function () {
+      /* Construct loan reciept */
+      const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
+
+      /* Calling liquidate() */
+      const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
+
+      /* Get collateralHash */
+      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
+
+      /* Bid with accountBidder1 */
+      await collateralLiquidator.connect(accountBidder1).bid(collateralHash, ethers.utils.parseEther("100"));
+
+      /* Bid with accountBidder2 */
+      await expect(
+        collateralLiquidator.connect(accountBidder2).bid(collateralHash, ethers.utils.parseEther("101"))
+      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidBid");
+    });
+
     it("fails when bid with amount smaller than previous bid", async function () {
       /* Construct loan reciept */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
@@ -640,11 +660,11 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
 
       /* Bid with accountBidder1 */
-      await collateralLiquidator.connect(accountBidder1).bid(collateralHash, ethers.utils.parseEther("2"));
+      await collateralLiquidator.connect(accountBidder1).bid(collateralHash, ethers.utils.parseEther("100"));
 
       /* Bid with accountBidder2 */
       await expect(
-        collateralLiquidator.connect(accountBidder2).bid(collateralHash, ethers.utils.parseEther("1"))
+        collateralLiquidator.connect(accountBidder2).bid(collateralHash, ethers.utils.parseEther("99"))
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidBid");
     });
   });
