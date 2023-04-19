@@ -89,20 +89,18 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
     /**
      * @notice Auction
      * @param currencyToken Currency token
+     * @param endTime Auction end time
      * @param liquidationHash Liquidation hash
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
-     * @param startTime Auction start time
-     * @param endTime Auction end time
      * @param highestBid Highest bid
      */
     struct Auction {
         address currencyToken;
+        uint64 endTime;
         bytes32 liquidationHash;
         address collateralToken;
         uint256 collateralTokenId;
-        uint64 startTime;
-        uint64 endTime;
         Bid highestBid;
     }
 
@@ -345,12 +343,11 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
 
         /* Create collateral auction */
         _auctions[collateralHash] = Auction({
+            currencyToken: currencyToken,
+            endTime: 0,
             liquidationHash: liquidationHash,
             collateralToken: collateralToken,
             collateralTokenId: collateralTokenId,
-            startTime: 0,
-            endTime: 0,
-            currencyToken: currencyToken,
             highestBid: Bid(address(0), 0)
         });
 
@@ -512,7 +509,6 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         /* If auction has not started */
         if (auction_.endTime == 0) {
             /* Start auction */
-            _auctions[collateralHash].startTime = uint64(block.timestamp);
             _auctions[collateralHash].endTime = uint64(block.timestamp) + _auctionDuration;
 
             /* Emit AuctionStarted */
