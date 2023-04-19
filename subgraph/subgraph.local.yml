@@ -77,11 +77,11 @@ templates:
         - name: LoanReceipt
           file: ../artifacts/contracts/LoanReceipt.sol/LoanReceipt.json
       eventHandlers:
-        - event: Deposited(indexed address,indexed uint256,uint256,uint256)
+        - event: Deposited(indexed address,indexed uint128,uint256,uint256)
           handler: handleDeposited
-        - event: Redeemed(indexed address,indexed uint256,uint256)
+        - event: Redeemed(indexed address,indexed uint128,uint256)
           handler: handleRedeemed
-        - event: Withdrawn(indexed address,indexed uint256,uint256,uint256)
+        - event: Withdrawn(indexed address,indexed uint128,uint256,uint256)
           handler: handleWithdrawn
         - event: LoanOriginated(indexed bytes32,bytes)
           handler: handleLoanOriginated

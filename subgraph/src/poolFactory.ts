@@ -14,22 +14,33 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   const collectionCollateralFilterContract = CollectionCollateralFilterContract.bind(poolAddress);
   const collateralTokenAddress = collectionCollateralFilterContract.collateralToken();
   const collateralTokenId = collateralTokenAddress.toHexString();
-  /* create pool entity */
+
+  /**************************************************************************/
+  /* Create Pool entity*/
+  /**************************************************************************/
   const poolEntity = new PoolEntity(poolId);
   poolEntity.currencyToken = poolContract.currencyToken();
-  poolEntity.maxLoanDuration = poolContract.maxLoanDuration();
-  poolEntity.collateralLiquidator = poolContract.collateralLiquidator();
-  poolEntity.loansPurchasedCount = BigInt.zero();
-  poolEntity.loansRepaidCount = BigInt.zero();
-  poolEntity.loansDefaultedCount = BigInt.zero();
-  poolEntity.loansLiquidatedCount = BigInt.zero();
   poolEntity.totalValueLocked = BigInt.zero();
+  poolEntity.totalValueAvailable = BigInt.zero();
   poolEntity.totalValueUsed = BigInt.zero();
   poolEntity.maxBorrow = BigInt.zero();
   poolEntity.collateralToken = collateralTokenId;
   poolEntity.delegationRegistry = poolContract.delegationRegistry();
+
+  const durationsBigInt = poolContract.durations();
+  const durationsNumber = new Array<i32>(0);
+  for (let i = 0; i < durationsBigInt.length; i++) durationsNumber.push(durationsBigInt[i].toI32());
+  poolEntity.durations = durationsNumber;
+
+  poolEntity.rates = poolContract.rates();
+
+  poolEntity.maxLoanDuration = poolEntity.durations[poolEntity.durations.length - 1];
+
   poolEntity.save();
 
+  /**************************************************************************/
+  /* Create or update CollateralToken entity*/
+  /**************************************************************************/
   let collateralTokenEntity = CollateralTokenEntity.load(collateralTokenId);
   if (collateralTokenEntity) {
     /* Update collateral token entity if it exists */
@@ -45,6 +56,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
     collateralTokenEntity.poolIds = [poolId];
     collateralTokenEntity.totalValueLocked = BigInt.zero();
     collateralTokenEntity.totalValueUsed = BigInt.zero();
+    collateralTokenEntity.maxBorrow = BigInt.zero();
     collateralTokenEntity.maxLoanDuration = poolEntity.maxLoanDuration;
     collateralTokenEntity.minAPR = 0;
     const erc721Contract = ERC721.bind(collateralTokenAddress);
@@ -54,6 +66,8 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   }
   collateralTokenEntity.save();
 
-  /* create pool data source */
+  /**************************************************************************/
+  /* Create Pool data source*/
+  /**************************************************************************/
   PoolTemplate.create(event.params.pool);
 }
