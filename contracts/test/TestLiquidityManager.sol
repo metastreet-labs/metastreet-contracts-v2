@@ -76,22 +76,22 @@ contract TestLiquidityManager is ILiquidity {
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityAvailable(uint128 maxDepth, uint256 multiplier) external view returns (uint256) {
-        return _liquidity.liquidityAvailable(maxDepth, multiplier);
+    function liquidityAvailable(uint128 maxTick, uint256 multiplier) external view returns (uint256) {
+        return _liquidity.liquidityAvailable(maxTick, multiplier);
     }
 
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityNodes(uint128 startDepth, uint128 endDepth) external view returns (ILiquidity.NodeInfo[] memory) {
-        return _liquidity.liquidityNodes(startDepth, endDepth);
+    function liquidityNodes(uint128 startTick, uint128 endTick) external view returns (ILiquidity.NodeInfo[] memory) {
+        return _liquidity.liquidityNodes(startTick, endTick);
     }
 
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityNode(uint128 depth) external view returns (ILiquidity.NodeInfo memory) {
-        return _liquidity.liquidityNode(depth);
+    function liquidityNode(uint128 tick) external view returns (ILiquidity.NodeInfo memory) {
+        return _liquidity.liquidityNode(tick);
     }
 
     /**************************************************************************/
@@ -102,26 +102,26 @@ contract TestLiquidityManager is ILiquidity {
      * @dev External wrapper function for LiquidityManager.redemptionAvailable()
      */
     function redemptionAvailable(
-        uint128 depth,
+        uint128 tick,
         uint128 pending,
         uint128 index,
         uint128 target
     ) external view returns (uint128, uint128) {
-        return _liquidity.redemptionAvailable(depth, pending, index, target);
+        return _liquidity.redemptionAvailable(tick, pending, index, target);
     }
 
     /**
      * @dev External wrapper function for LiquidityManager.instantiate()
      */
-    function instantiate(uint128 depth) external {
-        return _liquidity.instantiate(depth);
+    function instantiate(uint128 tick) external {
+        return _liquidity.instantiate(tick);
     }
 
     /**
      * @dev External wrapper function for LiquidityManager.deposit()
      */
-    function deposit(uint128 depth, uint128 amount) external returns (uint256) {
-        uint128 shares = _liquidity.deposit(depth, amount);
+    function deposit(uint128 tick, uint128 amount) external returns (uint256) {
+        uint128 shares = _liquidity.deposit(tick, amount);
         emit Deposited(shares);
         return shares;
     }
@@ -129,22 +129,22 @@ contract TestLiquidityManager is ILiquidity {
     /**
      * @dev External wrapper function for LiquidityManager.use()
      */
-    function use(uint128 depth, uint128 amount, uint128 pending) external {
-        _liquidity.use(depth, amount, pending);
+    function use(uint128 tick, uint128 amount, uint128 pending) external {
+        _liquidity.use(tick, amount, pending);
     }
 
     /**
      * @dev External wrapper function for LiquidityManager.restore()
      */
-    function restore(uint128 depth, uint128 used, uint128 pending, uint128 restored) external {
-        _liquidity.restore(depth, used, pending, restored);
+    function restore(uint128 tick, uint128 used, uint128 pending, uint128 restored) external {
+        _liquidity.restore(tick, used, pending, restored);
     }
 
     /**
      * @dev External wrapper function for LiquidityManager.redeem()
      */
-    function redeem(uint128 depth, uint128 shares) external returns (uint128, uint128) {
-        (uint128 index, uint128 target) = _liquidity.redeem(depth, shares);
+    function redeem(uint128 tick, uint128 shares) external returns (uint128, uint128) {
+        (uint128 index, uint128 target) = _liquidity.redeem(tick, shares);
         emit RedemptionTarget(index, target);
         return (index, target);
     }
@@ -152,8 +152,8 @@ contract TestLiquidityManager is ILiquidity {
     /**
      * @dev External wrapper function for LiquidityManager.processRedemptions()
      */
-    function processRedemptions(uint128 depth) external returns (uint128, uint128) {
-        (uint128 shares, uint128 amount) = _liquidity.processRedemptions(depth);
+    function processRedemptions(uint128 tick) external returns (uint128, uint128) {
+        (uint128 shares, uint128 amount) = _liquidity.processRedemptions(tick);
         emit RedemptionProcessed(shares, amount);
         return (shares, amount);
     }
@@ -163,9 +163,9 @@ contract TestLiquidityManager is ILiquidity {
      */
     function source(
         uint256 amount,
-        uint128[] calldata depths,
+        uint128[] calldata ticks,
         uint256 multiplier
     ) external view returns (ILiquidity.NodeSource[] memory, uint16 count) {
-        return _liquidity.source(amount, depths, multiplier);
+        return _liquidity.source(amount, ticks, multiplier);
     }
 }

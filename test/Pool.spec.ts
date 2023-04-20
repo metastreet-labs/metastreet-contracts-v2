@@ -211,7 +211,7 @@ describe("Pool", function () {
       /* Validate events */
       await expectEvent(depositTx, pool, "Deposited", {
         account: accountDepositors[0].address,
-        depth: ethers.utils.parseEther("10"),
+        tick: ethers.utils.parseEther("10"),
         amount: ethers.utils.parseEther("1"),
         shares: ethers.utils.parseEther("1"),
       });
@@ -288,7 +288,7 @@ describe("Pool", function () {
       /* Validate events */
       await expectEvent(redeemTx, pool, "Redeemed", {
         account: accountDepositors[0].address,
-        depth: ethers.utils.parseEther("10"),
+        tick: ethers.utils.parseEther("10"),
         shares: ethers.utils.parseEther("1"),
       });
 
@@ -312,7 +312,7 @@ describe("Pool", function () {
       /* Validate events */
       await expectEvent(redeemTx, pool, "Redeemed", {
         account: accountDepositors[0].address,
-        depth: ethers.utils.parseEther("10"),
+        tick: ethers.utils.parseEther("10"),
         shares: ethers.utils.parseEther("0.5"),
       });
 
@@ -567,7 +567,7 @@ describe("Pool", function () {
       /* Validate events */
       await expectEvent(withdrawTx, pool, "Withdrawn", {
         account: accountDepositors[0].address,
-        depth: ethers.utils.parseEther("10"),
+        tick: ethers.utils.parseEther("10"),
         shares: ethers.utils.parseEther("0.5"),
         amount: ethers.utils.parseEther("0.5"),
       });
@@ -608,7 +608,7 @@ describe("Pool", function () {
       /* Validate events */
       await expectEvent(withdrawTx, pool, "Withdrawn", {
         account: accountDepositors[0].address,
-        depth: ethers.utils.parseEther("10"),
+        tick: ethers.utils.parseEther("10"),
         shares: ethers.utils.parseEther("5"),
       });
       await expectEvent(withdrawTx, tok1, "Transfer", {
@@ -651,7 +651,7 @@ describe("Pool", function () {
       /* Validate events */
       await expectEvent(withdrawTx1, pool, "Withdrawn", {
         account: accountDepositors[0].address,
-        depth: ethers.utils.parseEther("10"),
+        tick: ethers.utils.parseEther("10"),
       });
       await expectEvent(withdrawTx1, tok1, "Transfer", {
         from: pool.address,
@@ -680,7 +680,7 @@ describe("Pool", function () {
       /* Validate events */
       await expectEvent(withdrawTx2, pool, "Withdrawn", {
         account: accountDepositors[0].address,
-        depth: ethers.utils.parseEther("10"),
+        tick: ethers.utils.parseEther("10"),
       });
       await expectEvent(withdrawTx2, tok1, "Transfer", {
         from: pool.address,
@@ -735,7 +735,7 @@ describe("Pool", function () {
       /* Validate events */
       await expectEvent(withdrawTx, pool, "Withdrawn", {
         account: accountDepositors[0].address,
-        depth: ethers.utils.parseEther("10"),
+        tick: ethers.utils.parseEther("10"),
         shares: ethers.utils.parseEther("5"),
         amount: ethers.constants.Zero,
       });
@@ -773,7 +773,7 @@ describe("Pool", function () {
       /* Validate events */
       await expectEvent(withdrawTx1, pool, "Withdrawn", {
         account: accountDepositors[0].address,
-        depth: ethers.utils.parseEther("10"),
+        tick: ethers.utils.parseEther("10"),
       });
       await expectEvent(withdrawTx1, tok1, "Transfer", {
         from: pool.address,
@@ -802,7 +802,7 @@ describe("Pool", function () {
       /* Validate events */
       await expectEvent(withdrawTx2, pool, "Withdrawn", {
         account: accountDepositors[0].address,
-        depth: ethers.utils.parseEther("10"),
+        tick: ethers.utils.parseEther("10"),
       });
       await expectEvent(withdrawTx2, tok1, "Transfer", {
         from: pool.address,
@@ -834,31 +834,31 @@ describe("Pool", function () {
     const NUM_TICKS = 16;
     const TICK_SPACING_BASIS_POINTS = await pool.TICK_SPACING_BASIS_POINTS();
 
-    let depth = ethers.utils.parseEther("1.0");
+    let tick = ethers.utils.parseEther("1.0");
     for (let i = 0; i < NUM_TICKS; i++) {
-      await pool.connect(accountDepositors[0]).deposit(depth, ethers.utils.parseEther("25"));
-      depth = depth.mul(TICK_SPACING_BASIS_POINTS).div(10000);
+      await pool.connect(accountDepositors[0]).deposit(tick, ethers.utils.parseEther("25"));
+      tick = tick.mul(TICK_SPACING_BASIS_POINTS).div(10000);
     }
   }
 
   async function sourceLiquidity(amount: ethers.BigNumber, multiplier?: number = 1): Promise<ethers.BigNumber[]> {
     const nodes = await pool.liquidityNodes(0, MaxUint128);
-    const depths = [];
+    const ticks = [];
 
     const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
     const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
 
     let taken = ethers.constants.Zero;
     for (const node of nodes) {
-      const take = minBN(minBN(node.depth.mul(multiplier).sub(taken), node.available), amount.sub(taken));
+      const take = minBN(minBN(node.tick.mul(multiplier).sub(taken), node.available), amount.sub(taken));
       if (take.isZero()) continue;
-      depths.push(node.depth);
+      ticks.push(node.tick);
       taken = taken.add(take);
     }
 
     if (!taken.eq(amount)) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
 
-    return depths;
+    return ticks;
   }
 
   async function setupInsolventTick(): Promise<void> {
@@ -1783,7 +1783,7 @@ describe("Pool", function () {
       let totalUsed = ethers.constants.Zero;
       const liquidityStatistics = await pool.liquidityStatistics();
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
-        const node = await pool.liquidityNode(nodeReceipt.depth);
+        const node = await pool.liquidityNode(nodeReceipt.tick);
         const value = ethers.utils.parseEther("25").add(nodeReceipt.pending).sub(nodeReceipt.used);
         expect(node.value).to.equal(value);
         expect(node.available).to.equal(value);
@@ -1858,7 +1858,7 @@ describe("Pool", function () {
       let totalDelta = ethers.constants.Zero;
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
         const delta = nodeReceipt.pending.sub(nodeReceipt.used);
-        const node = await pool.liquidityNode(nodeReceipt.depth);
+        const node = await pool.liquidityNode(nodeReceipt.tick);
         expect(node.value).to.equal(ethers.utils.parseEther("25").add(delta));
         expect(node.available).to.equal(ethers.utils.parseEther("25").add(delta));
         expect(node.pending).to.equal(ethers.constants.Zero);
@@ -1929,7 +1929,7 @@ describe("Pool", function () {
         let totalDelta = ethers.constants.Zero;
         for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
           const delta = nodeReceipt.pending.sub(nodeReceipt.used).mul(proration).div(ethers.constants.WeiPerEther);
-          const node = await pool.liquidityNode(nodeReceipt.depth);
+          const node = await pool.liquidityNode(nodeReceipt.tick);
           expect(node.value).to.equal(ethers.utils.parseEther("25").add(delta));
           expect(node.available).to.equal(ethers.utils.parseEther("25").add(delta));
           expect(node.pending).to.equal(ethers.constants.Zero);
@@ -2961,7 +2961,7 @@ describe("Pool", function () {
 
       /* Validate ticks */
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts.slice(0, -1)) {
-        const node = await pool.liquidityNode(nodeReceipt.depth);
+        const node = await pool.liquidityNode(nodeReceipt.tick);
         const value = ethers.utils.parseEther("25").add(nodeReceipt.pending).sub(nodeReceipt.used);
         expect(node.value).to.equal(value);
         expect(node.available).to.equal(value);
@@ -2969,7 +2969,7 @@ describe("Pool", function () {
       }
       /* Validate upper tick gets remaining proceeds */
       const nodeReceipt = decodedLoanReceipt.nodeReceipts[decodedLoanReceipt.nodeReceipts.length - 1];
-      const node = await pool.liquidityNode(nodeReceipt.depth);
+      const node = await pool.liquidityNode(nodeReceipt.tick);
       const value = ethers.utils
         .parseEther("25")
         .add(nodeReceipt.pending)
@@ -3007,14 +3007,14 @@ describe("Pool", function () {
 
       /* Validate ticks */
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts.slice(0, 2)) {
-        const node = await pool.liquidityNode(nodeReceipt.depth);
+        const node = await pool.liquidityNode(nodeReceipt.tick);
         const value = ethers.utils.parseEther("25").sub(nodeReceipt.used).add(nodeReceipt.pending);
         expect(node.value).to.equal(value);
         expect(node.available).to.equal(value);
         expect(node.pending).to.equal(ethers.constants.Zero);
       }
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts.slice(2, 0)) {
-        const node = await pool.liquidityNode(nodeReceipt.depth);
+        const node = await pool.liquidityNode(nodeReceipt.tick);
         expect(node.value).to.equal(ethers.utils.parseEther("25"));
         expect(node.available).to.equal(ethers.utils.parseEther("25"));
         expect(node.pending).to.equal(ethers.constants.Zero);

@@ -183,7 +183,7 @@ abstract contract Pool is
     LiquidityManager.Liquidity internal _liquidity;
 
     /**
-     * @notice Mapping of account to loan limit depth to deposit
+     * @notice Mapping of account to tick to deposit
      */
     mapping(address => mapping(uint128 => Deposit)) internal _deposits;
 
@@ -308,11 +308,11 @@ abstract contract Pool is
     /**
      * @notice Get deposit
      * @param account Account
-     * @param depth Depth
+     * @param tick Tick
      * @return Deposit information
      */
-    function deposits(address account, uint128 depth) external view returns (Deposit memory) {
-        return _deposits[account][depth];
+    function deposits(address account, uint128 tick) external view returns (Deposit memory) {
+        return _deposits[account][tick];
     }
 
     /**
@@ -378,22 +378,22 @@ abstract contract Pool is
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityAvailable(uint128 maxDepth, uint256 multiplier) external view returns (uint256) {
-        return _liquidity.liquidityAvailable(maxDepth, multiplier);
+    function liquidityAvailable(uint128 maxTick, uint256 multiplier) external view returns (uint256) {
+        return _liquidity.liquidityAvailable(maxTick, multiplier);
     }
 
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityNodes(uint128 startDepth, uint128 endDepth) external view returns (NodeInfo[] memory) {
-        return _liquidity.liquidityNodes(startDepth, endDepth);
+    function liquidityNodes(uint128 startTick, uint128 endTick) external view returns (NodeInfo[] memory) {
+        return _liquidity.liquidityNodes(startTick, endTick);
     }
 
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityNode(uint128 depth) external view returns (NodeInfo memory) {
-        return _liquidity.liquidityNode(depth);
+    function liquidityNode(uint128 tick) external view returns (NodeInfo memory) {
+        return _liquidity.liquidityNode(tick);
     }
 
     /**************************************************************************/
@@ -575,7 +575,7 @@ abstract contract Pool is
      * @param collateralToken Collateral token address
      * @param collateralTokenId Collateral token ID
      * @param maxRepayment Maximum repayment amount in currency tokens
-     * @param depths Liquidity node depths
+     * @param ticks Liquidity node ticks
      * @param collateralContext Collateral context data
      * @return Repayment Amount in currency tokens
      * @return EncodedLoanReceipt Encoded loan receipt
@@ -587,7 +587,7 @@ abstract contract Pool is
         address collateralToken,
         uint256 collateralTokenId,
         uint256 maxRepayment,
-        uint128[] calldata depths,
+        uint128[] calldata ticks,
         bytes memory collateralContext
     ) internal returns (uint256, bytes memory, bytes32) {
         /* Get underlying collateral */
@@ -606,7 +606,7 @@ abstract contract Pool is
         /* Source liquidity nodes */
         (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
             principal,
-            depths,
+            ticks,
             underlyingCollateralTokenIds.length
         );
 
@@ -634,11 +634,11 @@ abstract contract Pool is
         /* Use liquidity nodes */
         for (uint256 i; i < count; i++) {
             /* Use node */
-            _liquidity.use(nodes[i].depth, nodes[i].used, nodes[i].used + interest[i]);
+            _liquidity.use(nodes[i].tick, nodes[i].used, nodes[i].used + interest[i]);
 
             /* Construct node receipt */
             receipt.nodeReceipts[i] = LoanReceipt.NodeReceipt({
-                depth: nodes[i].depth,
+                tick: nodes[i].tick,
                 used: nodes[i].used,
                 pending: nodes[i].used + interest[i]
             });
@@ -693,7 +693,7 @@ abstract contract Pool is
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
             /* Restore node */
             _liquidity.restore(
-                loanReceipt.nodeReceipts[i].depth,
+                loanReceipt.nodeReceipts[i].tick,
                 loanReceipt.nodeReceipts[i].used,
                 loanReceipt.nodeReceipts[i].pending,
                 loanReceipt.nodeReceipts[i].used +
@@ -789,7 +789,7 @@ abstract contract Pool is
         address collateralToken,
         uint256 collateralTokenId,
         uint256 maxRepayment,
-        uint128[] calldata depths,
+        uint128[] calldata ticks,
         bytes calldata options
     ) external nonReentrant returns (uint256) {
         /* Handle borrow accounting */
@@ -799,7 +799,7 @@ abstract contract Pool is
             collateralToken,
             collateralTokenId,
             maxRepayment,
-            depths,
+            ticks,
             _getOptionsData(options, uint16(BorrowOptions.CollateralWrapperContext))
         );
 
@@ -855,7 +855,7 @@ abstract contract Pool is
         uint256 principal,
         uint64 duration,
         uint256 maxRepayment,
-        uint128[] calldata depths
+        uint128[] calldata ticks
     ) external nonReentrant returns (uint256) {
         /* Handle repay accounting without revoking delegates unlike in repay() */
         (LoanReceipt.LoanReceiptV1 memory loanReceipt, bytes32 loanReceiptHash, uint256 repayment) = _repay(
@@ -869,7 +869,7 @@ abstract contract Pool is
             loanReceipt.collateralToken,
             loanReceipt.collateralTokenId,
             maxRepayment,
-            depths,
+            ticks,
             loanReceipt.collateralContextData
         );
 
@@ -964,7 +964,7 @@ abstract contract Pool is
                 ? proceedsRemaining
                 : uint128(Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining));
             _liquidity.restore(
-                loanReceipt.nodeReceipts[i].depth,
+                loanReceipt.nodeReceipts[i].tick,
                 loanReceipt.nodeReceipts[i].used,
                 loanReceipt.nodeReceipts[i].pending,
                 restored
@@ -991,41 +991,41 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function deposit(uint128 depth, uint256 amount_) external nonReentrant {
+    function deposit(uint128 tick, uint256 amount_) external nonReentrant {
         /* Cast to uint128 */
         uint128 amount = amount_.toUint128();
 
         /* Instantiate liquidity node */
-        _liquidity.instantiate(depth);
+        _liquidity.instantiate(tick);
 
         /* Deposit into liquidity node */
-        uint128 shares = _liquidity.deposit(depth, amount);
+        uint128 shares = _liquidity.deposit(tick, amount);
 
         /* Add to deposit */
-        _deposits[msg.sender][depth].shares += shares;
+        _deposits[msg.sender][tick].shares += shares;
 
         /* Update utilization tracking */
         _onUtilizationUpdated(utilization());
 
         /* Process redemptions from available cash */
-        _liquidity.processRedemptions(depth);
+        _liquidity.processRedemptions(tick);
 
         /* Transfer Deposit Amount */
         _currencyToken.safeTransferFrom(msg.sender, address(this), amount);
 
         /* Emit Deposited */
-        emit Deposited(msg.sender, depth, amount, shares);
+        emit Deposited(msg.sender, tick, amount, shares);
     }
 
     /**
      * @inheritdoc IPool
      */
-    function redeem(uint128 depth, uint256 shares_) external nonReentrant {
+    function redeem(uint128 tick, uint256 shares_) external nonReentrant {
         /* Cast to uint128 */
         uint128 shares = shares_.toUint128();
 
         /* Look up Deposit */
-        Deposit storage dep = _deposits[msg.sender][depth];
+        Deposit storage dep = _deposits[msg.sender][tick];
 
         /* Validate shares */
         if (shares > dep.shares) revert InvalidShares();
@@ -1034,7 +1034,7 @@ abstract contract Pool is
         if (dep.redemptionPending != 0) revert RedemptionInProgress();
 
         /* Redeem shares in tick with liquidity manager */
-        (uint128 redemptionIndex, uint128 redemptionTarget) = _liquidity.redeem(depth, shares);
+        (uint128 redemptionIndex, uint128 redemptionTarget) = _liquidity.redeem(tick, shares);
 
         /* Update deposit state */
         dep.redemptionPending = shares;
@@ -1042,13 +1042,13 @@ abstract contract Pool is
         dep.redemptionTarget = redemptionTarget;
 
         /* Process redemptions from available cash */
-        _liquidity.processRedemptions(depth);
+        _liquidity.processRedemptions(tick);
 
         /* Update utilization tracking */
         _onUtilizationUpdated(utilization());
 
         /* Emit Redeemed event */
-        emit Redeemed(msg.sender, depth, shares);
+        emit Redeemed(msg.sender, tick, shares);
     }
 
     /**
@@ -1056,30 +1056,30 @@ abstract contract Pool is
      */
     function redemptionAvailable(
         address account,
-        uint128 depth
+        uint128 tick
     ) external view returns (uint256 shares, uint256 amount) {
         /* Look up Deposit */
-        Deposit storage dep = _deposits[account][depth];
+        Deposit storage dep = _deposits[account][tick];
 
         /* If no redemption is pending */
         if (dep.redemptionPending == 0) return (0, 0);
 
-        return _liquidity.redemptionAvailable(depth, dep.redemptionPending, dep.redemptionIndex, dep.redemptionTarget);
+        return _liquidity.redemptionAvailable(tick, dep.redemptionPending, dep.redemptionIndex, dep.redemptionTarget);
     }
 
     /**
      * @inheritdoc IPool
      */
-    function withdraw(uint128 depth) external nonReentrant returns (uint256) {
+    function withdraw(uint128 tick) external nonReentrant returns (uint256) {
         /* Look up Deposit */
-        Deposit storage dep = _deposits[msg.sender][depth];
+        Deposit storage dep = _deposits[msg.sender][tick];
 
         /* If no redemption is pending */
         if (dep.redemptionPending == 0) return 0;
 
         /* Look up redemption available */
         (uint128 shares, uint128 amount) = _liquidity.redemptionAvailable(
-            depth,
+            tick,
             dep.redemptionPending,
             dep.redemptionIndex,
             dep.redemptionTarget
@@ -1101,7 +1101,7 @@ abstract contract Pool is
         _currencyToken.safeTransfer(msg.sender, amount);
 
         /* Emit Withdrawn */
-        emit Withdrawn(msg.sender, depth, shares, amount);
+        emit Withdrawn(msg.sender, tick, shares, amount);
 
         return amount;
     }

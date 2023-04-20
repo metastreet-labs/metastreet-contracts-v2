@@ -67,28 +67,28 @@ interface IPool {
     /**
      * @notice Emitted when currency is deposited
      * @param account Account
-     * @param depth Loan limit depth
+     * @param tick Tick
      * @param amount Amount of currency tokens
      * @param shares Amount of shares allocated
      */
-    event Deposited(address indexed account, uint128 indexed depth, uint256 amount, uint256 shares);
+    event Deposited(address indexed account, uint128 indexed tick, uint256 amount, uint256 shares);
 
     /**
      * @notice Emitted when deposit shares are redeemed
      * @param account Account
-     * @param depth Loan limit depth
+     * @param tick Tick
      * @param shares Amount of shares to be redeemed
      */
-    event Redeemed(address indexed account, uint128 indexed depth, uint256 shares);
+    event Redeemed(address indexed account, uint128 indexed tick, uint256 shares);
 
     /**
      * @notice Emitted when redeemed currency tokens are withdrawn
      * @param account Account
-     * @param depth Loan limit depth
+     * @param tick Tick
      * @param shares Amount of shares redeemed
      * @param amount Amount of currency tokens withdrawn
      */
-    event Withdrawn(address indexed account, uint128 indexed depth, uint256 shares, uint256 amount);
+    event Withdrawn(address indexed account, uint128 indexed tick, uint256 shares, uint256 amount);
 
     /**
      * @notice Emitted when a loan is originated
@@ -181,14 +181,14 @@ interface IPool {
     /**************************************************************************/
 
     /**
-     * @notice Deposit amount at depth
+     * @notice Deposit amount at tick
      *
      * Emits a {Deposited} event.
      *
-     * @param depth Loan limit depth
+     * @param tick Tick
      * @param amount Amount of currency tokens
      */
-    function deposit(uint128 depth, uint256 amount) external;
+    function deposit(uint128 tick, uint256 amount) external;
 
     /**
      * @notice Redeem deposit shares for currency tokens. Currency tokens can
@@ -197,30 +197,30 @@ interface IPool {
      *
      * Emits a {Redeemed} event.
      *
-     * @param depth Loan limit depth
+     * @param tick Tick
      * @param shares Amount of deposit shares to redeem
      */
-    function redeem(uint128 depth, uint256 shares) external;
+    function redeem(uint128 tick, uint256 shares) external;
 
     /**
      * @notice Get redemption available
      *
      * @param account Account
-     * @param depth Loan limit depth
+     * @param tick Tick
      * @return shares Amount of deposit shares redeemed
      * @return amount Amount of currency tokens available for withdrawal
      */
-    function redemptionAvailable(address account, uint128 depth) external view returns (uint256 shares, uint256 amount);
+    function redemptionAvailable(address account, uint128 tick) external view returns (uint256 shares, uint256 amount);
 
     /**
      * @notice Withdraw a redemption that is available
      *
      * Emits a {Withdrawn} event.
      *
-     * @param depth Loan limit depth
+     * @param tick Tick
      * @return amount Amount of currency tokens withdrawn
      */
-    function withdraw(uint128 depth) external returns (uint256 amount);
+    function withdraw(uint128 tick) external returns (uint256 amount);
 
     /**************************************************************************/
     /* Lend API */
@@ -268,7 +268,7 @@ interface IPool {
      * @param collateralToken Collateral token address
      * @param collateralTokenId Collateral token ID
      * @param maxRepayment Maximum repayment amount in currency tokens
-     * @param depths Liquidity node depths
+     * @param ticks Liquidity node ticks
      * @param options Encoded options
      * @return Repayment amount in currency tokens
      */
@@ -278,7 +278,7 @@ interface IPool {
         address collateralToken,
         uint256 collateralTokenId,
         uint256 maxRepayment,
-        uint128[] calldata depths,
+        uint128[] calldata ticks,
         bytes calldata options
     ) external returns (uint256);
 
@@ -301,7 +301,7 @@ interface IPool {
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
      * @param maxRepayment Maximum repayment amount in currency tokens
-     * @param depths Liquidity node depths
+     * @param ticks Liquidity node ticks
      * @return Repayment amount in currency tokens
      */
     function refinance(
@@ -309,7 +309,7 @@ interface IPool {
         uint256 principal,
         uint64 duration,
         uint256 maxRepayment,
-        uint128[] calldata depths
+        uint128[] calldata ticks
     ) external returns (uint256);
 
     /**

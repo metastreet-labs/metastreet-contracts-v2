@@ -41,17 +41,17 @@ describe("LoanReceipt", function () {
     collateralContextData: "0x",
     nodeReceipts: [
       {
-        depth: ethers.BigNumber.from("1000000000000000000"),
+        tick: ethers.BigNumber.from("1000000000000000000"),
         used: ethers.BigNumber.from("1000000000000000000"),
         pending: ethers.BigNumber.from("1010000000000000000"),
       },
       {
-        depth: ethers.BigNumber.from("2000000000000000000"),
+        tick: ethers.BigNumber.from("2000000000000000000"),
         used: ethers.BigNumber.from("1000000000000000000"),
         pending: ethers.BigNumber.from("1010000000000000000"),
       },
       {
-        depth: ethers.BigNumber.from("3000000000000000000"),
+        tick: ethers.BigNumber.from("3000000000000000000"),
         used: ethers.BigNumber.from("1000000000000000000"),
         pending: ethers.BigNumber.from("1020000000000000000"),
       },
@@ -72,17 +72,17 @@ describe("LoanReceipt", function () {
       "0xb7f8bc63bbcad18155201308c8f3540b07f84f5e00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
     nodeReceipts: [
       {
-        depth: ethers.BigNumber.from("1000000000000000000"),
+        tick: ethers.BigNumber.from("1000000000000000000"),
         used: ethers.BigNumber.from("1000000000000000000"),
         pending: ethers.BigNumber.from("1010000000000000000"),
       },
       {
-        depth: ethers.BigNumber.from("2000000000000000000"),
+        tick: ethers.BigNumber.from("2000000000000000000"),
         used: ethers.BigNumber.from("1000000000000000000"),
         pending: ethers.BigNumber.from("1010000000000000000"),
       },
       {
-        depth: ethers.BigNumber.from("3000000000000000000"),
+        tick: ethers.BigNumber.from("3000000000000000000"),
         used: ethers.BigNumber.from("1000000000000000000"),
         pending: ethers.BigNumber.from("1020000000000000000"),
       },
@@ -140,7 +140,7 @@ describe("LoanReceipt", function () {
       expect(decodedLoanReceipt.collateralTokenId).to.equal(loanReceipt.collateralTokenId);
       expect(decodedLoanReceipt.nodeReceipts.length).to.equal(3);
       for (let i = 0; i < loanReceipt.nodeReceipts.length; i++) {
-        expect(decodedLoanReceipt.nodeReceipts[i].depth).to.equal(loanReceipt.nodeReceipts[i].depth);
+        expect(decodedLoanReceipt.nodeReceipts[i].tick).to.equal(loanReceipt.nodeReceipts[i].tick);
         expect(decodedLoanReceipt.nodeReceipts[i].used).to.equal(loanReceipt.nodeReceipts[i].used);
         expect(decodedLoanReceipt.nodeReceipts[i].pending).to.equal(loanReceipt.nodeReceipts[i].pending);
       }
@@ -165,7 +165,7 @@ describe("LoanReceipt", function () {
       expect(decodedLoanReceipt.collateralContextData).to.equal(bundleLoanReceipt.collateralContextData);
       expect(decodedLoanReceipt.nodeReceipts.length).to.equal(3);
       for (let i = 0; i < bundleLoanReceipt.nodeReceipts.length; i++) {
-        expect(decodedLoanReceipt.nodeReceipts[i].depth).to.equal(bundleLoanReceipt.nodeReceipts[i].depth);
+        expect(decodedLoanReceipt.nodeReceipts[i].tick).to.equal(bundleLoanReceipt.nodeReceipts[i].tick);
         expect(decodedLoanReceipt.nodeReceipts[i].used).to.equal(bundleLoanReceipt.nodeReceipts[i].used);
         expect(decodedLoanReceipt.nodeReceipts[i].pending).to.equal(bundleLoanReceipt.nodeReceipts[i].pending);
       }

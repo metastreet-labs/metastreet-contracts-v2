@@ -11,19 +11,19 @@ interface ILiquidity {
 
     /**
      * @notice Node source
-     * @param depth Depth
+     * @param tick Tick
      * @param available Available amount
      * @param used Used amount
      */
     struct NodeSource {
-        uint128 depth;
+        uint128 tick;
         uint128 available;
         uint128 used;
     }
 
     /**
      * @notice Flattened liquidity node returned by getter
-     * @param depth Depth
+     * @param tick Tick
      * @param value Liquidity value
      * @param shares Liquidity shares outstanding
      * @param available Liquidity available
@@ -33,7 +33,7 @@ interface ILiquidity {
      * @param next Next liquidity node
      */
     struct NodeInfo {
-        uint128 depth;
+        uint128 tick;
         uint128 value;
         uint128 shares;
         uint128 available;
@@ -62,25 +62,25 @@ interface ILiquidity {
     function liquidityStatistics() external view returns (uint256 total, uint256 used, uint16 numNodes);
 
     /**
-     * Get liquidity available up to max depth
-     * @param maxDepth Max depth
+     * Get liquidity available up to max tick
+     * @param maxTick Max tick
      * @param multiplier Multiplier in amount
      * @return Liquidity available
      */
-    function liquidityAvailable(uint128 maxDepth, uint256 multiplier) external view returns (uint256);
+    function liquidityAvailable(uint128 maxTick, uint256 multiplier) external view returns (uint256);
 
     /**
-     * Get liquidity nodes spanning [startDepth, endDepth] range
-     * @param startDepth Loan limit start depth
-     * @param endDepth Loan limit end depth
+     * Get liquidity nodes spanning [startTick, endTick] range
+     * @param startTick Start tick
+     * @param endTick End tick
      * @return Liquidity nodes
      */
-    function liquidityNodes(uint128 startDepth, uint128 endDepth) external view returns (NodeInfo[] memory);
+    function liquidityNodes(uint128 startTick, uint128 endTick) external view returns (NodeInfo[] memory);
 
     /**
-     * Get liquidity node at depth
-     * @param depth Depth
+     * Get liquidity node at tick
+     * @param tick Tick
      * @return Liquidity node
      */
-    function liquidityNode(uint128 depth) external view returns (NodeInfo memory);
+    function liquidityNode(uint128 tick) external view returns (NodeInfo memory);
 }

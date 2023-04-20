@@ -144,31 +144,31 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
   describe("#distribute (base 2, threshold 0.05)", async function () {
     const sources5 = [
       {
-        depth: FixedPoint.from("1"),
+        tick: FixedPoint.from("1"),
         available: FixedPoint.from("29"),
         used: FixedPoint.from("1"),
         pending: FixedPoint.Zero,
       },
       {
-        depth: FixedPoint.from("5"),
+        tick: FixedPoint.from("5"),
         available: FixedPoint.from("16"),
         used: FixedPoint.from("4"),
         pending: FixedPoint.Zero,
       },
       {
-        depth: FixedPoint.from("10"),
+        tick: FixedPoint.from("10"),
         available: FixedPoint.from("5"),
         used: FixedPoint.from("5"),
         pending: FixedPoint.Zero,
       },
       {
-        depth: FixedPoint.from("12"),
+        tick: FixedPoint.from("12"),
         available: FixedPoint.from("5"),
         used: 10,
         pending: FixedPoint.Zero,
       },
       {
-        depth: FixedPoint.from("15"),
+        tick: FixedPoint.from("15"),
         available: FixedPoint.from("3"),
         used: FixedPoint.from("2"),
         pending: FixedPoint.Zero,

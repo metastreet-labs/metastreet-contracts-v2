@@ -76,12 +76,12 @@ library LoanReceipt {
 
     /**
      * @notice Node receipt
-     * @param depth Depth
+     * @param tick Tick
      * @param used Used amount
      * @param pending Pending amount
      */
     struct NodeReceipt {
-        uint128 depth;
+        uint128 tick;
         uint128 used;
         uint128 pending;
     }
@@ -106,7 +106,7 @@ library LoanReceipt {
 
       Node Receipts (48 * N bytes)
           N   NodeReceipts[] nodeReceipts
-              16  uint128 depth
+              16  uint128 tick
               16  uint128 used
               16  uint128 pending
     */
@@ -150,7 +150,7 @@ library LoanReceipt {
             encodedReceipt = bytes.concat(
                 encodedReceipt,
                 abi.encodePacked(
-                    receipt.nodeReceipts[i].depth,
+                    receipt.nodeReceipts[i].tick,
                     receipt.nodeReceipts[i].used,
                     receipt.nodeReceipts[i].pending
                 )
@@ -207,7 +207,7 @@ library LoanReceipt {
                 receipt.collateralContextLength +
                 i *
                 LOAN_RECEIPT_V1_NODE_RECEIPT_SIZE;
-            receipt.nodeReceipts[i].depth = uint128(bytes16(encodedReceipt[offset:offset + 16]));
+            receipt.nodeReceipts[i].tick = uint128(bytes16(encodedReceipt[offset:offset + 16]));
             receipt.nodeReceipts[i].used = uint128(bytes16(encodedReceipt[offset + 16:offset + 32]));
             receipt.nodeReceipts[i].pending = uint128(bytes16(encodedReceipt[offset + 32:offset + 48]));
         }

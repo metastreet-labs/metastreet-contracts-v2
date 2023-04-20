@@ -34,7 +34,7 @@ describe("LiquidityManager", function () {
       /* Validate nodes */
       let nodes = await liquidityManager.liquidityNodes(ethers.constants.Zero, MaxUint128);
       expect(nodes.length).to.equal(1);
-      expect(nodes[0].depth).to.equal(0);
+      expect(nodes[0].tick).to.equal(0);
       expect(nodes[0].value).to.equal(0);
       expect(nodes[0].shares).to.equal(0);
       expect(nodes[0].available).to.equal(0);
@@ -1017,9 +1017,9 @@ describe("LiquidityManager", function () {
 
   async function setupLiquidity(): Promise<void> {
     /* Setup liquidity at 10, 20, 30, 40 ETH */
-    for (const depth of [FixedPoint.from("10"), FixedPoint.from("20"), FixedPoint.from("30"), FixedPoint.from("40")]) {
-      await liquidityManager.instantiate(depth);
-      await liquidityManager.deposit(depth, FixedPoint.from("50"));
+    for (const tick of [FixedPoint.from("10"), FixedPoint.from("20"), FixedPoint.from("30"), FixedPoint.from("40")]) {
+      await liquidityManager.instantiate(tick);
+      await liquidityManager.deposit(tick, FixedPoint.from("50"));
     }
 
     /* Setup insolvent liquidity at 50 ETH */
@@ -1035,160 +1035,160 @@ describe("LiquidityManager", function () {
   }
 
   describe("#source", async function () {
-    const depths = [FixedPoint.from("10"), FixedPoint.from("20"), FixedPoint.from("30"), FixedPoint.from("40")];
+    const ticks = [FixedPoint.from("10"), FixedPoint.from("20"), FixedPoint.from("30"), FixedPoint.from("40")];
 
     beforeEach("setup liquidity", async function () {
       await setupLiquidity();
     });
     it("sources required liquidity with 1 token", async function () {
-      let [nodes, count] = await liquidityManager.source(FixedPoint.from("15"), depths, 1);
+      let [nodes, count] = await liquidityManager.source(FixedPoint.from("15"), ticks, 1);
 
       /* Validate nodes */
       expect(count).to.equal(2);
-      expect(nodes[0].depth).to.equal(FixedPoint.from("10"));
+      expect(nodes[0].tick).to.equal(FixedPoint.from("10"));
       expect(nodes[0].available).to.equal(FixedPoint.from("40"));
       expect(nodes[0].used).to.equal(FixedPoint.from("10"));
-      expect(nodes[1].depth).to.equal(FixedPoint.from("20"));
+      expect(nodes[1].tick).to.equal(FixedPoint.from("20"));
       expect(nodes[1].available).to.equal(FixedPoint.from("45"));
       expect(nodes[1].used).to.equal(FixedPoint.from("5"));
 
-      [nodes, count] = await liquidityManager.source(FixedPoint.from("35"), depths, 1);
+      [nodes, count] = await liquidityManager.source(FixedPoint.from("35"), ticks, 1);
 
       /* Validate nodes */
       expect(count).to.equal(4);
-      expect(nodes[0].depth).to.equal(FixedPoint.from("10"));
+      expect(nodes[0].tick).to.equal(FixedPoint.from("10"));
       expect(nodes[0].available).to.equal(FixedPoint.from("40"));
       expect(nodes[0].used).to.equal(FixedPoint.from("10"));
-      expect(nodes[1].depth).to.equal(FixedPoint.from("20"));
+      expect(nodes[1].tick).to.equal(FixedPoint.from("20"));
       expect(nodes[1].available).to.equal(FixedPoint.from("40"));
       expect(nodes[1].used).to.equal(FixedPoint.from("10"));
-      expect(nodes[2].depth).to.equal(FixedPoint.from("30"));
+      expect(nodes[2].tick).to.equal(FixedPoint.from("30"));
       expect(nodes[2].available).to.equal(FixedPoint.from("40"));
       expect(nodes[2].used).to.equal(FixedPoint.from("10"));
-      expect(nodes[3].depth).to.equal(FixedPoint.from("40"));
+      expect(nodes[3].tick).to.equal(FixedPoint.from("40"));
       expect(nodes[3].available).to.equal(FixedPoint.from("45"));
       expect(nodes[3].used).to.equal(FixedPoint.from("5"));
     });
     it("sources required liquidity with 3 tokens", async function () {
-      let [nodes, count] = await liquidityManager.source(FixedPoint.from("15"), depths, 3);
+      let [nodes, count] = await liquidityManager.source(FixedPoint.from("15"), ticks, 3);
 
       /* Validate nodes */
       expect(count).to.equal(1);
-      expect(nodes[0].depth).to.equal(FixedPoint.from("10"));
+      expect(nodes[0].tick).to.equal(FixedPoint.from("10"));
       expect(nodes[0].available).to.equal(FixedPoint.from("35"));
       expect(nodes[0].used).to.equal(FixedPoint.from("15"));
 
-      [nodes, count] = await liquidityManager.source(FixedPoint.from("35"), depths, 3);
+      [nodes, count] = await liquidityManager.source(FixedPoint.from("35"), ticks, 3);
 
       /* Validate nodes */
       expect(count).to.equal(2);
-      expect(nodes[0].depth).to.equal(FixedPoint.from("10"));
+      expect(nodes[0].tick).to.equal(FixedPoint.from("10"));
       expect(nodes[0].available).to.equal(FixedPoint.from("20"));
       expect(nodes[0].used).to.equal(FixedPoint.from("30"));
-      expect(nodes[1].depth).to.equal(FixedPoint.from("20"));
+      expect(nodes[1].tick).to.equal(FixedPoint.from("20"));
       expect(nodes[1].available).to.equal(FixedPoint.from("45"));
       expect(nodes[1].used).to.equal(FixedPoint.from("5"));
 
-      [nodes, count] = await liquidityManager.source(FixedPoint.from("120"), depths, 3);
+      [nodes, count] = await liquidityManager.source(FixedPoint.from("120"), ticks, 3);
 
       /* Validate nodes */
       expect(count).to.equal(4);
-      expect(nodes[0].depth).to.equal(FixedPoint.from("10"));
+      expect(nodes[0].tick).to.equal(FixedPoint.from("10"));
       expect(nodes[0].available).to.equal(FixedPoint.from("20"));
       expect(nodes[0].used).to.equal(FixedPoint.from("30"));
-      expect(nodes[1].depth).to.equal(FixedPoint.from("20"));
+      expect(nodes[1].tick).to.equal(FixedPoint.from("20"));
       expect(nodes[1].available).to.equal(FixedPoint.from("20"));
       expect(nodes[1].used).to.equal(FixedPoint.from("30"));
-      expect(nodes[2].depth).to.equal(FixedPoint.from("30"));
+      expect(nodes[2].tick).to.equal(FixedPoint.from("30"));
       expect(nodes[2].available).to.equal(FixedPoint.from("20"));
       expect(nodes[2].used).to.equal(FixedPoint.from("30"));
-      expect(nodes[3].depth).to.equal(FixedPoint.from("40"));
+      expect(nodes[3].tick).to.equal(FixedPoint.from("40"));
       expect(nodes[3].available).to.equal(FixedPoint.from("20"));
       expect(nodes[3].used).to.equal(FixedPoint.from("30"));
     });
     it("sources required liquidity with 10 tokens", async function () {
-      let [nodes, count] = await liquidityManager.source(FixedPoint.from("15"), depths, 10);
+      let [nodes, count] = await liquidityManager.source(FixedPoint.from("15"), ticks, 10);
 
       /* Validate nodes */
       expect(count).to.equal(1);
-      expect(nodes[0].depth).to.equal(FixedPoint.from("10"));
+      expect(nodes[0].tick).to.equal(FixedPoint.from("10"));
       expect(nodes[0].available).to.equal(FixedPoint.from("35"));
       expect(nodes[0].used).to.equal(FixedPoint.from("15"));
 
-      [nodes, count] = await liquidityManager.source(FixedPoint.from("35"), depths, 10);
+      [nodes, count] = await liquidityManager.source(FixedPoint.from("35"), ticks, 10);
 
       /* Validate nodes */
       expect(count).to.equal(1);
-      expect(nodes[0].depth).to.equal(FixedPoint.from("10"));
+      expect(nodes[0].tick).to.equal(FixedPoint.from("10"));
       expect(nodes[0].available).to.equal(FixedPoint.from("15"));
       expect(nodes[0].used).to.equal(FixedPoint.from("35"));
 
-      [nodes, count] = await liquidityManager.source(FixedPoint.from("120"), depths, 10);
+      [nodes, count] = await liquidityManager.source(FixedPoint.from("120"), ticks, 10);
 
       /* Validate nodes */
       expect(count).to.equal(3);
-      expect(nodes[0].depth).to.equal(FixedPoint.from("10"));
+      expect(nodes[0].tick).to.equal(FixedPoint.from("10"));
       expect(nodes[0].available).to.equal(FixedPoint.from("0"));
       expect(nodes[0].used).to.equal(FixedPoint.from("50"));
-      expect(nodes[1].depth).to.equal(FixedPoint.from("20"));
+      expect(nodes[1].tick).to.equal(FixedPoint.from("20"));
       expect(nodes[1].available).to.equal(FixedPoint.from("0"));
       expect(nodes[1].used).to.equal(FixedPoint.from("50"));
-      expect(nodes[2].depth).to.equal(FixedPoint.from("30"));
+      expect(nodes[2].tick).to.equal(FixedPoint.from("30"));
       expect(nodes[2].available).to.equal(FixedPoint.from("30"));
       expect(nodes[2].used).to.equal(FixedPoint.from("20"));
 
-      [nodes, count] = await liquidityManager.source(FixedPoint.from("200"), depths, 10);
+      [nodes, count] = await liquidityManager.source(FixedPoint.from("200"), ticks, 10);
 
       /* Validate nodes */
       expect(count).to.equal(4);
-      expect(nodes[0].depth).to.equal(FixedPoint.from("10"));
+      expect(nodes[0].tick).to.equal(FixedPoint.from("10"));
       expect(nodes[0].available).to.equal(FixedPoint.from("0"));
       expect(nodes[0].used).to.equal(FixedPoint.from("50"));
-      expect(nodes[1].depth).to.equal(FixedPoint.from("20"));
+      expect(nodes[1].tick).to.equal(FixedPoint.from("20"));
       expect(nodes[1].available).to.equal(FixedPoint.from("0"));
       expect(nodes[1].used).to.equal(FixedPoint.from("50"));
-      expect(nodes[2].depth).to.equal(FixedPoint.from("30"));
+      expect(nodes[2].tick).to.equal(FixedPoint.from("30"));
       expect(nodes[2].available).to.equal(FixedPoint.from("0"));
       expect(nodes[2].used).to.equal(FixedPoint.from("50"));
-      expect(nodes[3].depth).to.equal(FixedPoint.from("40"));
+      expect(nodes[3].tick).to.equal(FixedPoint.from("40"));
       expect(nodes[3].available).to.equal(FixedPoint.from("0"));
       expect(nodes[3].used).to.equal(FixedPoint.from("50"));
     });
     it("fails on insufficient liquidity", async function () {
-      await expect(liquidityManager.source(FixedPoint.from("25"), depths.slice(0, 2), 1)).to.be.revertedWithCustomError(
+      await expect(liquidityManager.source(FixedPoint.from("25"), ticks.slice(0, 2), 1)).to.be.revertedWithCustomError(
         liquidityManager,
         "InsufficientLiquidity"
       );
-      await expect(liquidityManager.source(FixedPoint.from("45"), depths, 1)).to.be.revertedWithCustomError(
+      await expect(liquidityManager.source(FixedPoint.from("45"), ticks, 1)).to.be.revertedWithCustomError(
         liquidityManager,
         "InsufficientLiquidity"
       );
-      await expect(liquidityManager.source(FixedPoint.from("121"), depths, 3)).to.be.revertedWithCustomError(
+      await expect(liquidityManager.source(FixedPoint.from("121"), ticks, 3)).to.be.revertedWithCustomError(
         liquidityManager,
         "InsufficientLiquidity"
       );
-      await expect(liquidityManager.source(FixedPoint.from("201"), depths, 10)).to.be.revertedWithCustomError(
+      await expect(liquidityManager.source(FixedPoint.from("201"), ticks, 10)).to.be.revertedWithCustomError(
         liquidityManager,
         "InsufficientLiquidity"
       );
     });
-    it("fails on non-increasing depths", async function () {
+    it("fails on non-increasing ticks", async function () {
       await expect(
         liquidityManager.source(
           FixedPoint.from("35"),
           [FixedPoint.from("10"), FixedPoint.from("30"), FixedPoint.from("20"), FixedPoint.from("40")],
           1
         )
-      ).to.be.revertedWithCustomError(liquidityManager, "InvalidDepths");
+      ).to.be.revertedWithCustomError(liquidityManager, "InvalidTick");
     });
-    it("fails on duplicate depths", async function () {
+    it("fails on duplicate ticks", async function () {
       await expect(
         liquidityManager.source(
           FixedPoint.from("25"),
           [FixedPoint.from("10"), FixedPoint.from("20"), FixedPoint.from("20"), FixedPoint.from("40")],
           1
         )
-      ).to.be.revertedWithCustomError(liquidityManager, "InvalidDepths");
+      ).to.be.revertedWithCustomError(liquidityManager, "InvalidTick");
     });
   });
 

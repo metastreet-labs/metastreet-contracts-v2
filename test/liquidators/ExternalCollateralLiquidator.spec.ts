@@ -158,17 +158,17 @@ describe("ExternalCollateralLiquidator", function () {
     collateralContextData: "0x",
     nodeReceipts: [
       {
-        depth: ethers.BigNumber.from("1000000000000000000"),
+        tick: ethers.BigNumber.from("1000000000000000000"),
         used: ethers.BigNumber.from("1000000000000000000"),
         pending: ethers.BigNumber.from("1010000000000000000"),
       },
       {
-        depth: ethers.BigNumber.from("2000000000000000000"),
+        tick: ethers.BigNumber.from("2000000000000000000"),
         used: ethers.BigNumber.from("1000000000000000000"),
         pending: ethers.BigNumber.from("1010000000000000000"),
       },
       {
-        depth: ethers.BigNumber.from("3000000000000000000"),
+        tick: ethers.BigNumber.from("3000000000000000000"),
         used: ethers.BigNumber.from("1000000000000000000"),
         pending: ethers.BigNumber.from("1020000000000000000"),
       },

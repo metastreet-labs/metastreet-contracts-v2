@@ -161,31 +161,31 @@ describe("Pool Gas", function () {
     const NUM_TICKS = 16;
     const TICK_SPACING_BASIS_POINTS = await pool.TICK_SPACING_BASIS_POINTS();
 
-    let depth = ethers.utils.parseEther("1.0");
+    let tick = ethers.utils.parseEther("1.0");
     for (let i = 0; i < NUM_TICKS; i++) {
-      await pool.connect(accountDepositors[0]).deposit(depth, ethers.utils.parseEther("80"));
-      depth = depth.mul(TICK_SPACING_BASIS_POINTS).div(10000);
+      await pool.connect(accountDepositors[0]).deposit(tick, ethers.utils.parseEther("80"));
+      tick = tick.mul(TICK_SPACING_BASIS_POINTS).div(10000);
     }
   }
 
   async function sourceLiquidity(amount: ethers.BigNumber, multiplier?: number = 1): Promise<ethers.BigNumber[]> {
     const nodes = await pool.liquidityNodes(0, MaxUint128);
-    const depths = [];
+    const ticks = [];
 
     const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
     const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
 
     let taken = ethers.constants.Zero;
     for (const node of nodes) {
-      const take = minBN(minBN(node.depth.mul(multiplier).sub(taken), node.available), amount.sub(taken));
+      const take = minBN(minBN(node.tick.mul(multiplier).sub(taken), node.available), amount.sub(taken));
       if (take.isZero()) continue;
-      depths.push(node.depth);
+      ticks.push(node.tick);
       taken = taken.add(take);
     }
 
     if (!taken.eq(amount)) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
 
-    return depths;
+    return ticks;
   }
 
   async function setupInsolventTick(): Promise<void> {

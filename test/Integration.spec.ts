@@ -43,7 +43,7 @@ describe("Integration", function () {
     maxFunctionCalls: 1000,
     principals: [1] /* min: 1 ethers, max: 2 ethers */,
     durations: [1, 30 * 86400] /* min: 1 second, max: 30 * 86499 seconds */,
-    depths: ["1"],
+    ticks: ["1"],
     depositAmounts: [25, 50] /* min: 25 ethers, max: 50 ethers */,
     numberOfBorrowers: 8 /* max allowed is 8!! */,
     numberOfDepositors: 1 /* max allowed is 9!! */,
@@ -57,7 +57,7 @@ describe("Integration", function () {
   };
 
   /* Test Suite Internal Storage */
-  /* address -> (depth -> [amount, shares, shares pending withdrawals, depositor]) */
+  /* address -> (tick -> [amount, shares, shares pending withdrawals, depositor]) */
   let deposits: Map<string, Map<string, [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress]>>;
   /* list of (borrower address, token id, encoded loan receipt) */
   let loans: [SignerWithAddress, ethers.BigNumber, string][];
@@ -256,16 +256,16 @@ describe("Integration", function () {
     ][] = [];
     deposits.forEach(
       async (
-        depths: Map<string, [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress]>,
+        ticks: Map<string, [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress]>,
         address: string
       ) => {
-        depths.forEach(
-          async (value: [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress], depth: string) => {
+        ticks.forEach(
+          async (value: [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress], tick: string) => {
             const [amount, shares, sharesPendingWithdrawal, depositor] = value;
             /* If we want deposits with redemption pending, then sharesPendingWithdrawal cannot be 0 */
             if (!hasRedemptionPending === sharesPendingWithdrawal.eq(ethers.constants.Zero)) {
               /* Exclude redemptionPending deposits */
-              flattenedDeposits.push([depth, amount, shares, sharesPendingWithdrawal, depositor]);
+              flattenedDeposits.push([tick, amount, shares, sharesPendingWithdrawal, depositor]);
             }
           }
         );
@@ -276,27 +276,27 @@ describe("Integration", function () {
 
   async function sourceLiquidity(amount: ethers.BigNumber, itemCount: ethers.BigNumber): Promise<ethers.BigNumber[]> {
     const nodes = await pool.liquidityNodes(0, MaxUint128);
-    const depths = [];
+    const ticks = [];
 
     const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
     const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
 
     let taken = ethers.constants.Zero;
-    let prevDepth = ethers.constants.Zero;
+    let prevTick = ethers.constants.Zero;
     let carry = ethers.constants.Zero;
     for (const node of nodes) {
-      const depthAmount = node.depth.sub(prevDepth).mul(itemCount).add(carry);
-      const take = minBN(minBN(depthAmount, node.available), amount.sub(taken));
-      carry = node.available.lt(depthAmount) ? depthAmount.sub(node.available) : ethers.constants.Zero;
-      prevDepth = node.depth;
+      const tickAmount = node.tick.sub(prevTick).mul(itemCount).add(carry);
+      const take = minBN(minBN(tickAmount, node.available), amount.sub(taken));
+      carry = node.available.lt(tickAmount) ? tickAmount.sub(node.available) : ethers.constants.Zero;
+      prevTick = node.tick;
       if (take.isZero()) continue;
-      depths.push(node.depth);
+      ticks.push(node.tick);
       taken = taken.add(take);
     }
 
     if (!taken.eq(amount)) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
 
-    return depths;
+    return ticks;
   }
 
   async function compareStates(): Promise<void> {
@@ -345,14 +345,14 @@ describe("Integration", function () {
       console.log("Executing deposit()...");
 
       const depositor = accountDepositors[getRandomInteger(0, accountDepositors.length)];
-      const depth = ethers.utils.parseEther(CONFIG.depths[getRandomInteger(0, CONFIG.depths.length)]);
+      const tick = ethers.utils.parseEther(CONFIG.ticks[getRandomInteger(0, CONFIG.ticks.length)]);
       const amount = ethers.utils.parseEther(
         getRandomInteger(CONFIG.depositAmounts[0], CONFIG.depositAmounts[CONFIG.depositAmounts.length - 1]).toString()
       );
 
       /* Execute deposit() on Pool */
-      console.log(`Params => depth: ${depth}, amount: ${amount}`);
-      const depositTx = await pool.connect(depositor).deposit(depth, amount);
+      console.log(`Params => tick: ${tick}, amount: ${amount}`);
+      const depositTx = await pool.connect(depositor).deposit(tick, amount);
 
       const [totalAfter, usedAfter, numNodesAfter] = await pool.liquidityStatistics();
 
@@ -366,23 +366,23 @@ describe("Integration", function () {
       const depositorsDeposits =
         deposits.get(depositor.address) ??
         new Map<string, [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress]>();
-      const depthDeposit = depositorsDeposits.get(depth.toString()) ?? [
+      const tickDeposit = depositorsDeposits.get(tick.toString()) ?? [
         ethers.constants.Zero,
         ethers.constants.Zero,
         ethers.constants.Zero /* shares pending withdrawal */,
         depositor,
       ];
-      const newDepthDeposit: [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress] = [
-        depthDeposit[0].add(amount),
-        depthDeposit[1].add(shares),
-        depthDeposit[2] /* shares pending withdrawal */,
+      const newTickDeposit: [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress] = [
+        tickDeposit[0].add(amount),
+        tickDeposit[1].add(shares),
+        tickDeposit[2] /* shares pending withdrawal */,
         depositor,
       ];
-      depositorsDeposits.set(depth.toString(), newDepthDeposit);
+      depositorsDeposits.set(tick.toString(), newTickDeposit);
       deposits.set(depositor.address, depositorsDeposits);
 
       callStatistics["deposit"] += 1;
-      console.log(`${depositor.address}: Deposited ${amount} at depth ${depth}`);
+      console.log(`${depositor.address}: Deposited ${amount} at tick ${tick}`);
     } catch (e) {
       console.log("deposit() failed:", e);
       throw new Error();
@@ -412,7 +412,7 @@ describe("Integration", function () {
       }
 
       /* Source liquidity */
-      const _depths = await sourceLiquidity(principal, 1);
+      const _ticks = await sourceLiquidity(principal, 1);
 
       /* Get max repayment */
       const maxRepayment = principal.mul(2);
@@ -440,13 +440,13 @@ describe("Integration", function () {
       /* Simulate borrow to get repayment value */
       const repayment = await pool
         .connect(borrower)
-        .callStatic.borrow(principal, duration, nft1.address, tokenId, maxRepayment, _depths, "0x");
+        .callStatic.borrow(principal, duration, nft1.address, tokenId, maxRepayment, _ticks, "0x");
 
       /* Execute borrow() on Pool */
       console.log(`Params => principal: ${principal}, duration: ${duration}, maxRepayment: ${maxRepayment}`);
       const borrowTx = await pool
         .connect(borrower)
-        .borrow(principal, duration, nft1.address, tokenId, maxRepayment, _depths, "0x");
+        .borrow(principal, duration, nft1.address, tokenId, maxRepayment, _ticks, "0x");
 
       /* Get block timestamp of borrow transaction */
       const blockTimestamp = ethers.BigNumber.from(await getTransactionTimestamp(borrowTx.blockNumber));
@@ -596,7 +596,7 @@ describe("Integration", function () {
       }
 
       /* Source liquidity */
-      const _depths = await sourceLiquidity(principal, 1);
+      const _ticks = await sourceLiquidity(principal, 1);
 
       /* Get max repayment */
       const maxRepayment = principal.mul(2);
@@ -605,12 +605,12 @@ describe("Integration", function () {
       console.log(`Params => principal: ${principal}, duration: ${duration}, maxRepayment: ${maxRepayment}`);
       const repayment = await pool
         .connect(borrower)
-        .callStatic.refinance(encodedLoanReceipt, principal, duration, maxRepayment, _depths);
+        .callStatic.refinance(encodedLoanReceipt, principal, duration, maxRepayment, _ticks);
 
       /* Execute repay() on Pool */
       const refinanceTx = await pool
         .connect(borrower)
-        .refinance(encodedLoanReceipt, principal, duration, maxRepayment, _depths);
+        .refinance(encodedLoanReceipt, principal, duration, maxRepayment, _ticks);
       let [total, used, numNodes] = await pool.liquidityStatistics();
 
       /* Get block timestamp of borrow transaction */
@@ -661,7 +661,7 @@ describe("Integration", function () {
         console.log("No deposits with no redemption pending");
         return;
       }
-      const [depth, amount, shares, sharesPendingWithdrawal, depositor] =
+      const [tick, amount, shares, sharesPendingWithdrawal, depositor] =
         flattenedDeposits[getRandomInteger(0, flattenedDeposits.length)];
       console.log(`Depositor: ${depositor.address}`);
 
@@ -674,8 +674,8 @@ describe("Integration", function () {
       const [totalBefore, usedBefore, numNodesBefore] = await pool.liquidityStatistics();
 
       /* Execute redeem() on Pool */
-      console.log(`Params => depth: ${depth}, shares: ${sharesRedeemAmount}`);
-      await pool.connect(depositor).redeem(depth, sharesRedeemAmount);
+      console.log(`Params => tick: ${tick}, shares: ${sharesRedeemAmount}`);
+      await pool.connect(depositor).redeem(tick, sharesRedeemAmount);
 
       const [totalAfter, usedAfter, numNodesAfter] = await pool.liquidityStatistics();
 
@@ -690,17 +690,17 @@ describe("Integration", function () {
       }
 
       /* Set redemption pending to true */
-      const newDepthDeposit: [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress] = [
+      const newTickDeposit: [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress] = [
         amount,
         shares.sub(sharesRedeemAmount),
         sharesPendingWithdrawal.add(sharesRedeemAmount),
         depositor,
       ];
-      depositorsDeposits.set(depth.toString(), newDepthDeposit);
+      depositorsDeposits.set(tick.toString(), newTickDeposit);
       deposits.set(depositor.address, depositorsDeposits);
 
       callStatistics["redeem"] += 1;
-      console.log(`${depositor.address}: Redeemed ${sharesRedeemAmount} shares at depth ${depth}`);
+      console.log(`${depositor.address}: Redeemed ${sharesRedeemAmount} shares at tick ${tick}`);
     } catch (e) {
       console.log("redeem() failed:", e);
       throw new Error();
@@ -718,13 +718,13 @@ describe("Integration", function () {
         return;
       }
 
-      const [depth, amount, shares, sharesPendingWithdrawal, depositor] =
+      const [tick, amount, shares, sharesPendingWithdrawal, depositor] =
         flattenedDeposits[getRandomInteger(0, flattenedDeposits.length)];
       console.log(`Depositor: ${depositor.address}`);
 
       /* Execute withdraw() on Pool */
-      console.log(`Params => depth: ${depth}`);
-      const withdrawTx = await pool.connect(depositor).withdraw(depth);
+      console.log(`Params => tick: ${tick}`);
+      const withdrawTx = await pool.connect(depositor).withdraw(tick);
 
       /* Get shares */
       const _shares = (await extractEvent(withdrawTx, pool, "Withdrawn")).args.shares;
@@ -747,21 +747,21 @@ describe("Integration", function () {
 
       /* Remove deposit record if fully repaid and no outstanding shares to be redeemed */
       if (newSharesPendingWithdrawal.eq(ethers.constants.Zero) && shares.eq(ethers.constants.Zero)) {
-        depositorsDeposits.delete(depth.toString());
+        depositorsDeposits.delete(tick.toString());
       } else {
         /* Else, update depositor record */
-        const newDepthDeposit: [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress] = [
+        const newTickDeposit: [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress] = [
           newAmount,
           shares,
           newSharesPendingWithdrawal,
           depositor,
         ];
-        depositorsDeposits.set(depth.toString(), newDepthDeposit);
+        depositorsDeposits.set(tick.toString(), newTickDeposit);
       }
       deposits.set(depositor.address, depositorsDeposits);
 
       callStatistics["withdraw"] += 1;
-      console.log(`${depositor.address}: Withdrew ${_shares} shares and ${amount} tokens at depth ${depth}`);
+      console.log(`${depositor.address}: Withdrew ${_shares} shares and ${amount} tokens at tick ${tick}`);
     } catch (e) {
       console.log("withdraw() failed:", e);
       throw new Error();
