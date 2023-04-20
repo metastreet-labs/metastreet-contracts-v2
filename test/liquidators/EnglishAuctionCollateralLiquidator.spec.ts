@@ -565,6 +565,16 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expect(auction.endTime).to.equal(bid2TransactionTime + 60 * 20);
     });
 
+    it("fails when auction does not exist", async function () {
+      /* Collateral hash of a non-existent auction */
+      const collateralHash = "0x0aba3e41b20e8f90d4cd17b11d55913b96da6305ff0ce4caba154572b05dff34";
+
+      /* Bid with accountBidder1 */
+      await expect(
+        collateralLiquidator.connect(accountBidder1).bid(collateralHash, ethers.utils.parseEther("1"))
+      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidAuction");
+    });
+
     it("fails when bid with 0 amount", async function () {
       /* Construct loan reciept */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
