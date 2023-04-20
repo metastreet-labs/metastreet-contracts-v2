@@ -140,6 +140,7 @@ type Loan @entity {
   status: LoanStatus!
   timestamp: Int! # uint64 (in seconds since epoch)
   bundle: Bundle # set only if this is a bundle loan
+  delegate: Bytes # address
   # Decoded Loan Receipt
   borrower: Bytes! # address
   maturity: Int! # uint64 (in seconds since epoch)

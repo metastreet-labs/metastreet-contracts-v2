@@ -182,8 +182,13 @@ function updateDepositEntity(
   return depositEntityId;
 }
 
-function createLoanEntity(receipt: LoanReceipt, encodedReceipt: Bytes, receiptHash: Bytes, timestamp: BigInt): void {
-  const nodeReceipts = receipt.nodeReceipts;
+function createLoanEntity(
+  loanReceipt: LoanReceipt,
+  encodedReceipt: Bytes,
+  receiptHash: Bytes,
+  event: ethereum.Event
+): void {
+  const nodeReceipts = loanReceipt.nodeReceipts;
 
   /* Update the Pool, CollateralToken, and Ticks */
   const poolEntity = updatePoolEntity();
@@ -208,22 +213,35 @@ function createLoanEntity(receipt: LoanReceipt, encodedReceipt: Bytes, receiptHa
   loanEntity.repayment = repayment;
   loanEntity.depths = depths;
   loanEntity.pool = poolAddress;
-  loanEntity.timestamp = timestamp;
+  loanEntity.timestamp = event.block.timestamp;
   loanEntity.status = LoanStatus.Active;
-  loanEntity.borrower = receipt.borrower;
-  loanEntity.maturity = receipt.maturity;
-  loanEntity.duration = receipt.duration;
+  loanEntity.borrower = loanReceipt.borrower;
+  loanEntity.maturity = loanReceipt.maturity;
+  loanEntity.duration = loanReceipt.duration;
 
-  if (receipt.collateralToken.toHexString() == poolEntity.collateralToken) {
-    loanEntity.collateralToken = receipt.collateralToken.toHexString();
-    loanEntity.collateralTokenIds = [receipt.collateralTokenId];
+  if (loanReceipt.collateralToken.toHexString() == poolEntity.collateralToken) {
+    loanEntity.collateralToken = loanReceipt.collateralToken.toHexString();
+    loanEntity.collateralTokenIds = [loanReceipt.collateralTokenId];
   } else {
-    const bundleId = receipt.collateralTokenId.toString();
+    const bundleId = loanReceipt.collateralTokenId.toString();
     const bundleEntity = BundleEntity.load(bundleId);
     if (!bundleEntity) throw new Error("Bundle entity not found for this bundle loan");
     loanEntity.collateralToken = bundleEntity.underlyingCollateralToken.toHexString();
     loanEntity.collateralTokenIds = bundleEntity.underlyingCollateralTokenIds;
     loanEntity.bundle = bundleId;
+  }
+
+  const transactionReceipt = event.receipt;
+  if (transactionReceipt) {
+    const DELEGATE_FOR_TOKEN_TOPIC = "0xe89c6ba1e8957285aed22618f52aa1dcb9d5bb64e1533d8b55136c72fcf5aa5d";
+    for (let i = 0; i < transactionReceipt.logs.length; i++) {
+      const receiptLog = transactionReceipt.logs[i];
+      if (receiptLog.topics[0].toHexString() == DELEGATE_FOR_TOKEN_TOPIC) {
+        const decoded = ethereum.decode("(address,address,address,uint256,bool)", receiptLog.data);
+        if (decoded) loanEntity.delegate = decoded.toTuple().at(1).toAddress();
+        break;
+      }
+    }
   }
 
   loanEntity.save();
@@ -292,7 +310,7 @@ export function handleWithdrawn(event: WithdrawnEvent): void {
 
 export function handleLoanOriginated(event: LoanOriginatedEvent): void {
   const receipt = poolContract.decodeLoanReceipt(event.params.loanReceipt);
-  createLoanEntity(receipt, event.params.loanReceipt, event.params.loanReceiptHash, event.block.timestamp);
+  createLoanEntity(receipt, event.params.loanReceipt, event.params.loanReceiptHash, event);
 
   const poolEventId = createPoolEventEntity(event, PoolEventType.LoanOriginated, receipt.borrower, null);
 
