@@ -38,6 +38,9 @@ describe("Integration", function () {
   let delegationRegistry: TestDelegationRegistry;
   let bundleCollateralWrapper: BundleCollateralWrapper;
 
+  /* Toggle logging */
+  const SILENCE_LOG = true;
+
   /* Test Config */
   const CONFIG = {
     /* functionCalls: [deposit, borrow, repay, refinance, redeem, withdraw, liquidate, onCollateralLiquidated], */
@@ -227,6 +230,12 @@ describe("Integration", function () {
 
   const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
 
+  function consoleLog(message: string) {
+    if (!SILENCE_LOG) {
+      console.log(message);
+    }
+  }
+
   function getRandomInteger(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min)) + min;
   }
@@ -298,7 +307,7 @@ describe("Integration", function () {
   }
 
   async function compareStates(): Promise<void> {
-    console.log("\nComparing states...");
+    consoleLog("\nComparing states...");
     /* Compare admin fee balance */
     expect(await pool.adminFeeBalance()).to.equal(poolModel.adminFeeBalance, "Admin fee balance unequal");
 
@@ -307,7 +316,7 @@ describe("Integration", function () {
 
     /* Compare pool's collateral balance */
     expect(await nft1.balanceOf(pool.address)).to.equal(poolModel.collateralBalances, "Collateral balance unequal");
-    console.log(
+    consoleLog(
       `Balances => admin fee: ${poolModel.adminFeeBalance}, token: ${poolModel.tokenBalances}, collateral: ${poolModel.collateralBalances}`
     );
 
@@ -315,7 +324,7 @@ describe("Integration", function () {
     const [total, used, _] = await pool.liquidityStatistics();
     expect(total).to.equal(poolModel.liquidity.total, "Total liquidity unequal");
     expect(used).to.equal(poolModel.liquidity.used, "Used liquidity unequal");
-    console.log(`Top level liquidity => total: ${total}, used: ${used}`);
+    consoleLog(`Top level liquidity => total: ${total}, used: ${used}`);
   }
 
   async function getTransactionTimestamp(blockNumber: ethers.BigNumber): Promise<ethers.BigNumber> {
@@ -340,7 +349,7 @@ describe("Integration", function () {
 
   async function deposit(): Promise<void> {
     try {
-      console.log("Executing deposit()...");
+      consoleLog("Executing deposit()...");
 
       const depositor = accountDepositors[getRandomInteger(0, accountDepositors.length)];
       const tick = Tick.encode(CONFIG.ticks[getRandomInteger(0, CONFIG.ticks.length)]);
@@ -349,7 +358,7 @@ describe("Integration", function () {
       );
 
       /* Execute deposit() on Pool */
-      console.log(`Params => tick: ${tick}, amount: ${amount}`);
+      consoleLog(`Params => tick: ${tick}, amount: ${amount}`);
       const depositTx = await pool.connect(depositor).deposit(tick, amount);
 
       const [totalAfter, usedAfter, numNodesAfter] = await pool.liquidityStatistics();
@@ -380,19 +389,19 @@ describe("Integration", function () {
       deposits.set(depositor.address, depositorsDeposits);
 
       callStatistics["deposit"] += 1;
-      console.log(`${depositor.address}: Deposited ${amount} at tick ${tick}`);
+      consoleLog(`${depositor.address}: Deposited ${amount} at tick ${tick}`);
     } catch (e) {
-      console.log("deposit() failed:", e);
+      consoleLog("deposit() failed:", e);
       throw new Error();
     }
   }
 
   async function borrow(): Promise<void> {
     try {
-      console.log("Executing borrow()...");
+      consoleLog("Executing borrow()...");
 
       const borrower = accountBorrowers[getRandomInteger(0, accountBorrowers.length)];
-      console.log(`Borrower: ${borrower.address}`);
+      consoleLog(`Borrower: ${borrower.address}`);
 
       const duration = ethers.BigNumber.from(
         getRandomInteger(CONFIG.durations[0], CONFIG.durations[CONFIG.durations.length - 1])
@@ -407,7 +416,7 @@ describe("Integration", function () {
       try {
         _ticks = await sourceLiquidity(principal, 1);
       } catch (err) {
-        console.log("Insufficient liquidity");
+        consoleLog("Insufficient liquidity");
         return;
       }
 
@@ -440,7 +449,7 @@ describe("Integration", function () {
         .callStatic.borrow(principal, duration, nft1.address, tokenId, maxRepayment, _ticks, "0x");
 
       /* Execute borrow() on Pool */
-      console.log(`Params => principal: ${principal}, duration: ${duration}, maxRepayment: ${maxRepayment}`);
+      consoleLog(`Params => principal: ${principal}, duration: ${duration}, maxRepayment: ${maxRepayment}`);
       const borrowTx = await pool
         .connect(borrower)
         .borrow(principal, duration, nft1.address, tokenId, maxRepayment, _ticks, "0x");
@@ -465,20 +474,20 @@ describe("Integration", function () {
       loans.push([borrower, tokenId, encodedLoanReceipt]);
 
       callStatistics["borrow"] += 1;
-      console.log(`Borrowed ${principal} for ${duration} seconds`);
+      consoleLog(`Borrowed ${principal} for ${duration} seconds`);
     } catch (e) {
-      console.log("borrow() failed:", e);
+      consoleLog("borrow() failed:", e);
       throw new Error();
     }
   }
 
   async function repay(): Promise<void> {
     try {
-      console.log("Executing repay()...");
+      consoleLog("Executing repay()...");
 
       /* Skip repay() if there are no existing loans */
       if (loans.length === 0) {
-        console.log("No existing loans exists");
+        consoleLog("No existing loans exists");
         return;
       }
 
@@ -486,7 +495,7 @@ describe("Integration", function () {
       const loan = loans[getRandomInteger(0, loans.length)];
 
       const [borrower, tokenId, encodedLoanReceipt] = loan;
-      console.log(`Borrower: ${borrower.address}`);
+      consoleLog(`Borrower: ${borrower.address}`);
 
       /* Get previous block timestamp */
       const blockNumber = await ethers.provider.getBlockNumber();
@@ -530,21 +539,21 @@ describe("Integration", function () {
       collateralsOwned.set(borrower.address, borrowerCollaterals);
 
       callStatistics["repay"] += 1;
-      console.log(
+      consoleLog(
         `Repaid ${repayment} for loan ${encodedLoanReceipt.slice(0, 10)}...${encodedLoanReceipt.slice(
           encodedLoanReceipt.length - 10,
           encodedLoanReceipt.length
         )}`
       );
     } catch (e) {
-      console.log("repay() failed:", e);
+      consoleLog("repay() failed:", e);
       throw new Error();
     }
   }
 
   async function refinance(): Promise<void> {
     try {
-      console.log("Executing refinance()...");
+      consoleLog("Executing refinance()...");
 
       const duration = ethers.BigNumber.from(
         getRandomInteger(CONFIG.durations[0], CONFIG.durations[CONFIG.durations.length - 1])
@@ -555,7 +564,7 @@ describe("Integration", function () {
 
       /* Skip refinance() if there are no existing loans */
       if (loans.length === 0) {
-        console.log("No existing loans exists");
+        consoleLog("No existing loans exists");
         return;
       }
 
@@ -563,7 +572,7 @@ describe("Integration", function () {
       const loan = loans[getRandomInteger(0, loans.length)];
 
       const [borrower, tokenId, encodedLoanReceipt] = loan;
-      console.log(`Borrower: ${borrower.address}`);
+      consoleLog(`Borrower: ${borrower.address}`);
 
       /* Get previous block timestamp */
       const blockNumber = await ethers.provider.getBlockNumber();
@@ -590,7 +599,7 @@ describe("Integration", function () {
       try {
         _ticks = await sourceLiquidity(principal, 1);
       } catch (err) {
-        console.log("Insufficient liquidity");
+        consoleLog("Insufficient liquidity");
         return;
       }
 
@@ -598,7 +607,7 @@ describe("Integration", function () {
       const maxRepayment = principal.mul(2);
 
       /* Simulate refinance to get repayment value */
-      console.log(`Params => principal: ${principal}, duration: ${duration}, maxRepayment: ${maxRepayment}`);
+      consoleLog(`Params => principal: ${principal}, duration: ${duration}, maxRepayment: ${maxRepayment}`);
       const repayment = await pool
         .connect(borrower)
         .callStatic.refinance(encodedLoanReceipt, principal, duration, maxRepayment, _ticks);
@@ -635,31 +644,31 @@ describe("Integration", function () {
       loans.push([borrower, tokenId, newEncodedLoanReceipt]);
 
       callStatistics["refinance"] += 1;
-      console.log(
+      consoleLog(
         `Refinanced loan ${encodedLoanReceipt.slice(0, 10)}...${encodedLoanReceipt.slice(
           encodedLoanReceipt.length - 10,
           encodedLoanReceipt.length
         )}`
       );
     } catch (e) {
-      console.log("refinance() failed:", e);
+      consoleLog("refinance() failed:", e);
       throw new Error();
     }
   }
 
   async function redeem(): Promise<void> {
     try {
-      console.log("Executing redeem()...");
+      consoleLog("Executing redeem()...");
 
       /* Randomly select existing deposit that has redemption pending = false */
       const flattenedDeposits = flattenDeposits(false);
       if (flattenedDeposits.length === 0) {
-        console.log("No deposits with no redemption pending");
+        consoleLog("No deposits with no redemption pending");
         return;
       }
       const [tick, amount, shares, sharesPendingWithdrawal, depositor] =
         flattenedDeposits[getRandomInteger(0, flattenedDeposits.length)];
-      console.log(`Depositor: ${depositor.address}`);
+      consoleLog(`Depositor: ${depositor.address}`);
 
       /* If randomized, redeem at least 1 */
       const sharesRedeemAmount = CONFIG.isSharesRedeemAmountRandomized ? getRandomBN(shares.sub(1)).add(1) : shares;
@@ -670,7 +679,7 @@ describe("Integration", function () {
       const [totalBefore, usedBefore, numNodesBefore] = await pool.liquidityStatistics();
 
       /* Execute redeem() on Pool */
-      console.log(`Params => tick: ${tick}, shares: ${sharesRedeemAmount}`);
+      consoleLog(`Params => tick: ${tick}, shares: ${sharesRedeemAmount}`);
       await pool.connect(depositor).redeem(tick, sharesRedeemAmount);
 
       const [totalAfter, usedAfter, numNodesAfter] = await pool.liquidityStatistics();
@@ -696,30 +705,30 @@ describe("Integration", function () {
       deposits.set(depositor.address, depositorsDeposits);
 
       callStatistics["redeem"] += 1;
-      console.log(`${depositor.address}: Redeemed ${sharesRedeemAmount} shares at tick ${tick}`);
+      consoleLog(`${depositor.address}: Redeemed ${sharesRedeemAmount} shares at tick ${tick}`);
     } catch (e) {
-      console.log("redeem() failed:", e);
+      consoleLog("redeem() failed:", e);
       throw new Error();
     }
   }
 
   async function withdraw(): Promise<void> {
     try {
-      console.log("Executing withdraw()...");
+      consoleLog("Executing withdraw()...");
 
       /* Randomly select existing deposit that has redemption pending = true */
       const flattenedDeposits = flattenDeposits(true);
       if (flattenedDeposits.length === 0) {
-        console.log("No deposits with pending redemption");
+        consoleLog("No deposits with pending redemption");
         return;
       }
 
       const [tick, amount, shares, sharesPendingWithdrawal, depositor] =
         flattenedDeposits[getRandomInteger(0, flattenedDeposits.length)];
-      console.log(`Depositor: ${depositor.address}`);
+      consoleLog(`Depositor: ${depositor.address}`);
 
       /* Execute withdraw() on Pool */
-      console.log(`Params => tick: ${tick}`);
+      consoleLog(`Params => tick: ${tick}`);
       const withdrawTx = await pool.connect(depositor).withdraw(tick);
 
       /* Get shares */
@@ -757,20 +766,20 @@ describe("Integration", function () {
       deposits.set(depositor.address, depositorsDeposits);
 
       callStatistics["withdraw"] += 1;
-      console.log(`${depositor.address}: Withdrew ${_shares} shares and ${amount} tokens at tick ${tick}`);
+      consoleLog(`${depositor.address}: Withdrew ${_shares} shares and ${amount} tokens at tick ${tick}`);
     } catch (e) {
-      console.log("withdraw() failed:", e);
+      consoleLog("withdraw() failed:", e);
       throw new Error();
     }
   }
 
   async function liquidate(): Promise<void> {
     try {
-      console.log("Executing liquidate()...");
+      consoleLog("Executing liquidate()...");
 
       /* Skip liquidate() if there are no existing loans */
       if (loans.length === 0) {
-        console.log("No existing loans exists");
+        consoleLog("No existing loans exists");
         return;
       }
 
@@ -805,25 +814,25 @@ describe("Integration", function () {
       defaultedLoans.push([borrower, tokenId, encodedLoanReceipt]);
 
       callStatistics["liquidate"] += 1;
-      console.log(
+      consoleLog(
         `Liquidated loan ${encodedLoanReceipt.slice(0, 10)}...${encodedLoanReceipt.slice(
           encodedLoanReceipt.length - 10,
           encodedLoanReceipt.length
         )}`
       );
     } catch (e) {
-      console.log("liquidate() failed:", e);
+      consoleLog("liquidate() failed:", e);
       throw new Error();
     }
   }
 
   async function onCollateralLiquidated(): Promise<void> {
     try {
-      console.log("Executing onCollateralLiquidated()...");
+      consoleLog("Executing onCollateralLiquidated()...");
 
       /* Skip onCollateralLiquidated() if there are no existing loans */
       if (defaultedLoans.length === 0) {
-        console.log("No existing defaulted loans exists");
+        consoleLog("No existing defaulted loans exists");
         return;
       }
 
@@ -843,7 +852,7 @@ describe("Integration", function () {
       const proceeds = decodedLoanReceipt.repayment.mul(proceedsRatio).div(10000);
 
       /* Execute liquidate on Pool */
-      console.log(`Params => proceeds: ${proceeds}`);
+      consoleLog(`Params => proceeds: ${proceeds}`);
       await collateralLiquidator
         .connect(accountLiquidator)
         .withdrawCollateral(
@@ -874,9 +883,9 @@ describe("Integration", function () {
       removeLoanFromStorage(defaultedLoans, encodedLoanReceipt);
 
       callStatistics["onCollateralLiquidated"] += 1;
-      console.log(`Restored liquidation proceeds of ${proceeds}`);
+      consoleLog(`Restored liquidation proceeds of ${proceeds}`);
     } catch (e) {
-      console.log("onCollateralLiquidated() failed:", e);
+      consoleLog("onCollateralLiquidated() failed:", e);
       throw new Error();
     }
   }
@@ -884,14 +893,14 @@ describe("Integration", function () {
   describe("#test", async function () {
     it("integration test", async function () {
       for (let i = 0; i < callSequence.length; i++) {
-        console.log("\n--------------\n");
+        consoleLog("\n--------------\n");
         const functionCall = callSequence[i];
         await functionCall();
         await compareStates();
       }
-      console.log("\n\nCall sequence completed!");
-      console.log("\nSuccessful calls:");
-      console.log(callStatistics);
+      consoleLog("\n\nCall sequence completed!");
+      consoleLog("\nSuccessful calls:");
+      consoleLog(callStatistics);
     });
   });
 });
