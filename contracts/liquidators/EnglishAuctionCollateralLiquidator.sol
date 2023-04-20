@@ -496,6 +496,9 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         /* Get auction */
         Auction memory auction_ = _auctions[collateralHash];
 
+        /* Validate that auction exists */
+        if (auction_.liquidationHash == bytes32(0)) revert InvalidAuction();
+
         /* Validate auction has not ended */
         if (auction_.endTime != 0 && auction_.endTime < uint64(block.timestamp)) revert InvalidBid();
 
