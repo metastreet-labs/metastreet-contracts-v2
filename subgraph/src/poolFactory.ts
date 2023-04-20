@@ -27,6 +27,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   poolEntity.totalValueUsed = BigInt.zero();
   poolEntity.maxBorrow = BigInt.zero();
   poolEntity.collateralToken = collateralTokenId;
+  poolEntity.delegationRegistry = poolContract.delegationRegistry();
   poolEntity.save();
 
   let collateralTokenEntity = CollateralTokenEntity.load(collateralTokenId);
