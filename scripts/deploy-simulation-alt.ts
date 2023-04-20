@@ -45,8 +45,14 @@ async function main() {
   /**************************************************************************/
   /* Pool implementation */
   /**************************************************************************/
+  /* Deploy Test Delegation Registry */
+  const TestDelegationRegistry = await ethers.getContractFactory("TestDelegationRegistry", accounts[9]);
+  const testDelegationRegistry = await TestDelegationRegistry.deploy();
+  await testDelegationRegistry.deployed();
+  console.log("TestDelegationRegistry: ", testDelegationRegistry.address);
+  /* Deploy Pool Implementation */
   const Pool = await ethers.getContractFactory("WeightedRateCollectionPool", accounts[9]);
-  const poolImpl = await Pool.deploy(ethers.constants.AddressZero, [bundleCollateralWrapper.address]);
+  const poolImpl = await Pool.deploy(testDelegationRegistry.address, [bundleCollateralWrapper.address]);
   await poolImpl.deployed();
   console.log("Pool Implementation: ", poolImpl.address);
   /**************************************************************************/
