@@ -76,13 +76,6 @@ contract TestLiquidityManager is ILiquidity {
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityAvailable(uint128 maxTick, uint256 multiplier) external view returns (uint256) {
-        return _liquidity.liquidityAvailable(maxTick, multiplier);
-    }
-
-    /**
-     * @inheritdoc ILiquidity
-     */
     function liquidityNodes(uint128 startTick, uint128 endTick) external view returns (ILiquidity.NodeInfo[] memory) {
         return _liquidity.liquidityNodes(startTick, endTick);
     }

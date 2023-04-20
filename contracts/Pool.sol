@@ -58,7 +58,7 @@ abstract contract Pool is
     /**
      * @notice Tick spacing basis points
      */
-    uint256 public constant TICK_SPACING_BASIS_POINTS = LiquidityManager.TICK_SPACING_BASIS_POINTS;
+    uint256 public constant TICK_LIMIT_SPACING_BASIS_POINTS = LiquidityManager.TICK_LIMIT_SPACING_BASIS_POINTS;
 
     /**
      * @notice Basis points scale
@@ -378,13 +378,6 @@ abstract contract Pool is
     /**
      * @inheritdoc ILiquidity
      */
-    function liquidityAvailable(uint128 maxTick, uint256 multiplier) external view returns (uint256) {
-        return _liquidity.liquidityAvailable(maxTick, multiplier);
-    }
-
-    /**
-     * @inheritdoc ILiquidity
-     */
     function liquidityNodes(uint128 startTick, uint128 endTick) external view returns (NodeInfo[] memory) {
         return _liquidity.liquidityNodes(startTick, endTick);
     }
@@ -514,13 +507,17 @@ abstract contract Pool is
      * @param duration Duration in seconds
      * @param collateralToken Collateral token address
      * @param collateralTokenIds List of collateral token ids
+     * @param nodes Liquidity nodes
+     * @param count Liquidity node count
      * @return Repayment amount in currency tokens
      */
     function _quote(
         uint256 principal,
         uint64 duration,
         address collateralToken,
-        uint256[] memory collateralTokenIds
+        uint256[] memory collateralTokenIds,
+        ILiquidity.NodeSource[] memory nodes,
+        uint16 count
     ) internal view returns (uint256) {
         /* Verify collateral is supported */
         for (uint256 i = 0; i < collateralTokenIds.length; i++) {
@@ -597,18 +594,25 @@ abstract contract Pool is
             collateralContext
         );
 
-        /* Quote repayment */
-        uint256 repayment = _quote(principal, duration, underlyingCollateralToken, underlyingCollateralTokenIds);
-
-        /* Validate repayment */
-        if (repayment > maxRepayment) revert RepaymentTooHigh();
-
         /* Source liquidity nodes */
         (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
             principal,
             ticks,
             underlyingCollateralTokenIds.length
         );
+
+        /* Quote repayment */
+        uint256 repayment = _quote(
+            principal,
+            duration,
+            underlyingCollateralToken,
+            underlyingCollateralTokenIds,
+            nodes,
+            count
+        );
+
+        /* Validate repayment */
+        if (repayment > maxRepayment) revert RepaymentTooHigh();
 
         /* Compute admin fee */
         uint256 adminFee = Math.mulDiv(_adminFeeRate, repayment - principal, BASIS_POINTS_SCALE);
@@ -738,15 +742,19 @@ abstract contract Pool is
         uint64 duration,
         address collateralToken,
         uint256[] calldata collateralTokenIds,
+        uint128[] calldata ticks,
         bytes calldata options
     ) external view returns (uint256) {
         options;
 
-        /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint128).max, collateralTokenIds.length))
-            revert LiquidityManager.InsufficientLiquidity();
+        /* Source liquidity nodes */
+        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
+            principal,
+            ticks,
+            collateralTokenIds.length
+        );
 
-        return _quote(principal, duration, collateralToken, collateralTokenIds);
+        return _quote(principal, duration, collateralToken, collateralTokenIds, nodes, count);
     }
 
     /**
@@ -755,7 +763,8 @@ abstract contract Pool is
     function quoteRefinance(
         bytes calldata encodedLoanReceipt,
         uint256 principal,
-        uint64 duration
+        uint64 duration,
+        uint128[] calldata ticks
     ) external view returns (int256, uint256) {
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
@@ -767,12 +776,22 @@ abstract contract Pool is
             loanReceipt.collateralContextData
         );
 
-        /* Check principal doesn't exceed max borrow available */
-        if (principal > _liquidity.liquidityAvailable(type(uint128).max, underlyingCollateralTokenIds.length))
-            revert LiquidityManager.InsufficientLiquidity();
+        /* Source liquidity nodes */
+        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
+            principal,
+            ticks,
+            underlyingCollateralTokenIds.length
+        );
 
         /* Quote repayment */
-        uint256 newRepayment = _quote(principal, duration, underlyingCollateralToken, underlyingCollateralTokenIds);
+        uint256 newRepayment = _quote(
+            principal,
+            duration,
+            underlyingCollateralToken,
+            underlyingCollateralTokenIds,
+            nodes,
+            count
+        );
 
         /* Compute repayment using prorated interest */
         (uint256 proratedRepayment, ) = _prorateRepayment(loanReceipt);
@@ -1054,10 +1073,7 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function redemptionAvailable(
-        address account,
-        uint128 tick
-    ) external view returns (uint256 shares, uint256 amount) {
+    function redemptionAvailable(address account, uint128 tick) external view returns (uint256 shares, uint256 amount) {
         /* Look up Deposit */
         Deposit storage dep = _deposits[account][tick];
 

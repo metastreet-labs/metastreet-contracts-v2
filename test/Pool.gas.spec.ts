@@ -16,6 +16,7 @@ import {
 
 import { extractEvent, expectEvent } from "./helpers/EventUtilities";
 import { FixedPoint } from "./helpers/FixedPoint.ts";
+import { Tick } from "./helpers/Tick";
 
 describe("Pool Gas", function () {
   let accounts: SignerWithAddress[];
@@ -159,12 +160,12 @@ describe("Pool Gas", function () {
 
   async function setupLiquidity(): Promise<void> {
     const NUM_TICKS = 16;
-    const TICK_SPACING_BASIS_POINTS = await pool.TICK_SPACING_BASIS_POINTS();
+    const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.TICK_LIMIT_SPACING_BASIS_POINTS();
 
-    let tick = ethers.utils.parseEther("1.0");
+    let limit = FixedPoint.from("1.0");
     for (let i = 0; i < NUM_TICKS; i++) {
-      await pool.connect(accountDepositors[0]).deposit(tick, ethers.utils.parseEther("80"));
-      tick = tick.mul(TICK_SPACING_BASIS_POINTS).div(10000);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode(limit), FixedPoint.from("80"));
+      limit = limit.mul(TICK_LIMIT_SPACING_BASIS_POINTS).div(10000);
     }
   }
 
@@ -177,7 +178,8 @@ describe("Pool Gas", function () {
 
     let taken = ethers.constants.Zero;
     for (const node of nodes) {
-      const take = minBN(minBN(node.tick.mul(multiplier).sub(taken), node.available), amount.sub(taken));
+      const limit = Tick.decode(node.tick).limit;
+      const take = minBN(minBN(limit.mul(multiplier).sub(taken), node.available), amount.sub(taken));
       if (take.isZero()) continue;
       ticks.push(node.tick);
       taken = taken.add(take);
@@ -190,12 +192,12 @@ describe("Pool Gas", function () {
 
   async function setupInsolventTick(): Promise<void> {
     /* Create two deposits at 10 ETH and 20 ETH ticks */
-    await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("5"), ethers.utils.parseEther("5"));
-    await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("5"));
-    await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("15"), ethers.utils.parseEther("5"));
+    await pool.connect(accountDepositors[0]).deposit(Tick.encode("5"), FixedPoint.from("5"));
+    await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("5"));
+    await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"));
 
     /* Create expired loan taking 15 ETH */
-    const [loanReceipt] = await createExpiredLoan(ethers.utils.parseEther("15"));
+    const [loanReceipt] = await createExpiredLoan(FixedPoint.from("15"));
 
     /* Process expiration */
     await pool.liquidate(loanReceipt);
@@ -206,7 +208,7 @@ describe("Pool Gas", function () {
     /* Liquidate collateral and process liquidation */
     await collateralLiquidator
       .connect(accountLiquidator)
-      .liquidateCollateral(pool.address, loanReceipt, ethers.utils.parseEther("5"));
+      .liquidateCollateral(pool.address, loanReceipt, FixedPoint.from("5"));
   }
 
   async function createActiveLoan(
@@ -246,12 +248,12 @@ describe("Pool Gas", function () {
     const borrowTx = await pool
       .connect(accountBorrower)
       .borrow(
-        ethers.utils.parseEther("25"),
+        FixedPoint.from("25"),
         30 * 86400,
         bundleCollateralWrapper.address,
         bundleTokenId,
-        ethers.utils.parseEther("26"),
-        await sourceLiquidity(ethers.utils.parseEther("25"), 3),
+        FixedPoint.from("26"),
+        await sourceLiquidity(FixedPoint.from("25"), 3),
         ethers.utils.solidityPack(
           ["uint16", "uint16", "bytes"],
           [2, ethers.utils.hexDataLength(bundleData), bundleData]
@@ -308,9 +310,7 @@ describe("Pool Gas", function () {
 
   describe("#deposit", async function () {
     it("deposit (new tick)", async function () {
-      const depositTx = await pool
-        .connect(accountDepositors[0])
-        .deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
+      const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
 
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push(["deposit (new tick)", gasUsed]);
@@ -318,10 +318,8 @@ describe("Pool Gas", function () {
       expect(gasUsed).to.be.lt(260000);
     });
     it("deposit (existing tick)", async function () {
-      await pool.connect(accountDepositors[1]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
-      const depositTx = await pool
-        .connect(accountDepositors[0])
-        .deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
+      await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
 
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push(["deposit (existing tick)", gasUsed]);
@@ -329,10 +327,8 @@ describe("Pool Gas", function () {
       expect(gasUsed).to.be.lt(105000);
     });
     it("deposit (existing deposit)", async function () {
-      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
-      const depositTx = await pool
-        .connect(accountDepositors[0])
-        .deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
 
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push(["deposit (existing deposit)", gasUsed]);
@@ -343,11 +339,9 @@ describe("Pool Gas", function () {
 
   describe("#redeem", async function () {
     it("redeem (partial)", async function () {
-      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
 
-      const redeemTx = await pool
-        .connect(accountDepositors[0])
-        .redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("0.5"));
+      const redeemTx = await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("0.5"));
 
       const gasUsed = (await redeemTx.wait()).gasUsed;
       gasReport.push(["redeem (partial)", gasUsed]);
@@ -355,11 +349,9 @@ describe("Pool Gas", function () {
       expect(gasUsed).to.be.lt(110000);
     });
     it("redeem (entire)", async function () {
-      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
 
-      const redeemTx = await pool
-        .connect(accountDepositors[0])
-        .redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("1.0"));
+      const redeemTx = await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1.0"));
 
       const gasUsed = (await redeemTx.wait()).gasUsed;
       gasReport.push(["redeem (entire)", gasUsed]);
@@ -370,10 +362,10 @@ describe("Pool Gas", function () {
 
   describe("#withdraw", async function () {
     it("withdraw", async function () {
-      await pool.connect(accountDepositors[0]).deposit(ethers.utils.parseEther("10"), ethers.utils.parseEther("1"));
-      await pool.connect(accountDepositors[0]).redeem(ethers.utils.parseEther("10"), ethers.utils.parseEther("1.0"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1.0"));
 
-      const withdrawTx = await pool.connect(accountDepositors[0]).withdraw(ethers.utils.parseEther("10"));
+      const withdrawTx = await pool.connect(accountDepositors[0]).withdraw(Tick.encode("10"));
 
       const gasUsed = (await withdrawTx.wait()).gasUsed;
       gasReport.push(["withdraw", gasUsed]);
@@ -395,12 +387,12 @@ describe("Pool Gas", function () {
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
-          ethers.utils.parseEther("25"),
+          FixedPoint.from("25"),
           30 * 86400,
           nft1.address,
           123,
-          ethers.utils.parseEther("26"),
-          await sourceLiquidity(ethers.utils.parseEther("25")),
+          FixedPoint.from("26"),
+          await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         );
 
@@ -421,12 +413,12 @@ describe("Pool Gas", function () {
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
-          ethers.utils.parseEther("25"),
+          FixedPoint.from("25"),
           30 * 86400,
           nft1.address,
           123,
-          ethers.utils.parseEther("26"),
-          await sourceLiquidity(ethers.utils.parseEther("25")),
+          FixedPoint.from("26"),
+          await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         );
 
@@ -452,12 +444,12 @@ describe("Pool Gas", function () {
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
-          ethers.utils.parseEther("250"),
+          FixedPoint.from("250"),
           30 * 86400,
           bundleCollateralWrapper.address,
           bundleTokenId,
-          ethers.utils.parseEther("260"),
-          await sourceLiquidity(ethers.utils.parseEther("250"), 10),
+          FixedPoint.from("260"),
+          await sourceLiquidity(FixedPoint.from("250"), 10),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
             [2, ethers.utils.hexDataLength(bundleData), bundleData]
@@ -495,12 +487,12 @@ describe("Pool Gas", function () {
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
-          ethers.utils.parseEther("250"),
+          FixedPoint.from("250"),
           30 * 86400,
           bundleCollateralWrapper.address,
           bundleTokenId,
-          ethers.utils.parseEther("260"),
-          await sourceLiquidity(ethers.utils.parseEther("250"), 10),
+          FixedPoint.from("260"),
+          await sourceLiquidity(FixedPoint.from("250"), 10),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
             [2, ethers.utils.hexDataLength(bundleData), bundleData]
@@ -528,12 +520,12 @@ describe("Pool Gas", function () {
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
-          ethers.utils.parseEther("25"),
+          FixedPoint.from("25"),
           30 * 86400,
           nft1.address,
           123,
-          ethers.utils.parseEther("26"),
-          await sourceLiquidity(ethers.utils.parseEther("25")),
+          FixedPoint.from("26"),
+          await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         );
 
@@ -563,12 +555,12 @@ describe("Pool Gas", function () {
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
-          ethers.utils.parseEther("250"),
+          FixedPoint.from("250"),
           30 * 86400,
           bundleCollateralWrapper.address,
           bundleTokenId,
-          ethers.utils.parseEther("260"),
-          await sourceLiquidity(ethers.utils.parseEther("250"), 10),
+          FixedPoint.from("260"),
+          await sourceLiquidity(FixedPoint.from("250"), 10),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
             [2, ethers.utils.hexDataLength(bundleData), bundleData]
@@ -600,12 +592,12 @@ describe("Pool Gas", function () {
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
-          ethers.utils.parseEther("25"),
+          FixedPoint.from("25"),
           30 * 86400,
           nft1.address,
           123,
-          ethers.utils.parseEther("26"),
-          await sourceLiquidity(ethers.utils.parseEther("25")),
+          FixedPoint.from("26"),
+          await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         );
 
@@ -622,8 +614,8 @@ describe("Pool Gas", function () {
           loanReceipt,
           decodedLoanReceipt.principal,
           30 * 86400,
-          ethers.utils.parseEther("26"),
-          await sourceLiquidity(ethers.utils.parseEther("25"))
+          FixedPoint.from("26"),
+          await sourceLiquidity(FixedPoint.from("25"))
         );
 
       const gasUsed = (await refinanceTx.wait()).gasUsed;
@@ -643,12 +635,12 @@ describe("Pool Gas", function () {
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
-          ethers.utils.parseEther("250"),
+          FixedPoint.from("250"),
           30 * 86400,
           bundleCollateralWrapper.address,
           bundleTokenId,
-          ethers.utils.parseEther("260"),
-          await sourceLiquidity(ethers.utils.parseEther("250"), 10),
+          FixedPoint.from("260"),
+          await sourceLiquidity(FixedPoint.from("250"), 10),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
             [2, ethers.utils.hexDataLength(bundleData), bundleData]
@@ -668,8 +660,8 @@ describe("Pool Gas", function () {
           loanReceipt,
           decodedLoanReceipt.principal,
           30 * 86400,
-          ethers.utils.parseEther("260"),
-          await sourceLiquidity(ethers.utils.parseEther("250"), 10)
+          FixedPoint.from("260"),
+          await sourceLiquidity(FixedPoint.from("250"), 10)
         );
 
       const gasUsed = (await refinanceTx.wait()).gasUsed;
@@ -688,12 +680,12 @@ describe("Pool Gas", function () {
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
-          ethers.utils.parseEther("25"),
+          FixedPoint.from("25"),
           30 * 86400,
           nft1.address,
           123,
-          ethers.utils.parseEther("26"),
-          await sourceLiquidity(ethers.utils.parseEther("25")),
+          FixedPoint.from("26"),
+          await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         );
 
@@ -723,12 +715,12 @@ describe("Pool Gas", function () {
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
-          ethers.utils.parseEther("250"),
+          FixedPoint.from("250"),
           30 * 86400,
           bundleCollateralWrapper.address,
           bundleTokenId,
-          ethers.utils.parseEther("260"),
-          await sourceLiquidity(ethers.utils.parseEther("250"), 10),
+          FixedPoint.from("260"),
+          await sourceLiquidity(FixedPoint.from("250"), 10),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
             [2, ethers.utils.hexDataLength(bundleData), bundleData]

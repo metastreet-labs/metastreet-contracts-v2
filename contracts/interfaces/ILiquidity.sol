@@ -62,14 +62,6 @@ interface ILiquidity {
     function liquidityStatistics() external view returns (uint256 total, uint256 used, uint16 numNodes);
 
     /**
-     * Get liquidity available up to max tick
-     * @param maxTick Max tick
-     * @param multiplier Multiplier in amount
-     * @return Liquidity available
-     */
-    function liquidityAvailable(uint128 maxTick, uint256 multiplier) external view returns (uint256);
-
-    /**
      * Get liquidity nodes spanning [startTick, endTick] range
      * @param startTick Start tick
      * @param endTick End tick

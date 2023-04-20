@@ -15,7 +15,9 @@ import {
 } from "../typechain";
 
 import { extractEvent } from "./helpers/EventUtilities";
-import { FixedPoint } from "./helpers/FixedPoint.ts";
+import { FixedPoint } from "./helpers/FixedPoint";
+import { Tick } from "./helpers/Tick";
+
 import { PoolModel } from "./integration/PoolModel";
 
 describe("Integration", function () {
@@ -274,7 +276,7 @@ describe("Integration", function () {
     return flattenedDeposits;
   }
 
-  async function sourceLiquidity(amount: ethers.BigNumber, itemCount: ethers.BigNumber): Promise<ethers.BigNumber[]> {
+  async function sourceLiquidity(amount: ethers.BigNumber, multiplier?: number = 1): Promise<ethers.BigNumber[]> {
     const nodes = await pool.liquidityNodes(0, MaxUint128);
     const ticks = [];
 
@@ -282,13 +284,9 @@ describe("Integration", function () {
     const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
 
     let taken = ethers.constants.Zero;
-    let prevTick = ethers.constants.Zero;
-    let carry = ethers.constants.Zero;
     for (const node of nodes) {
-      const tickAmount = node.tick.sub(prevTick).mul(itemCount).add(carry);
-      const take = minBN(minBN(tickAmount, node.available), amount.sub(taken));
-      carry = node.available.lt(tickAmount) ? tickAmount.sub(node.available) : ethers.constants.Zero;
-      prevTick = node.tick;
+      const limit = Tick.decode(node.tick).limit;
+      const take = minBN(minBN(limit.mul(multiplier).sub(taken), node.available), amount.sub(taken));
       if (take.isZero()) continue;
       ticks.push(node.tick);
       taken = taken.add(take);
@@ -345,7 +343,7 @@ describe("Integration", function () {
       console.log("Executing deposit()...");
 
       const depositor = accountDepositors[getRandomInteger(0, accountDepositors.length)];
-      const tick = ethers.utils.parseEther(CONFIG.ticks[getRandomInteger(0, CONFIG.ticks.length)]);
+      const tick = Tick.encode(CONFIG.ticks[getRandomInteger(0, CONFIG.ticks.length)]);
       const amount = ethers.utils.parseEther(
         getRandomInteger(CONFIG.depositAmounts[0], CONFIG.depositAmounts[CONFIG.depositAmounts.length - 1]).toString()
       );
@@ -404,15 +402,14 @@ describe("Integration", function () {
         getRandomInteger(CONFIG.principals[0], CONFIG.principals[CONFIG.principals.length - 1]).toString()
       );
 
-      /* Check if liquidity available */
-      const liquidity = await pool.liquidityAvailable(MaxUint128, ethers.BigNumber.from(1));
-      if (liquidity.lt(principal)) {
+      /* Source liquidity */
+      const _ticks: ethers.BigNumber[] = [];
+      try {
+        _ticks = await sourceLiquidity(principal, 1);
+      } catch (err) {
         console.log("Insufficient liquidity");
         return;
       }
-
-      /* Source liquidity */
-      const _ticks = await sourceLiquidity(principal, 1);
 
       /* Get max repayment */
       const maxRepayment = principal.mul(2);
@@ -588,15 +585,14 @@ describe("Integration", function () {
       const randomTimestamp = getRandomBN(maturity.sub(timestamp)).add(timestamp);
       await helpers.time.increaseTo(randomTimestamp);
 
-      /* Check if liquidity available */
-      const liquidity = await pool.liquidityAvailable(MaxUint128, ethers.BigNumber.from(1));
-      if (liquidity.lt(principal)) {
+      /* Source liquidity */
+      const _ticks: ethers.BigNumber[] = [];
+      try {
+        _ticks = await sourceLiquidity(principal, 1);
+      } catch (err) {
         console.log("Insufficient liquidity");
         return;
       }
-
-      /* Source liquidity */
-      const _ticks = await sourceLiquidity(principal, 1);
 
       /* Get max repayment */
       const maxRepayment = principal.mul(2);

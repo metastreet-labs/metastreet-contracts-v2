@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import "./interfaces/ILiquidity.sol";
+import "./Tick.sol";
 
 library LiquidityManager {
     using SafeCast for uint256;
@@ -14,19 +15,24 @@ library LiquidityManager {
     /**************************************************************************/
 
     /**
-     * @notice Fixed point scale
+     * @notice Tick limit spacing basis points (25%)
      */
-    uint256 public constant FIXED_POINT_SCALE = 1e18;
-
-    /**
-     * @notice Tick spacing basis points (25%)
-     */
-    uint256 public constant TICK_SPACING_BASIS_POINTS = 12500;
+    uint256 public constant TICK_LIMIT_SPACING_BASIS_POINTS = 12500;
 
     /**
      * @notice Maximum number of nodes that can be sourced at once
      */
     uint256 public constant MAX_NUM_NODES = 16;
+
+    /**
+     * @notice Fixed point scale
+     */
+    uint256 internal constant FIXED_POINT_SCALE = 1e18;
+
+    /**
+     * @notice Basis points scale
+     */
+    uint256 internal constant BASIS_POINTS_SCALE = 10_000;
 
     /**************************************************************************/
     /* Errors */
@@ -51,11 +57,6 @@ library LiquidityManager {
      * @notice Insufficient tick spacing
      */
     error InsufficientTickSpacing();
-
-    /**
-     * @notice Invalid tick
-     */
-    error InvalidTick();
 
     /**************************************************************************/
     /* Structures */
@@ -190,29 +191,6 @@ library LiquidityManager {
     }
 
     /**
-     * Get liquidity available up to max tick
-     * @param maxTick Max tick
-     * @param multiplier Multiplier in amount
-     * @return Liquidity available
-     */
-    function liquidityAvailable(
-        Liquidity storage liquidity,
-        uint128 maxTick,
-        uint256 multiplier
-    ) internal view returns (uint256) {
-        uint256 amount = 0;
-
-        uint128 t = liquidity.nodes[0].next;
-        while (t != type(uint128).max && t <= maxTick) {
-            Node storage node = liquidity.nodes[t];
-            amount += Math.min(t * multiplier - amount, node.available);
-            t = node.next;
-        }
-
-        return amount;
-    }
-
-    /**
      * @notice Get redemption available amount
      * @param liquidity Liquidity state
      * @param tick Tick
@@ -263,6 +241,7 @@ library LiquidityManager {
 
     /**
      * @dev Check if tick is reserved
+     * @param tick Tick
      * @return True if resreved, otherwise false
      */
     function _isReserved(uint128 tick) internal pure returns (bool) {
@@ -310,28 +289,36 @@ library LiquidityManager {
     function instantiate(Liquidity storage liquidity, uint128 tick) internal {
         Node storage node = liquidity.nodes[tick];
 
+        /* If tick is reserved */
+        if (_isReserved(tick)) revert InactiveLiquidity();
         /* If node is active, do nothing */
         if (!_isInactive(node)) return;
         /* If node is insolvent, refuse to link */
         if (_isInsolvent(node)) revert InsolventLiquidity();
 
-        /* Find prior node */
+        /* Find prior node to new tick */
         uint128 prevTick = 0;
         Node storage prevNode = liquidity.nodes[prevTick];
-        while (prevNode.next < tick && prevNode.next != type(uint128).max) {
+        while (prevNode.next < tick) {
             prevTick = prevNode.next;
             prevNode = liquidity.nodes[prevTick];
         }
 
-        /* Validate new node tick spacing */
-        if (tick < (prevTick * TICK_SPACING_BASIS_POINTS) / 10000) revert InsufficientTickSpacing();
-        if (prevNode.next > 0 && prevNode.next < (tick * TICK_SPACING_BASIS_POINTS) / 10000)
+        /* Decode limits from previous tick, new tick, and next tick */
+        (uint256 prevLimit, , , ) = Tick.decode(prevTick);
+        (uint256 newLimit, , , ) = Tick.decode(tick);
+        (uint256 nextLimit, , , ) = Tick.decode(prevNode.next);
+
+        /* Validate new tick limit spacing */
+        if (newLimit != prevLimit && newLimit < (prevLimit * TICK_LIMIT_SPACING_BASIS_POINTS) / BASIS_POINTS_SCALE)
+            revert InsufficientTickSpacing();
+        if (newLimit != nextLimit && nextLimit < (newLimit * TICK_LIMIT_SPACING_BASIS_POINTS) / BASIS_POINTS_SCALE)
             revert InsufficientTickSpacing();
 
         /* Link new node */
         node.prev = prevTick;
         node.next = prevNode.next;
-        if (prevNode.next != 0) liquidity.nodes[prevNode.next].prev = tick;
+        if (prevNode.next != type(uint128).max) liquidity.nodes[prevNode.next].prev = tick;
         prevNode.next = tick;
         liquidity.numNodes++;
     }
@@ -346,8 +333,10 @@ library LiquidityManager {
     function deposit(Liquidity storage liquidity, uint128 tick, uint128 amount) internal returns (uint128) {
         Node storage node = liquidity.nodes[tick];
 
-        /* If tick is reserved or node is inactive */
-        if (_isReserved(tick) || _isInactive(node)) revert InactiveLiquidity();
+        /* If tick is reserved */
+        if (_isReserved(tick)) revert InactiveLiquidity();
+        /* If node is inactive */
+        if (_isInactive(node)) revert InactiveLiquidity();
 
         uint256 price = node.shares == 0
             ? FIXED_POINT_SCALE
@@ -441,10 +430,10 @@ library LiquidityManager {
      * @return Redemption index, Redemption target
      */
     function redeem(Liquidity storage liquidity, uint128 tick, uint128 shares) internal returns (uint128, uint128) {
-        Node storage node = liquidity.nodes[tick];
-
         /* If tick is reserved */
         if (_isReserved(tick)) revert InactiveLiquidity();
+
+        Node storage node = liquidity.nodes[tick];
 
         /* Redemption from inactive liquidity nodes is allowed to facilitate
          * garbage collection of insolvent nodes */
@@ -531,7 +520,7 @@ library LiquidityManager {
      * @param liquidity Liquidity state
      * @param amount Amount
      * @param ticks Ticks to source from
-     * @param multiplier Multiplier in amount
+     * @param multiplier Multiplier for amount
      * @return Sourced liquidity nodes, count of nodes
      */
     function source(
@@ -542,20 +531,29 @@ library LiquidityManager {
     ) internal view returns (ILiquidity.NodeSource[] memory, uint16) {
         ILiquidity.NodeSource[] memory sources = new ILiquidity.NodeSource[](ticks.length);
 
-        uint128 prevTick;
+        uint256 prevLimit;
         uint256 taken;
         uint256 count;
         for (; count < ticks.length && taken != amount; count++) {
             uint128 tick = ticks[count];
-            if (tick <= prevTick) revert InvalidTick();
 
+            /* Decode tick limit */
+            (uint256 limit, , , ) = Tick.decode(tick);
+
+            /* Validate limit is greater than previous limit */
+            if (limit <= prevLimit) revert Tick.InvalidTick();
+
+            /* Look up liquidity node */
             Node storage node = liquidity.nodes[tick];
 
-            uint128 take = uint128(Math.min(Math.min(tick * multiplier - taken, node.available), amount - taken));
+            /* Consume as much as possible up to the tick limit, amount available, and amount remaining */
+            uint128 take = uint128(Math.min(Math.min(limit * multiplier - taken, node.available), amount - taken));
 
+            /* Record the liquidity allocation in our sources list */
             sources[count] = ILiquidity.NodeSource({tick: tick, available: node.available - take, used: take});
+
             taken += take;
-            prevTick = tick;
+            prevLimit = limit;
         }
 
         if (taken < amount) revert InsufficientLiquidity();
