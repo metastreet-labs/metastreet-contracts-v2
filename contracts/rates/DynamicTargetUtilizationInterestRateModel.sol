@@ -250,7 +250,12 @@ contract DynamicTargetUtilizationInterestRateModel is InterestRateModel {
     /**
      * @inheritdoc InterestRateModel
      */
-    function rate() public view override returns (uint256) {
+    function rate(
+        uint256,
+        uint64[] memory,
+        ILiquidity.NodeSource[] memory,
+        uint16
+    ) public view override returns (uint256) {
         return _qToUD(_rate());
     }
 

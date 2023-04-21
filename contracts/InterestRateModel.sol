@@ -8,13 +8,22 @@ import "./interfaces/ILiquidity.sol";
  */
 abstract contract InterestRateModel {
     /**
-     * Get interest rate
+     * Get interest rate for liquidity
+     * @param amount Liquidity amount
+     * @param rates Rates
+     * @param nodes Liquidity nodes
+     * @param count Liquidity node count
      * @return Interest per second
      */
-    function rate() public view virtual returns (uint256);
+    function rate(
+        uint256 amount,
+        uint64[] memory rates,
+        ILiquidity.NodeSource[] memory nodes,
+        uint16 count
+    ) public view virtual returns (uint256);
 
     /**
-     * Distribute amount and interest to liquidity
+     * Distribute interest to liquidity
      * @param amount Liquidity amount
      * @param interest Interest to distribute
      * @param nodes Liquidity nodes

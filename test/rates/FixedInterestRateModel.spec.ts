@@ -128,7 +128,7 @@ describe("FixedInterestRateModel", function () {
 
   describe("#rate", async function () {
     it("returns correct rate", async function () {
-      expect(await interestRateModel1.rate()).to.equal(FIXED_INTEREST_RATE);
+      expect(await interestRateModel1.rate(0, [], [], 0)).to.equal(FIXED_INTEREST_RATE);
     });
   });
 

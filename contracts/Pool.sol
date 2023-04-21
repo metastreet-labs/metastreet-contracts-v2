@@ -528,18 +528,16 @@ abstract contract Pool is
      * @param duration Duration in seconds
      * @param collateralToken Collateral token address
      * @param collateralTokenIds List of collateral token ids
-     * @param nodes Liquidity nodes
-     * @param count Liquidity node count
-     * @return Repayment amount in currency tokens
+     * @param ticks Liquidity node ticks
+     * @return Repayment amount in currency tokens, Liquidity nodes, Liquidity node count
      */
     function _quote(
         uint256 principal,
         uint64 duration,
         address collateralToken,
         uint256[] memory collateralTokenIds,
-        ILiquidity.NodeSource[] memory nodes,
-        uint16 count
-    ) internal view returns (uint256) {
+        uint128[] calldata ticks
+    ) internal view returns (uint256, ILiquidity.NodeSource[] memory, uint16) {
         /* Verify collateral is supported */
         for (uint256 i = 0; i < collateralTokenIds.length; i++) {
             if (!collateralSupported(collateralToken, collateralTokenIds[i], "")) revert UnsupportedCollateral(i);
@@ -554,13 +552,22 @@ abstract contract Pool is
         /* Validate duration index */
         if (durationIndex == _durations.length) revert UnsupportedLoanDuration();
 
+        /* Source liquidity nodes */
+        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
+            principal,
+            ticks,
+            collateralTokenIds.length,
+            durationIndex
+        );
+
         /* Calculate repayment from principal, rate, and duration */
-        return
-            Math.mulDiv(
-                principal,
-                LiquidityManager.FIXED_POINT_SCALE + (rate() * duration),
-                LiquidityManager.FIXED_POINT_SCALE
-            ) + Math.mulDiv(principal, _originationFeeRate, BASIS_POINTS_SCALE);
+        uint256 repayment = Math.mulDiv(
+            principal,
+            LiquidityManager.FIXED_POINT_SCALE + (rate(principal, _rates, nodes, count) * duration),
+            LiquidityManager.FIXED_POINT_SCALE
+        ) + Math.mulDiv(principal, _originationFeeRate, BASIS_POINTS_SCALE);
+
+        return (repayment, nodes, count);
     }
 
     /**
@@ -621,22 +628,13 @@ abstract contract Pool is
             collateralContext
         );
 
-        /* Source liquidity nodes */
-        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
-            principal,
-            ticks,
-            underlyingCollateralTokenIds.length,
-            0
-        );
-
-        /* Quote repayment */
-        uint256 repayment = _quote(
+        /* Quote repayment and liquidity nodes */
+        (uint256 repayment, ILiquidity.NodeSource[] memory nodes, uint16 count) = _quote(
             principal,
             duration,
             underlyingCollateralToken,
             underlyingCollateralTokenIds,
-            nodes,
-            count
+            ticks
         );
 
         /* Validate repayment */
@@ -775,15 +773,10 @@ abstract contract Pool is
     ) external view returns (uint256) {
         options;
 
-        /* Source liquidity nodes */
-        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
-            principal,
-            ticks,
-            collateralTokenIds.length,
-            0
-        );
+        /* Quote repayment */
+        (uint256 repayment, , ) = _quote(principal, duration, collateralToken, collateralTokenIds, ticks);
 
-        return _quote(principal, duration, collateralToken, collateralTokenIds, nodes, count);
+        return repayment;
     }
 
     /**
@@ -805,22 +798,13 @@ abstract contract Pool is
             loanReceipt.collateralContextData
         );
 
-        /* Source liquidity nodes */
-        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
-            principal,
-            ticks,
-            underlyingCollateralTokenIds.length,
-            0
-        );
-
         /* Quote repayment */
-        uint256 newRepayment = _quote(
+        (uint256 newRepayment, , ) = _quote(
             principal,
             duration,
             underlyingCollateralToken,
             underlyingCollateralTokenIds,
-            nodes,
-            count
+            ticks
         );
 
         /* Compute repayment using prorated interest */

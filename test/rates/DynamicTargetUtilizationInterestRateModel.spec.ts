@@ -94,7 +94,7 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
 
   async function rateAfterDuration(duration: number): Promise<ethers.BigNumber> {
     await helpers.time.increase(duration);
-    return await interestRateModel.rate();
+    return await interestRateModel.rate(0, [], [], 0);
   }
 
   /****************************************************************************/
@@ -103,7 +103,7 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
 
   describe("#rate", async function () {
     it("returns initial rate", async function () {
-      expectApproxEqual(await interestRateModel.rate(), FixedPoint.from("20"));
+      expectApproxEqual(await interestRateModel.rate(0, [], [], 0), FixedPoint.from("20"));
     });
     it("returns decaying rate", async function () {
       /* Rate: 20, Target: 0.80, Utilization: 0.00, Error: -0.80 */
@@ -131,13 +131,13 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
     it("returns steady rate within error margin", async function () {
       /* Within -5 of target */
       await interestRateModel.onUtilizationUpdated(FixedPoint.from("0.76"));
-      expectApproxEqual(await interestRateModel.rate(), FixedPoint.from("20"), FixedPoint.from("0.0001"));
-      expect(await interestRateModel.rate()).to.equal(await rateAfterDuration(10 * 86400));
+      expectApproxEqual(await interestRateModel.rate(0, [], [], 0), FixedPoint.from("20"), FixedPoint.from("0.0001"));
+      expect(await interestRateModel.rate(0, [], [], 0)).to.equal(await rateAfterDuration(10 * 86400));
 
       /* Within +5 of target */
       await interestRateModel.onUtilizationUpdated(FixedPoint.from("0.84"));
-      expectApproxEqual(await interestRateModel.rate(), FixedPoint.from("20"), FixedPoint.from("0.0001"));
-      expect(await interestRateModel.rate()).to.equal(await rateAfterDuration(10 * 86400));
+      expectApproxEqual(await interestRateModel.rate(0, [], [], 0), FixedPoint.from("20"), FixedPoint.from("0.0001"));
+      expect(await interestRateModel.rate(0, [], [], 0)).to.equal(await rateAfterDuration(10 * 86400));
     });
   });
 
