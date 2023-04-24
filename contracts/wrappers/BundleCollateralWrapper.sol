@@ -4,13 +4,14 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "../interfaces/ICollateralWrapper.sol";
 
 /**
  * @title Bundle Collateral Wrapper
  */
-contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder {
+contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder, ReentrancyGuard {
     /**************************************************************************/
     /* Constants */
     /**************************************************************************/
@@ -142,7 +143,7 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder {
      * @param token Collateral token address
      * @param tokenIds List of token IDs
      */
-    function mint(address token, uint256[] calldata tokenIds) external returns (uint256) {
+    function mint(address token, uint256[] calldata tokenIds) external nonReentrant returns (uint256) {
         /* Create encodedBundle */
         bytes memory encodedBundle = abi.encodePacked(token);
 
@@ -168,7 +169,7 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder {
      *
      * @inheritdoc ICollateralWrapper
      */
-    function unwrap(uint256 tokenId, bytes calldata context) external {
+    function unwrap(uint256 tokenId, bytes calldata context) external nonReentrant {
         if (tokenId != uint256(_hash(context))) revert InvalidContext();
         if (msg.sender != ownerOf(tokenId)) revert InvalidCaller();
 
