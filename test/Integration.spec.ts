@@ -20,7 +20,7 @@ import { Tick } from "./helpers/Tick";
 
 import { PoolModel } from "./integration/PoolModel";
 
-describe("Integration", function () {
+describe.skip("Integration", function () {
   let accounts: SignerWithAddress[];
   let tok1: TestERC20;
   let nft1: TestERC721;

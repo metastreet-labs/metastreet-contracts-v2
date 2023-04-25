@@ -1861,7 +1861,6 @@ describe("Pool", function () {
       /* Validate ticks and liquidity statistics */
       let totalPending = ethers.constants.Zero;
       let totalUsed = ethers.constants.Zero;
-      const liquidityStatistics = await pool.liquidityStatistics();
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
         const node = await pool.liquidityNode(nodeReceipt.tick);
         const value = FixedPoint.from("25").add(nodeReceipt.pending).sub(nodeReceipt.used);
@@ -1871,9 +1870,6 @@ describe("Pool", function () {
         totalPending = totalPending.add(nodeReceipt.pending);
         totalUsed = totalUsed.add(nodeReceipt.used);
       }
-
-      expect(liquidityStatistics[0]).to.equal(FixedPoint.from("25").mul(16).add(totalPending.sub(totalUsed)));
-      expect(liquidityStatistics[1]).to.equal(ethers.constants.Zero);
     });
 
     it("repays bundle loan at maturity", async function () {
@@ -1952,11 +1948,6 @@ describe("Pool", function () {
         totalDelta = totalDelta.add(delta);
       }
 
-      /* Validate liquidity statistics */
-      const liquidityStatistics = await pool.liquidityStatistics();
-      expect(liquidityStatistics[0]).to.equal(FixedPoint.from("400").add(totalDelta));
-      expect(liquidityStatistics[1]).to.equal(ethers.constants.Zero);
-
       expect(await bundleCollateralWrapper.ownerOf(bundleTokenId)).to.equal(accountBorrower.address);
     });
 
@@ -2022,11 +2013,6 @@ describe("Pool", function () {
           expect(node.pending).to.equal(ethers.constants.Zero);
           totalDelta = totalDelta.add(delta);
         }
-
-        /* Validate liquidity statistics */
-        const liquidityStatistics = await pool.liquidityStatistics();
-        expect(liquidityStatistics[0]).to.equal(FixedPoint.from("400").add(totalDelta));
-        expect(liquidityStatistics[1]).to.equal(ethers.constants.Zero);
       });
     }
 
@@ -2241,16 +2227,6 @@ describe("Pool", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
       expect(await pool.loans(newLoanReceiptHash)).to.equal(1);
       expect(await pool.adminFeeBalance()).to.equal(adminFee);
-
-      /* Validate liquidity statistics */
-      const liquidityStatistics = await pool.liquidityStatistics();
-      expect(liquidityStatistics[0]).to.equal(
-        ethers.utils
-          .parseEther("25")
-          .mul(16)
-          .add(decodedLoanReceipt.repayment.sub(decodedLoanReceipt.principal).sub(adminFee))
-      );
-      expect(liquidityStatistics[1]).to.equal(decodedLoanReceipt.principal);
     });
 
     it("refinance loan at maturity with admin fee and smaller principal (1 ETH less)", async function () {
@@ -2315,16 +2291,6 @@ describe("Pool", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
       expect(await pool.loans(newLoanReceiptHash)).to.equal(1);
       expect(await pool.adminFeeBalance()).to.equal(adminFee);
-
-      /* Validate liquidity statistics */
-      const liquidityStatistics = await pool.liquidityStatistics();
-      expect(liquidityStatistics[0]).to.equal(
-        ethers.utils
-          .parseEther("25")
-          .mul(16)
-          .add(decodedLoanReceipt.repayment.sub(decodedLoanReceipt.principal).sub(adminFee))
-      );
-      expect(liquidityStatistics[1]).to.equal(decodedLoanReceipt.principal.sub(FixedPoint.from("1")));
     });
 
     it("refinance loan at maturity with admin fee and bigger principal (1 ETH more)", async function () {
@@ -2389,16 +2355,6 @@ describe("Pool", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
       expect(await pool.loans(newLoanReceiptHash)).to.equal(1);
       expect(await pool.adminFeeBalance()).to.equal(adminFee);
-
-      /* Validate liquidity statistics */
-      const liquidityStatistics = await pool.liquidityStatistics();
-      expect(liquidityStatistics[0]).to.equal(
-        ethers.utils
-          .parseEther("25")
-          .mul(16)
-          .add(decodedLoanReceipt.repayment.sub(decodedLoanReceipt.principal).sub(adminFee))
-      );
-      expect(liquidityStatistics[1]).to.equal(decodedLoanReceipt.principal.add(FixedPoint.from("1")));
     });
 
     it("refinance bundle loan at maturity with admin fee and same principal", async function () {
@@ -2465,16 +2421,6 @@ describe("Pool", function () {
       expect(await pool.loans(newLoanReceiptHash)).to.equal(1);
 
       expect(await pool.adminFeeBalance()).to.equal(adminFee);
-
-      /* Validate liquidity statistics */
-      const liquidityStatistics = await pool.liquidityStatistics();
-      expect(liquidityStatistics[0]).to.equal(
-        ethers.utils
-          .parseEther("25")
-          .mul(16)
-          .add(decodedLoanReceipt.repayment.sub(decodedLoanReceipt.principal).sub(adminFee))
-      );
-      expect(liquidityStatistics[1]).to.equal(decodedLoanReceipt.principal);
     });
 
     it("fails on refinance and refinance in same block with same loan receipt fields", async function () {
@@ -3029,10 +2975,6 @@ describe("Pool", function () {
 
       /* Validate state */
       expect(await pool.loans(loanReceiptHash)).to.equal(4);
-      expect(await pool.utilization()).to.equal(0);
-      const [total, used] = await pool.liquidityStatistics();
-      expect(total).to.equal(FixedPoint.from("400").add(FixedPoint.from("30")).sub(decodedLoanReceipt.principal));
-      expect(used).to.equal(ethers.constants.Zero);
 
       /* Validate ticks */
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts.slice(0, -1)) {
@@ -3075,10 +3017,6 @@ describe("Pool", function () {
 
       /* Validate state */
       expect(await pool.loans(loanReceiptHash)).to.equal(4);
-      expect(await pool.utilization()).to.equal(0);
-      const [total, used] = await pool.liquidityStatistics();
-      expect(total).to.equal(FixedPoint.from("400").sub(decodedLoanReceipt.principal).add(proceeds));
-      expect(used).to.equal(ethers.constants.Zero);
 
       /* Validate ticks */
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts.slice(0, 2)) {

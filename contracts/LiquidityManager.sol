@@ -106,15 +106,9 @@ library LiquidityManager {
 
     /**
      * @notice Liquidity state
-     * @param total Total value
-     * @param used Total used
-     * @param numNodes Total number of nodes
      * @param nodes Liquidity nodes
      */
     struct Liquidity {
-        uint128 total;
-        uint128 used;
-        uint16 numNodes;
         mapping(uint256 => Node) nodes;
     }
 
@@ -320,7 +314,6 @@ library LiquidityManager {
         node.next = prevNode.next;
         if (prevNode.next != type(uint128).max) liquidity.nodes[prevNode.next].prev = tick;
         prevNode.next = tick;
-        liquidity.numNodes++;
     }
 
     /**
@@ -351,8 +344,6 @@ library LiquidityManager {
         node.shares += shares;
         node.available += amount;
 
-        liquidity.total += amount;
-
         return shares;
     }
 
@@ -369,8 +360,6 @@ library LiquidityManager {
         unchecked {
             node.available -= used;
             node.pending += pending;
-
-            liquidity.used += used;
         }
     }
 
@@ -397,9 +386,6 @@ library LiquidityManager {
             node.value = (restored > used) ? (node.value + delta) : (node.value - delta);
             node.available += restored;
             node.pending -= pending;
-
-            liquidity.total = (restored > used) ? (liquidity.total + delta) : (liquidity.total - delta);
-            liquidity.used -= used;
         }
 
         /* If node became insolvent */
@@ -409,11 +395,9 @@ library LiquidityManager {
             liquidity.nodes[node.next].prev = node.prev;
             node.next = 0;
             node.prev = 0;
-            liquidity.numNodes--;
 
             /* Handle insolvent dust */
             if (node.value > 0) {
-                liquidity.total -= node.value;
                 node.value = 0;
                 node.available = 0;
             }
@@ -508,8 +492,6 @@ library LiquidityManager {
             node.available -= amount;
             node.redemptions.pending -= shares;
             node.redemptions.index += 1;
-
-            liquidity.total -= amount;
 
             return (shares, amount);
         }

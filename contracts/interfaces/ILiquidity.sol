@@ -46,20 +46,6 @@ interface ILiquidity {
     /**************************************************************************/
 
     /**
-     * Get liquidity utilization
-     * @return Utilization as 18-decimal fixed-point fraction
-     */
-    function utilization() external view returns (uint256);
-
-    /**
-     * Get liquidity statistics
-     * @return total Total liquidity value
-     * @return used Total liquidity used
-     * @return numNodes Total liquidity nodes
-     */
-    function liquidityStatistics() external view returns (uint256 total, uint256 used, uint16 numNodes);
-
-    /**
      * Get liquidity nodes spanning [startTick, endTick] range
      * @param startTick Start tick
      * @param endTick End tick

@@ -43,15 +43,6 @@ describe("LiquidityManager", function () {
       expect(nodes[0].redemptions).to.equal(0);
       expect(nodes[0].prev).to.equal(0);
       expect(nodes[0].next).to.equal(MaxUint128);
-
-      /* Validate liquidity statistics */
-      const statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(ethers.constants.Zero);
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(0);
-
-      /* Validate utilization */
-      expect(await liquidityManager.utilization()).to.equal(0);
     });
   });
 
@@ -87,12 +78,6 @@ describe("LiquidityManager", function () {
       expect(nodes[2].next).to.equal(Tick.encode("50"));
       expect(nodes[3].prev).to.equal(Tick.encode("10"));
       expect(nodes[3].next).to.equal(MaxUint128);
-
-      /* Validate statistics */
-      const statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(ethers.constants.Zero);
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(3);
     });
     it("no-op on existing node", async function () {
       /* Instantiate one node */
@@ -116,12 +101,6 @@ describe("LiquidityManager", function () {
       expect(nodes[0].next).to.equal(Tick.encode("1"));
       expect(nodes[1].prev).to.equal(0);
       expect(nodes[1].next).to.equal(MaxUint128);
-
-      /* Validate statistics */
-      const statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(ethers.constants.Zero);
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(1);
     });
     it("fails on insufficient tick spacing", async function () {
       /* Instantiate one node */
@@ -178,12 +157,6 @@ describe("LiquidityManager", function () {
       expect(node.available).to.equal(FixedPoint.from("5"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-
-      /* Validate statistics */
-      const statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(FixedPoint.from("5"));
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(1);
     });
     it("deposits into active node that has appreciated", async function () {
       /* Appreciate node */
@@ -214,12 +187,6 @@ describe("LiquidityManager", function () {
       expect(node.available).to.equal(FixedPoint.from("9"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-
-      /* Validate statistics */
-      const statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(FixedPoint.from("9"));
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(1);
     });
     it("deposits into active node that has depreciated", async function () {
       /* Depreciate node */
@@ -250,12 +217,6 @@ describe("LiquidityManager", function () {
       expect(node.available).to.equal(FixedPoint.from("6"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-
-      /* Validate statistics */
-      const statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(FixedPoint.from("6"));
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(1);
     });
     it("deposits into active node that has pending returns", async function () {
       /* Create node with used liquidity */
@@ -280,12 +241,6 @@ describe("LiquidityManager", function () {
       expect(node.available).to.equal(FixedPoint.from("3"));
       expect(node.pending).to.equal(FixedPoint.from("7"));
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-
-      /* Validate statistics */
-      const statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(FixedPoint.from("8"));
-      expect(statistics[1]).to.equal(FixedPoint.from("5"));
-      expect(statistics[2]).to.equal(1);
     });
     it("fails on inactive node", async function () {
       await expect(liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("5"))).to.be.revertedWithCustomError(
@@ -329,12 +284,6 @@ describe("LiquidityManager", function () {
       expect(node.available).to.equal(FixedPoint.from("2"));
       expect(node.pending).to.equal(FixedPoint.from("3.2"));
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-
-      /* Validate statistics */
-      const statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(FixedPoint.from("5"));
-      expect(statistics[1]).to.equal(FixedPoint.from("3"));
-      expect(statistics[2]).to.equal(1);
     });
   });
 
@@ -363,12 +312,6 @@ describe("LiquidityManager", function () {
       expect(node.available).to.equal(FixedPoint.from("6"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-
-      /* Validate statistics */
-      const statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(FixedPoint.from("6"));
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(1);
     });
     it("restores less than pending", async function () {
       /* Use */
@@ -388,12 +331,6 @@ describe("LiquidityManager", function () {
       expect(node.available).to.equal(FixedPoint.from("4"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-
-      /* Validate statistics */
-      const statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(FixedPoint.from("4"));
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(1);
     });
     it("restores less than pending and becomes insolvent", async function () {
       /* Use */
@@ -416,12 +353,6 @@ describe("LiquidityManager", function () {
       expect(node.prev).to.equal(ethers.constants.Zero);
       expect(node.next).to.equal(ethers.constants.Zero);
 
-      /* Validate statistics */
-      const statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(ethers.constants.Zero);
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(0);
-
       /* Validate head node linkage */
       node = await liquidityManager.liquidityNode(ethers.constants.Zero);
       expect(node.prev).to.equal(ethers.constants.Zero);
@@ -442,12 +373,6 @@ describe("LiquidityManager", function () {
       expect(node.redemptions).to.equal(ethers.constants.Zero);
       expect(node.prev).to.equal(ethers.constants.Zero);
       expect(node.next).to.equal(ethers.constants.Zero);
-
-      /* Validate statistics */
-      const statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(ethers.constants.Zero);
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(0);
 
       /* Validate head node linkage */
       node = await liquidityManager.liquidityNode(ethers.constants.Zero);
@@ -489,12 +414,6 @@ describe("LiquidityManager", function () {
       expect(node.available).to.equal(FixedPoint.from("5"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(FixedPoint.from("2"));
-
-      /* Validate statistics */
-      const statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(FixedPoint.from("5"));
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(1);
     });
     it("redeems from subsequent index", async function () {
       /* Redeem */
@@ -539,12 +458,6 @@ describe("LiquidityManager", function () {
       expect(node.available).to.equal(FixedPoint.from("4"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(FixedPoint.from("1"));
-
-      /* Validate statistics */
-      const statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(FixedPoint.from("4"));
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(1);
     });
   });
 
@@ -626,12 +539,6 @@ describe("LiquidityManager", function () {
       expect(node.available).to.equal(FixedPoint.from("2"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-
-      /* Validate statistics */
-      const statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(FixedPoint.from("2"));
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(1);
     });
     it("processes redemption from restored liquidity", async function () {
       /* Use */
@@ -660,12 +567,6 @@ describe("LiquidityManager", function () {
       expect(node.pending).to.equal(FixedPoint.from("6"));
       expect(node.redemptions).to.equal(FixedPoint.from("2"));
 
-      /* Validate statistics */
-      let statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(FixedPoint.from("5"));
-      expect(statistics[1]).to.equal(FixedPoint.from("5"));
-      expect(statistics[2]).to.equal(1);
-
       /* Restore */
       await liquidityManager.restore(
         Tick.encode("3"),
@@ -691,12 +592,6 @@ describe("LiquidityManager", function () {
       expect(node.available).to.equal(FixedPoint.from("3.6"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-
-      /* Validate statistics */
-      statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(FixedPoint.from("3.6"));
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(1);
     });
     it("processes redemption from restored liquidity at multiple prices", async function () {
       /* Use */
@@ -785,12 +680,6 @@ describe("LiquidityManager", function () {
       expect(node.available).to.equal(FixedPoint.from("3.2"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-
-      /* Validate statistics */
-      const statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(FixedPoint.from("3.2"));
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(1);
     });
     it("processes redemption from insolvent liquidity", async function () {
       /* Use 5 amount */
@@ -831,12 +720,6 @@ describe("LiquidityManager", function () {
         FixedPoint.from("6"),
         ethers.constants.Zero
       );
-
-      /* Validate statistics */
-      let statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(ethers.constants.Zero);
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(0);
 
       /* Validate redemption available */
       expect(
@@ -904,12 +787,6 @@ describe("LiquidityManager", function () {
       expect(node.available).to.equal(FixedPoint.from("4"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-
-      /* Validate statistics */
-      statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(FixedPoint.from("4"));
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(1);
     });
     it("processes redemption from insolvent dust liquidity", async function () {
       /* Use 5 amount */
@@ -945,12 +822,6 @@ describe("LiquidityManager", function () {
 
       /* Restore to 4 wei */
       await liquidityManager.restore(Tick.encode("3"), FixedPoint.from("5"), FixedPoint.from("6"), 4);
-
-      /* Validate statistics */
-      let statistics = await liquidityManager.liquidityStatistics();
-      expect(statistics[0]).to.equal(ethers.constants.Zero);
-      expect(statistics[1]).to.equal(ethers.constants.Zero);
-      expect(statistics[2]).to.equal(0);
 
       /* Validate redemption available */
       expect(
@@ -1166,29 +1037,6 @@ describe("LiquidityManager", function () {
           0
         )
       ).to.be.revertedWithCustomError(liquidityManager, "InvalidTick");
-    });
-  });
-
-  describe("#utilization", async function () {
-    beforeEach("setup liquidity", async function () {
-      await setupLiquidity();
-    });
-    it("returns utilization", async function () {
-      /* Check utilization with no usage */
-      expect(await liquidityManager.utilization()).to.equal(ethers.constants.Zero);
-
-      /* Use from 10 and 20 ETH */
-      await liquidityManager.use(Tick.encode("10"), FixedPoint.from("10"), FixedPoint.from("11"));
-      await liquidityManager.use(Tick.encode("20"), FixedPoint.from("15"), FixedPoint.from("16"));
-
-      /* Check utilization after usage */
-      expect(await liquidityManager.utilization()).to.equal(FixedPoint.from("0.125"));
-
-      /* Deposit */
-      await liquidityManager.deposit(Tick.encode("30"), FixedPoint.from("50"));
-
-      /* Check utilization after deposit */
-      expect(await liquidityManager.utilization()).to.equal(FixedPoint.from("0.1"));
     });
   });
 });

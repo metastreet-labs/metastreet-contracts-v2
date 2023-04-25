@@ -382,23 +382,6 @@ abstract contract Pool is
     /**
      * @inheritdoc ILiquidity
      */
-    function utilization() public view returns (uint256) {
-        return
-            (_liquidity.total == 0)
-                ? 0
-                : Math.mulDiv(_liquidity.used, LiquidityManager.FIXED_POINT_SCALE, _liquidity.total);
-    }
-
-    /**
-     * @inheritdoc ILiquidity
-     */
-    function liquidityStatistics() external view returns (uint256, uint256, uint16) {
-        return (_liquidity.total, _liquidity.used, _liquidity.numNodes);
-    }
-
-    /**
-     * @inheritdoc ILiquidity
-     */
     function liquidityNodes(uint128 startTick, uint128 endTick) external view returns (NodeInfo[] memory) {
         return _liquidity.liquidityNodes(startTick, endTick);
     }
