@@ -1703,7 +1703,9 @@ describe("Pool", function () {
       }
 
       /* Calculate admin fee */
-      const adminFee = (await pool.adminFeeRate()).mul(repayment.sub(FixedPoint.from("25"))).div(10000);
+      const adminFee = ethers.BigNumber.from(await pool.adminFeeRate())
+        .mul(repayment.sub(FixedPoint.from("25")))
+        .div(10000);
 
       /* Validate used and pending totals */
       expect(totalUsed).to.equal(FixedPoint.from("25"));
@@ -2190,7 +2192,7 @@ describe("Pool", function () {
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
 
       /* Calculate admin fee */
-      const adminFee = (await pool.adminFeeRate())
+      const adminFee = ethers.BigNumber.from(await pool.adminFeeRate())
         .mul(decodedLoanReceipt.repayment.sub(FixedPoint.from("25")))
         .div(10000);
 
@@ -2254,7 +2256,7 @@ describe("Pool", function () {
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
 
       /* Calculate admin fee */
-      const adminFee = (await pool.adminFeeRate())
+      const adminFee = ethers.BigNumber.from(await pool.adminFeeRate())
         .mul(decodedLoanReceipt.repayment.sub(FixedPoint.from("25")))
         .div(10000);
 
@@ -2318,7 +2320,7 @@ describe("Pool", function () {
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
 
       /* Calculate admin fee */
-      const adminFee = (await pool.adminFeeRate())
+      const adminFee = ethers.BigNumber.from(await pool.adminFeeRate())
         .mul(decodedLoanReceipt.repayment.sub(FixedPoint.from("25")))
         .div(10000);
 
@@ -2382,7 +2384,7 @@ describe("Pool", function () {
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
 
       /* Calculate admin fee */
-      const adminFee = (await pool.adminFeeRate())
+      const adminFee = ethers.BigNumber.from(await pool.adminFeeRate())
         .mul(decodedLoanReceipt.repayment.sub(FixedPoint.from("25")))
         .div(10000);
 
@@ -3117,7 +3119,9 @@ describe("Pool", function () {
       }
 
       /* Calculate admin fee */
-      const adminFee = (await pool.adminFeeRate()).mul(repayment.sub(FixedPoint.from("25"))).div(10000);
+      const adminFee = ethers.BigNumber.from(await pool.adminFeeRate())
+        .mul(repayment.sub(FixedPoint.from("25")))
+        .div(10000);
 
       /* Validate used and pending totals */
       expect(totalUsed).to.equal(FixedPoint.from("25"));
@@ -3199,7 +3203,7 @@ describe("Pool", function () {
       ).div(decodedLoanReceipt.duration);
 
       /* Calculate admin fee */
-      const adminFee = (await pool.adminFeeRate())
+      const adminFee = ethers.BigNumber.from(await pool.adminFeeRate())
         .mul(repayment.sub(FixedPoint.from("25")))
         .div(10000)
         .mul(proration)

@@ -162,7 +162,7 @@ interface IPool {
      * @notice Get admin fee rate
      * @return Admin fee rate in basis points
      */
-    function adminFeeRate() external view returns (uint256);
+    function adminFeeRate() external view returns (uint32);
 
     /**
      * @notice Get list of supported collateral wrappers

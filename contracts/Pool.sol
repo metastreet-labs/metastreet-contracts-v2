@@ -165,7 +165,7 @@ abstract contract Pool is
     /**
      * @notice Admin fee rate in basis points
      */
-    uint256 internal _adminFeeRate;
+    uint32 internal _adminFeeRate;
 
     /**
      * @notice Total admin fee balance
@@ -293,7 +293,7 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function adminFeeRate() external view returns (uint256) {
+    function adminFeeRate() external view returns (uint32) {
         return _adminFeeRate;
     }
 
@@ -1118,7 +1118,7 @@ abstract contract Pool is
      *
      * @param rate Rate is the admin fee in basis points
      */
-    function setAdminFeeRate(uint256 rate) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setAdminFeeRate(uint32 rate) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (rate == 0 || rate >= BASIS_POINTS_SCALE) revert ParameterOutOfBounds();
         _adminFeeRate = rate;
         emit AdminFeeRateUpdated(rate);
