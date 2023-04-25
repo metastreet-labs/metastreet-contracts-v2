@@ -549,7 +549,7 @@ library LiquidityManager {
             uint128 take = uint128(Math.min(Math.min(limit * multiplier - taken, node.available), amount - taken));
 
             /* Record the liquidity allocation in our sources list */
-            sources[count] = ILiquidity.NodeSource({tick: tick, available: node.available - take, used: take});
+            sources[count] = ILiquidity.NodeSource({tick: tick, used: take});
 
             taken += take;
             prevLimit = limit;

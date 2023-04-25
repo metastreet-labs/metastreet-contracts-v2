@@ -12,12 +12,10 @@ interface ILiquidity {
     /**
      * @notice Node source
      * @param tick Tick
-     * @param available Available amount
-     * @param used Used amount
+     * @param used Amount used
      */
     struct NodeSource {
         uint128 tick;
-        uint128 available;
         uint128 used;
     }
 

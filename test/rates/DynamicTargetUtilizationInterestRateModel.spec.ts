@@ -145,33 +145,23 @@ describe("DynamicTargetUtilizationInterestRateModel", function () {
     const sources5 = [
       {
         tick: FixedPoint.from("1"),
-        available: FixedPoint.from("29"),
         used: FixedPoint.from("1"),
-        pending: FixedPoint.Zero,
       },
       {
         tick: FixedPoint.from("5"),
-        available: FixedPoint.from("16"),
         used: FixedPoint.from("4"),
-        pending: FixedPoint.Zero,
       },
       {
         tick: FixedPoint.from("10"),
-        available: FixedPoint.from("5"),
         used: FixedPoint.from("5"),
-        pending: FixedPoint.Zero,
       },
       {
         tick: FixedPoint.from("12"),
-        available: FixedPoint.from("5"),
         used: 10,
-        pending: FixedPoint.Zero,
       },
       {
         tick: FixedPoint.from("15"),
-        available: FixedPoint.from("3"),
         used: FixedPoint.from("2"),
-        pending: FixedPoint.Zero,
       },
     ];
 
