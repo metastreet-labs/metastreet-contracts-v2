@@ -156,7 +156,7 @@ interface IPool {
      * @notice Get origination fee rate
      * @return Origination fee rate in basis points
      */
-    function originationFeeRate() external view returns (uint256);
+    function originationFeeRate() external view returns (uint32);
 
     /**
      * @notice Get admin fee rate

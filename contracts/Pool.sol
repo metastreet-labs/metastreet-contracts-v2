@@ -160,7 +160,7 @@ abstract contract Pool is
     /**
      * @notice Origination fee rate in basis points
      */
-    uint256 internal _originationFeeRate;
+    uint32 internal _originationFeeRate;
 
     /**
      * @notice Admin fee rate in basis points
@@ -232,7 +232,7 @@ abstract contract Pool is
      */
     function _initialize(
         address currencyToken_,
-        uint256 originationFeeRate_,
+        uint32 originationFeeRate_,
         address collateralLiquidator_,
         uint64[] memory durations_,
         uint64[] memory rates_
@@ -286,7 +286,7 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function originationFeeRate() external view returns (uint256) {
+    function originationFeeRate() external view returns (uint32) {
         return _originationFeeRate;
     }
 

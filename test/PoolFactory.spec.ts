@@ -116,7 +116,7 @@ describe("PoolFactory", function () {
     it("creates a pool", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint256", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+        ["address", "address", "uint32", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
         [
           nft1.address,
           tok1.address,
@@ -172,7 +172,7 @@ describe("PoolFactory", function () {
     it("creates a proxied pool", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint256", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+        ["address", "address", "uint32", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
         [
           nft1.address,
           tok1.address,
@@ -224,7 +224,7 @@ describe("PoolFactory", function () {
   /* Helper function to create a pool */
   async function createPool(): Promise<string> {
     const params = ethers.utils.defaultAbiCoder.encode(
-      ["address", "address", "uint256", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+      ["address", "address", "uint32", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
       [
         nft1.address,
         tok1.address,
