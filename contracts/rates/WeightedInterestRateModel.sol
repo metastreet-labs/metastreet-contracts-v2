@@ -144,9 +144,4 @@ contract WeightedInterestRateModel is InterestRateModel {
 
         return pending;
     }
-
-    /**
-     * @inheritdoc InterestRateModel
-     */
-    function _onUtilizationUpdated(uint256) internal override {}
 }

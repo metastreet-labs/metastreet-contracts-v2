@@ -674,9 +674,6 @@ abstract contract Pool is
             });
         }
 
-        /* Update utilization tracking */
-        _onUtilizationUpdated(utilization());
-
         /* Encode and hash the loan receipt */
         bytes memory encodedLoanReceipt = receipt.encode();
         bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
@@ -746,9 +743,6 @@ abstract contract Pool is
             proration,
             LiquidityManager.FIXED_POINT_SCALE
         );
-
-        /* Update utilization tracking */
-        _onUtilizationUpdated(utilization());
 
         /* Mark loan status repaid */
         _loans[loanReceiptHash] = LoanStatus.Repaid;
@@ -1007,9 +1001,6 @@ abstract contract Pool is
             proceedsRemaining -= restored;
         }
 
-        /* Update utilization tracking */
-        _onUtilizationUpdated(utilization());
-
         /* Mark loan status collateral liquidated */
         _loans[loanReceiptHash] = LoanStatus.CollateralLiquidated;
 
@@ -1039,9 +1030,6 @@ abstract contract Pool is
 
         /* Add to deposit */
         _deposits[msg.sender][tick].shares += shares;
-
-        /* Update utilization tracking */
-        _onUtilizationUpdated(utilization());
 
         /* Process redemptions from available cash */
         _liquidity.processRedemptions(tick);
@@ -1079,9 +1067,6 @@ abstract contract Pool is
 
         /* Process redemptions from available cash */
         _liquidity.processRedemptions(tick);
-
-        /* Update utilization tracking */
-        _onUtilizationUpdated(utilization());
 
         /* Emit Redeemed event */
         emit Redeemed(msg.sender, tick, shares);

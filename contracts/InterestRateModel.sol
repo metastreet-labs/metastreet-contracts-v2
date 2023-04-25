@@ -36,10 +36,4 @@ abstract contract InterestRateModel {
         ILiquidity.NodeSource[] memory nodes,
         uint16 count
     ) public view virtual returns (uint128[] memory);
-
-    /**
-     * Utilization updated handler
-     * @param utilization Utilization as a fixed-point, 18 decimal fraction
-     */
-    function _onUtilizationUpdated(uint256 utilization) internal virtual;
 }
