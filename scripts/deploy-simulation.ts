@@ -13,7 +13,7 @@ async function main() {
   const ERC1967Proxy = await ethers.getContractFactory("ERC1967Proxy", accounts[9]);
   const BundleCollateralWrapper = await ethers.getContractFactory("BundleCollateralWrapper", accounts[9]);
   const ExternalCollateralLiquidator = await ethers.getContractFactory("ExternalCollateralLiquidator", accounts[9]);
-  const Pool = await ethers.getContractFactory("FixedRateSingleCollectionPool", accounts[9]);
+  const Pool = await ethers.getContractFactory("WeightedRateCollectionPool", accounts[9]);
   const PoolFactory = await ethers.getContractFactory("PoolFactory", accounts[9]);
 
   /* Deploy WETH */
@@ -76,14 +76,14 @@ async function main() {
 
   /* Create WETH Pool */
   const params = ethers.utils.defaultAbiCoder.encode(
-    ["address", "address", "uint256", "uint64[]", "uint64[]", "tuple(uint64, uint64, uint64)"],
+    ["address", "address", "uint256", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
     [
       baycTokenContract.address,
       wethTokenContract.address,
       45,
       [7 * 86400, 14 * 86400, 30 * 86400],
       [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
-      [FixedPoint.normalizeRate("0.02"), FixedPoint.from("0.05"), FixedPoint.from("2.0")],
+      [FixedPoint.from("0.05"), FixedPoint.from("2.0")],
     ]
   );
   const wethTestPoolCreationTx = await poolFactory.create(
