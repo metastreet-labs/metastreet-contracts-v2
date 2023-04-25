@@ -141,10 +141,16 @@ interface IPool {
     function currencyToken() external view returns (address);
 
     /**
-     * @notice Get maximum loan duration
-     * @return Maximum loan duration in seconds
+     * @notice Get supported durations
+     * @return List of loan durations in second
      */
-    function maxLoanDuration() external view returns (uint64);
+    function durations() external view returns (uint64[] memory);
+
+    /**
+     * @notice Get supported rates
+     * @return List of rates in interest per second
+     */
+    function rates() external view returns (uint64[] memory);
 
     /**
      * @notice Get origination fee rate

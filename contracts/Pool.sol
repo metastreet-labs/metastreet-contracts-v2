@@ -158,11 +158,6 @@ abstract contract Pool is
     IERC20 internal _currencyToken;
 
     /**
-     * @notice Maximum loan duration in seconds
-     */
-    uint64 internal _maxLoanDuration;
-
-    /**
      * @notice Origination fee rate in basis points
      */
     uint256 internal _originationFeeRate;
@@ -176,6 +171,16 @@ abstract contract Pool is
      * @notice Total admin fee balance
      */
     uint256 internal _adminFeeBalance;
+
+    /**
+     * @notice Durations
+     */
+    uint64[] internal _durations;
+
+    /**
+     * @notice Rates
+     */
+    uint64[] internal _rates;
 
     /**
      * @notice Liquidity
@@ -222,20 +227,29 @@ abstract contract Pool is
     /**
      * @notice Pool initializer
      * @param currencyToken_ Currency token contract
-     * @param maxLoanDuration_ Maximum loan duration in seconds
      * @param originationFeeRate_ Origination fee rate in basis points
      * @param collateralLiquidator_ Collateral liquidator contract
      */
     function _initialize(
         address currencyToken_,
-        uint64 maxLoanDuration_,
         uint256 originationFeeRate_,
-        address collateralLiquidator_
+        address collateralLiquidator_,
+        uint64[] memory durations_,
+        uint64[] memory rates_
     ) internal {
         _currencyToken = IERC20(currencyToken_); /* FIXME verify 18 decimals */
-        _maxLoanDuration = maxLoanDuration_;
         _originationFeeRate = originationFeeRate_;
         _collateralLiquidator = ICollateralLiquidator(collateralLiquidator_);
+
+        if (durations_.length > Tick.MAX_NUM_DURATIONS) revert ParameterOutOfBounds();
+        for (uint256 i; i < durations_.length; i++) {
+            _durations.push(durations_[i]);
+        }
+
+        if (rates_.length > Tick.MAX_NUM_RATES) revert ParameterOutOfBounds();
+        for (uint256 i; i < rates_.length; i++) {
+            _rates.push(rates_[i]);
+        }
 
         /* Initialize liquidity */
         _liquidity.initialize();
@@ -258,8 +272,15 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function maxLoanDuration() external view returns (uint64) {
-        return _maxLoanDuration;
+    function durations() external view returns (uint64[] memory) {
+        return _durations;
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
+    function rates() external view returns (uint64[] memory) {
+        return _rates;
     }
 
     /**
@@ -524,8 +545,14 @@ abstract contract Pool is
             if (!collateralSupported(collateralToken, collateralTokenIds[i], "")) revert UnsupportedCollateral(i);
         }
 
-        /* Validate loan duration */
-        if (duration > _maxLoanDuration) revert UnsupportedLoanDuration();
+        /* Lookup duration index */
+        uint256 durationIndex;
+        for (; durationIndex < _durations.length; durationIndex++) {
+            if (duration <= _durations[durationIndex]) break;
+        }
+
+        /* Validate duration index */
+        if (durationIndex == _durations.length) revert UnsupportedLoanDuration();
 
         /* Calculate repayment from principal, rate, and duration */
         return
@@ -598,7 +625,8 @@ abstract contract Pool is
         (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
             principal,
             ticks,
-            underlyingCollateralTokenIds.length
+            underlyingCollateralTokenIds.length,
+            0
         );
 
         /* Quote repayment */
@@ -751,7 +779,8 @@ abstract contract Pool is
         (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
             principal,
             ticks,
-            collateralTokenIds.length
+            collateralTokenIds.length,
+            0
         );
 
         return _quote(principal, duration, collateralToken, collateralTokenIds, nodes, count);
@@ -780,7 +809,8 @@ abstract contract Pool is
         (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
             principal,
             ticks,
-            underlyingCollateralTokenIds.length
+            underlyingCollateralTokenIds.length,
+            0
         );
 
         /* Quote repayment */
@@ -1011,6 +1041,9 @@ abstract contract Pool is
      * @inheritdoc IPool
      */
     function deposit(uint128 tick, uint256 amount_) external nonReentrant {
+        /* Validate tick */
+        Tick.validate(tick, 0, 0, _durations.length - 1, 0, _rates.length - 1);
+
         /* Cast to uint128 */
         uint128 amount = amount_.toUint128();
 

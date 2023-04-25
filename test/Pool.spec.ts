@@ -91,12 +91,13 @@ describe("Pool", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address", "address", "uint64", "uint256", "tuple(uint64, uint64, uint64)"],
+          ["address", "address", "uint256", "uint64[]", "uint64[]", "tuple(uint64, uint64, uint64)"],
           [
             nft1.address,
             tok1.address,
-            30 * 86400,
             45,
+            [7 * 86400, 14 * 86400, 30 * 86400],
+            [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
             [FixedPoint.normalizeRate("0.02"), FixedPoint.from("0.05"), FixedPoint.from("2.0")],
           ]
         ),
@@ -176,9 +177,6 @@ describe("Pool", function () {
   describe("getters", async function () {
     it("returns expected currency token", async function () {
       expect(await pool.currencyToken()).to.equal(tok1.address);
-    });
-    it("returns expected max loan duration", async function () {
-      expect(await pool.maxLoanDuration()).to.equal(30 * 86400);
     });
     it("returns expected origination fee rate", async function () {
       expect(await pool.originationFeeRate()).to.equal(45);

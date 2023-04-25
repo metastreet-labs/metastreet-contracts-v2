@@ -3,6 +3,7 @@ import { BigNumber } from "@ethersproject/bignumber";
 import { ethers } from "hardhat";
 import { extractEvent } from "../test/helpers/EventUtilities";
 import { FixedPoint } from "../test/helpers/FixedPoint";
+import { Tick } from "../test/helpers/Tick";
 import { ERC20__factory, ERC721__factory, Pool__factory } from "../typechain";
 
 async function main() {
@@ -80,13 +81,13 @@ async function main() {
   const poolsTicks: Record<string, BigNumber[]> = {};
   for (let i = 0; i < collateralTokens.length; i++) {
     const params = ethers.utils.defaultAbiCoder.encode(
-      ["address", "address", "uint64", "uint256", "address[]", "tuple(uint64, uint64, uint64)"],
+      ["address", "address", "uint256", "uint64[]", "uint64[]", "tuple(uint64, uint64, uint64)"],
       [
         collateralTokens[i],
         wethTokenContract.address,
-        7 * 86400,
         45,
-        [bundleCollateralWrapper.address],
+        [7 * 86400, 14 * 86400, 30 * 86400],
+        [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
         [FixedPoint.normalizeRate("0.02"), FixedPoint.from("0.05"), FixedPoint.from("2.0")],
       ]
     );
@@ -102,8 +103,8 @@ async function main() {
     const ticks: BigNumber[] = [];
     for (let k = 0; k < 3; k++) {
       const depthBN = ethers.utils.parseEther(`${depth}`);
-      await poolContract.deposit(depthBN, ethers.utils.parseEther(`${maxBorrow / depth}`));
-      ticks.push(depthBN);
+      await poolContract.deposit(Tick.encode(depthBN), ethers.utils.parseEther(`${maxBorrow / depth}`));
+      ticks.push(Tick.encode(depthBN));
       depth *= 1.26;
     }
 

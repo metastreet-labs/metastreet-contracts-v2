@@ -48,13 +48,14 @@ contract FixedRateSingleCollectionPool is Pool, FixedInterestRateModel, Collecti
         (
             address collateralToken_,
             address currencyToken_,
-            uint64 maxLoanDuration_,
             uint256 originationFeeRate_,
+            uint64[] memory durations_,
+            uint64[] memory rates_,
             FixedInterestRateModel.Parameters memory rateParameters
-        ) = abi.decode(params, (address, address, uint64, uint256, FixedInterestRateModel.Parameters));
+        ) = abi.decode(params, (address, address, uint256, uint64[], uint64[], FixedInterestRateModel.Parameters));
 
         /* Initialize Pool */
-        Pool._initialize(currencyToken_, maxLoanDuration_, originationFeeRate_, collateralLiquidator_);
+        Pool._initialize(currencyToken_, originationFeeRate_, collateralLiquidator_, durations_, rates_);
 
         /* Initialize Collateral Filter */
         CollectionCollateralFilter._initialize(collateralToken_);

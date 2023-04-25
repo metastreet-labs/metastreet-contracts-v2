@@ -70,6 +70,16 @@ library Tick {
      */
     uint256 internal constant TICK_RESERVED_SHIFT = 0;
 
+    /**
+     * @notice Maximum number of durations supported
+     */
+    uint256 internal constant MAX_NUM_DURATIONS = TICK_DURATION_MASK + 1;
+
+    /**
+     * @notice Maximum number of rates supported
+     */
+    uint256 internal constant MAX_NUM_RATES = TICK_RATE_MASK + 1;
+
     /**************************************************************************/
     /* Errors */
     /**************************************************************************/
@@ -98,5 +108,43 @@ library Tick {
         duration = ((tick >> TICK_DURATION_SHIFT) & TICK_DURATION_MASK);
         rate = ((tick >> TICK_RATE_SHIFT) & TICK_RATE_MASK);
         reserved = ((tick >> TICK_RESERVED_SHIFT) & TICK_RESERVED_MASK);
+    }
+
+    /**
+     * @dev Validate a Tick (fast)
+     * @param tick Tick
+     * @param minLimit Minimum Limit (exclusive)
+     * @param minDurationIndex Minimum Duration Index (inclusive)
+     * @return Limit field
+     */
+    function validate(uint128 tick, uint256 minLimit, uint256 minDurationIndex) internal pure returns (uint256) {
+        (uint256 limit, uint256 duration, , ) = decode(tick);
+        if (limit <= minLimit) revert InvalidTick();
+        if (duration < minDurationIndex) revert InvalidTick();
+        return limit;
+    }
+
+    /**
+     * @dev Validate a Tick (exhaustive)
+     * @param tick Tick
+     * @param minLimit Minimum Limit (exclusive)
+     * @param minDurationIndex Minimum Duration Index (inclusive)
+     * @param maxDurationIndex Maximum Duration Index (inclusive)
+     * @param minRateIndex Minimum Rate Index (inclusive)
+     * @param maxRateIndex Maximum Rate Index (inclusive)
+     */
+    function validate(
+        uint128 tick,
+        uint256 minLimit,
+        uint256 minDurationIndex,
+        uint256 maxDurationIndex,
+        uint256 minRateIndex,
+        uint256 maxRateIndex
+    ) internal pure {
+        (uint256 limit, uint256 duration, uint256 rate, uint256 reserved) = decode(tick);
+        if (limit <= minLimit) revert InvalidTick();
+        if (duration < minDurationIndex || duration > maxDurationIndex) revert InvalidTick();
+        if (rate < minRateIndex || rate > maxRateIndex) revert InvalidTick();
+        if (reserved != 0) revert InvalidTick();
     }
 }

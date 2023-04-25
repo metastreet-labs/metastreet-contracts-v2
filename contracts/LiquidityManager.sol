@@ -521,13 +521,15 @@ library LiquidityManager {
      * @param amount Amount
      * @param ticks Ticks to source from
      * @param multiplier Multiplier for amount
+     * @param durationIndex Duration index for amount
      * @return Sourced liquidity nodes, count of nodes
      */
     function source(
         Liquidity storage liquidity,
         uint256 amount,
         uint128[] calldata ticks,
-        uint256 multiplier
+        uint256 multiplier,
+        uint256 durationIndex
     ) internal view returns (ILiquidity.NodeSource[] memory, uint16) {
         ILiquidity.NodeSource[] memory sources = new ILiquidity.NodeSource[](ticks.length);
 
@@ -537,11 +539,8 @@ library LiquidityManager {
         for (; count < ticks.length && taken != amount; count++) {
             uint128 tick = ticks[count];
 
-            /* Decode tick limit */
-            (uint256 limit, , , ) = Tick.decode(tick);
-
-            /* Validate limit is greater than previous limit */
-            if (limit <= prevLimit) revert Tick.InvalidTick();
+            /* Validate tick and decode limit */
+            uint256 limit = Tick.validate(tick, prevLimit, durationIndex);
 
             /* Look up liquidity node */
             Node storage node = liquidity.nodes[tick];

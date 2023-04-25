@@ -157,8 +157,9 @@ contract TestLiquidityManager is ILiquidity {
     function source(
         uint256 amount,
         uint128[] calldata ticks,
-        uint256 multiplier
+        uint256 multiplier,
+        uint256 durationIndex
     ) external view returns (ILiquidity.NodeSource[] memory, uint16 count) {
-        return _liquidity.source(amount, ticks, multiplier);
+        return _liquidity.source(amount, ticks, multiplier, durationIndex);
     }
 }
