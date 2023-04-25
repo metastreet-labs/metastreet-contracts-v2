@@ -45,7 +45,7 @@ describe("Pool", function () {
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
-    const poolImplFactory = await ethers.getContractFactory("FixedRateSingleCollectionPool");
+    const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;
@@ -91,14 +91,14 @@ describe("Pool", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address", "address", "uint256", "uint64[]", "uint64[]", "tuple(uint64, uint64, uint64)"],
+          ["address", "address", "uint256", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
           [
             nft1.address,
             tok1.address,
             45,
             [7 * 86400, 14 * 86400, 30 * 86400],
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
-            [FixedPoint.normalizeRate("0.02"), FixedPoint.from("0.05"), FixedPoint.from("2.0")],
+            [FixedPoint.from("0.05"), FixedPoint.from("2.0")],
           ]
         ),
         collateralLiquidator.address,
@@ -968,7 +968,7 @@ describe("Pool", function () {
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("10.061438356146880000"));
+      ).to.equal(FixedPoint.from("10.127191780786240000"));
 
       expect(
         await pool.quote(
@@ -979,7 +979,7 @@ describe("Pool", function () {
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("25.153595890367200000"));
+      ).to.equal(FixedPoint.from("25.317979451965600000"));
     });
 
     it("correctly quotes repayment for bundle", async function () {
@@ -992,7 +992,7 @@ describe("Pool", function () {
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("10.061438356146880000"));
+      ).to.equal(FixedPoint.from("10.127191780786240000"));
 
       expect(
         await pool.quote(
@@ -1003,7 +1003,7 @@ describe("Pool", function () {
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("25.153595890367200000"));
+      ).to.equal(FixedPoint.from("25.317979451965600000"));
     });
 
     it("fails on insufficient liquidity", async function () {

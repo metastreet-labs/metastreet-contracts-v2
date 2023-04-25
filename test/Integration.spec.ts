@@ -53,7 +53,6 @@ describe("Integration", function () {
     isSharesRedeemAmountRandomized: false,
     adminFeeRate: 45 /* 4.5% */,
     originationFeeRate: 45 /* 4.5% */,
-    fixedInterestRate: FixedPoint.normalizeRate("0.02"),
     tickThreshold: FixedPoint.from("0.05"),
     tickExponential: FixedPoint.from("2.0"),
   };
@@ -83,7 +82,7 @@ describe("Integration", function () {
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
-    const poolImplFactory = await ethers.getContractFactory("FixedRateSingleCollectionPool");
+    const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy(
@@ -134,14 +133,14 @@ describe("Integration", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address", "address", "uint256", "uint64[]", "uint64[]", "tuple(uint64, uint64, uint64)"],
+          ["address", "address", "uint256", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
           [
             nft1.address,
             tok1.address,
             45,
             [7 * 86400, 14 * 86400, 30 * 86400],
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
-            [CONFIG.fixedInterestRate, CONFIG.tickThreshold, CONFIG.tickExponential],
+            [CONFIG.tickThreshold, CONFIG.tickExponential],
           ]
         ),
         collateralLiquidator.address,
@@ -187,7 +186,7 @@ describe("Integration", function () {
       ethers.BigNumber.from(CONFIG.adminFeeRate),
       ethers.BigNumber.from(CONFIG.originationFeeRate),
       "fixed",
-      [CONFIG.fixedInterestRate, CONFIG.tickThreshold, CONFIG.tickExponential]
+      [CONFIG.tickThreshold, CONFIG.tickExponential]
     );
 
     /* Create call sequence */
