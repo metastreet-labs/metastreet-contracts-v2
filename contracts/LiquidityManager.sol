@@ -17,7 +17,7 @@ library LiquidityManager {
     /**
      * @notice Tick limit spacing basis points (25%)
      */
-    uint256 public constant TICK_LIMIT_SPACING_BASIS_POINTS = 12500;
+    uint256 public constant TICK_LIMIT_SPACING_BASIS_POINTS = 2500;
 
     /**
      * @notice Fixed point scale
@@ -298,11 +298,15 @@ library LiquidityManager {
         (uint256 newLimit, , , ) = Tick.decode(tick);
         (uint256 nextLimit, , , ) = Tick.decode(prevNode.next);
 
-        /* Validate new tick limit spacing */
-        if (newLimit != prevLimit && newLimit < (prevLimit * TICK_LIMIT_SPACING_BASIS_POINTS) / BASIS_POINTS_SCALE)
-            revert InsufficientTickSpacing();
-        if (newLimit != nextLimit && nextLimit < (newLimit * TICK_LIMIT_SPACING_BASIS_POINTS) / BASIS_POINTS_SCALE)
-            revert InsufficientTickSpacing();
+        /* Validate tick limit spacing */
+        if (
+            newLimit != prevLimit &&
+            newLimit < (prevLimit * (BASIS_POINTS_SCALE + TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
+        ) revert InsufficientTickSpacing();
+        if (
+            newLimit != nextLimit &&
+            nextLimit < (newLimit * (BASIS_POINTS_SCALE + TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
+        ) revert InsufficientTickSpacing();
 
         /* Link new node */
         node.prev = prevTick;
