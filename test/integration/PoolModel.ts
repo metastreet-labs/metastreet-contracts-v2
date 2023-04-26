@@ -1,8 +1,9 @@
 import { ethers } from "hardhat";
 
 export type Liquidity = {
-  total: ethers.BigNumber;
-  used: ethers.BigNumber;
+  value: ethers.BigNumber;
+  available: ethers.BigNumber;
+  pending: ethers.BigNumber;
 };
 
 type LoanReceipt = {
@@ -20,8 +21,9 @@ export class PoolModel {
   /* States we are using for comparison */
   public adminFeeBalance: ethers.BigNumber = ethers.constants.Zero;
   public liquidity: Liquidity = {
-    total: ethers.constants.Zero,
-    used: ethers.constants.Zero,
+    value: ethers.constants.Zero,
+    available: ethers.constants.Zero,
+    pending: ethers.constants.Zero,
   };
   public collateralBalances: ethers.BigNumber = ethers.constants.Zero;
   public tokenBalances: ethers.BigNumber = ethers.constants.Zero;
@@ -60,8 +62,15 @@ export class PoolModel {
     return [repayment, proration];
   }
 
-  public deposit(amount: ethers.BigNumber, liquidityTotal: ethers.BigNumber) {
-    this.liquidity.total = liquidityTotal;
+  public deposit(
+    amount: ethers.BigNumber,
+    value: ethers.BigNumber,
+    available: ethers.BigNumber,
+    pending: ethers.BigNumber
+  ) {
+    this.liquidity.value = value;
+    this.liquidity.available = available;
+    this.liquidity.pending = pending;
     this.tokenBalances = this.tokenBalances.add(amount);
   }
 
@@ -73,8 +82,12 @@ export class PoolModel {
     maturity: ethers.BigNumber,
     duration: ethers.BigNumber
   ) {
-    /* Update top level liquidity statistics */
-    this.liquidity.used = this.liquidity.used.add(principal);
+    /* Compute admin fee */
+    const adminFee = this._adminFeeRate.mul(repayment.sub(principal)).div(this.BASIS_POINTS_SCALE);
+
+    /* Update liquidity  */
+    this.liquidity.available = this.liquidity.available.sub(principal);
+    this.liquidity.pending = this.liquidity.pending.add(repayment.sub(adminFee));
 
     /* FIXME update with bundles */
     this.collateralBalances = this.collateralBalances.add(1);
@@ -99,7 +112,9 @@ export class PoolModel {
     address: string,
     blockTimestamp: ethers.BigNumber,
     encodedLoanReceipt: string,
-    total: ethers.BigNumber
+    value: ethers.BigNumber,
+    available: ethers.BigNumber,
+    pending: ethers.BigNumber
   ): ethers.BigNumber {
     const loanReceipts = this.loanReceipts.get(address) ?? new Map<string, LoanReceipt>();
 
@@ -128,11 +143,10 @@ export class PoolModel {
     /* Update admin fee total balance with prorated admin fee */
     this.adminFeeBalance = this.adminFeeBalance.add(proratedAdminFee);
 
-    /* Update liquidity used */
-    this.liquidity.used = this.liquidity.used.sub(loanReceipt.principal);
-
-    /* Update liquidity total */
-    this.liquidity.total = total;
+    /* Update top level liquidity statistics */
+    this.liquidity.value = value;
+    this.liquidity.available = available;
+    this.liquidity.pending = pending;
 
     /* Update token balances */
     this.tokenBalances = this.tokenBalances.add(repayment);
@@ -143,30 +157,43 @@ export class PoolModel {
     return repayment;
   }
 
-  public redeem(amount: ethers.BigNumber) {
-    /* Subtract amount from total liquidity if not node not insolvent */
-    this.liquidity.total = this.liquidity.total.sub(amount);
+  public redeem(value: ethers.BigNumber, available: ethers.BigNumber, pending: ethers.BigNumber) {
+    /* Update liquidity value */
+    this.liquidity.value = value;
+
+    /* Update liquidity available */
+    this.liquidity.available = available;
+
+    /* Update liquidity pending */
+    this.liquidity.pending = pending;
   }
 
   public withdraw(amount: ethers.BigNumber) {
-    /* Transfer Withdrawal Amount */
+    /* Transfer withdrawal amount */
     this.tokenBalances = this.tokenBalances.sub(amount);
   }
 
   public refinance(
     address: string,
     blockTimestamp: ethers.BigNumber,
+    value: ethers.BigNumber,
+    available: ethers.BigNumber,
+    pending: ethers.BigNumber,
     encodedLoanReceipt: string,
-    liquidityTotal: ethers.BigNumber,
     newEncodedLoanReceipt: string,
     repayment: ethers.BigNumber,
     principal: ethers.BigNumber,
     maturity: ethers.BigNumber,
     duration: ethers.BigNumber
-  ): ethers.BigNumber {
-    this.repay(address, blockTimestamp, encodedLoanReceipt, liquidityTotal);
+  ) {
+    this.repay(address, blockTimestamp, encodedLoanReceipt, value, available, pending);
 
-    return this.borrow(address, newEncodedLoanReceipt, repayment, principal, maturity, duration);
+    this.borrow(address, newEncodedLoanReceipt, repayment, principal, maturity, duration);
+
+    /* Update top level liquidity statistics */
+    this.liquidity.value = value;
+    this.liquidity.available = available;
+    this.liquidity.pending = pending;
   }
 
   public liquidate() {
@@ -178,7 +205,9 @@ export class PoolModel {
     address: string,
     encodedLoanReceipt: string,
     proceeds: ethers.BigNumber,
-    total: ethers.BigNumber
+    value: ethers.BigNumber,
+    available: ethers.BigNumber,
+    pending: ethers.BigNumber
   ) {
     const loanReceipts = this.loanReceipts.get(address) ?? new Map<string, LoanReceipt>();
 
@@ -189,8 +218,9 @@ export class PoolModel {
     }
 
     /* Update top level liquidity statistics */
-    this.liquidity.total = total;
-    this.liquidity.used = this.liquidity.used.sub(loanReceipt.principal);
+    this.liquidity.value = value;
+    this.liquidity.available = available;
+    this.liquidity.pending = pending;
 
     /* Transfer proceeds from liquidator to pool */
     this.tokenBalances = this.tokenBalances.add(proceeds);

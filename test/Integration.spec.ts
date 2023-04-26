@@ -20,7 +20,7 @@ import { Tick } from "./helpers/Tick";
 
 import { PoolModel } from "./integration/PoolModel";
 
-describe.skip("Integration", function () {
+describe("Integration", function () {
   let accounts: SignerWithAddress[];
   let tok1: TestERC20;
   let nft1: TestERC721;
@@ -43,16 +43,16 @@ describe.skip("Integration", function () {
 
   /* Test Config */
   const CONFIG = {
-    /* functionCalls: [deposit, borrow, repay, refinance, redeem, withdraw, liquidate, onCollateralLiquidated], */
-    functionCalls: [deposit, withdraw, redeem, borrow, liquidate, onCollateralLiquidated],
-    maxFunctionCalls: 1000,
-    principals: [1] /* min: 1 ethers, max: 2 ethers */,
-    durations: [1, 30 * 86400] /* min: 1 second, max: 30 * 86499 seconds */,
+    functionCalls: [deposit, borrow, repay, refinance, redeem, withdraw, liquidate, onCollateralLiquidated],
+    maxFunctionCalls: 2000,
+    principals: [1] /* min: 1 ethers, max: 1 ethers */,
+    borrowDurations: [1, 30 * 86400] /* min: 1 second, max: 30 days */,
+    tickDurations: [7 * 86400, 14 * 86400, 30 * 86400] /* 7 days, 14 days, 30 days */,
     ticks: ["1"],
     depositAmounts: [25, 50] /* min: 25 ethers, max: 50 ethers */,
     numberOfBorrowers: 8 /* max allowed is 8!! */,
-    numberOfDepositors: 1 /* max allowed is 9!! */,
-    liquidationProceedsRatio: [0] /* 0%, 50%, 100%, 300% of repayment */,
+    numberOfDepositors: 2 /* max allowed is 9!! */,
+    liquidationProceedsRatio: [0, 50, 100, 300] /* 0%, 50%, 100%, 300% of repayment */,
     isSharesRedeemAmountRandomized: false,
     adminFeeRate: 45 /* 4.5% */,
     originationFeeRate: 45 /* 4.5% */,
@@ -141,7 +141,7 @@ describe.skip("Integration", function () {
             nft1.address,
             tok1.address,
             45,
-            [7 * 86400, 14 * 86400, 30 * 86400],
+            CONFIG.tickDurations,
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
             [CONFIG.tickThreshold, CONFIG.tickExponential],
           ]
@@ -285,25 +285,57 @@ describe.skip("Integration", function () {
     return flattenedDeposits;
   }
 
-  async function sourceLiquidity(amount: ethers.BigNumber, multiplier?: number = 1): Promise<ethers.BigNumber[]> {
+  async function sourceLiquidity(
+    amount: ethers.BigNumber,
+    duration?: ethers.BigNumber = ethers.BigNumber.from(30 * 86400),
+    multiplier?: number = 1
+  ): Promise<ethers.BigNumber[]> {
     const nodes = await pool.liquidityNodes(0, MaxUint128);
     const ticks = [];
 
     const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
     const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
 
+    /* Lookup duration index */
+    const durations = await pool.durations();
+    let durationIndex = 0;
+    while (durationIndex < durations.length) {
+      if (duration.lte(durations[durationIndex])) break;
+      durationIndex++;
+    }
+
+    if (durationIndex == durations.length) {
+      throw new Error("Invalid duration");
+    }
+
     let taken = ethers.constants.Zero;
     for (const node of nodes) {
-      const limit = Tick.decode(node.tick).limit;
-      const take = minBN(minBN(limit.mul(multiplier).sub(taken), node.available), amount.sub(taken));
-      if (take.isZero()) continue;
-      ticks.push(node.tick);
-      taken = taken.add(take);
+      const tickDecoded = Tick.decode(node.tick);
+      if (tickDecoded.durationIndex == durationIndex) {
+        const limit = tickDecoded.limit;
+        const take = minBN(minBN(limit.mul(multiplier).sub(taken), node.available), amount.sub(taken));
+        if (take.isZero()) continue;
+        ticks.push(node.tick);
+        taken = taken.add(take);
+      }
     }
 
     if (!taken.eq(amount)) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
 
     return ticks;
+  }
+
+  async function liquidityNodes(): Promise<ethers.BigNumber[]> {
+    const nodes = await pool.liquidityNodes(0, MaxUint128);
+    let value = ethers.constants.Zero;
+    let available = ethers.constants.Zero;
+    let pending = ethers.constants.Zero;
+    for (let node of nodes) {
+      value = value.add(node.value);
+      available = available.add(node.available);
+      pending = pending.add(node.pending);
+    }
+    return [value, available, pending];
   }
 
   async function compareStates(): Promise<void> {
@@ -321,10 +353,11 @@ describe.skip("Integration", function () {
     );
 
     /* Compare top level liquidity */
-    const [total, used, _] = await pool.liquidityStatistics();
-    expect(total).to.equal(poolModel.liquidity.total, "Total liquidity unequal");
-    expect(used).to.equal(poolModel.liquidity.used, "Used liquidity unequal");
-    consoleLog(`Top level liquidity => total: ${total}, used: ${used}`);
+    const [value, available, pending] = await liquidityNodes();
+    expect(value).to.equal(poolModel.liquidity.value, "Value liquidity unequal");
+    expect(available).to.equal(poolModel.liquidity.available, "Available liquidity unequal");
+    expect(pending).to.equal(poolModel.liquidity.pending, "Pending liquidity unequal");
+    consoleLog(`Top level liquidity => value: ${value}, available: ${available}, pending: ${pending}`);
   }
 
   async function getTransactionTimestamp(blockNumber: ethers.BigNumber): Promise<ethers.BigNumber> {
@@ -352,7 +385,12 @@ describe.skip("Integration", function () {
       consoleLog("Executing deposit()...");
 
       const depositor = accountDepositors[getRandomInteger(0, accountDepositors.length)];
-      const tick = Tick.encode(CONFIG.ticks[getRandomInteger(0, CONFIG.ticks.length)]);
+
+      const tick = Tick.encode(
+        CONFIG.ticks[getRandomInteger(0, CONFIG.ticks.length)],
+        getRandomInteger(0, CONFIG.tickDurations.length)
+      );
+
       const amount = ethers.utils.parseEther(
         getRandomInteger(CONFIG.depositAmounts[0], CONFIG.depositAmounts[CONFIG.depositAmounts.length - 1]).toString()
       );
@@ -361,13 +399,13 @@ describe.skip("Integration", function () {
       consoleLog(`Params => tick: ${tick}, amount: ${amount}`);
       const depositTx = await pool.connect(depositor).deposit(tick, amount);
 
-      const [totalAfter, usedAfter, numNodesAfter] = await pool.liquidityStatistics();
+      const [value, available, pending] = await liquidityNodes();
 
       /* Get shares */
       const shares = (await extractEvent(depositTx, pool, "Deposited")).args.shares;
 
       /* Execute deposit() on PoolModel */
-      poolModel.deposit(amount, totalAfter);
+      poolModel.deposit(amount, value, available, pending);
 
       /* Update our helper variables */
       const depositorsDeposits =
@@ -391,7 +429,7 @@ describe.skip("Integration", function () {
       callStatistics["deposit"] += 1;
       consoleLog(`${depositor.address}: Deposited ${amount} at tick ${tick}`);
     } catch (e) {
-      consoleLog("deposit() failed:", e);
+      consoleLog(`deposit() failed: ${e}`);
       throw new Error();
     }
   }
@@ -404,7 +442,7 @@ describe.skip("Integration", function () {
       consoleLog(`Borrower: ${borrower.address}`);
 
       const duration = ethers.BigNumber.from(
-        getRandomInteger(CONFIG.durations[0], CONFIG.durations[CONFIG.durations.length - 1])
+        getRandomInteger(CONFIG.borrowDurations[0], CONFIG.borrowDurations[CONFIG.borrowDurations.length - 1])
       );
 
       const principal = ethers.utils.parseEther(
@@ -412,9 +450,9 @@ describe.skip("Integration", function () {
       );
 
       /* Source liquidity */
-      const _ticks: ethers.BigNumber[] = [];
+      let _ticks: ethers.BigNumber[] = [];
       try {
-        _ticks = await sourceLiquidity(principal, 1);
+        _ticks = await sourceLiquidity(principal, duration, 1);
       } catch (err) {
         consoleLog("Insufficient liquidity");
         return;
@@ -476,7 +514,7 @@ describe.skip("Integration", function () {
       callStatistics["borrow"] += 1;
       consoleLog(`Borrowed ${principal} for ${duration} seconds`);
     } catch (e) {
-      consoleLog("borrow() failed:", e);
+      consoleLog(`borrow() failed: ${e}`);
       throw new Error();
     }
   }
@@ -519,7 +557,7 @@ describe.skip("Integration", function () {
 
       /* Execute repay() on Pool */
       const repayTx = await pool.connect(borrower).repay(encodedLoanReceipt);
-      let [total, used, numNodes] = await pool.liquidityStatistics();
+      const [value, available, pending] = await liquidityNodes();
 
       /* Get block timestamp of repay transaction */
       const blockTimestamp = ethers.BigNumber.from(await getTransactionTimestamp(repayTx.blockNumber));
@@ -528,7 +566,7 @@ describe.skip("Integration", function () {
       const repayment: ethers.BigNumber = (await extractEvent(repayTx, pool, "LoanRepaid")).args.repayment;
 
       /* Execute repay() on PoolModel */
-      poolModel.repay(borrower.address, blockTimestamp, encodedLoanReceipt, total);
+      poolModel.repay(borrower.address, blockTimestamp, encodedLoanReceipt, value, available, pending);
 
       /* Remove loan from internal records based on encoded loan receipt */
       removeLoanFromStorage(loans, encodedLoanReceipt);
@@ -546,7 +584,7 @@ describe.skip("Integration", function () {
         )}`
       );
     } catch (e) {
-      consoleLog("repay() failed:", e);
+      consoleLog(`repay() failed: ${e}`);
       throw new Error();
     }
   }
@@ -556,7 +594,7 @@ describe.skip("Integration", function () {
       consoleLog("Executing refinance()...");
 
       const duration = ethers.BigNumber.from(
-        getRandomInteger(CONFIG.durations[0], CONFIG.durations[CONFIG.durations.length - 1])
+        getRandomInteger(CONFIG.borrowDurations[0], CONFIG.borrowDurations[CONFIG.borrowDurations.length - 1])
       );
       const principal = ethers.utils.parseEther(
         getRandomInteger(CONFIG.principals[0], CONFIG.principals[CONFIG.principals.length - 1]).toString()
@@ -595,9 +633,9 @@ describe.skip("Integration", function () {
       await helpers.time.increaseTo(randomTimestamp);
 
       /* Source liquidity */
-      const _ticks: ethers.BigNumber[] = [];
+      let _ticks: ethers.BigNumber[] = [];
       try {
-        _ticks = await sourceLiquidity(principal, 1);
+        _ticks = await sourceLiquidity(principal, duration, 1);
       } catch (err) {
         consoleLog("Insufficient liquidity");
         return;
@@ -616,7 +654,7 @@ describe.skip("Integration", function () {
       const refinanceTx = await pool
         .connect(borrower)
         .refinance(encodedLoanReceipt, principal, duration, maxRepayment, _ticks);
-      let [total, used, numNodes] = await pool.liquidityStatistics();
+      const [value, available, pending] = await liquidityNodes();
 
       /* Get block timestamp of borrow transaction */
       const blockTimestamp = ethers.BigNumber.from(await getTransactionTimestamp(refinanceTx.blockNumber));
@@ -628,8 +666,10 @@ describe.skip("Integration", function () {
       poolModel.refinance(
         borrower.address,
         blockTimestamp,
+        value,
+        available,
+        pending,
         encodedLoanReceipt,
-        total,
         newEncodedLoanReceipt,
         repayment,
         principal,
@@ -651,7 +691,7 @@ describe.skip("Integration", function () {
         )}`
       );
     } catch (e) {
-      consoleLog("refinance() failed:", e);
+      consoleLog(`refinance() failed: ${e}`);
       throw new Error();
     }
   }
@@ -673,19 +713,14 @@ describe.skip("Integration", function () {
       /* If randomized, redeem at least 1 */
       const sharesRedeemAmount = CONFIG.isSharesRedeemAmountRandomized ? getRandomBN(shares.sub(1)).add(1) : shares;
 
-      /* redeem() decreases liquidity.total if it is not insolvent, so we do a
-       * snapshot before and after, so we can adjust liquidity.total in our
-       * Pool */
-      const [totalBefore, usedBefore, numNodesBefore] = await pool.liquidityStatistics();
-
       /* Execute redeem() on Pool */
       consoleLog(`Params => tick: ${tick}, shares: ${sharesRedeemAmount}`);
       await pool.connect(depositor).redeem(tick, sharesRedeemAmount);
 
-      const [totalAfter, usedAfter, numNodesAfter] = await pool.liquidityStatistics();
+      const [value, available, pending] = await liquidityNodes();
 
       /* Execute redeem() on PoolModel */
-      poolModel.redeem(totalBefore.sub(totalAfter));
+      poolModel.redeem(value, available, pending);
 
       /* Update our helper variables */
       const depositorsDeposits = deposits.get(depositor.address);
@@ -707,7 +742,7 @@ describe.skip("Integration", function () {
       callStatistics["redeem"] += 1;
       consoleLog(`${depositor.address}: Redeemed ${sharesRedeemAmount} shares at tick ${tick}`);
     } catch (e) {
-      consoleLog("redeem() failed:", e);
+      consoleLog(`redeem() failed: ${e}`);
       throw new Error();
     }
   }
@@ -768,7 +803,7 @@ describe.skip("Integration", function () {
       callStatistics["withdraw"] += 1;
       consoleLog(`${depositor.address}: Withdrew ${_shares} shares and ${amount} tokens at tick ${tick}`);
     } catch (e) {
-      consoleLog("withdraw() failed:", e);
+      consoleLog(`withdraw() failed: ${e}`);
       throw new Error();
     }
   }
@@ -821,7 +856,7 @@ describe.skip("Integration", function () {
         )}`
       );
     } catch (e) {
-      consoleLog("liquidate() failed:", e);
+      consoleLog(`liquidate() failed: ${e}`);
       throw new Error();
     }
   }
@@ -874,10 +909,10 @@ describe.skip("Integration", function () {
           encodedLoanReceipt,
           proceeds
         );
-      const [total, used, _] = await pool.liquidityStatistics();
+      const [value, available, pending] = await liquidityNodes();
 
       /* Execute liquidate on PoolModel */
-      poolModel.onCollateralLiquidated(borrower.address, encodedLoanReceipt, proceeds, total);
+      poolModel.onCollateralLiquidated(borrower.address, encodedLoanReceipt, proceeds, value, available, pending);
 
       /* Update our helper variables */
       removeLoanFromStorage(defaultedLoans, encodedLoanReceipt);
@@ -885,7 +920,7 @@ describe.skip("Integration", function () {
       callStatistics["onCollateralLiquidated"] += 1;
       consoleLog(`Restored liquidation proceeds of ${proceeds}`);
     } catch (e) {
-      consoleLog("onCollateralLiquidated() failed:", e);
+      consoleLog(`onCollateralLiquidated() failed: ${e}`);
       throw new Error();
     }
   }
