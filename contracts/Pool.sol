@@ -915,7 +915,7 @@ abstract contract Pool is
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
         /* Validate loan is expired */
-        if (block.timestamp < loanReceipt.maturity) revert LoanNotExpired();
+        if (block.timestamp <= loanReceipt.maturity) revert LoanNotExpired();
 
         /* Transfer collateral to _collateralLiquidator */
         IERC721(loanReceipt.collateralToken).approve(address(_collateralLiquidator), loanReceipt.collateralTokenId);
