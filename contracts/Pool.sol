@@ -90,6 +90,11 @@ abstract contract Pool is
     error InvalidAddress();
 
     /**
+     * @notice Unsupported token decimals
+     */
+    error UnsupportedTokenDecimals();
+
+    /**
      * @notice Parameter out of bounds
      */
     error ParameterOutOfBounds();
@@ -237,7 +242,9 @@ abstract contract Pool is
         uint64[] memory durations_,
         uint64[] memory rates_
     ) internal {
-        _currencyToken = IERC20(currencyToken_); /* FIXME verify 18 decimals */
+        if (IERC20Metadata(currencyToken_).decimals() != 18) revert UnsupportedTokenDecimals();
+
+        _currencyToken = IERC20(currencyToken_);
         _originationFeeRate = originationFeeRate_;
         _collateralLiquidator = ICollateralLiquidator(collateralLiquidator_);
 
