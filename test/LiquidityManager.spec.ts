@@ -117,6 +117,16 @@ describe("LiquidityManager", function () {
         "InsufficientTickSpacing"
       );
     });
+    it("fails on reserved node", async function () {
+      await expect(liquidityManager.instantiate(0)).to.be.revertedWithCustomError(
+        liquidityManager,
+        "InactiveLiquidity"
+      );
+      await expect(liquidityManager.instantiate(MaxUint128)).to.be.revertedWithCustomError(
+        liquidityManager,
+        "InactiveLiquidity"
+      );
+    });
     it("fails on insolvent node", async function () {
       /* Create insolvent node */
       await liquidityManager.instantiate(Tick.encode("3"));
@@ -244,6 +254,16 @@ describe("LiquidityManager", function () {
     });
     it("fails on inactive node", async function () {
       await expect(liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("5"))).to.be.revertedWithCustomError(
+        liquidityManager,
+        "InactiveLiquidity"
+      );
+    });
+    it("fails on reserved node", async function () {
+      await expect(liquidityManager.deposit(0, FixedPoint.from("5"))).to.be.revertedWithCustomError(
+        liquidityManager,
+        "InactiveLiquidity"
+      );
+      await expect(liquidityManager.deposit(MaxUint128, FixedPoint.from("5"))).to.be.revertedWithCustomError(
         liquidityManager,
         "InactiveLiquidity"
       );
@@ -458,6 +478,16 @@ describe("LiquidityManager", function () {
       expect(node.available).to.equal(FixedPoint.from("4"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(FixedPoint.from("1"));
+    });
+    it("fails on reserved node", async function () {
+      await expect(liquidityManager.redeem(0, FixedPoint.from("1"))).to.be.revertedWithCustomError(
+        liquidityManager,
+        "InactiveLiquidity"
+      );
+      await expect(liquidityManager.redeem(MaxUint128, FixedPoint.from("1"))).to.be.revertedWithCustomError(
+        liquidityManager,
+        "InactiveLiquidity"
+      );
     });
   });
 
@@ -885,10 +915,14 @@ describe("LiquidityManager", function () {
   /****************************************************************************/
 
   async function setupLiquidity(): Promise<void> {
-    /* Setup liquidity at 10, 20, 30, 40 ETH */
-    for (const tick of [Tick.encode("10"), Tick.encode("20"), Tick.encode("30"), Tick.encode("40")]) {
-      await liquidityManager.instantiate(tick);
-      await liquidityManager.deposit(tick, FixedPoint.from("50"));
+    /* Setup liquidity at 10, 20, 30, 40 ETH at three durations and three rates */
+    for (const limit of [FixedPoint.from("10"), FixedPoint.from("20"), FixedPoint.from("30"), FixedPoint.from("40")]) {
+      for (const duration of [0, 1, 2]) {
+        for (const rate of [0, 1, 2]) {
+          await liquidityManager.instantiate(Tick.encode(limit, duration, rate));
+          await liquidityManager.deposit(Tick.encode(limit, duration, rate), FixedPoint.from("50"));
+        }
+      }
     }
 
     /* Setup insolvent liquidity at 50 ETH */
@@ -1001,6 +1035,25 @@ describe("LiquidityManager", function () {
       expect(nodes[3].tick).to.equal(Tick.encode("40"));
       expect(nodes[3].used).to.equal(FixedPoint.from("50"));
     });
+    it("sources required liquidity from various durations and rates", async function () {
+      const [nodes, count] = await liquidityManager.source(
+        FixedPoint.from("35"),
+        [Tick.encode("10", 2, 0), Tick.encode("20", 1, 1), Tick.encode("30", 1, 2), Tick.encode("40", 0, 2)],
+        1,
+        0
+      );
+
+      /* Validate nodes */
+      expect(count).to.equal(4);
+      expect(nodes[0].tick).to.equal(Tick.encode("10", 2, 0));
+      expect(nodes[0].used).to.equal(FixedPoint.from("10"));
+      expect(nodes[1].tick).to.equal(Tick.encode("20", 1, 1));
+      expect(nodes[1].used).to.equal(FixedPoint.from("10"));
+      expect(nodes[2].tick).to.equal(Tick.encode("30", 1, 2));
+      expect(nodes[2].used).to.equal(FixedPoint.from("10"));
+      expect(nodes[3].tick).to.equal(Tick.encode("40", 0, 2));
+      expect(nodes[3].used).to.equal(FixedPoint.from("5"));
+    });
     it("fails on insufficient liquidity", async function () {
       await expect(
         liquidityManager.source(FixedPoint.from("25"), ticks.slice(0, 2), 1, 0)
@@ -1036,6 +1089,11 @@ describe("LiquidityManager", function () {
           1,
           0
         )
+      ).to.be.revertedWithCustomError(liquidityManager, "InvalidTick");
+    });
+    it("fails on low duration ticks", async function () {
+      await expect(
+        liquidityManager.source(FixedPoint.from("15"), [Tick.encode("10", 2, 0), Tick.encode("20", 0, 1)], 1, 1)
       ).to.be.revertedWithCustomError(liquidityManager, "InvalidTick");
     });
   });
