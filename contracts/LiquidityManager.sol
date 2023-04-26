@@ -20,11 +20,6 @@ library LiquidityManager {
     uint256 public constant TICK_LIMIT_SPACING_BASIS_POINTS = 12500;
 
     /**
-     * @notice Maximum number of nodes that can be sourced at once
-     */
-    uint256 public constant MAX_NUM_NODES = 16;
-
-    /**
      * @notice Fixed point scale
      */
     uint256 internal constant FIXED_POINT_SCALE = 1e18;
