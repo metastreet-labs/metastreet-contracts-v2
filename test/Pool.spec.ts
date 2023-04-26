@@ -2303,19 +2303,46 @@ describe("Pool", function () {
       ).to.equal(false);
     });
 
-    it("fails on invalid caller", async function () {
-      const [loanReceipt] = await createActiveLoan(FixedPoint.from("25"));
-      await expect(pool.connect(accountLender).repay(loanReceipt)).to.be.revertedWithCustomError(pool, "InvalidCaller");
-    });
-
-    it("fails on expired loan", async function () {
-      const [loanReceipt] = await createActiveLoan(FixedPoint.from("25"));
+    it("can repay after expiration and prior to liquidation", async function () {
+      const [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
 
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+      const repayment = decodedLoanReceipt.repayment;
+
       await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
 
-      await expect(pool.connect(accountBorrower).repay(loanReceipt)).to.be.revertedWithCustomError(pool, "LoanExpired");
+      const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
+
+      /* Validate events */
+      await expectEvent(repayTx, pool, "LoanRepaid", {
+        loanReceiptHash,
+        repayment,
+      });
+
+      /* Validate ticks and liquidity statistics */
+      let totalPending = ethers.constants.Zero;
+      let totalUsed = ethers.constants.Zero;
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+        const node = await pool.liquidityNode(nodeReceipt.tick);
+        const value = FixedPoint.from("25").add(nodeReceipt.pending).sub(nodeReceipt.used);
+        expect(node.value).to.equal(value);
+        expect(node.available).to.equal(value);
+        expect(node.pending).to.equal(ethers.constants.Zero);
+        totalPending = totalPending.add(nodeReceipt.pending);
+        totalUsed = totalUsed.add(nodeReceipt.used);
+      }
+
+      /* Validate loan state */
+      expect(await pool.loans(loanReceiptHash)).to.equal(2);
+      expect(
+        await delegationRegistry.checkDelegateForToken(accountBorrower.address, pool.address, nft1.address, 124)
+      ).to.equal(false);
+    });
+
+    it("fails on invalid caller", async function () {
+      const [loanReceipt] = await createActiveLoan(FixedPoint.from("25"));
+      await expect(pool.connect(accountLender).repay(loanReceipt)).to.be.revertedWithCustomError(pool, "InvalidCaller");
     });
 
     it("fails on invalid loan receipt", async function () {
@@ -2857,52 +2884,6 @@ describe("Pool", function () {
       ).to.be.revertedWithCustomError(pool, "InvalidCaller");
     });
 
-    it("fails on expired loan", async function () {
-      /* setup liquidity and borrow */
-      await setupLiquidity();
-      pool.setAdminFeeRate(500);
-      [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
-
-      /* Wait for expiration */
-      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
-
-      await expect(
-        pool
-          .connect(accountBorrower)
-          .refinance(
-            loanReceipt,
-            FixedPoint.from("25"),
-            15 * 86400,
-            FixedPoint.from("26"),
-            await sourceLiquidity(FixedPoint.from("25"))
-          )
-      ).to.be.revertedWithCustomError(pool, "LoanExpired");
-    });
-
-    it("bundle loan fails on expired loan", async function () {
-      /* setup liquidity and borrow */
-      await setupLiquidity();
-      pool.setAdminFeeRate(500);
-      [loanReceipt, loanReceiptHash] = await createActiveBundleLoan(FixedPoint.from("25"));
-
-      /* Wait for expiration */
-      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
-
-      await expect(
-        pool
-          .connect(accountBorrower)
-          .refinance(
-            loanReceipt,
-            FixedPoint.from("25"),
-            15 * 86400,
-            FixedPoint.from("26"),
-            await sourceLiquidity(FixedPoint.from("25"))
-          )
-      ).to.be.revertedWithCustomError(pool, "LoanExpired");
-    });
-
     it("fails on invalid loan receipt", async function () {
       /* setup liquidity and borrow */
       await setupLiquidity();
@@ -3110,6 +3091,20 @@ describe("Pool", function () {
     it("fails on repaid loan", async function () {
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
+
+      /* Repay */
+      await pool.connect(accountBorrower).repay(loanReceipt);
+
+      /* Attempt to process repaid loan receipt */
+      await expect(pool.liquidate(loanReceipt)).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
+    });
+
+    it("fails on repaid loan after expiration", async function () {
+      /* Create Loan */
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
+
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
 
       /* Repay */
       await pool.connect(accountBorrower).repay(loanReceipt);
