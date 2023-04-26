@@ -51,11 +51,6 @@ interface IPool {
     error LoanNotExpired();
 
     /**
-     * @notice Loan expired
-     */
-    error LoanExpired();
-
-    /**
      * @notice Redemption in progress
      */
     error RedemptionInProgress();
