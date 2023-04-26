@@ -265,6 +265,29 @@ describe("Pool", function () {
       ).to.be.revertedWithCustomError(pool, "InsolventLiquidity");
     });
 
+    it("fails on invalid tick", async function () {
+      /* Zero limit */
+      await expect(pool.connect(accountDepositors[0]).deposit(0, FixedPoint.from("1"))).to.be.revertedWithCustomError(
+        pool,
+        "InvalidTick"
+      );
+
+      /* Out of bounds duration */
+      await expect(
+        pool.connect(accountDepositors[0]).deposit(Tick.encode("10", 5, 0), FixedPoint.from("1"))
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
+
+      /* Out of bounds rate */
+      await expect(
+        pool.connect(accountDepositors[0]).deposit(Tick.encode("10", 0, 5), FixedPoint.from("1"))
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
+
+      /* Out of bounds reserved field */
+      await expect(
+        pool.connect(accountDepositors[0]).deposit(Tick.encode("10", 0, 0).add(2), FixedPoint.from("1"))
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
+    });
+
     it("fails on transfer failure", async function () {
       await expect(
         pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2000"))
@@ -807,30 +830,50 @@ describe("Pool", function () {
   /****************************************************************************/
 
   const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
+  const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
+  const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
 
   async function setupLiquidity(): Promise<void> {
-    const NUM_TICKS = 16;
+    const NUM_LIMITS = 16;
     const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.TICK_LIMIT_SPACING_BASIS_POINTS();
 
     let limit = FixedPoint.from("1.0");
-    for (let i = 0; i < NUM_TICKS; i++) {
+    for (let i = 0; i < NUM_LIMITS; i++) {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode(limit), FixedPoint.from("25"));
       limit = limit.mul(TICK_LIMIT_SPACING_BASIS_POINTS).div(10000);
     }
   }
 
-  async function sourceLiquidity(amount: ethers.BigNumber, multiplier?: number = 1): Promise<ethers.BigNumber[]> {
+  async function amendLiquidity(ticks: ethers.BigNumber[]): Promise<ethers.BigNumber[]> {
+    /* Replace four ticks with alternate duration and rates */
+    ticks[3] = Tick.encode(Tick.decode(ticks[3]).limit, 2, 0);
+    ticks[5] = Tick.encode(Tick.decode(ticks[5]).limit, 1, 1);
+    ticks[7] = Tick.encode(Tick.decode(ticks[7]).limit, 1, 1);
+    ticks[9] = Tick.encode(Tick.decode(ticks[9]).limit, 0, 2);
+    await pool.connect(accountDepositors[0]).deposit(ticks[3], FixedPoint.from("25"));
+    await pool.connect(accountDepositors[0]).deposit(ticks[5], FixedPoint.from("25"));
+    await pool.connect(accountDepositors[0]).deposit(ticks[7], FixedPoint.from("25"));
+    await pool.connect(accountDepositors[0]).deposit(ticks[9], FixedPoint.from("25"));
+    return ticks;
+  }
+
+  async function sourceLiquidity(
+    amount: ethers.BigNumber,
+    multiplier?: number = 1,
+    duration?: number = 2,
+    rate?: number = 0
+  ): Promise<ethers.BigNumber[]> {
     const nodes = await pool.liquidityNodes(0, MaxUint128);
     const ticks = [];
-
-    const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
-    const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
 
     let taken = ethers.constants.Zero;
     for (const node of nodes) {
       const limit = Tick.decode(node.tick).limit;
+      if (limit.isZero()) continue;
+
       const take = minBN(minBN(limit.mul(multiplier).sub(taken), node.available), amount.sub(taken));
-      if (take.isZero()) continue;
+      if (take.isZero()) break;
+
       ticks.push(node.tick);
       taken = taken.add(take);
     }
@@ -1006,6 +1049,14 @@ describe("Pool", function () {
       ).to.equal(FixedPoint.from("25.317979451965600000"));
     });
 
+    it("quotes repayment from various duration and rate ticks", async function () {
+      let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
+
+      expect(await pool.quote(FixedPoint.from("25"), 7 * 86400, nft1.address, [123], ticks, "0x")).to.equal(
+        FixedPoint.from("25.177875236594080000")
+      );
+    });
+
     it("fails on insufficient liquidity", async function () {
       await expect(
         pool.quote(
@@ -1044,18 +1095,44 @@ describe("Pool", function () {
         )
       ).to.be.revertedWithCustomError(pool, "UnsupportedCollateral", 0);
     });
+
+    it("fails with non-increasing tick", async function () {
+      let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
+      const temp = ticks[4];
+      ticks[4] = ticks[5];
+      ticks[5] = temp;
+
+      await expect(
+        pool.quote(FixedPoint.from("25"), 7 * 86400, nft1.address, [123], ticks, "0x")
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
+    });
+
+    it("fails with duplicate ticks", async function () {
+      let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
+      ticks[4] = ticks[5];
+
+      await expect(
+        pool.quote(FixedPoint.from("35"), 7 * 86400, nft1.address, [123], ticks, "0x")
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
+    });
+
+    it("fails on low duration ticks", async function () {
+      let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
+
+      await expect(
+        pool.quote(FixedPoint.from("35"), 8 * 86400, nft1.address, [123], ticks, "0x")
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
+    });
   });
 
   describe("#quoteRefinance", async function () {
-    let loanReceipt: string;
-
     beforeEach("setup liquidity", async function () {
       await setupLiquidity();
     });
 
     it("correctly quotes refinance payment and repayment at original loan maturity with same principal", async function () {
       /* Create Loan */
-      [loanReceipt] = await createActiveLoan(FixedPoint.from("25"));
+      const [loanReceipt] = await createActiveLoan(FixedPoint.from("25"));
 
       /* Get decoded loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
@@ -1078,7 +1155,7 @@ describe("Pool", function () {
 
     it("correctly quotes refinance payment and repayment at original bundle loan maturity with same principal", async function () {
       /* Create Loan */
-      [loanReceipt] = await createActiveBundleLoan(FixedPoint.from("25"));
+      const [loanReceipt] = await createActiveBundleLoan(FixedPoint.from("25"));
 
       /* Get decoded loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
@@ -1101,7 +1178,7 @@ describe("Pool", function () {
 
     it("correctly quotes refinance payment and repayment at original loan maturity with smaller principal (1 ETH less)", async function () {
       /* Create Loan */
-      [loanReceipt] = await createActiveLoan(FixedPoint.from("25"));
+      const [loanReceipt] = await createActiveLoan(FixedPoint.from("25"));
 
       /* Get decoded loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
@@ -1123,7 +1200,7 @@ describe("Pool", function () {
 
     it("correctly quotes refinance payment and repayment at original bundle loan maturity with smaller principal (1 ETH less)", async function () {
       /* Create Loan */
-      [loanReceipt] = await createActiveBundleLoan(FixedPoint.from("25"));
+      const [loanReceipt] = await createActiveBundleLoan(FixedPoint.from("25"));
 
       /* Get decoded loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
@@ -1145,7 +1222,7 @@ describe("Pool", function () {
 
     it("correctly quotes refinance payment and repayment at original loan maturity with bigger principal (1 ETH more)", async function () {
       /* Create Loan */
-      [loanReceipt] = await createActiveLoan(FixedPoint.from("25"));
+      const [loanReceipt] = await createActiveLoan(FixedPoint.from("25"));
 
       /* Get decoded loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
@@ -1167,7 +1244,7 @@ describe("Pool", function () {
 
     it("correctly quotes refinance payment and repayment at original bundle loan maturity with bigger principal (1 ETH more)", async function () {
       /* Create Loan */
-      [loanReceipt] = await createActiveBundleLoan(FixedPoint.from("25"));
+      const [loanReceipt] = await createActiveBundleLoan(FixedPoint.from("25"));
 
       /* Get decoded loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
@@ -1187,7 +1264,26 @@ describe("Pool", function () {
       expect(payment).to.equal(decodedLoanReceipt.repayment.sub(FixedPoint.from("26")));
     });
 
+    it("quotes refinance repayment from various duration and rate ticks", async function () {
+      /* Create Loan */
+      const [loanReceipt] = await createActiveLoan(FixedPoint.from("25"));
+
+      /* Get decoded loan receipt */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      /* Fast forward to maturity timestamp */
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber());
+
+      /* Amend ticks */
+      const ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
+
+      /* Get quote without reverting */
+      await pool.quoteRefinance(loanReceipt, FixedPoint.from("25"), 7 * 86400, ticks);
+    });
+
     it("fails on insufficient liquidity", async function () {
+      const [loanReceipt] = await createActiveLoan(FixedPoint.from("25"));
+
       await expect(
         pool.quoteRefinance(
           loanReceipt,
@@ -1196,6 +1292,40 @@ describe("Pool", function () {
           await sourceLiquidity(FixedPoint.from("25"))
         )
       ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
+    });
+
+    it("fails with non-increasing tick", async function () {
+      const [loanReceipt] = await createActiveLoan(FixedPoint.from("25"));
+
+      let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
+      const temp = ticks[4];
+      ticks[4] = ticks[5];
+      ticks[5] = temp;
+
+      await expect(
+        pool.quoteRefinance(loanReceipt, FixedPoint.from("25"), 7 * 86400, ticks)
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
+    });
+
+    it("fails with duplicate ticks", async function () {
+      const [loanReceipt] = await createActiveLoan(FixedPoint.from("25"));
+
+      let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
+      ticks[4] = ticks[5];
+
+      await expect(
+        pool.quoteRefinance(loanReceipt, FixedPoint.from("25"), 7 * 86400, ticks)
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
+    });
+
+    it("fails with low duration ticks", async function () {
+      const [loanReceipt] = await createActiveLoan(FixedPoint.from("25"));
+
+      let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
+
+      await expect(
+        pool.quoteRefinance(loanReceipt, FixedPoint.from("25"), 8 * 86400, ticks)
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
     });
   });
 
@@ -1292,6 +1422,15 @@ describe("Pool", function () {
 
       /* Validate loan state */
       expect(await pool.loans(loanReceiptHash)).to.equal(1);
+    });
+
+    it("originates a loan from various duration and rate ticks", async function () {
+      const ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
+
+      /* Borrow */
+      await pool
+        .connect(accountBorrower)
+        .borrow(FixedPoint.from("25"), 7 * 86400, nft1.address, 123, FixedPoint.from("26"), ticks, "0x");
     });
 
     it("originates bundle loan", async function () {
@@ -1823,6 +1962,40 @@ describe("Pool", function () {
             )
           )
       ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
+    });
+
+    it("fails with non-increasing tick", async function () {
+      let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
+      const temp = ticks[4];
+      ticks[4] = ticks[5];
+      ticks[5] = temp;
+
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .borrow(FixedPoint.from("25"), 30 * 86400, nft1.address, 123, FixedPoint.from("26"), ticks, "0x")
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
+    });
+
+    it("fails with duplicate ticks", async function () {
+      let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
+      ticks[4] = ticks[5];
+
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .borrow(FixedPoint.from("25"), 30 * 86400, nft1.address, 123, FixedPoint.from("26"), ticks, "0x")
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
+    });
+
+    it("fails with low duration ticks", async function () {
+      let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
+
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .borrow(FixedPoint.from("25"), 8 * 86400, nft1.address, 123, FixedPoint.from("26"), ticks, "0x")
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
     });
   });
 
