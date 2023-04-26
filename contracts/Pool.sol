@@ -133,8 +133,8 @@ abstract contract Pool is
      */
     enum BorrowOptions {
         None,
-        DelegateCash,
-        CollateralWrapperContext
+        CollateralWrapperContext,
+        DelegateCash
     }
 
     /**************************************************************************/

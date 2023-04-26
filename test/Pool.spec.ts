@@ -950,7 +950,7 @@ describe("Pool", function () {
         await sourceLiquidity(FixedPoint.from("25"), 3),
         ethers.utils.solidityPack(
           ["uint16", "uint16", "bytes"],
-          [2, ethers.utils.hexDataLength(bundleData), bundleData]
+          [1, ethers.utils.hexDataLength(bundleData), bundleData]
         )
       );
 
@@ -1461,7 +1461,7 @@ describe("Pool", function () {
           await sourceLiquidity(FixedPoint.from("25"), 3),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
-            [2, ethers.utils.hexDataLength(bundleData), bundleData]
+            [1, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
@@ -1477,7 +1477,7 @@ describe("Pool", function () {
           await sourceLiquidity(FixedPoint.from("25"), 3),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
-            [2, ethers.utils.hexDataLength(bundleData), bundleData]
+            [1, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
@@ -1570,7 +1570,7 @@ describe("Pool", function () {
           await sourceLiquidity(FixedPoint.from("85"), 3),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
-            [2, ethers.utils.hexDataLength(bundleData), bundleData]
+            [1, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
@@ -1589,7 +1589,7 @@ describe("Pool", function () {
           await sourceLiquidity(FixedPoint.from("85"), 3),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
-            [2, ethers.utils.hexDataLength(bundleData), bundleData]
+            [1, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
@@ -1672,7 +1672,7 @@ describe("Pool", function () {
           123,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
-          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [1, 20, accountBorrower.address])
+          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [2, 20, accountBorrower.address])
         );
 
       /* Borrow */
@@ -1685,7 +1685,7 @@ describe("Pool", function () {
           123,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
-          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [1, 20, accountBorrower.address])
+          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [2, 20, accountBorrower.address])
         );
 
       /* Validate return value from borrow() */
@@ -1888,7 +1888,7 @@ describe("Pool", function () {
             bundleTokenId,
             FixedPoint.from("26"),
             await sourceLiquidity(FixedPoint.from("25"), 3),
-            ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [2, 20 + 31 * 3, bundleData])
+            ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, 20 + 31 * 3, bundleData])
           )
       ).to.be.revertedWithCustomError(bundleCollateralWrapper, "InvalidContext");
     });
@@ -1958,7 +1958,7 @@ describe("Pool", function () {
             await sourceLiquidity(FixedPoint.from("85"), 3),
             ethers.utils.solidityPack(
               ["uint16", "uint16", "bytes"],
-              [2, ethers.utils.hexDataLength(bundleData), bundleData]
+              [1, ethers.utils.hexDataLength(bundleData), bundleData]
             )
           )
       ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
@@ -2075,7 +2075,7 @@ describe("Pool", function () {
           await sourceLiquidity(FixedPoint.from("25"), 2),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
-            [2, ethers.utils.hexDataLength(bundleData), bundleData]
+            [1, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
@@ -2247,7 +2247,7 @@ describe("Pool", function () {
           124,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
-          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [1, 20, accountBorrower.address])
+          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [2, 20, accountBorrower.address])
         );
 
       /* Validate events */
@@ -2751,7 +2751,7 @@ describe("Pool", function () {
           await sourceLiquidity(FixedPoint.from("1"), 3),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
-            [2, ethers.utils.hexDataLength(bundleData), bundleData]
+            [1, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
@@ -2785,7 +2785,7 @@ describe("Pool", function () {
               await sourceLiquidity(FixedPoint.from("1"), 3),
               ethers.utils.solidityPack(
                 ["uint16", "uint16", "bytes"],
-                [2, ethers.utils.hexDataLength(bundleData), bundleData]
+                [1, ethers.utils.hexDataLength(bundleData), bundleData]
               ),
             ]),
             pool.interface.encodeFunctionData("refinance", [

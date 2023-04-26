@@ -257,7 +257,7 @@ describe("Pool Gas", function () {
         await sourceLiquidity(FixedPoint.from("25"), 3),
         ethers.utils.solidityPack(
           ["uint16", "uint16", "bytes"],
-          [2, ethers.utils.hexDataLength(bundleData), bundleData]
+          [1, ethers.utils.hexDataLength(bundleData), bundleData]
         )
       );
 
@@ -453,7 +453,7 @@ describe("Pool Gas", function () {
           await sourceLiquidity(FixedPoint.from("250"), 10),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
-            [2, ethers.utils.hexDataLength(bundleData), bundleData]
+            [1, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
@@ -496,7 +496,7 @@ describe("Pool Gas", function () {
           await sourceLiquidity(FixedPoint.from("250"), 10),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
-            [2, ethers.utils.hexDataLength(bundleData), bundleData]
+            [1, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
@@ -564,7 +564,7 @@ describe("Pool Gas", function () {
           await sourceLiquidity(FixedPoint.from("250"), 10),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
-            [2, ethers.utils.hexDataLength(bundleData), bundleData]
+            [1, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
@@ -644,7 +644,7 @@ describe("Pool Gas", function () {
           await sourceLiquidity(FixedPoint.from("250"), 10),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
-            [2, ethers.utils.hexDataLength(bundleData), bundleData]
+            [1, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
@@ -724,7 +724,7 @@ describe("Pool Gas", function () {
           await sourceLiquidity(FixedPoint.from("250"), 10),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
-            [2, ethers.utils.hexDataLength(bundleData), bundleData]
+            [1, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         );
 
