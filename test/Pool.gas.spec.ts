@@ -163,7 +163,7 @@ describe("Pool Gas", function () {
     const NUM_TICKS = 16;
     const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.TICK_LIMIT_SPACING_BASIS_POINTS();
 
-    let limit = FixedPoint.from("1.0");
+    let limit = FixedPoint.from("6.5");
     for (let i = 0; i < NUM_TICKS; i++) {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode(limit), FixedPoint.from("80"));
       limit = limit.mul(TICK_LIMIT_SPACING_BASIS_POINTS.add(10000)).div(10000);

@@ -834,10 +834,10 @@ describe("Pool", function () {
   const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
 
   async function setupLiquidity(): Promise<void> {
-    const NUM_LIMITS = 16;
+    const NUM_LIMITS = 20;
     const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.TICK_LIMIT_SPACING_BASIS_POINTS();
 
-    let limit = FixedPoint.from("1.0");
+    let limit = FixedPoint.from("6.5");
     for (let i = 0; i < NUM_LIMITS; i++) {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode(limit), FixedPoint.from("25"));
       limit = limit.mul(TICK_LIMIT_SPACING_BASIS_POINTS.add(10000)).div(10000);
@@ -1035,7 +1035,7 @@ describe("Pool", function () {
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("10.127191780786240000"));
+      ).to.equal(FixedPoint.from("10.127191780812160000"));
 
       expect(
         await pool.quote(
@@ -1053,7 +1053,7 @@ describe("Pool", function () {
       let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
 
       expect(await pool.quote(FixedPoint.from("25"), 7 * 86400, nft1.address, [123], ticks, "0x")).to.equal(
-        FixedPoint.from("25.177875236594080000")
+        FixedPoint.from("25.179200775725920000")
       );
     });
 
@@ -1524,7 +1524,7 @@ describe("Pool", function () {
       expect(decodedLoanReceipt.collateralTokenId).to.equal(bundleTokenId);
       expect(decodedLoanReceipt.collateralContextLength).to.equal(ethers.utils.hexDataLength(bundleData));
       expect(decodedLoanReceipt.collateralContextData).to.equal(bundleData);
-      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(11);
+      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(4);
 
       /* Sum used and pending totals from node receipts */
       let totalUsed = ethers.constants.Zero;
@@ -1633,7 +1633,7 @@ describe("Pool", function () {
       expect(decodedLoanReceipt.collateralTokenId).to.equal(bundleTokenId);
       expect(decodedLoanReceipt.collateralContextLength).to.equal(ethers.utils.hexDataLength(bundleData));
       expect(decodedLoanReceipt.collateralContextData).to.equal(bundleData);
-      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
+      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(17);
 
       /* Sum used and pending totals from node receipts */
       let totalUsed = ethers.constants.Zero;
@@ -1950,11 +1950,11 @@ describe("Pool", function () {
         pool
           .connect(accountBorrower)
           .borrow(
-            FixedPoint.from("86"),
+            FixedPoint.from("120"),
             30 * 86400,
             bundleCollateralWrapper.address,
             bundleTokenId,
-            FixedPoint.from("88"),
+            FixedPoint.from("122"),
             await sourceLiquidity(FixedPoint.from("85"), 3),
             ethers.utils.solidityPack(
               ["uint16", "uint16", "bytes"],
@@ -2446,7 +2446,7 @@ describe("Pool", function () {
       expect(decodedNewLoanReceipt.duration).to.equal(15 * 86400);
       expect(decodedNewLoanReceipt.collateralToken).to.equal(nft1.address);
       expect(decodedNewLoanReceipt.collateralTokenId).to.equal(123);
-      expect(decodedNewLoanReceipt.nodeReceipts.length).to.equal(16);
+      expect(decodedNewLoanReceipt.nodeReceipts.length).to.equal(15);
 
       /* Validate events */
       await expectEvent(refinanceTx, tok1, "Transfer", {
@@ -2574,7 +2574,7 @@ describe("Pool", function () {
       expect(decodedNewLoanReceipt.duration).to.equal(15 * 86400);
       expect(decodedNewLoanReceipt.collateralToken).to.equal(bundleCollateralWrapper.address);
       expect(decodedNewLoanReceipt.collateralTokenId).to.equal(bundleTokenId);
-      expect(decodedNewLoanReceipt.nodeReceipts.length).to.equal(11);
+      expect(decodedNewLoanReceipt.nodeReceipts.length).to.equal(4);
 
       /* Validate events */
       await expectEvent(refinanceTx, tok1, "Transfer", {

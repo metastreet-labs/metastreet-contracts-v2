@@ -15,9 +15,9 @@ library LiquidityManager {
     /**************************************************************************/
 
     /**
-     * @notice Tick limit spacing basis points (25%)
+     * @notice Tick limit spacing basis points (10%)
      */
-    uint256 public constant TICK_LIMIT_SPACING_BASIS_POINTS = 2500;
+    uint256 public constant TICK_LIMIT_SPACING_BASIS_POINTS = 1000;
 
     /**
      * @notice Fixed point scale
