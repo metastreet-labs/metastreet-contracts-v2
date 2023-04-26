@@ -568,12 +568,14 @@ abstract contract Pool is
      * @return Repayment amount in currency tokens, proration based on elapsed duration
      */
     function _prorateRepayment(LoanReceipt.LoanReceiptV1 memory loanReceipt) internal view returns (uint256, uint256) {
-        /* Compute proration based on elapsed duration. Proration can't exceed
-         * 1.0 due to the loan expiry check. */
-        uint256 proration = Math.mulDiv(
-            block.timestamp - (loanReceipt.maturity - loanReceipt.duration),
-            LiquidityManager.FIXED_POINT_SCALE,
-            loanReceipt.duration
+        /* Minimum of proration and repayment */
+        uint256 proration = Math.min(
+            Math.mulDiv(
+                block.timestamp - (loanReceipt.maturity - loanReceipt.duration),
+                LiquidityManager.FIXED_POINT_SCALE,
+                loanReceipt.duration
+            ),
+            LiquidityManager.FIXED_POINT_SCALE
         );
 
         /* Compute origination fee */
@@ -700,9 +702,6 @@ abstract contract Pool is
 
         /* Validate caller is borrower */
         if (msg.sender != loanReceipt.borrower) revert InvalidCaller();
-
-        /* Validate loan is not expired */
-        if (block.timestamp > loanReceipt.maturity) revert LoanExpired();
 
         /* Compute proration and repayment using prorated interest */
         (uint256 repayment, uint256 proration) = _prorateRepayment(loanReceipt);
