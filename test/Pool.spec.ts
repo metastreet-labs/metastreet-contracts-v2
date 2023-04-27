@@ -248,6 +248,26 @@ describe("Pool", function () {
       expect(await tok1.balanceOf(accountDepositors[0].address)).to.equal(ethers.utils.parseEther("997"));
     });
 
+    it("successfully deposits at new tick after garbage collecting old tick", async function () {
+      /* Deposit 1 ETH */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+
+      /* Only two nodes (including head) */
+      expect((await pool.liquidityNodes(0, MaxUint128)).length).to.equal(2);
+
+      /* Redeem 1 shares */
+      const redeemTx = await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1"));
+
+      /* Only head node now */
+      expect((await pool.liquidityNodes(0, MaxUint128)).length).to.equal(1);
+
+      /* Deposit 1 ETH at new tick close to garbage collected one */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10.1"), FixedPoint.from("1"));
+
+      /* Two nodes again */
+      expect((await pool.liquidityNodes(0, MaxUint128)).length).to.equal(2);
+    });
+
     it("fails on invalid tick spacing", async function () {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
       await expect(

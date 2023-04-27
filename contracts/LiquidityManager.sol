@@ -256,6 +256,27 @@ library LiquidityManager {
         return node.shares != 0 && (node.value * FIXED_POINT_SCALE < node.shares);
     }
 
+    /**
+     * @dev Garbage collect a node
+     * @param node Liquidity node
+     */
+    function _garbageCollect(Liquidity storage liquidity, Node storage node) internal {
+        /* If node is still solvent (non-zero shares and non-zero value), leave it in place */
+        if (node.shares != 0 && !_isInsolvent(node)) return;
+
+        /* Make node inactive by unlinking it */
+        liquidity.nodes[node.prev].next = node.next;
+        liquidity.nodes[node.next].prev = node.prev;
+        node.next = 0;
+        node.prev = 0;
+
+        /* Handle insolvent dust */
+        if (node.value > 0) {
+            node.value = 0;
+            node.available = 0;
+        }
+    }
+
     /**************************************************************************/
     /* Primary API */
     /**************************************************************************/
@@ -387,20 +408,8 @@ library LiquidityManager {
             node.pending -= pending;
         }
 
-        /* If node became insolvent */
-        if (_isInsolvent(node)) {
-            /* Make node inactive by unlinking it */
-            liquidity.nodes[node.prev].next = node.next;
-            liquidity.nodes[node.next].prev = node.prev;
-            node.next = 0;
-            node.prev = 0;
-
-            /* Handle insolvent dust */
-            if (node.value > 0) {
-                node.value = 0;
-                node.available = 0;
-            }
-        }
+        /* Garbage collect node if it is now insolvent */
+        _garbageCollect(liquidity, node);
 
         processRedemptions(liquidity, tick);
     }
@@ -491,6 +500,9 @@ library LiquidityManager {
             node.available -= amount;
             node.redemptions.pending -= shares;
             node.redemptions.index += 1;
+
+            /* Garbage collect node if it is now empty */
+            _garbageCollect(liquidity, node);
 
             return (shares, amount);
         }
