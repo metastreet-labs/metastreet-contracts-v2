@@ -147,7 +147,7 @@ async function main() {
     bundleTokenId,
     ethers.utils.parseEther("99"),
     poolTicks,
-    ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [2, ethers.utils.hexDataLength(bundleData), bundleData])
+    ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, ethers.utils.hexDataLength(bundleData), bundleData])
   );
 }
 
