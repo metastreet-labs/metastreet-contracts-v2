@@ -251,18 +251,17 @@ describe("EnglishAuctionCollateralLiquidator", function () {
 
   describe("#liquidate", async function () {
     it("succeeds starting an auction on collateral", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
       /* Calling liquidate() */
       const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
 
       /* Validate events */
-      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
-      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[1];
+      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
       await expect(liquidateTx)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(collateralHash, liquidationHash, nft1.address, 122);
+        .withArgs(liquidationHash, nft1.address, 122);
 
       /* Validate state */
       const liquidation = await collateralLiquidator.liquidation(liquidationHash);
@@ -270,7 +269,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expect(liquidation.auctionCount).to.equal(1);
       await expect(liquidation.source).to.equal(testCollateralLiquidatorJig.address);
 
-      const auction = await collateralLiquidator.auction(collateralHash);
+      const auction = await collateralLiquidator.auction(nft1.address, 122);
       await expect(auction.currencyToken).to.equal(tok1.address);
       await expect(auction.liquidationHash).to.equal(liquidationHash);
       await expect(auction.collateralToken).to.equal(nft1.address);
@@ -281,10 +280,13 @@ describe("EnglishAuctionCollateralLiquidator", function () {
     });
 
     it("succeeds starting an auction on bundled collateral", async function () {
-      /* Construct collateral context */
-      const collateralContext = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 124, 125]]);
+      /* Underlying collateral token IDs */
+      const tokenIds = [123, 124, 125];
 
-      /* Construct loan reciept */
+      /* Construct collateral context */
+      const collateralContext = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, tokenIds]);
+
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(
         makeLoanReceipt(
           bundleCollateralWrapper.address,
@@ -298,27 +300,23 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
 
       /* Validate events */
-      const collateralHashes: string[] = [];
-      const tokenIds = [123, 124, 125];
-      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[1];
+
+      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
       for (const [index, tokenId] of tokenIds.entries()) {
         const eventArgs = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated", index)).args;
-        await expect(eventArgs[1]).to.equal(liquidationHash);
-
-        const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated", index)).args[0];
-        collateralHashes.push(collateralHash);
+        await expect(eventArgs[0]).to.equal(liquidationHash);
       }
       await expect(liquidateTx)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(collateralHashes[0], liquidationHash, nft1.address, tokenIds[0])
+        .withArgs(liquidationHash, nft1.address, tokenIds[0])
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(collateralHashes[1], liquidationHash, nft1.address, tokenIds[1])
+        .withArgs(liquidationHash, nft1.address, tokenIds[1])
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(collateralHashes[2], liquidationHash, nft1.address, tokenIds[2]);
+        .withArgs(liquidationHash, nft1.address, tokenIds[2]);
 
       /* Validate state */
       for (const [index, tokenId] of tokenIds.entries()) {
-        const auction = await collateralLiquidator.auction(collateralHashes[index]);
+        const auction = await collateralLiquidator.auction(nft1.address, tokenId);
         await expect(auction.currencyToken).to.equal(tok1.address);
         await expect(auction.liquidationHash).to.equal(liquidationHash);
         await expect(auction.collateralToken).to.equal(nft1.address);
@@ -330,11 +328,14 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       }
     });
 
-    it("succeeds starting an auction on non-approved bundled collateral", async function () {
-      /* Construct collateral context */
-      const collateralContext = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [126, 127, 128]]);
+    it("succeeds starting an auction on non-approved bundled collateral but does not unwrap", async function () {
+      /* Underlying collateral token IDs */
+      const tokenIds = [126, 127, 128];
 
-      /* Construct loan reciept */
+      /* Construct collateral context */
+      const collateralContext = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, tokenIds]);
+
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(
         makeLoanReceipt(
           bundleCollateralWrapperFake.address,
@@ -348,11 +349,10 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
 
       /* Validate events */
-      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
-      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[1];
+      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
       await expect(liquidateTx)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(collateralHash, liquidationHash, bundleCollateralWrapperFake.address, bundleTokenIdFake);
+        .withArgs(liquidationHash, bundleCollateralWrapperFake.address, bundleTokenIdFake);
 
       /* Validate state */
       const liquidation = await collateralLiquidator.liquidation(liquidationHash);
@@ -360,19 +360,18 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expect(liquidation.auctionCount).to.equal(1);
       await expect(liquidation.source).to.equal(testCollateralLiquidatorJig.address);
 
-      const auction = await collateralLiquidator.auction(collateralHash);
+      const auction = await collateralLiquidator.auction(bundleCollateralWrapperFake.address, bundleTokenIdFake);
       await expect(auction.currencyToken).to.equal(tok1.address);
       await expect(auction.liquidationHash).to.equal(liquidationHash);
       await expect(auction.collateralToken).to.equal(bundleCollateralWrapperFake.address);
       await expect(auction.collateralTokenId).to.equal(bundleTokenIdFake);
-
       await expect(auction.endTime).to.equal(0);
       await expect(auction.highestBid.amount).to.equal(0);
       await expect(auction.highestBid.bidder).to.equal(ethers.constants.AddressZero);
     });
 
     it("fails if there exists the same liquidation hash", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
       /* Calling liquidate() */
@@ -385,7 +384,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
     });
 
     it("fails with invalid token", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt1 = await loanReceiptLibrary.encode(makeLoanReceipt(ethers.constants.AddressZero, 122, 0, "0x"));
 
       /* Liquidate with invalid collateral token */
@@ -393,7 +392,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
         collateralLiquidator.liquidate(tok1.address, ethers.constants.AddressZero, 122, "0x", loanReceipt1)
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidToken");
 
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt2 = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
       /* Liquidate with invalid currency token */
@@ -407,22 +406,19 @@ describe("EnglishAuctionCollateralLiquidator", function () {
 
   describe("#bid", async function () {
     it("3 successful bids on same auction", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
       /* Calling liquidate() */
       const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
 
-      /* Get collateralHash */
-      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
-
       /* Get liquidationHash */
-      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[1];
+      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
 
       /* Bid with accountBidder1 */
       const bid1Tx = await collateralLiquidator
         .connect(accountBidder1)
-        .bid(collateralHash, ethers.utils.parseEther("100"));
+        .bid(nft1.address, 122, ethers.utils.parseEther("100"));
 
       /* Validate events */
       await expectEvent(bid1Tx, tok1, "Transfer", {
@@ -432,20 +428,20 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       });
 
       await expectEvent(bid1Tx, collateralLiquidator, "AuctionStarted", {
-        collateralHash: collateralHash,
         collateralToken: nft1.address,
         collateralTokenId: 122,
       });
 
       await expectEvent(bid1Tx, collateralLiquidator, "AuctionBid", {
-        collateralHash: collateralHash,
+        collateralToken: nft1.address,
+        collateralTokenId: 122,
         bidder: accountBidder1.address,
         amount: ethers.utils.parseEther("100"),
       });
 
       /* Validate state */
       const transactionTime = await getBlockTimestamp(bid1Tx.blockNumber);
-      let auction = await collateralLiquidator.auction(collateralHash);
+      let auction = await collateralLiquidator.auction(nft1.address, 122);
       await expect(auction.currencyToken).to.equal(tok1.address);
       await expect(auction.liquidationHash).to.equal(liquidationHash);
       await expect(auction.collateralToken).to.equal(nft1.address);
@@ -457,7 +453,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       /* Bid with accountBidder2 */
       const bid2Tx = await collateralLiquidator
         .connect(accountBidder2)
-        .bid(collateralHash, ethers.utils.parseEther("102"));
+        .bid(nft1.address, 122, ethers.utils.parseEther("102"));
 
       /* Validate events */
       await expectEvent(bid2Tx, tok1, "Transfer", {
@@ -479,13 +475,14 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       );
 
       await expectEvent(bid2Tx, collateralLiquidator, "AuctionBid", {
-        collateralHash: collateralHash,
+        collateralToken: nft1.address,
+        collateralTokenId: 122,
         bidder: accountBidder2.address,
         amount: ethers.utils.parseEther("102"),
       });
 
       /* Validate state */
-      auction = await collateralLiquidator.auction(collateralHash);
+      auction = await collateralLiquidator.auction(nft1.address, 122);
       await expect(auction.currencyToken).to.equal(tok1.address);
       await expect(auction.liquidationHash).to.equal(liquidationHash);
       await expect(auction.collateralToken).to.equal(nft1.address);
@@ -497,7 +494,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       /* Bid with accountBidder1 */
       const bid3Tx = await collateralLiquidator
         .connect(accountBidder1)
-        .bid(collateralHash, ethers.utils.parseEther("105"));
+        .bid(nft1.address, 122, ethers.utils.parseEther("105"));
 
       /* Validate events */
       await expectEvent(bid3Tx, tok1, "Transfer", {
@@ -519,13 +516,14 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       );
 
       await expectEvent(bid3Tx, collateralLiquidator, "AuctionBid", {
-        collateralHash: collateralHash,
+        collateralToken: nft1.address,
+        collateralTokenId: 122,
         bidder: accountBidder1.address,
         amount: ethers.utils.parseEther("105"),
       });
 
       /* Validate state */
-      auction = await collateralLiquidator.auction(collateralHash);
+      auction = await collateralLiquidator.auction(nft1.address, 122);
       await expect(auction.currencyToken).to.equal(tok1.address);
       await expect(auction.liquidationHash).to.equal(liquidationHash);
       await expect(auction.collateralToken).to.equal(nft1.address);
@@ -536,19 +534,16 @@ describe("EnglishAuctionCollateralLiquidator", function () {
     });
 
     it("extends time on an auction within 10 minutes of end time", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
       /* Calling liquidate() */
-      const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
-
-      /* Get collateralHash */
-      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
+      await testCollateralLiquidatorJig.liquidate(loanReceipt);
 
       /* Bid with accountBidder1 */
       const bid1Tx = await collateralLiquidator
         .connect(accountBidder1)
-        .bid(collateralHash, ethers.utils.parseEther("1"));
+        .bid(nft1.address, 122, ethers.utils.parseEther("1"));
 
       /* Fast forward to 10 minutes before end time */
       const transactionTime = await getBlockTimestamp(bid1Tx.blockNumber);
@@ -557,54 +552,45 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       /* Bid with accountBidder1 */
       const bid2Tx = await collateralLiquidator
         .connect(accountBidder1)
-        .bid(collateralHash, ethers.utils.parseEther("2"));
+        .bid(nft1.address, 122, ethers.utils.parseEther("2"));
 
       /* Validate state */
       const bid2TransactionTime = await getBlockTimestamp(bid2Tx.blockNumber);
-      let auction = await collateralLiquidator.auction(collateralHash);
+      let auction = await collateralLiquidator.auction(nft1.address, 122);
       await expect(auction.endTime).to.equal(bid2TransactionTime + 60 * 20);
     });
 
     it("fails when auction does not exist", async function () {
-      /* Collateral hash of a non-existent auction */
-      const collateralHash = "0x0aba3e41b20e8f90d4cd17b11d55913b96da6305ff0ce4caba154572b05dff34";
-
       /* Bid with accountBidder1 */
       await expect(
-        collateralLiquidator.connect(accountBidder1).bid(collateralHash, ethers.utils.parseEther("1"))
+        collateralLiquidator.connect(accountBidder1).bid(nft1.address, 1000, ethers.utils.parseEther("1"))
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidAuction");
     });
 
     it("fails when bid with 0 amount", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
       /* Calling liquidate() */
-      const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
-
-      /* Get collateralHash */
-      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
+      await testCollateralLiquidatorJig.liquidate(loanReceipt);
 
       /* Bid with accountBidder1 */
       await expect(
-        collateralLiquidator.connect(accountBidder1).bid(collateralHash, ethers.utils.parseEther("0"))
+        collateralLiquidator.connect(accountBidder1).bid(nft1.address, 122, ethers.utils.parseEther("0"))
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidBid");
     });
 
     it("fails when bid after end time", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
       /* Calling liquidate() */
-      const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
-
-      /* Get collateralHash */
-      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
+      await testCollateralLiquidatorJig.liquidate(loanReceipt);
 
       /* Bid with accountBidder1 */
       const bid1Tx = await collateralLiquidator
         .connect(accountBidder1)
-        .bid(collateralHash, ethers.utils.parseEther("1"));
+        .bid(nft1.address, 122, ethers.utils.parseEther("1"));
 
       /* Fast forward to 1 second after end time */
       const transactionTime = await getBlockTimestamp(bid1Tx.blockNumber);
@@ -612,95 +598,81 @@ describe("EnglishAuctionCollateralLiquidator", function () {
 
       /* Bid with accountBidder1 */
       await expect(
-        collateralLiquidator.connect(accountBidder1).bid(collateralHash, ethers.utils.parseEther("2"))
+        collateralLiquidator.connect(accountBidder1).bid(nft1.address, 122, ethers.utils.parseEther("2"))
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidBid");
     });
 
     it("fails when bid with same amount as previous bid", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
       /* Calling liquidate() */
-      const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
-
-      /* Get collateralHash */
-      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
+      await testCollateralLiquidatorJig.liquidate(loanReceipt);
 
       /* Bid with accountBidder1 */
-      await collateralLiquidator.connect(accountBidder1).bid(collateralHash, ethers.utils.parseEther("2"));
+      await collateralLiquidator.connect(accountBidder1).bid(nft1.address, 122, ethers.utils.parseEther("2"));
 
       /* Bid with accountBidder2 */
       await expect(
-        collateralLiquidator.connect(accountBidder2).bid(collateralHash, ethers.utils.parseEther("2"))
+        collateralLiquidator.connect(accountBidder2).bid(nft1.address, 122, ethers.utils.parseEther("2"))
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidBid");
     });
 
     it("fails when bid with amount smaller than minimum bid increment", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
       /* Calling liquidate() */
-      const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
-
-      /* Get collateralHash */
-      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
+      await testCollateralLiquidatorJig.liquidate(loanReceipt);
 
       /* Bid with accountBidder1 */
-      await collateralLiquidator.connect(accountBidder1).bid(collateralHash, ethers.utils.parseEther("100"));
+      await collateralLiquidator.connect(accountBidder1).bid(nft1.address, 122, ethers.utils.parseEther("100"));
 
       /* Bid with accountBidder2 */
       await expect(
-        collateralLiquidator.connect(accountBidder2).bid(collateralHash, ethers.utils.parseEther("101"))
+        collateralLiquidator.connect(accountBidder2).bid(nft1.address, 122, ethers.utils.parseEther("101"))
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidBid");
     });
 
     it("fails when bid with amount smaller than previous bid", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
       /* Calling liquidate() */
-      const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
-
-      /* Get collateralHash */
-      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
+      await testCollateralLiquidatorJig.liquidate(loanReceipt);
 
       /* Bid with accountBidder1 */
-      await collateralLiquidator.connect(accountBidder1).bid(collateralHash, ethers.utils.parseEther("100"));
+      await collateralLiquidator.connect(accountBidder1).bid(nft1.address, 122, ethers.utils.parseEther("100"));
 
       /* Bid with accountBidder2 */
       await expect(
-        collateralLiquidator.connect(accountBidder2).bid(collateralHash, ethers.utils.parseEther("99"))
+        collateralLiquidator.connect(accountBidder2).bid(nft1.address, 122, ethers.utils.parseEther("99"))
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidBid");
     });
   });
 
   describe("#claim", async function () {
     it("claims single collateral", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
       /* Calling liquidate() */
       const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
 
-      /* Get collateralHash */
-      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
-
       /* Get liquidationHash */
-      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[1];
+      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
 
       /* Bid with accountBidder1 */
       const bidTx = await collateralLiquidator
         .connect(accountBidder1)
-        .bid(collateralHash, ethers.utils.parseEther("2"));
+        .bid(nft1.address, 122, ethers.utils.parseEther("2"));
 
       /* Fast forward to 1 second after end time */
       const transactionTime = await getBlockTimestamp(bidTx.blockNumber);
       await helpers.time.increaseTo(transactionTime + 86400 + 1);
 
       /* Claim with accountBidder1 */
-      const claimTx = await collateralLiquidator
-        .connect(accountBidder1)
-        .claim(collateralHash, nft1.address, 122, "0x", loanReceipt);
+      const claimTx = await collateralLiquidator.connect(accountBidder1).claim(nft1.address, 122, loanReceipt);
 
       /* Validate events */
       await expectEvent(claimTx, nft1, "Transfer", {
@@ -711,7 +683,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
 
       await expect(claimTx)
         .to.emit(collateralLiquidator, "AuctionEnded")
-        .withArgs(accountBidder1.address, nft1.address, 122, ethers.utils.parseEther("2"));
+        .withArgs(nft1.address, 122, accountBidder1.address, ethers.utils.parseEther("2"));
 
       await expect(claimTx)
         .to.emit(collateralLiquidator, "CollateralLiquidated")
@@ -724,7 +696,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       });
 
       /* Validate state */
-      const auction = await collateralLiquidator.auction(collateralHash);
+      const auction = await collateralLiquidator.auction(nft1.address, 122);
       await expect(auction.liquidationHash).to.equal(ethers.constants.HashZero);
 
       const liquidation = await collateralLiquidator.liquidation(liquidationHash);
@@ -734,10 +706,13 @@ describe("EnglishAuctionCollateralLiquidator", function () {
     });
 
     it("claims bundled collateral", async function () {
-      /* Construct collateral context */
-      const collateralContext = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 124, 125]]);
+      /* Underlying collateral token IDs */
+      const tokenIds = [123, 124, 125];
 
-      /* Construct loan reciept */
+      /* Construct collateral context */
+      const collateralContext = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, tokenIds]);
+
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(
         makeLoanReceipt(
           bundleCollateralWrapper.address,
@@ -751,36 +726,29 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
 
       /* Validate events */
-      const collateralHashes: string[] = [];
-      const tokenIds = [123, 124, 125];
-      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[1];
+      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
       for (const [index, tokenId] of tokenIds.entries()) {
         const eventArgs = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated", index)).args;
-        await expect(eventArgs[1]).to.equal(liquidationHash);
-
-        const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated", index)).args[0];
-        collateralHashes.push(collateralHash);
+        await expect(eventArgs[0]).to.equal(liquidationHash);
       }
 
       /* Bid with accountBidder1 */
       const bid1Tx = await collateralLiquidator
         .connect(accountBidder1)
-        .bid(collateralHashes[0], ethers.utils.parseEther("1"));
+        .bid(nft1.address, 123, ethers.utils.parseEther("1"));
 
       /* Bid with accountBidder2 */
-      await collateralLiquidator.connect(accountBidder2).bid(collateralHashes[1], ethers.utils.parseEther("2"));
+      await collateralLiquidator.connect(accountBidder2).bid(nft1.address, 124, ethers.utils.parseEther("2"));
 
       /* Bid with accountBidder3 */
-      await collateralLiquidator.connect(accountBidder3).bid(collateralHashes[2], ethers.utils.parseEther("3"));
+      await collateralLiquidator.connect(accountBidder3).bid(nft1.address, 125, ethers.utils.parseEther("3"));
 
       /* Fast forward to 1 second after end time */
       const transactionTime = await getBlockTimestamp(bid1Tx.blockNumber);
       await helpers.time.increaseTo(transactionTime + 86400 + 1);
 
       /* Claim with accountBidder1 */
-      const claim1Tx = await collateralLiquidator
-        .connect(accountBidder1)
-        .claim(collateralHashes[0], bundleCollateralWrapper.address, bundleTokenId, collateralContext, loanReceipt);
+      const claim1Tx = await collateralLiquidator.connect(accountBidder1).claim(nft1.address, 123, loanReceipt);
 
       /* Validate events */
       await expectEvent(claim1Tx, nft1, "Transfer", {
@@ -791,10 +759,10 @@ describe("EnglishAuctionCollateralLiquidator", function () {
 
       await expect(claim1Tx)
         .to.emit(collateralLiquidator, "AuctionEnded")
-        .withArgs(accountBidder1.address, nft1.address, 123, ethers.utils.parseEther("1"));
+        .withArgs(nft1.address, 123, accountBidder1.address, ethers.utils.parseEther("1"));
 
       /* Validate state */
-      const auction1 = await collateralLiquidator.auction(collateralHashes[0]);
+      const auction1 = await collateralLiquidator.auction(nft1.address, 123);
       await expect(auction1.liquidationHash).to.equal(ethers.constants.HashZero);
 
       const liquidation1 = await collateralLiquidator.liquidation(liquidationHash);
@@ -803,9 +771,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expect(liquidation1.auctionCount).to.equal(2);
 
       /* Claim with accountBidder2 */
-      const claim2Tx = await collateralLiquidator
-        .connect(accountBidder2)
-        .claim(collateralHashes[1], bundleCollateralWrapper.address, bundleTokenId, collateralContext, loanReceipt);
+      const claim2Tx = await collateralLiquidator.connect(accountBidder2).claim(nft1.address, 124, loanReceipt);
 
       /* Validate events */
       await expectEvent(claim2Tx, nft1, "Transfer", {
@@ -816,10 +782,10 @@ describe("EnglishAuctionCollateralLiquidator", function () {
 
       await expect(claim2Tx)
         .to.emit(collateralLiquidator, "AuctionEnded")
-        .withArgs(accountBidder2.address, nft1.address, 124, ethers.utils.parseEther("2"));
+        .withArgs(nft1.address, 124, accountBidder2.address, ethers.utils.parseEther("2"));
 
       /* Validate state */
-      const auction2 = await collateralLiquidator.auction(collateralHashes[0]);
+      const auction2 = await collateralLiquidator.auction(nft1.address, 124);
       await expect(auction2.liquidationHash).to.equal(ethers.constants.HashZero);
 
       const liquidation2 = await collateralLiquidator.liquidation(liquidationHash);
@@ -828,9 +794,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expect(liquidation2.auctionCount).to.equal(1);
 
       /* Claim with accountBidder3 */
-      const claim3Tx = await collateralLiquidator
-        .connect(accountBidder3)
-        .claim(collateralHashes[2], bundleCollateralWrapper.address, bundleTokenId, collateralContext, loanReceipt);
+      const claim3Tx = await collateralLiquidator.connect(accountBidder3).claim(nft1.address, 125, loanReceipt);
 
       /* Validate events */
       await expectEvent(claim3Tx, nft1, "Transfer", {
@@ -841,7 +805,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
 
       await expect(claim3Tx)
         .to.emit(collateralLiquidator, "AuctionEnded")
-        .withArgs(accountBidder3.address, nft1.address, 125, ethers.utils.parseEther("3"));
+        .withArgs(nft1.address, 125, accountBidder3.address, ethers.utils.parseEther("3"));
 
       await expect(claim3Tx)
         .to.emit(collateralLiquidator, "CollateralLiquidated")
@@ -854,7 +818,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       });
 
       /* Validate state */
-      const auction3 = await collateralLiquidator.auction(collateralHashes[0]);
+      const auction3 = await collateralLiquidator.auction(nft1.address, 125);
       await expect(auction3.liquidationHash).to.equal(ethers.constants.HashZero);
 
       const liquidation3 = await collateralLiquidator.liquidation(liquidationHash);
@@ -864,36 +828,31 @@ describe("EnglishAuctionCollateralLiquidator", function () {
     });
 
     it("claims as non-winner", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
       /* Calling liquidate() */
       const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
 
       /* Get liquidationHash */
-      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[1];
-
-      /* Get collateralHash */
-      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
+      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
 
       /* Bid with accountBidder1 */
       const bidTx = await collateralLiquidator
         .connect(accountBidder1)
-        .bid(collateralHash, ethers.utils.parseEther("2"));
+        .bid(nft1.address, 122, ethers.utils.parseEther("2"));
 
       /* Fast forward to 1 second after end time */
       const transactionTime = await getBlockTimestamp(bidTx.blockNumber);
       await helpers.time.increaseTo(transactionTime + 86400 + 1);
 
       /* Claim with accountBidder2 */
-      const claimTx = await collateralLiquidator
-        .connect(accountBidder2)
-        .claim(collateralHash, nft1.address, 122, "0x", loanReceipt);
+      const claimTx = await collateralLiquidator.connect(accountBidder2).claim(nft1.address, 122, loanReceipt);
 
       /* Validate events */
       await expect(claimTx)
         .to.emit(collateralLiquidator, "AuctionEnded")
-        .withArgs(accountBidder1.address, nft1.address, 122, ethers.utils.parseEther("2"));
+        .withArgs(nft1.address, 122, accountBidder1.address, ethers.utils.parseEther("2"));
 
       await expect(claimTx)
         .to.emit(collateralLiquidator, "CollateralLiquidated")
@@ -906,7 +865,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       });
 
       /* Validate state */
-      const auction = await collateralLiquidator.auction(collateralHash);
+      const auction = await collateralLiquidator.auction(nft1.address, 122);
       await expect(auction.liquidationHash).to.equal(ethers.constants.HashZero);
 
       const liquidation = await collateralLiquidator.liquidation(liquidationHash);
@@ -916,7 +875,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
     });
 
     it("claims collateral liquidated by EOA", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 129, 0, "0x"));
 
       /* Calling liquidate() */
@@ -924,25 +883,20 @@ describe("EnglishAuctionCollateralLiquidator", function () {
         .connect(accountBidder1)
         .liquidate(tok1.address, nft1.address, 129, "0x", loanReceipt);
 
-      /* Get collateralHash */
-      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
-
       /* Get liquidationHash */
-      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[1];
+      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
 
       /* Bid with accountBidder1 */
       const bidTx = await collateralLiquidator
         .connect(accountBidder1)
-        .bid(collateralHash, ethers.utils.parseEther("2"));
+        .bid(nft1.address, 129, ethers.utils.parseEther("2"));
 
       /* Fast forward to 1 second after end time */
       const transactionTime = await getBlockTimestamp(bidTx.blockNumber);
       await helpers.time.increaseTo(transactionTime + 86400 + 1);
 
       /* Claim with accountBidder1 */
-      const claimTx = await collateralLiquidator
-        .connect(accountBidder1)
-        .claim(collateralHash, nft1.address, 129, "0x", loanReceipt);
+      const claimTx = await collateralLiquidator.connect(accountBidder1).claim(nft1.address, 129, loanReceipt);
 
       /* Validate events */
       await expectEvent(claimTx, nft1, "Transfer", {
@@ -953,7 +907,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
 
       await expect(claimTx)
         .to.emit(collateralLiquidator, "AuctionEnded")
-        .withArgs(accountBidder1.address, nft1.address, 129, ethers.utils.parseEther("2"));
+        .withArgs(nft1.address, 129, accountBidder1.address, ethers.utils.parseEther("2"));
 
       await expect(claimTx)
         .to.emit(collateralLiquidator, "CollateralLiquidated")
@@ -966,7 +920,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       });
 
       /* Validate state */
-      const auction = await collateralLiquidator.auction(collateralHash);
+      const auction = await collateralLiquidator.auction(nft1.address, 129);
       await expect(auction.liquidationHash).to.equal(ethers.constants.HashZero);
 
       const liquidation = await collateralLiquidator.liquidation(liquidationHash);
@@ -976,31 +930,26 @@ describe("EnglishAuctionCollateralLiquidator", function () {
     });
 
     it("partial successful claim originating from a contract that reverts during onCollateralLiquidate", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 130, 0, "0x"));
 
       /* Calling liquidate() */
       const liquidateTx = await testCollateralLiquidatorJigRevert.liquidate(loanReceipt);
 
-      /* Get collateralHash */
-      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
-
       /* Get liquidationHash */
-      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[1];
+      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
 
       /* Bid with accountBidder1 */
       const bidTx = await collateralLiquidator
         .connect(accountBidder1)
-        .bid(collateralHash, ethers.utils.parseEther("2"));
+        .bid(nft1.address, 130, ethers.utils.parseEther("2"));
 
       /* Fast forward to 1 second after end time */
       const transactionTime = await getBlockTimestamp(bidTx.blockNumber);
       await helpers.time.increaseTo(transactionTime + 86400 + 1);
 
       /* Claim with accountBidder1 */
-      const claimTx = await collateralLiquidator
-        .connect(accountBidder1)
-        .claim(collateralHash, nft1.address, 130, "0x", loanReceipt);
+      const claimTx = await collateralLiquidator.connect(accountBidder1).claim(nft1.address, 130, loanReceipt);
 
       /* Validate events */
       await expectEvent(claimTx, nft1, "Transfer", {
@@ -1011,7 +960,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
 
       await expect(claimTx)
         .to.emit(collateralLiquidator, "AuctionEnded")
-        .withArgs(accountBidder1.address, nft1.address, 130, ethers.utils.parseEther("2"));
+        .withArgs(nft1.address, 130, accountBidder1.address, ethers.utils.parseEther("2"));
 
       await expect(claimTx)
         .to.emit(collateralLiquidator, "CollateralLiquidated")
@@ -1024,7 +973,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       });
 
       /* Validate state */
-      const auction = await collateralLiquidator.auction(collateralHash);
+      const auction = await collateralLiquidator.auction(nft1.address, 130);
       await expect(auction.liquidationHash).to.equal(ethers.constants.HashZero);
 
       const liquidation = await collateralLiquidator.liquidation(liquidationHash);
@@ -1034,31 +983,26 @@ describe("EnglishAuctionCollateralLiquidator", function () {
     });
 
     it("partial successful claim originating from a contract that does not implement onCollateralLiquidate", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 131, 0, "0x"));
 
       /* Calling liquidate() */
       const liquidateTx = await testCollateralLiquidatorJigTruncated.liquidate(loanReceipt);
 
-      /* Get collateralHash */
-      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
-
       /* Get liquidationHash */
-      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[1];
+      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
 
       /* Bid with accountBidder1 */
       const bidTx = await collateralLiquidator
         .connect(accountBidder1)
-        .bid(collateralHash, ethers.utils.parseEther("2"));
+        .bid(nft1.address, 131, ethers.utils.parseEther("2"));
 
       /* Fast forward to 1 second after end time */
       const transactionTime = await getBlockTimestamp(bidTx.blockNumber);
       await helpers.time.increaseTo(transactionTime + 86400 + 1);
 
       /* Claim with accountBidder1 */
-      const claimTx = await collateralLiquidator
-        .connect(accountBidder1)
-        .claim(collateralHash, nft1.address, 131, "0x", loanReceipt);
+      const claimTx = await collateralLiquidator.connect(accountBidder1).claim(nft1.address, 131, loanReceipt);
 
       /* Validate events */
       await expectEvent(claimTx, nft1, "Transfer", {
@@ -1069,7 +1013,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
 
       await expect(claimTx)
         .to.emit(collateralLiquidator, "AuctionEnded")
-        .withArgs(accountBidder1.address, nft1.address, 131, ethers.utils.parseEther("2"));
+        .withArgs(nft1.address, 131, accountBidder1.address, ethers.utils.parseEther("2"));
 
       await expect(claimTx)
         .to.emit(collateralLiquidator, "CollateralLiquidated")
@@ -1082,7 +1026,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       });
 
       /* Validate state */
-      const auction = await collateralLiquidator.auction(collateralHash);
+      const auction = await collateralLiquidator.auction(nft1.address, 122);
       await expect(auction.liquidationHash).to.equal(ethers.constants.HashZero);
 
       const liquidation = await collateralLiquidator.liquidation(liquidationHash);
@@ -1092,49 +1036,43 @@ describe("EnglishAuctionCollateralLiquidator", function () {
     });
 
     it("fails claim before end time", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
       /* Calling liquidate() */
       const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
 
-      /* Get collateralHash */
-      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
-
       /* Bid with accountBidder1 */
-      await collateralLiquidator.connect(accountBidder1).bid(collateralHash, ethers.utils.parseEther("2"));
+      await collateralLiquidator.connect(accountBidder1).bid(nft1.address, 122, ethers.utils.parseEther("2"));
 
       /* Claim with accountBidder1 */
       await expect(
-        collateralLiquidator.connect(accountBidder1).claim(collateralHash, nft1.address, 122, "0x", loanReceipt)
+        collateralLiquidator.connect(accountBidder1).claim(nft1.address, 122, loanReceipt)
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidClaim");
     });
 
     it("fails claim after claiming successful before", async function () {
-      /* Construct loan reciept */
+      /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
 
       /* Calling liquidate() */
       const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
 
-      /* Get collateralHash */
-      const collateralHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
-
       /* Bid with accountBidder1 */
       const bidTx = await collateralLiquidator
         .connect(accountBidder1)
-        .bid(collateralHash, ethers.utils.parseEther("2"));
+        .bid(nft1.address, 122, ethers.utils.parseEther("2"));
 
       /* Fast forward to 1 second after end time */
       const transactionTime = await getBlockTimestamp(bidTx.blockNumber);
       await helpers.time.increaseTo(transactionTime + 86400 + 1);
 
       /* Claim successfully as accountBidder1 */
-      await collateralLiquidator.connect(accountBidder1).claim(collateralHash, nft1.address, 122, "0x", loanReceipt);
+      await collateralLiquidator.connect(accountBidder1).claim(nft1.address, 122, loanReceipt);
 
       /* Claim with accountBidder1 */
       await expect(
-        collateralLiquidator.connect(accountBidder1).claim(collateralHash, nft1.address, 122, "0x", loanReceipt)
+        collateralLiquidator.connect(accountBidder1).claim(nft1.address, 122, loanReceipt)
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidClaim");
     });
   });
