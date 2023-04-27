@@ -66,17 +66,17 @@ abstract contract Pool is
     uint256 internal constant BASIS_POINTS_SCALE = 10_000;
 
     /**
-     * @notice Pool borrow options tag size in bytes
+     * @notice Borrow options tag size in bytes
      */
     uint256 internal constant BORROW_OPTIONS_TAG_SIZE = 2;
 
     /**
-     * @notice Pool borrow options length size in bytes
+     * @notice Borrow options length size in bytes
      */
     uint256 internal constant BORROW_OPTIONS_LENGTH_SIZE = 2;
 
     /**
-     * @notice Pool borrow options header size in bytes
+     * @notice Borrow options header size in bytes
      */
     uint internal constant BORROW_OPTIONS_HEADER_SIZE = BORROW_OPTIONS_TAG_SIZE + BORROW_OPTIONS_LENGTH_SIZE;
 
@@ -442,7 +442,7 @@ abstract contract Pool is
             offset += BORROW_OPTIONS_HEADER_SIZE + dataLength;
         }
 
-        /* Explicit return if no tag found */
+        /* Return empty slice if no tag is found */
         return options[0:0];
     }
 
@@ -876,12 +876,12 @@ abstract contract Pool is
         uint256 maxRepayment,
         uint128[] calldata ticks
     ) external nonReentrant returns (uint256) {
-        /* Handle repay accounting without revoking delegates unlike in repay() */
+        /* Handle repay accounting */
         (LoanReceipt.LoanReceiptV1 memory loanReceipt, bytes32 loanReceiptHash, uint256 repayment) = _repay(
             encodedLoanReceipt
         );
 
-        /* Handle borrow accounting without delegating unlike in borrow() */
+        /* Handle borrow accounting */
         (uint256 newRepayment, bytes memory newEncodedLoanReceipt, bytes32 newLoanReceiptHash) = _borrow(
             principal,
             duration,
@@ -926,7 +926,7 @@ abstract contract Pool is
         /* Validate loan is expired */
         if (block.timestamp <= loanReceipt.maturity) revert LoanNotExpired();
 
-        /* Transfer collateral to _collateralLiquidator */
+        /* Approve collateral for transfer to _collateralLiquidator */
         IERC721(loanReceipt.collateralToken).approve(address(_collateralLiquidator), loanReceipt.collateralTokenId);
 
         /* Start liquidation with collateral liquidator */
@@ -1011,7 +1011,7 @@ abstract contract Pool is
         /* Validate tick */
         Tick.validate(tick, 0, 0, _durations.length - 1, 0, _rates.length - 1);
 
-        /* Cast to uint128 */
+        /* Cast amount */
         uint128 amount = amount_.toUint128();
 
         /* Instantiate liquidity node */
@@ -1026,7 +1026,7 @@ abstract contract Pool is
         /* Process redemptions from available cash */
         _liquidity.processRedemptions(tick);
 
-        /* Transfer Deposit Amount */
+        /* Transfer deposit amount */
         _currencyToken.safeTransferFrom(msg.sender, address(this), amount);
 
         /* Emit Deposited */
@@ -1037,7 +1037,7 @@ abstract contract Pool is
      * @inheritdoc IPool
      */
     function redeem(uint128 tick, uint256 shares_) external nonReentrant {
-        /* Cast to uint128 */
+        /* Cast shares */
         uint128 shares = shares_.toUint128();
 
         /* Look up Deposit */
@@ -1107,7 +1107,7 @@ abstract contract Pool is
             dep.redemptionTarget += shares;
         }
 
-        /* Transfer Withdrawal Amount */
+        /* Transfer withdrawal amount */
         _currencyToken.safeTransfer(msg.sender, amount);
 
         /* Emit Withdrawn */
@@ -1148,7 +1148,7 @@ abstract contract Pool is
         /* Update admin fees balance */
         _adminFeeBalance -= amount;
 
-        /* Transfer cash from vault to recipient */
+        /* Transfer cash from Pool to recipient */
         _currencyToken.safeTransfer(recipient, amount);
 
         emit AdminFeesWithdrawn(recipient, amount);
