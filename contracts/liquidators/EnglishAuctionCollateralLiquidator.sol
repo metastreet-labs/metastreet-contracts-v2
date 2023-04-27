@@ -91,6 +91,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      * @param currencyToken Currency token
      * @param endTime Auction end time
      * @param liquidationHash Liquidation hash
+     * @param liquidationSalt Liquidation salt
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
      * @param highestBid Highest bid
@@ -99,6 +100,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         address currencyToken;
         uint64 endTime;
         bytes32 liquidationHash;
+        bytes32 liquidationSalt;
         address collateralToken;
         uint256 collateralTokenId;
         Bid highestBid;
@@ -122,42 +124,46 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
 
     /**
      * @notice Emitted when an auction is created
-     * @param collateralHash Collateral hash
      * @param liquidationHash Liquidation hash
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
      */
-    event AuctionCreated(
-        bytes32 indexed collateralHash,
-        bytes32 indexed liquidationHash,
-        address collateralToken,
-        uint256 collateralTokenId
-    );
+    event AuctionCreated(bytes32 liquidationHash, address indexed collateralToken, uint256 indexed collateralTokenId);
 
     /**
      * @notice Emitted when an auction is started
-     * @param collateralHash Collateral hash
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
      */
-    event AuctionStarted(bytes32 indexed collateralHash, address collateralToken, uint256 collateralTokenId);
+    event AuctionStarted(address indexed collateralToken, uint256 indexed collateralTokenId);
 
     /**
      * @notice Emitted when an auction receives a bid
-     * @param collateralHash Collateral hash
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
      * @param bidder Bidder
      * @param amount Bid amount
      */
-    event AuctionBid(bytes32 indexed collateralHash, address indexed bidder, uint256 amount);
+    event AuctionBid(
+        address indexed collateralToken,
+        uint256 indexed collateralTokenId,
+        address indexed bidder,
+        uint256 amount
+    );
 
     /**
      * @notice Emitted when an auction is ended and collateral is claimed by winner
-     * @param winner Winner of auction
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
+     * @param winner Winner of auction
      * @param proceeds Proceeds in currency tokens
      */
-    event AuctionEnded(address indexed winner, address collateralToken, uint256 collateralTokenId, uint256 proceeds);
+    event AuctionEnded(
+        address indexed collateralToken,
+        uint256 indexed collateralTokenId,
+        address indexed winner,
+        uint256 proceeds
+    );
 
     /**
      * @notice Emitted when liquidation is liquidated
@@ -281,10 +287,14 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
 
     /**
      * Get auction details
-     * @param collateralHash Collateral hash
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
      * @return Auction Auction details
      */
-    function auction(bytes32 collateralHash) external view returns (Auction memory) {
+    function auction(address collateralToken, uint256 collateralTokenId) external view returns (Auction memory) {
+        /* Compute collateral hash */
+        bytes32 collateralHash = _collateralHash(collateralToken, collateralTokenId);
+
         return _auctions[collateralHash];
     }
 
@@ -294,30 +304,23 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
 
     /**
      * @notice Helper function to compute liquidation hash
-     * @param collateralToken Collateral token
-     * @param collateralTokenId Collateral token ID
-     * @param currencyToken Currency token
-     * @param collateralContext Collateral context for collateral wrapper
+     * @param liquidationSalt Liquidation salt
      * @param liquidationContext Liquidation callback context
      */
     function _liquidationHash(
-        address collateralToken,
-        uint256 collateralTokenId,
-        address currencyToken,
-        bytes calldata collateralContext,
+        bytes32 liquidationSalt,
         bytes calldata liquidationContext
     ) internal view returns (bytes32) {
-        return
-            keccak256(
-                abi.encodePacked(
-                    block.chainid,
-                    collateralToken,
-                    collateralTokenId,
-                    collateralContext,
-                    currencyToken,
-                    liquidationContext
-                )
-            );
+        return keccak256(abi.encodePacked(block.chainid, liquidationSalt, liquidationContext));
+    }
+
+    /**
+     * @notice Helper function to compute liquidation hash
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
+     */
+    function _collateralHash(address collateralToken, uint256 collateralTokenId) internal view returns (bytes32) {
+        return keccak256(abi.encodePacked(block.chainid, collateralToken, collateralTokenId));
     }
 
     /**
@@ -325,18 +328,21 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      *
      * Emits a {AuctionCreated} event.
      *
-     * @param liquidationHash Liquidation hash
+     * @param currencyToken Curreny token
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
+     * @param liquidationHash Liquidation hash
+     * @param liquidationSalt Liquidation salt
      */
     function _createAuction(
-        bytes32 liquidationHash,
+        address currencyToken,
         address collateralToken,
         uint256 collateralTokenId,
-        address currencyToken
+        bytes32 liquidationHash,
+        bytes32 liquidationSalt
     ) internal {
         /* Compute collateral hash */
-        bytes32 collateralHash = keccak256(abi.encodePacked(block.chainid, collateralToken, collateralTokenId));
+        bytes32 collateralHash = _collateralHash(collateralToken, collateralTokenId);
 
         /* Validate auction does not exists */
         if (_auctions[collateralHash].liquidationHash != bytes32(0)) revert InvalidAuction();
@@ -346,13 +352,14 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
             currencyToken: currencyToken,
             endTime: 0,
             liquidationHash: liquidationHash,
+            liquidationSalt: liquidationSalt,
             collateralToken: collateralToken,
             collateralTokenId: collateralTokenId,
             highestBid: Bid(address(0), 0)
         });
 
         /* Emit AuctionCreated */
-        emit AuctionCreated(collateralHash, liquidationHash, collateralToken, collateralTokenId);
+        emit AuctionCreated(liquidationHash, collateralToken, collateralTokenId);
     }
 
     /**
@@ -361,18 +368,12 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      * Emits a {CollateralLiquidated} event.
      *
      * @param auction_ Auction
-     * @param collateralToken Collateral token
-     * @param collateralTokenId Collateral token ID
      * @param liquidationHash Liquidation hash
-     * @param collateralContext Collateral context
      * @param liquidationContext Liquidation context
      */
     function _processLiquidation(
         Auction memory auction_,
-        address collateralToken,
-        uint256 collateralTokenId,
         bytes32 liquidationHash,
-        bytes calldata collateralContext,
         bytes calldata liquidationContext
     ) internal {
         /* Update liquidation proceeds */
@@ -389,20 +390,16 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
             /* Transfer proceeds from this contract to source */
             IERC20(auction_.currencyToken).safeTransfer(liquidation_.source, liquidation_.proceeds);
 
-            /* If transfer is successful and source is a contract, try collateral liquidation callback */
+            /* If source is a contract, try collateral liquidation callback */
             if (Address.isContract(liquidation_.source))
                 try
                     ICollateralLiquidationReceiver(liquidation_.source).onCollateralLiquidated(
-                        auction_.currencyToken,
-                        collateralToken,
-                        collateralTokenId,
-                        collateralContext,
                         liquidationContext,
                         liquidation_.proceeds
                     )
                 {} catch {}
 
-            /* Delete liquidation if all auctions are completed */
+            /* Delete liquidation since all auctions are completed */
             delete _liquidations[liquidationHash];
 
             /* Emit CollateralLiquidated */
@@ -434,14 +431,13 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         /* Check collateralToken and currencyToken is not zero address */
         if (collateralToken == address(0) || currencyToken == address(0)) revert InvalidToken();
 
-        /* Compute liquidation hash */
-        bytes32 liquidationHash = _liquidationHash(
-            collateralToken,
-            collateralTokenId,
-            currencyToken,
-            collateralContext,
-            liquidationContext
+        /* Compute liquidation salt */
+        bytes32 liquidationSalt = keccak256(
+            abi.encodePacked(currencyToken, collateralToken, collateralTokenId, collateralContext)
         );
+
+        /* Compute liquidation hash */
+        bytes32 liquidationHash = _liquidationHash(liquidationSalt, liquidationContext);
 
         /* Validate liquidation does not exist */
         if (_liquidations[liquidationHash].source != address(0)) revert InvalidLiquidation();
@@ -450,7 +446,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         address underlyingCollateralToken;
         uint256[] memory underlyingCollateralTokenIds;
 
-        /* Determine if collateral token is a collateral wrapper */
+        /* Determine if collateral token is a whitelisted collateral wrapper */
         if (_collateralWrappers[collateralToken]) {
             /* Get underlying collateral token and underlying collateral token IDs */
             (underlyingCollateralToken, underlyingCollateralTokenIds) = ICollateralWrapper(collateralToken).enumerate(
@@ -466,7 +462,13 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
 
         /* Iterate through underlying collaterals to create an auction for each underlying collateral */
         for (uint16 i = 0; i < underlyingCollateralTokenIds.length; i++) {
-            _createAuction(liquidationHash, underlyingCollateralToken, underlyingCollateralTokenIds[i], currencyToken);
+            _createAuction(
+                currencyToken,
+                underlyingCollateralToken,
+                underlyingCollateralTokenIds[i],
+                liquidationHash,
+                liquidationSalt
+            );
         }
 
         /* Create liquidation */
@@ -489,10 +491,14 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      *
      * Emits a {AuctionBid} event.
      *
-     * @param collateralHash Collateral hash
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
      * @param amount Bid amount
      */
-    function bid(bytes32 collateralHash, uint256 amount) external nonReentrant {
+    function bid(address collateralToken, uint256 collateralTokenId, uint256 amount) external nonReentrant {
+        /* Compute collateral hash */
+        bytes32 collateralHash = _collateralHash(collateralToken, collateralTokenId);
+
         /* Get auction */
         Auction memory auction_ = _auctions[collateralHash];
 
@@ -515,7 +521,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
             _auctions[collateralHash].endTime = uint64(block.timestamp) + _auctionDuration;
 
             /* Emit AuctionStarted */
-            emit AuctionStarted(collateralHash, auction_.collateralToken, auction_.collateralTokenId);
+            emit AuctionStarted(auction_.collateralToken, auction_.collateralTokenId);
         } else {
             /* Update end time if auction is already in progress and bid within _timeExtensionWindow */
             _auctions[collateralHash].endTime = (auction_.endTime - uint64(block.timestamp)) <= _timeExtensionWindow
@@ -536,7 +542,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         IERC20(auction_.currencyToken).safeTransferFrom(msg.sender, address(this), amount);
 
         /* Emit AuctionBid */
-        emit AuctionBid(collateralHash, msg.sender, amount);
+        emit AuctionBid(collateralToken, collateralTokenId, msg.sender, amount);
     }
 
     /**
@@ -545,47 +551,32 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      * Emits a {CollateralLiquidated} event.
      * Emits a {AuctionEnded} event.
      *
-     * @param collateralHash Collateral hash
-     * @param collateralToken Collateral token from liquidate parameter earlier
-     * @param collateralTokenId Collateral token ID from liquidate parameter earlier
-     * @param collateralContext Collateral context
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
      * @param liquidationContext Liquidation context
      */
     function claim(
-        bytes32 collateralHash,
         address collateralToken,
         uint256 collateralTokenId,
-        bytes calldata collateralContext,
         bytes calldata liquidationContext
     ) external nonReentrant {
+        /* Compute collateral hash */
+        bytes32 collateralHash = _collateralHash(collateralToken, collateralTokenId);
+
         /* Get auction */
         Auction memory auction_ = _auctions[collateralHash];
 
         /* Compute liquidation hash */
-        bytes32 liquidationHash = _liquidationHash(
-            collateralToken,
-            collateralTokenId,
-            auction_.currencyToken,
-            collateralContext,
-            liquidationContext
-        );
+        bytes32 liquidationHash = _liquidationHash(auction_.liquidationSalt, liquidationContext);
 
-        /* Validate liquidation hash matches auction */
+        /* Validate liquidation context */
         if (auction_.liquidationHash != liquidationHash) revert InvalidClaim();
 
-        /* Validate that auction has ended and the auction has a bid */
-        if (uint64(block.timestamp) <= auction_.endTime || auction_.highestBid.bidder == address(0))
-            revert InvalidClaim();
+        /* Validate that auction has ended */
+        if (uint64(block.timestamp) <= auction_.endTime) revert InvalidClaim();
 
         /* Process liquidation proceeds */
-        _processLiquidation(
-            auction_,
-            collateralToken,
-            collateralTokenId,
-            liquidationHash,
-            collateralContext,
-            liquidationContext
-        );
+        _processLiquidation(auction_, liquidationHash, liquidationContext);
 
         /* Delete auction */
         delete _auctions[collateralHash];
@@ -599,9 +590,9 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
 
         /* Emit AuctionEnded */
         emit AuctionEnded(
-            auction_.highestBid.bidder,
             auction_.collateralToken,
             auction_.collateralTokenId,
+            auction_.highestBid.bidder,
             auction_.highestBid.amount
         );
     }
