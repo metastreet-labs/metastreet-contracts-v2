@@ -336,16 +336,7 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
 
         /* If transfer is successful and source is a contract, try collateral liquidation callback */
         if (Address.isContract(source))
-            try
-                ICollateralLiquidationReceiver(source).onCollateralLiquidated(
-                    currencyToken,
-                    collateralToken,
-                    collateralTokenId,
-                    collateralContext,
-                    liquidationContext,
-                    proceeds
-                )
-            {} catch {}
+            try ICollateralLiquidationReceiver(source).onCollateralLiquidated(liquidationContext, proceeds) {} catch {}
 
         /* Emit CollateralLiquidated() */
         emit CollateralLiquidated(collateralHash, collateralToken, collateralTokenId, proceeds);

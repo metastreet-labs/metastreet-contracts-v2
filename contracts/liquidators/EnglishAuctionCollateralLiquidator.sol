@@ -393,10 +393,6 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
             if (Address.isContract(liquidation_.source))
                 try
                     ICollateralLiquidationReceiver(liquidation_.source).onCollateralLiquidated(
-                        auction_.currencyToken,
-                        collateralToken,
-                        collateralTokenId,
-                        collateralContext,
                         liquidationContext,
                         liquidation_.proceeds
                     )
