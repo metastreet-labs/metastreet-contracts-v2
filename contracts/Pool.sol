@@ -955,14 +955,7 @@ abstract contract Pool is
     /**
      * @inheritdoc ICollateralLiquidationReceiver
      */
-    function onCollateralLiquidated(
-        address,
-        address,
-        uint256,
-        bytes calldata,
-        bytes calldata encodedLoanReceipt,
-        uint256 proceeds
-    ) external nonReentrant {
+    function onCollateralLiquidated(bytes calldata encodedLoanReceipt, uint256 proceeds) external nonReentrant {
         /* Validate caller is collateral liquidator */
         if (msg.sender != address(_collateralLiquidator)) revert InvalidCaller();
 
