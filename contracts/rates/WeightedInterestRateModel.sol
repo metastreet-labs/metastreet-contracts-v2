@@ -72,12 +72,12 @@ contract WeightedInterestRateModel is InterestRateModel {
     /**
      * @inheritdoc InterestRateModel
      */
-    function rate(
+    function _rate(
         uint256 amount,
         uint64[] memory rates,
         ILiquidity.NodeSource[] memory nodes,
         uint16 count
-    ) public pure override returns (uint256) {
+    ) internal pure override returns (uint256) {
         uint256 weightedRate;
         for (uint256 i; i < count; i++) {
             (, , uint256 rateIndex, ) = Tick.decode(nodes[i].tick);
@@ -90,12 +90,12 @@ contract WeightedInterestRateModel is InterestRateModel {
     /**
      * @inheritdoc InterestRateModel
      */
-    function distribute(
+    function _distribute(
         uint256 amount,
         uint256 interest,
         ILiquidity.NodeSource[] memory nodes,
         uint16 count
-    ) public view override returns (uint128[] memory) {
+    ) internal view override returns (uint128[] memory) {
         /* Interest threshold for tick to receive interest */
         uint256 threshold = Math.mulDiv(_params.tickThreshold, amount, FIXED_POINT_SCALE);
 

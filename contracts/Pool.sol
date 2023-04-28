@@ -555,7 +555,7 @@ abstract contract Pool is
         /* Calculate repayment from principal, rate, and duration */
         uint256 repayment = Math.mulDiv(
             principal,
-            LiquidityManager.FIXED_POINT_SCALE + (rate(principal, _rates, nodes, count) * duration),
+            LiquidityManager.FIXED_POINT_SCALE + (_rate(principal, _rates, nodes, count) * duration),
             LiquidityManager.FIXED_POINT_SCALE
         ) + Math.mulDiv(principal, _originationFeeRate, BASIS_POINTS_SCALE);
 
@@ -638,7 +638,7 @@ abstract contract Pool is
         uint256 adminFee = Math.mulDiv(_adminFeeRate, repayment - principal, BASIS_POINTS_SCALE);
 
         /* Distribute interest */
-        uint128[] memory interest = distribute(principal, repayment - principal - adminFee, nodes, count);
+        uint128[] memory interest = _distribute(principal, repayment - principal - adminFee, nodes, count);
 
         /* Build the loan receipt */
         LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.LoanReceiptV1({

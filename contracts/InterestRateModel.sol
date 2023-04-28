@@ -15,12 +15,12 @@ abstract contract InterestRateModel {
      * @param count Liquidity node count
      * @return Interest per second
      */
-    function rate(
+    function _rate(
         uint256 amount,
         uint64[] memory rates,
         ILiquidity.NodeSource[] memory nodes,
         uint16 count
-    ) public view virtual returns (uint256);
+    ) internal view virtual returns (uint256);
 
     /**
      * Distribute interest to liquidity
@@ -30,10 +30,10 @@ abstract contract InterestRateModel {
      * @param count Liquidity node count
      * @return Interest distribution
      */
-    function distribute(
+    function _distribute(
         uint256 amount,
         uint256 interest,
         ILiquidity.NodeSource[] memory nodes,
         uint16 count
-    ) public view virtual returns (uint128[] memory);
+    ) internal view virtual returns (uint128[] memory);
 }
