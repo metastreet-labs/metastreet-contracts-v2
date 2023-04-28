@@ -302,132 +302,147 @@ describe("Pool Gas", function () {
       await setupLiquidity(pool);
     });
 
-    it("borrow (single, 16 ticks)", async function () {
-      const borrowTx = await pool
-        .connect(accountBorrower)
-        .borrow(
-          FixedPoint.from("25"),
-          30 * 86400,
-          nft1.address,
-          123,
-          FixedPoint.from("26"),
-          await sourceLiquidity(pool, FixedPoint.from("25")),
-          "0x"
-        );
+    for (const [principal, numTicks, maxGas] of [
+      [FixedPoint.from("15"), 10, 270000],
+      [FixedPoint.from("25"), 16, 350000],
+    ]) {
+      it(`borrow (single, ${numTicks} ticks)`, async function () {
+        /* Source liquidity */
+        const ticks = await sourceLiquidity(pool, principal);
+        expect(ticks.length).to.equal(numTicks);
 
-      /* Validate 16 nodes were used */
-      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-      const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
-      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
+        /* Borrow */
+        const borrowTx = await pool
+          .connect(accountBorrower)
+          .borrow(principal, 30 * 86400, nft1.address, 123, principal.add(FixedPoint.from("1")), ticks, "0x");
 
-      const gasUsed = (await borrowTx.wait()).gasUsed;
-      gasReport.push(["borrow (single, 16 ticks)", gasUsed]);
+        /* Validate correct number of nodes were used */
+        const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+        const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
+        expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
 
-      expect(gasUsed).to.be.lt(355000);
-    });
-    it("borrow (single, existing, 16 ticks) ", async function () {
-      /* Mint NFT to pool */
-      await nft1.mint(pool.address, 150);
+        const gasUsed = (await borrowTx.wait()).gasUsed;
+        gasReport.push([`borrow (single, ${numTicks} ticks)`, gasUsed]);
 
-      const borrowTx = await pool
-        .connect(accountBorrower)
-        .borrow(
-          FixedPoint.from("25"),
-          30 * 86400,
-          nft1.address,
-          123,
-          FixedPoint.from("26"),
-          await sourceLiquidity(pool, FixedPoint.from("25")),
-          "0x"
-        );
+        expect(gasUsed).to.be.lt(maxGas);
+      });
 
-      /* Validate 16 nodes were used */
-      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-      const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
-      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
+      it(`borrow (single, existing, ${numTicks} ticks)`, async function () {
+        /* Mint NFT to pool */
+        await nft1.mint(pool.address, 150);
 
-      const gasUsed = (await borrowTx.wait()).gasUsed;
-      gasReport.push(["borrow (single, existing, 16 ticks)", gasUsed]);
+        /* Source liquidity */
+        const ticks = await sourceLiquidity(pool, principal);
+        expect(ticks.length).to.equal(numTicks);
 
-      expect(gasUsed).to.be.lt(340000);
-    });
-    it("borrow (bundle of 10, 16 ticks)", async function () {
-      /* Mint bundle of 10 */
-      const mintTx = await bundleCollateralWrapper
-        .connect(accountBorrower)
-        .mint(nft1.address, [123, 124, 125, 126, 127, 128, 129, 130, 131, 132]);
-      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
-      const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
+        /* Borrow */
+        const borrowTx = await pool
+          .connect(accountBorrower)
+          .borrow(principal, 30 * 86400, nft1.address, 123, principal.add(FixedPoint.from("1")), ticks, "0x");
 
-      /* Borrow */
-      const borrowTx = await pool
-        .connect(accountBorrower)
-        .borrow(
-          FixedPoint.from("250"),
-          30 * 86400,
-          bundleCollateralWrapper.address,
-          bundleTokenId,
-          FixedPoint.from("260"),
-          await sourceLiquidity(pool, FixedPoint.from("250"), 10),
-          ethers.utils.solidityPack(
-            ["uint16", "uint16", "bytes"],
-            [1, ethers.utils.hexDataLength(bundleData), bundleData]
-          )
-        );
+        /* Validate correct number of nodes were used */
+        const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+        const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
+        expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
 
-      /* Validate 16 nodes were used */
-      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-      const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
-      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
+        const gasUsed = (await borrowTx.wait()).gasUsed;
+        gasReport.push([`borrow (single, existing, ${numTicks} ticks)`, gasUsed]);
 
-      const gasUsed = (await borrowTx.wait()).gasUsed;
-      gasReport.push(["borrow (bundle of 10, 16 ticks)", gasUsed]);
+        expect(gasUsed).to.be.lt(maxGas - 15000);
+      });
+    }
 
-      expect(gasUsed).to.be.lt(385000);
-    });
-    it("borrow (bundle of 10, existing, 16 ticks)", async function () {
-      /* Mint bundle of 3 */
-      const mintTx1 = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [135, 136, 137]);
-      const bundleTokenId1 = (await extractEvent(mintTx1, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+    for (const [principal, numTicks, maxGas] of [
+      [FixedPoint.from("150"), 10, 295000],
+      [FixedPoint.from("250"), 16, 385000],
+    ]) {
+      it(`borrow (bundle of 10, ${numTicks} ticks)`, async function () {
+        /* Mint bundle of 10 */
+        const mintTx = await bundleCollateralWrapper
+          .connect(accountBorrower)
+          .mint(nft1.address, [123, 124, 125, 126, 127, 128, 129, 130, 131, 132]);
+        const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+        const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
-      /* Transfer bundle to pool */
-      await bundleCollateralWrapper
-        .connect(accountBorrower)
-        ["safeTransferFrom(address,address,uint256)"](accountBorrower.address, pool.address, bundleTokenId1);
+        /* Source liquidity */
+        const ticks = await sourceLiquidity(pool, principal, 10);
+        expect(ticks.length).to.equal(numTicks);
 
-      /* Mint bundle of 10 */
-      const mintTx = await bundleCollateralWrapper
-        .connect(accountBorrower)
-        .mint(nft1.address, [123, 124, 125, 126, 127, 128, 129, 130, 131, 132]);
-      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
-      const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
+        /* Borrow */
+        const borrowTx = await pool
+          .connect(accountBorrower)
+          .borrow(
+            principal,
+            30 * 86400,
+            bundleCollateralWrapper.address,
+            bundleTokenId,
+            principal.add(FixedPoint.from("10")),
+            ticks,
+            ethers.utils.solidityPack(
+              ["uint16", "uint16", "bytes"],
+              [1, ethers.utils.hexDataLength(bundleData), bundleData]
+            )
+          );
 
-      /* Borrow */
-      const borrowTx = await pool
-        .connect(accountBorrower)
-        .borrow(
-          FixedPoint.from("250"),
-          30 * 86400,
-          bundleCollateralWrapper.address,
-          bundleTokenId,
-          FixedPoint.from("260"),
-          await sourceLiquidity(pool, FixedPoint.from("250"), 10),
-          ethers.utils.solidityPack(
-            ["uint16", "uint16", "bytes"],
-            [1, ethers.utils.hexDataLength(bundleData), bundleData]
-          )
-        );
+        /* Validate correct number of nodes were used */
+        const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+        const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
+        expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
 
-      /* Validate 16 nodes were used */
-      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-      const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
-      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
+        const gasUsed = (await borrowTx.wait()).gasUsed;
+        gasReport.push([`borrow (bundle of 10, ${numTicks} ticks)`, gasUsed]);
 
-      const gasUsed = (await borrowTx.wait()).gasUsed;
-      gasReport.push(["borrow (bundle of 10, existing, 16 ticks)", gasUsed]);
+        expect(gasUsed).to.be.lt(maxGas);
+      });
 
-      expect(gasUsed).to.be.lt(370000);
-    });
+      it(`borrow (bundle of 10, existing, ${numTicks} ticks)`, async function () {
+        /* Mint bundle of 3 */
+        const mintTx1 = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [135, 136, 137]);
+        const bundleTokenId1 = (await extractEvent(mintTx1, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+
+        /* Transfer bundle to pool */
+        await bundleCollateralWrapper
+          .connect(accountBorrower)
+          ["safeTransferFrom(address,address,uint256)"](accountBorrower.address, pool.address, bundleTokenId1);
+
+        /* Mint bundle of 10 */
+        const mintTx = await bundleCollateralWrapper
+          .connect(accountBorrower)
+          .mint(nft1.address, [123, 124, 125, 126, 127, 128, 129, 130, 131, 132]);
+        const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+        const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
+
+        /* Source liquidity */
+        const ticks = await sourceLiquidity(pool, principal, 10);
+        expect(ticks.length).to.equal(numTicks);
+
+        /* Borrow */
+        const borrowTx = await pool
+          .connect(accountBorrower)
+          .borrow(
+            principal,
+            30 * 86400,
+            bundleCollateralWrapper.address,
+            bundleTokenId,
+            principal.add(FixedPoint.from("10")),
+            ticks,
+            ethers.utils.solidityPack(
+              ["uint16", "uint16", "bytes"],
+              [1, ethers.utils.hexDataLength(bundleData), bundleData]
+            )
+          );
+
+        /* Validate correct number of nodes were used */
+        const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+        const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
+        expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
+
+        const gasUsed = (await borrowTx.wait()).gasUsed;
+        gasReport.push([`borrow (bundle of 10, existing, ${numTicks} ticks)`, gasUsed]);
+
+        expect(gasUsed).to.be.lt(maxGas - 15000);
+      });
+    }
   });
 
   describe("#repay", async function () {
@@ -435,71 +450,83 @@ describe("Pool Gas", function () {
       await setupLiquidity(pool);
     });
 
-    it("repay (single)", async function () {
-      const borrowTx = await pool
-        .connect(accountBorrower)
-        .borrow(
-          FixedPoint.from("25"),
-          30 * 86400,
-          nft1.address,
-          123,
-          FixedPoint.from("26"),
-          await sourceLiquidity(pool, FixedPoint.from("25")),
-          "0x"
-        );
+    for (const [principal, numTicks, maxGas] of [
+      [FixedPoint.from("15"), 10, 250000],
+      [FixedPoint.from("25"), 16, 355000],
+    ]) {
+      it(`repay (single, ${numTicks} ticks)`, async function () {
+        /* Source liquidity */
+        const ticks = await sourceLiquidity(pool, principal);
+        expect(ticks.length).to.equal(numTicks);
 
-      /* Validate 16 nodes were used */
-      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-      const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
-      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
+        /* Borrow */
+        const borrowTx = await pool
+          .connect(accountBorrower)
+          .borrow(principal, 30 * 86400, nft1.address, 123, principal.add(FixedPoint.from("1")), ticks, "0x");
 
-      await helpers.time.increase(15 * 86400);
+        /* Validate correct number of nodes were used */
+        const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+        const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
+        expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
 
-      const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
+        await helpers.time.increase(15 * 86400);
 
-      const gasUsed = (await repayTx.wait()).gasUsed;
-      gasReport.push(["repay (single, 16 ticks)", gasUsed]);
+        const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
-      expect(gasUsed).to.be.lt(355000);
-    });
-    it("repay (bundle of 10)", async function () {
-      /* Mint bundle of 10 */
-      const mintTx = await bundleCollateralWrapper
-        .connect(accountBorrower)
-        .mint(nft1.address, [123, 124, 125, 126, 127, 128, 129, 130, 131, 132]);
-      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
-      const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
+        const gasUsed = (await repayTx.wait()).gasUsed;
+        gasReport.push([`repay (single, ${numTicks} ticks)`, gasUsed]);
 
-      /* Borrow */
-      const borrowTx = await pool
-        .connect(accountBorrower)
-        .borrow(
-          FixedPoint.from("250"),
-          30 * 86400,
-          bundleCollateralWrapper.address,
-          bundleTokenId,
-          FixedPoint.from("260"),
-          await sourceLiquidity(pool, FixedPoint.from("250"), 10),
-          ethers.utils.solidityPack(
-            ["uint16", "uint16", "bytes"],
-            [1, ethers.utils.hexDataLength(bundleData), bundleData]
-          )
-        );
+        expect(gasUsed).to.be.lt(maxGas);
+      });
+    }
 
-      /* Validate 16 nodes were used */
-      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-      const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
-      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
+    for (const [principal, numTicks, maxGas] of [
+      [FixedPoint.from("150"), 10, 295000],
+      [FixedPoint.from("250"), 16, 385000],
+    ]) {
+      it("repay (bundle of 10)", async function () {
+        /* Mint bundle of 10 */
+        const mintTx = await bundleCollateralWrapper
+          .connect(accountBorrower)
+          .mint(nft1.address, [123, 124, 125, 126, 127, 128, 129, 130, 131, 132]);
+        const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+        const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
-      await helpers.time.increase(15 * 86400);
+        /* Source liquidity */
+        const ticks = await sourceLiquidity(pool, principal, 10);
+        expect(ticks.length).to.equal(numTicks);
 
-      const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
+        /* Borrow */
+        const borrowTx = await pool
+          .connect(accountBorrower)
+          .borrow(
+            principal,
+            30 * 86400,
+            bundleCollateralWrapper.address,
+            bundleTokenId,
+            principal.add(FixedPoint.from("10")),
+            ticks,
+            ethers.utils.solidityPack(
+              ["uint16", "uint16", "bytes"],
+              [1, ethers.utils.hexDataLength(bundleData), bundleData]
+            )
+          );
 
-      const gasUsed = (await repayTx.wait()).gasUsed;
-      gasReport.push(["repay (bundle of 10, 16 ticks)", gasUsed]);
+        /* Validate correct number of nodes were used */
+        const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+        const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
+        expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
 
-      expect(gasUsed).to.be.lt(385000);
-    });
+        await helpers.time.increase(15 * 86400);
+
+        const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
+
+        const gasUsed = (await repayTx.wait()).gasUsed;
+        gasReport.push([`repay (bundle of 10, ${numTicks} ticks)`, gasUsed]);
+
+        expect(gasUsed).to.be.lt(maxGas);
+      });
+    }
   });
 
   describe("#refinance", async function () {
