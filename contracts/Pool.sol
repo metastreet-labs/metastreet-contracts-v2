@@ -173,11 +173,6 @@ abstract contract Pool is
     uint32 internal _adminFeeRate;
 
     /**
-     * @notice Total admin fee balance
-     */
-    uint256 internal _adminFeeBalance;
-
-    /**
      * @notice Durations
      */
     uint64[] internal _durations;
@@ -186,6 +181,16 @@ abstract contract Pool is
      * @notice Rates
      */
     uint64[] internal _rates;
+
+    /**
+     * @notice Collateral liquidator contract
+     */
+    ICollateralLiquidator internal _collateralLiquidator;
+
+    /**
+     * @notice Total admin fee balance
+     */
+    uint256 internal _adminFeeBalance;
 
     /**
      * @notice Liquidity
@@ -201,11 +206,6 @@ abstract contract Pool is
      * @notice Mapping of loan receipt hash to loan status
      */
     mapping(bytes32 => LoanStatus) internal _loans;
-
-    /**
-     * @notice Collateral liquidator contract
-     */
-    ICollateralLiquidator internal _collateralLiquidator;
 
     /**************************************************************************/
     /* Constructor */
