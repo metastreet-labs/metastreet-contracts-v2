@@ -783,7 +783,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await liquidateTx.wait()).gasUsed;
         gasReport.push([`liquidate (single, english auction)`, gasUsed]);
 
-        expect(gasUsed).to.be.lt(299000);
+        expect(gasUsed).to.be.lt(280000);
       });
 
       it("liquidate (bundle of 10, english auction)", async function () {
@@ -792,7 +792,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await liquidateTx.wait()).gasUsed;
         gasReport.push([`liquidate (bundle of 10, english auction)`, gasUsed]);
 
-        expect(gasUsed).to.be.lt(1510000);
+        expect(gasUsed).to.be.lt(1300000);
       });
 
       it("bid (first, english auction)", async function () {
@@ -805,7 +805,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await bidTx.wait()).gasUsed;
         gasReport.push([`bid (first, english auction)`, gasUsed]);
 
-        expect(gasUsed).to.be.lt(133000);
+        expect(gasUsed).to.be.lt(135000);
       });
 
       it("bid (second, english auction)", async function () {
@@ -821,7 +821,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await bid2Tx.wait()).gasUsed;
         gasReport.push([`bid (second, english auction)`, gasUsed]);
 
-        expect(gasUsed).to.be.lt(86000);
+        expect(gasUsed).to.be.lt(85000);
       });
 
       it("claim (single, english auction)", async function () {
@@ -843,7 +843,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await claimTx.wait()).gasUsed;
         gasReport.push([`claim (single, english auction)`, gasUsed]);
 
-        expect(gasUsed).to.be.lt(374000);
+        expect(gasUsed).to.be.lt(375000);
       });
 
       it("claim (first / middle / last of bundle, english auction)", async function () {
@@ -873,9 +873,9 @@ describe("Pool Gas", function () {
         gasReport.push([`claim (middle of bundle, english auction)`, gasUsed[4]]);
         gasReport.push([`claim (last of bundle, english auction)`, gasUsed[9]]);
 
-        expect(gasUsed[0]).to.be.lt(122000);
+        expect(gasUsed[0]).to.be.lt(120000);
         expect(gasUsed[4]).to.be.lt(95000);
-        expect(gasUsed[9]).to.be.lt(358000);
+        expect(gasUsed[9]).to.be.lt(360000);
       });
     });
   });

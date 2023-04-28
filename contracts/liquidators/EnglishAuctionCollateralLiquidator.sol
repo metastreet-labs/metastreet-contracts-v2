@@ -90,7 +90,6 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      * @notice Auction
      * @param currencyToken Currency token
      * @param endTime Auction end time
-     * @param liquidationHash Liquidation hash
      * @param liquidationSalt Liquidation salt
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
@@ -99,7 +98,6 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
     struct Auction {
         address currencyToken;
         uint64 endTime;
-        bytes32 liquidationHash;
         bytes32 liquidationSalt;
         address collateralToken;
         uint256 collateralTokenId;
@@ -335,27 +333,26 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      * @param currencyToken Curreny token
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
-     * @param liquidationHash Liquidation hash
      * @param liquidationSalt Liquidation salt
+     * @param liquidationHash Liquidation hash
      */
     function _createAuction(
         address currencyToken,
         address collateralToken,
         uint256 collateralTokenId,
-        bytes32 liquidationHash,
-        bytes32 liquidationSalt
+        bytes32 liquidationSalt,
+        bytes32 liquidationHash
     ) internal {
         /* Compute collateral hash */
         bytes32 collateralHash = _collateralHash(collateralToken, collateralTokenId);
 
         /* Validate auction does not exists */
-        if (_auctions[collateralHash].liquidationHash != bytes32(0)) revert InvalidAuction();
+        if (_auctions[collateralHash].liquidationSalt != bytes32(0)) revert InvalidAuction();
 
         /* Create collateral auction */
         _auctions[collateralHash] = Auction({
             currencyToken: currencyToken,
             endTime: 0,
-            liquidationHash: liquidationHash,
             liquidationSalt: liquidationSalt,
             collateralToken: collateralToken,
             collateralTokenId: collateralTokenId,
@@ -470,8 +467,8 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
                 currencyToken,
                 underlyingCollateralToken,
                 underlyingCollateralTokenIds[i],
-                liquidationHash,
-                liquidationSalt
+                liquidationSalt,
+                liquidationHash
             );
         }
 
@@ -507,7 +504,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         Auction memory auction_ = _auctions[collateralHash];
 
         /* Validate that auction exists */
-        if (auction_.liquidationHash == bytes32(0)) revert InvalidAuction();
+        if (auction_.liquidationSalt == bytes32(0)) revert InvalidAuction();
 
         /* Validate auction has not ended */
         if (auction_.endTime != 0 && auction_.endTime < uint64(block.timestamp)) revert InvalidBid();
@@ -570,11 +567,14 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         /* Get auction */
         Auction memory auction_ = _auctions[collateralHash];
 
+        /* Validate that auction exists */
+        if (auction_.liquidationSalt == bytes32(0)) revert InvalidAuction();
+
         /* Compute liquidation hash */
         bytes32 liquidationHash = _liquidationHash(auction_.liquidationSalt, liquidationContext);
 
-        /* Validate liquidation context */
-        if (auction_.liquidationHash != liquidationHash) revert InvalidClaim();
+        /* Validate liquidation exists */
+        if (_liquidations[liquidationHash].source == address(0)) revert InvalidClaim();
 
         /* Validate that auction has ended */
         if (uint64(block.timestamp) <= auction_.endTime) revert InvalidClaim();
