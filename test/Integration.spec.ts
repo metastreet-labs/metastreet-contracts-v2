@@ -10,6 +10,7 @@ import {
   TestLoanReceipt,
   TestDelegationRegistry,
   ExternalCollateralLiquidator,
+  ILiquidity,
   Pool,
   BundleCollateralWrapper,
 } from "../typechain";
@@ -45,13 +46,14 @@ describe("Integration", function () {
   const CONFIG = {
     functionCalls: [deposit, borrow, repay, refinance, redeem, withdraw, liquidate, onCollateralLiquidated],
     maxFunctionCalls: 2000,
-    principals: [1] /* min: 1 ethers, max: 1 ethers */,
+    principals: [1, 2] /* min: 1 ethers, max: 2 ethers */,
+    ticks: ["1", "2"] /* min and max needs to be within the bounds of principals */,
     borrowDurations: [1, 30 * 86400] /* min: 1 second, max: 30 days */,
     tickDurations: [7 * 86400, 14 * 86400, 30 * 86400] /* 7 days, 14 days, 30 days */,
-    ticks: ["1"],
+    tickRates: [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
     depositAmounts: [25, 50] /* min: 25 ethers, max: 50 ethers */,
     numberOfBorrowers: 8 /* max allowed is 8!! */,
-    numberOfDepositors: 2 /* max allowed is 9!! */,
+    numberOfDepositors: 3 /* max allowed is 9!! */,
     liquidationProceedsRatio: [0, 50, 100, 300] /* 0%, 50%, 100%, 300% of repayment */,
     isSharesRedeemAmountRandomized: false,
     adminFeeRate: 45 /* 4.5% */,
@@ -142,7 +144,7 @@ describe("Integration", function () {
             tok1.address,
             45,
             CONFIG.tickDurations,
-            [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
+            CONFIG.tickRates,
             [CONFIG.tickThreshold, CONFIG.tickExponential],
           ]
         ),
@@ -244,6 +246,64 @@ describe("Integration", function () {
     return ethers.BigNumber.from(ethers.utils.randomBytes(32)).mod(max);
   }
 
+  function filterNodes(
+    durationIndex: number,
+    nodes: ILiquidity.NodeInfoStructOutput[]
+  ): ILiquidity.NodeInfoStructOutput[] {
+    const filteredNodes = [];
+    for (const node of nodes) {
+      const tickDecoded = Tick.decode(node.tick);
+      if (tickDecoded.durationIndex == durationIndex) {
+        filteredNodes.push(node);
+      }
+    }
+
+    return filteredNodes;
+  }
+
+  function shuffleNodes(array: any[]): ILiquidity.NodeInfoStructOutput[] {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = shuffled[i];
+      shuffled[i] = shuffled[j];
+      shuffled[j] = temp;
+    }
+    return shuffled;
+  }
+
+  function randomizeNodes(nodes: ILiquidity.NodeInfoStructOutput[]): ILiquidity.NodeInfoStructOutput[] {
+    nodes = shuffleNodes(nodes);
+    const randomizedNodes = [];
+    let ticks = new Set<string>();
+    for (const node of nodes) {
+      const tickDecoded = Tick.decode(node.tick);
+      const limit = ethers.utils.formatEther(tickDecoded.limit);
+      /* Select only one node per tick limit */
+      if (!ticks.has(limit)) {
+        randomizedNodes.push(node);
+        ticks.add(limit);
+      }
+    }
+
+    return randomizedNodes;
+  }
+
+  function sortNodes(nodes: ILiquidity.NodeInfoStructOutput[]): ILiquidity.NodeInfoStructOutput[] {
+    nodes.sort((a, b) => {
+      const aLimit = Tick.decode(a.tick).limit;
+      const bLimit = Tick.decode(b.tick).limit;
+      if (aLimit.gt(bLimit)) {
+        return 1;
+      } else if (aLimit.lt(bLimit)) {
+        return -1;
+      } else {
+        return 0;
+      }
+    });
+    return nodes;
+  }
+
   function removeLoanFromStorage(store: [SignerWithAddress, ethers.BigNumber, string][], encodedLoanReceipt: string) {
     const indexOfRepaidLoan: number = store.findIndex(
       (l: [SignerWithAddress, ethers.BigNumber, string]) => l[2] === encodedLoanReceipt
@@ -290,7 +350,8 @@ describe("Integration", function () {
     duration?: ethers.BigNumber = ethers.BigNumber.from(30 * 86400),
     multiplier?: number = 1
   ): Promise<ethers.BigNumber[]> {
-    const nodes = await pool.liquidityNodes(0, MaxUint128);
+    let nodes = await pool.liquidityNodes(0, MaxUint128);
+
     const ticks = [];
 
     const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
@@ -308,20 +369,27 @@ describe("Integration", function () {
       throw new Error("Invalid duration");
     }
 
+    /* Filter nodes based on duration index */
+    nodes = filterNodes(durationIndex, nodes);
+
+    /* Randomize selection of a node from nodes of the same duration index */
+    nodes = randomizeNodes(nodes);
+
+    /* Sort nodes in ascending order of tick limit */
+    nodes = sortNodes(nodes);
+
     let taken = ethers.constants.Zero;
+
     for (const node of nodes) {
       const tickDecoded = Tick.decode(node.tick);
-      if (tickDecoded.durationIndex == durationIndex) {
-        const limit = tickDecoded.limit;
-        const take = minBN(minBN(limit.mul(multiplier).sub(taken), node.available), amount.sub(taken));
-        if (take.isZero()) continue;
-        ticks.push(node.tick);
-        taken = taken.add(take);
-      }
+      const limit = tickDecoded.limit;
+      const take = minBN(minBN(limit.mul(multiplier).sub(taken), node.available), amount.sub(taken));
+      if (take.isZero()) continue;
+      ticks.push(node.tick);
+      taken = taken.add(take);
     }
 
     if (!taken.eq(amount)) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
-
     return ticks;
   }
 
@@ -388,7 +456,8 @@ describe("Integration", function () {
 
       const tick = Tick.encode(
         CONFIG.ticks[getRandomInteger(0, CONFIG.ticks.length)],
-        getRandomInteger(0, CONFIG.tickDurations.length)
+        getRandomInteger(0, CONFIG.tickDurations.length),
+        getRandomInteger(0, CONFIG.tickRates.length)
       );
 
       const amount = ethers.utils.parseEther(
@@ -933,9 +1002,11 @@ describe("Integration", function () {
         await functionCall();
         await compareStates();
       }
-      consoleLog("\n\nCall sequence completed!");
-      consoleLog("\nSuccessful calls:");
-      consoleLog(callStatistics);
     });
+  });
+
+  after("integration test report", async function () {
+    consoleLog("\nSuccessful calls:");
+    consoleLog(callStatistics);
   });
 });
