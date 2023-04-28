@@ -4,14 +4,14 @@
   "scripts": {
     "codegen-local": "rm -rf generated && graph codegen subgraph.local.yml",
     "build-local": "graph build subgraph.local.yml",
-    "create-local": "graph create --node http://localhost:8020/ metastreet-v2-subgraph subgraph.local.yml",
+    "create-local": "graph create --node http://localhost:8020/ metastreet-v2-subgraph",
     "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 metastreet-v2-subgraph subgraph.local.yml",
     "codegen-goerli": "rm -rf generated && graph codegen subgraph.goerli.yml",
     "build-goerli": "graph build subgraph.goerli.yml",
     "deploy-goerli": "graph deploy --node https://api.studio.thegraph.com/deploy/ metastreet-v2 subgraph.goerli.yml"
   },
   "dependencies": {
-    "@graphprotocol/graph-cli": "0.27.0",
-    "@graphprotocol/graph-ts": "0.24.1"
+    "@graphprotocol/graph-cli": "0.46.1",
+    "@graphprotocol/graph-ts": "0.29.3"
   }
 }
