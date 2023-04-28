@@ -208,11 +208,11 @@ function createLoanEntity(receipt: LoanReceipt, encodedReceipt: Bytes, receiptHa
   loanEntity.repayment = repayment;
   loanEntity.depths = depths;
   loanEntity.pool = poolAddress;
-  loanEntity.timestamp = timestamp.toI32();
+  loanEntity.timestamp = timestamp;
   loanEntity.status = LoanStatus.Active;
   loanEntity.borrower = receipt.borrower;
-  loanEntity.maturity = receipt.maturity.toI32();
-  loanEntity.duration = receipt.duration.toI32();
+  loanEntity.maturity = receipt.maturity;
+  loanEntity.duration = receipt.duration;
 
   if (receipt.collateralToken.toHexString() == poolEntity.collateralToken) {
     loanEntity.collateralToken = receipt.collateralToken.toHexString();

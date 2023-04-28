@@ -17,7 +17,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   /* create pool entity */
   const poolEntity = new PoolEntity(poolId);
   poolEntity.currencyToken = poolContract.currencyToken();
-  poolEntity.maxLoanDuration = poolContract.maxLoanDuration().toI32();
+  poolEntity.maxLoanDuration = poolContract.maxLoanDuration();
   poolEntity.collateralLiquidator = poolContract.collateralLiquidator();
   poolEntity.loansPurchasedCount = BigInt.zero();
   poolEntity.loansRepaidCount = BigInt.zero();
