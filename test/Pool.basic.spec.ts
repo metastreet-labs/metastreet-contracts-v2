@@ -2307,6 +2307,8 @@ describe("Pool Basic", function () {
         .connect(accountLiquidator)
         .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, FixedPoint.from("30"));
 
+      const bonus = FixedPoint.from("30").sub(decodedLoanReceipt.repayment);
+
       /* Validate events */
       await expectEvent(
         onCollateralLiquidatedTx,
@@ -2319,6 +2321,17 @@ describe("Pool Basic", function () {
         },
         1
       );
+      await expectEvent(
+        onCollateralLiquidatedTx,
+        tok1,
+        "Transfer",
+        {
+          from: pool.address,
+          to: decodedLoanReceipt.borrower,
+          value: bonus,
+        },
+        2
+      );
       await expectEvent(onCollateralLiquidatedTx, pool, "CollateralLiquidated", {
         loanReceiptHash,
         proceeds: FixedPoint.from("30"),
@@ -2328,24 +2341,13 @@ describe("Pool Basic", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(4);
 
       /* Validate ticks */
-      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts.slice(0, -1)) {
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts.slice(0, decodedLoanReceipt.nodeReceipts.length)) {
         const node = await pool.liquidityNode(nodeReceipt.tick);
         const value = FixedPoint.from("25").add(nodeReceipt.pending).sub(nodeReceipt.used);
         expect(node.value).to.equal(value);
         expect(node.available).to.equal(value);
         expect(node.pending).to.equal(ethers.constants.Zero);
       }
-      /* Validate upper tick gets remaining proceeds */
-      const nodeReceipt = decodedLoanReceipt.nodeReceipts[decodedLoanReceipt.nodeReceipts.length - 1];
-      const node = await pool.liquidityNode(nodeReceipt.tick);
-      const value = ethers.utils
-        .parseEther("25")
-        .add(nodeReceipt.pending)
-        .sub(nodeReceipt.used)
-        .add(FixedPoint.from("30").sub(decodedLoanReceipt.repayment));
-      expect(node.value).to.equal(value);
-      expect(node.available).to.equal(value);
-      expect(node.pending).to.equal(ethers.constants.Zero);
     });
 
     it("processes liquidated loan for lower proceeds", async function () {

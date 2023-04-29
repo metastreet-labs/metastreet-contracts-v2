@@ -967,8 +967,11 @@ abstract contract Pool is
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
+        /* Compute proceeds less repayment */
+        uint256 bonus = proceeds > loanReceipt.repayment ? proceeds - loanReceipt.repayment : 0;
+
         /* Restore liquidity nodes */
-        uint128 proceedsRemaining = proceeds.toUint128();
+        uint128 proceedsRemaining = (proceeds - bonus).toUint128();
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
             /* Restore node */
             uint128 restored = (i == loanReceipt.nodeReceipts.length - 1)
@@ -987,6 +990,9 @@ abstract contract Pool is
 
         /* Mark loan status collateral liquidated */
         _loans[loanReceiptHash] = LoanStatus.CollateralLiquidated;
+
+        /* Transfer bonus to borrower */
+        if (bonus != 0) IERC20(_currencyToken).transfer(loanReceipt.borrower, bonus);
 
         /* Emit Collateral Liquidated */
         emit CollateralLiquidated(loanReceiptHash, proceeds);
