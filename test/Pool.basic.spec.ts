@@ -1746,6 +1746,71 @@ describe("Pool Basic", function () {
       ).to.equal(false);
     });
 
+    for (const [description, timeElapsed] of [
+      ["one third", (30 * 86400) / 3],
+      ["8 / 9ths", (8 * 30 * 86400) / 9],
+      ["1 second", 1],
+    ]) {
+      it(`repays loan after ${description} of loan duration has elasped`, async function () {
+        const [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
+        const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+        /* Repay */
+        await helpers.time.setNextBlockTimestamp(
+          decodedLoanReceipt.maturity - decodedLoanReceipt.duration + timeElapsed
+        );
+        const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
+
+        /* Calculate proration */
+        const repayTxTimestamp = (await ethers.provider.getBlock((await repayTx.wait()).blockNumber)).timestamp;
+        const proration = FixedPoint.from(
+          repayTxTimestamp - (decodedLoanReceipt.maturity - decodedLoanReceipt.duration)
+        ).div(decodedLoanReceipt.duration);
+
+        /* Calculate prorated repayment amount */
+        const originationFee = decodedLoanReceipt.principal.mul(45).div(10000);
+        const repayment = decodedLoanReceipt.repayment
+          .sub(decodedLoanReceipt.principal)
+          .sub(originationFee)
+          .mul(proration)
+          .div(ethers.constants.WeiPerEther)
+          .add(decodedLoanReceipt.principal)
+          .add(originationFee);
+
+        /* Validate events */
+        await expectEvent(repayTx, tok1, "Transfer", {
+          from: accountBorrower.address,
+          to: pool.address,
+          value: repayment,
+        });
+
+        await expectEvent(repayTx, nft1, "Transfer", {
+          from: pool.address,
+          to: accountBorrower.address,
+          tokenId: 123,
+        });
+
+        await expectEvent(repayTx, pool, "LoanRepaid", {
+          loanReceiptHash,
+          repayment,
+        });
+
+        /* Validate state */
+        expect(await pool.loans(loanReceiptHash)).to.equal(2);
+
+        /* Validate ticks */
+        let totalDelta = ethers.constants.Zero;
+        for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+          const delta = nodeReceipt.pending.sub(nodeReceipt.used).mul(proration).div(ethers.constants.WeiPerEther);
+          const node = await pool.liquidityNode(nodeReceipt.tick);
+          expect(node.value).to.equal(FixedPoint.from("25").add(delta));
+          expect(node.available).to.equal(FixedPoint.from("25").add(delta));
+          expect(node.pending).to.equal(ethers.constants.Zero);
+          totalDelta = totalDelta.add(delta);
+        }
+      });
+    }
+
     it("can repay after expiration and prior to liquidation", async function () {
       const [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
 
