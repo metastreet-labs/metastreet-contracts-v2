@@ -163,11 +163,6 @@ abstract contract Pool is
     IERC20 internal _currencyToken;
 
     /**
-     * @notice Origination fee rate in basis points
-     */
-    uint32 internal _originationFeeRate;
-
-    /**
      * @notice Admin fee rate in basis points
      */
     uint32 internal _adminFeeRate;
@@ -232,12 +227,10 @@ abstract contract Pool is
     /**
      * @notice Pool initializer
      * @param currencyToken_ Currency token contract
-     * @param originationFeeRate_ Origination fee rate in basis points
      * @param collateralLiquidator_ Collateral liquidator contract
      */
     function _initialize(
         address currencyToken_,
-        uint32 originationFeeRate_,
         address collateralLiquidator_,
         uint64[] memory durations_,
         uint64[] memory rates_
@@ -245,7 +238,6 @@ abstract contract Pool is
         if (IERC20Metadata(currencyToken_).decimals() != 18) revert UnsupportedTokenDecimals();
 
         _currencyToken = IERC20(currencyToken_);
-        _originationFeeRate = originationFeeRate_;
         _collateralLiquidator = ICollateralLiquidator(collateralLiquidator_);
 
         if (durations_.length > Tick.MAX_NUM_DURATIONS) revert ParameterOutOfBounds();
@@ -290,13 +282,6 @@ abstract contract Pool is
      */
     function rates() external view returns (uint64[] memory) {
         return _rates;
-    }
-
-    /**
-     * @inheritdoc IPool
-     */
-    function originationFeeRate() external view returns (uint32) {
-        return _originationFeeRate;
     }
 
     /**
@@ -557,7 +542,7 @@ abstract contract Pool is
             principal,
             LiquidityManager.FIXED_POINT_SCALE + (_rate(principal, _rates, nodes, count) * duration),
             LiquidityManager.FIXED_POINT_SCALE
-        ) + Math.mulDiv(principal, _originationFeeRate, BASIS_POINTS_SCALE);
+        );
 
         return (repayment, nodes, count);
     }
@@ -578,17 +563,9 @@ abstract contract Pool is
             LiquidityManager.FIXED_POINT_SCALE
         );
 
-        /* Compute origination fee */
-        uint256 originationFee = Math.mulDiv(loanReceipt.principal, _originationFeeRate, BASIS_POINTS_SCALE);
-
         /* Compute repayment using prorated interest */
         uint256 repayment = loanReceipt.principal +
-            originationFee +
-            Math.mulDiv(
-                loanReceipt.repayment - originationFee - loanReceipt.principal,
-                proration,
-                LiquidityManager.FIXED_POINT_SCALE
-            );
+            Math.mulDiv(loanReceipt.repayment - loanReceipt.principal, proration, LiquidityManager.FIXED_POINT_SCALE);
 
         return (repayment, proration);
     }

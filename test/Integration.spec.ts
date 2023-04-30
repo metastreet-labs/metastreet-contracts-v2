@@ -56,8 +56,7 @@ describe("Integration", function () {
     numberOfDepositors: 3 /* max allowed is 9!! */,
     liquidationProceedsRatio: [0, 50, 100, 300] /* 0%, 50%, 100%, 300% of repayment */,
     isSharesRedeemAmountRandomized: false,
-    adminFeeRate: 45 /* 4.5% */,
-    originationFeeRate: 45 /* 4.5% */,
+    adminFeeRate: 45 /* 0.45% */,
     tickThreshold: FixedPoint.from("0.05"),
     tickExponential: FixedPoint.from("2.0"),
   };
@@ -138,11 +137,10 @@ describe("Integration", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address", "address", "uint32", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+          ["address", "address", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
           [
             nft1.address,
             tok1.address,
-            45,
             CONFIG.tickDurations,
             CONFIG.tickRates,
             [CONFIG.tickThreshold, CONFIG.tickExponential],
@@ -187,12 +185,10 @@ describe("Integration", function () {
     await tok1.connect(accountLiquidator).approve(collateralLiquidator.address, ethers.constants.MaxUint256);
 
     /* Instantiate Pool Model class */
-    poolModel = new PoolModel(
-      ethers.BigNumber.from(CONFIG.adminFeeRate),
-      ethers.BigNumber.from(CONFIG.originationFeeRate),
-      "fixed",
-      [CONFIG.tickThreshold, CONFIG.tickExponential]
-    );
+    poolModel = new PoolModel(ethers.BigNumber.from(CONFIG.adminFeeRate), "fixed", [
+      CONFIG.tickThreshold,
+      CONFIG.tickExponential,
+    ]);
 
     /* Create call sequence */
     callSequence = await generateCallSequence();

@@ -116,11 +116,10 @@ describe("PoolFactory", function () {
     it("creates a pool", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint32", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+        ["address", "address", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
         [
           nft1.address,
           tok1.address,
-          45,
           [7 * 86400, 14 * 86400, 30 * 86400],
           [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
           [FixedPoint.from("0.05"), FixedPoint.from("2.0")],
@@ -148,12 +147,11 @@ describe("PoolFactory", function () {
     it("fails on invalid params", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint64", "uint256"],
+        ["address", "address", "uint64"],
         [
           nft1.address,
           tok1.address,
           30 * 86400,
-          45,
           /* Missing interest rate model params */
         ]
       );
@@ -172,11 +170,10 @@ describe("PoolFactory", function () {
     it("creates a proxied pool", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint32", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+        ["address", "address", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
         [
           nft1.address,
           tok1.address,
-          45,
           [7 * 86400, 14 * 86400, 30 * 86400],
           [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
           [FixedPoint.from("0.05"), FixedPoint.from("2.0")],
@@ -204,12 +201,11 @@ describe("PoolFactory", function () {
     it("fails on invalid params", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint64", "uint256"],
+        ["address", "address", "uint64"],
         [
           nft1.address,
           tok1.address,
           30 * 86400,
-          45,
           /* Missing interest rate model params */
         ]
       );
@@ -224,11 +220,10 @@ describe("PoolFactory", function () {
   /* Helper function to create a pool */
   async function createPool(): Promise<string> {
     const params = ethers.utils.defaultAbiCoder.encode(
-      ["address", "address", "uint32", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+      ["address", "address", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
       [
         nft1.address,
         tok1.address,
-        45,
         [7 * 86400, 14 * 86400, 30 * 86400],
         [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
         [FixedPoint.from("0.05"), FixedPoint.from("2.0")],

@@ -48,14 +48,13 @@ contract WeightedRateCollectionPool is Pool, WeightedInterestRateModel, Collecti
         (
             address collateralToken_,
             address currencyToken_,
-            uint32 originationFeeRate_,
             uint64[] memory durations_,
             uint64[] memory rates_,
             WeightedInterestRateModel.Parameters memory rateParameters
-        ) = abi.decode(params, (address, address, uint32, uint64[], uint64[], WeightedInterestRateModel.Parameters));
+        ) = abi.decode(params, (address, address, uint64[], uint64[], WeightedInterestRateModel.Parameters));
 
         /* Initialize Pool */
-        Pool._initialize(currencyToken_, originationFeeRate_, collateralLiquidator_, durations_, rates_);
+        Pool._initialize(currencyToken_, collateralLiquidator_, durations_, rates_);
 
         /* Initialize Collateral Filter */
         CollectionCollateralFilter._initialize(collateralToken_);

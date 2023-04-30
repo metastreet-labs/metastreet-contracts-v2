@@ -91,11 +91,10 @@ describe("Pool Bundle", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address", "address", "uint32", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+          ["address", "address", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
           [
             nft1.address,
             tok1.address,
-            45,
             [7 * 86400, 14 * 86400, 30 * 86400],
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
             [FixedPoint.from("0.05"), FixedPoint.from("2.0")],
@@ -177,9 +176,6 @@ describe("Pool Bundle", function () {
   describe("getters", async function () {
     it("returns expected currency token", async function () {
       expect(await pool.currencyToken()).to.equal(tok1.address);
-    });
-    it("returns expected origination fee rate", async function () {
-      expect(await pool.originationFeeRate()).to.equal(45);
     });
     it("returns expected admin fee rate", async function () {
       expect(await pool.adminFeeRate()).to.equal(0);
@@ -316,7 +312,7 @@ describe("Pool Bundle", function () {
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("10.127191780812160000"));
+      ).to.equal(FixedPoint.from("10.082191780812160000"));
 
       expect(
         await pool.quote(
@@ -327,7 +323,7 @@ describe("Pool Bundle", function () {
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("25.317979451965600000"));
+      ).to.equal(FixedPoint.from("25.205479451965600000"));
     });
 
     it("fails on insufficient liquidity for bundle", async function () {

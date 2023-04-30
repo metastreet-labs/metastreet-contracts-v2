@@ -83,11 +83,10 @@ async function main() {
   const poolsTicks: Record<string, BigNumber[]> = {};
   for (let i = 0; i < collateralTokens.length; i++) {
     const params = ethers.utils.defaultAbiCoder.encode(
-      ["address", "address", "uint32", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+      ["address", "address", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
       [
         collateralTokens[i],
         wethTokenContract.address,
-        45,
         [7 * 86400, 14 * 86400, 30 * 86400],
         [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
         [FixedPoint.from("0.05"), FixedPoint.from("2.0")],

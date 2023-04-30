@@ -33,16 +33,9 @@ export class PoolModel {
 
   /* Variables to be initialized */
   public _adminFeeRate: ethers.BigNumber;
-  public _originationFeeRate: ethers.BigNumber;
 
-  constructor(
-    _adminFeeRate: ethers.BigNumber,
-    _originationFeeRate: ethers.BigNumber,
-    _interestRateModelType: string,
-    _interestRateModelParams: any
-  ) {
+  constructor(_adminFeeRate: ethers.BigNumber, _interestRateModelType: string, _interestRateModelParams: any) {
     this._adminFeeRate = _adminFeeRate;
-    this._originationFeeRate = _originationFeeRate;
   }
 
   public _prorateRepayment(
@@ -53,12 +46,9 @@ export class PoolModel {
       .sub(loanReceipt.maturity.sub(loanReceipt.duration))
       .mul(this.FIXED_POINT_SCALE)
       .div(loanReceipt.duration);
-    const originationFee = loanReceipt.principal.mul(this._originationFeeRate).div(this.BASIS_POINTS_SCALE);
-    const repayment = loanReceipt.principal
-      .add(originationFee)
-      .add(
-        loanReceipt.repayment.sub(originationFee).sub(loanReceipt.principal).mul(proration).div(this.FIXED_POINT_SCALE)
-      );
+    const repayment = loanReceipt.principal.add(
+      loanReceipt.repayment.sub(loanReceipt.principal).mul(proration).div(this.FIXED_POINT_SCALE)
+    );
     return [repayment, proration];
   }
 

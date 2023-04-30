@@ -84,11 +84,10 @@ describe("Pool Basic", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address", "address", "uint32", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+          ["address", "address", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
           [
             nft1.address,
             tok1.address,
-            45,
             [7 * 86400, 14 * 86400, 30 * 86400],
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
             [FixedPoint.from("0.05"), FixedPoint.from("2.0")],
@@ -164,9 +163,6 @@ describe("Pool Basic", function () {
   describe("getters", async function () {
     it("returns expected currency token", async function () {
       expect(await pool.currencyToken()).to.equal(tok1.address);
-    });
-    it("returns expected origination fee rate", async function () {
-      expect(await pool.originationFeeRate()).to.equal(45);
     });
     it("returns expected admin fee rate", async function () {
       expect(await pool.adminFeeRate()).to.equal(0);
@@ -985,7 +981,7 @@ describe("Pool Basic", function () {
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("10.127191780786240000"));
+      ).to.equal(FixedPoint.from("10.082191780786240000"));
 
       expect(
         await pool.quote(
@@ -996,14 +992,14 @@ describe("Pool Basic", function () {
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("25.317979451965600000"));
+      ).to.equal(FixedPoint.from("25.205479451965600000"));
     });
 
     it("quotes repayment from various duration and rate ticks", async function () {
       let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
 
       expect(await pool.quote(FixedPoint.from("25"), 7 * 86400, nft1.address, [123], ticks, "0x")).to.equal(
-        FixedPoint.from("25.179200775725920000")
+        FixedPoint.from("25.066700775725920000")
       );
     });
 
@@ -1768,14 +1764,11 @@ describe("Pool Basic", function () {
         ).div(decodedLoanReceipt.duration);
 
         /* Calculate prorated repayment amount */
-        const originationFee = decodedLoanReceipt.principal.mul(45).div(10000);
         const repayment = decodedLoanReceipt.repayment
           .sub(decodedLoanReceipt.principal)
-          .sub(originationFee)
           .mul(proration)
           .div(ethers.constants.WeiPerEther)
-          .add(decodedLoanReceipt.principal)
-          .add(originationFee);
+          .add(decodedLoanReceipt.principal);
 
         /* Validate events */
         await expectEvent(repayTx, tok1, "Transfer", {
