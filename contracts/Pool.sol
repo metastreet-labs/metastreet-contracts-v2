@@ -950,9 +950,7 @@ abstract contract Pool is
         uint128 proceedsRemaining = (proceeds - surplus).toUint128();
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
             /* Restore node */
-            uint128 restored = (i == loanReceipt.nodeReceipts.length - 1)
-                ? proceedsRemaining
-                : uint128(Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining));
+            uint128 restored = uint128(Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining));
             _liquidity.restore(
                 loanReceipt.nodeReceipts[i].tick,
                 loanReceipt.nodeReceipts[i].used,
