@@ -79,11 +79,16 @@ contract WeightedInterestRateModel is InterestRateModel {
         uint16 count
     ) internal pure override returns (uint256) {
         uint256 weightedRate;
+
+        /* Accumulate weighted rate */
         for (uint256 i; i < count; i++) {
             (, , uint256 rateIndex, ) = Tick.decode(nodes[i].tick);
             weightedRate += Math.mulDiv(nodes[i].used, rates[rateIndex], FIXED_POINT_SCALE);
         }
+
+        /* Normalize weighted rate */
         weightedRate = Math.mulDiv(weightedRate, FIXED_POINT_SCALE, amount);
+
         return weightedRate;
     }
 
@@ -103,12 +108,10 @@ contract WeightedInterestRateModel is InterestRateModel {
         uint256 base = _params.tickExponential;
         uint256 weight = Math.mulDiv(FIXED_POINT_SCALE, FIXED_POINT_SCALE, base);
 
-        /* Interest normalization */
-        uint256 normalization;
-
         /* Assign weighted interest to ticks backwards */
         uint128[] memory pending = new uint128[](count);
-        for (uint256 i = 0; i < count; i++) {
+        uint256 normalization;
+        for (uint256 i; i < count; i++) {
             uint256 index = count - i - 1;
 
             /* Skip tick if it's below threshold */
@@ -120,23 +123,23 @@ contract WeightedInterestRateModel is InterestRateModel {
             /* Assign weighted interest */
             pending[index] = uint128(Math.mulDiv(scaledWeight, interest, FIXED_POINT_SCALE));
 
-            /* Accumulate scaled interest weight for later normalization */
+            /* Accumulate scaled weight for later normalization */
             normalization += scaledWeight;
 
             /* Adjust interest weight for next tick */
             weight = Math.mulDiv(weight, FIXED_POINT_SCALE, base);
         }
 
-        /* Normalize assigned interest */
-        for (uint256 i = 0; i < count; i++) {
+        /* Normalize weighted interest */
+        for (uint256 i; i < count; i++) {
             /* Calculate normalized interest to tick */
             pending[i] = uint128(Math.mulDiv(pending[i], FIXED_POINT_SCALE, normalization));
 
-            /* Subtract from total interest */
+            /* Track remaining interest */
             interest -= pending[i];
         }
 
-        /* Drop off dust at lowest tick */
+        /* Drop off remaining dust at lowest tick */
         pending[0] += uint128(interest);
 
         return pending;
