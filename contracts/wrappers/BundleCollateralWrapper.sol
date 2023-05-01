@@ -149,7 +149,7 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder, Re
 
         /* For each ERC-721 asset, add to encoded bundle and transfer to this contract */
         for (uint256 i = 0; i < tokenIds.length; i++) {
-            encodedBundle = bytes.concat(encodedBundle, abi.encodePacked(tokenIds[i]));
+            encodedBundle = abi.encodePacked(encodedBundle, tokenIds[i]);
             IERC721(token).transferFrom(msg.sender, address(this), tokenIds[i]);
         }
 
