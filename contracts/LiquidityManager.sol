@@ -202,20 +202,26 @@ library LiquidityManager {
         uint128 totalRedeemedAmount = 0;
 
         for (; processedShares < target + pending; index++) {
+            /* Look up the next fulfilled redemption */
             FulfilledRedemption storage redemption = node.redemptions.fulfilled[index];
             if (index == node.redemptions.index) {
-                /* Reached pending redemption */
+                /* Reached pending unfulfilled redemption */
                 break;
             }
 
             processedShares += redemption.shares;
             if (processedShares < target) {
+                /* Have not reached the redemption queue position yet */
                 continue;
             } else {
+                /* Compute number of shares to redeem in range of this
+                 * redemption batch */
                 uint128 shares = (((processedShares > target + pending) ? pending : (processedShares - target))) -
                     totalRedeemedShares;
+                /* Compute price of shares in this redemption batch */
                 uint256 price = Math.mulDiv(redemption.amount, FIXED_POINT_SCALE, redemption.shares);
 
+                /* Accumulate redeemed shares and corresponding amount */
                 totalRedeemedShares += shares;
                 totalRedeemedAmount += Math.mulDiv(shares, price, FIXED_POINT_SCALE).toUint128();
             }
@@ -351,6 +357,7 @@ library LiquidityManager {
         /* If node is inactive */
         if (_isInactive(node)) revert InactiveLiquidity();
 
+        /* Compute deposit price as current value + 50% of pending returns */
         uint256 price = node.shares == 0
             ? FIXED_POINT_SCALE
             : Math.mulDiv(
@@ -411,6 +418,7 @@ library LiquidityManager {
         /* Garbage collect node if it is now insolvent */
         _garbageCollect(liquidity, node);
 
+        /* Process any pending redemptions */
         processRedemptions(liquidity, tick);
     }
 
@@ -552,6 +560,7 @@ library LiquidityManager {
             prevLimit = limit;
         }
 
+        /* If unable to source required liquidity amount from provided ticks */
         if (taken < amount) revert InsufficientLiquidity();
 
         return (sources, uint16(count));
