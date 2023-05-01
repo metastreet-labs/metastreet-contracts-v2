@@ -907,6 +907,36 @@ describe("Pool Gas", function () {
     });
   });
 
+  describe("#bundle mint", async function () {
+    it("mint (bundle of 10)", async function () {
+      const mintTx = await bundleCollateralWrapper
+        .connect(accountBorrower)
+        .mint(nft1.address, [123, 124, 125, 126, 127, 128, 129, 130, 131, 132]);
+
+      const gasUsed = (await mintTx.wait()).gasUsed;
+      gasReport.push([`bundle mint (bundle of 10)`, gasUsed]);
+
+      expect(gasUsed).to.be.lt(250000);
+    });
+  });
+
+  describe("#bundle unwrap", async function () {
+    it("unwrap (bundle of 10)", async function () {
+      const mintTx = await bundleCollateralWrapper
+        .connect(accountBorrower)
+        .mint(nft1.address, [123, 124, 125, 126, 127, 128, 129, 130, 131, 132]);
+      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+      const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
+
+      const unwrapTx = await bundleCollateralWrapper.connect(accountBorrower).unwrap(bundleTokenId, bundleData);
+
+      const gasUsed = (await unwrapTx.wait()).gasUsed;
+      gasReport.push([`bundle unwrap (bundle of 10)`, gasUsed]);
+
+      expect(gasUsed).to.be.lt(170000);
+    });
+  });
+
   /****************************************************************************/
   /* Gas Reporting */
   /****************************************************************************/
