@@ -102,7 +102,7 @@ library LoanReceipt {
           32  uint256 collateralTokenId       121:153
           2   uint16  collateralContextLength 153:155
 
-      Borrow Options Byte Array (M bytes)     155:---
+      Collateral Context Data (M bytes)       155:---
 
       Node Receipts (48 * N bytes)
           N   NodeReceipts[] nodeReceipts
@@ -170,9 +170,11 @@ library LoanReceipt {
 
         uint16 collateralContextLength = uint16(bytes2(encodedReceipt[153:155]));
 
+        /* Validate length with collateral context */
         if (encodedReceipt.length < LOAN_RECEIPT_V1_HEADER_SIZE + collateralContextLength)
             revert InvalidReceiptEncoding();
 
+        /* Validate length with node receipts */
         if (
             (encodedReceipt.length - LOAN_RECEIPT_V1_HEADER_SIZE - collateralContextLength) %
                 LOAN_RECEIPT_V1_NODE_RECEIPT_SIZE !=
