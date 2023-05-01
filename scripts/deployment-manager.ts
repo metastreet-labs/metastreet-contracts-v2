@@ -240,8 +240,11 @@ async function collateralLiquidatorDeploy(deployment: Deployment, contractName: 
   const upgradeableBeaconFactory = await ethers.getContractFactory("UpgradeableBeacon", signer);
   const beaconProxyFactory = await ethers.getContractFactory("BeaconProxy", signer);
 
+  /* FIXME hack to handle arrays */
+  const parsedArgs = args.map((arg) => (arg.startsWith("[") && arg.endsWith("]") ? arg.slice(1, -1).split(",") : arg));
+
   /* Deploy implementation contract */
-  const collateralLiquidatorImpl = await collateralLiquidatorFactory.deploy(...args);
+  const collateralLiquidatorImpl = await collateralLiquidatorFactory.deploy();
   await collateralLiquidatorImpl.deployed();
   console.log(`Collateral Liquidator Implementation: ${collateralLiquidatorImpl.address}`);
 
@@ -253,7 +256,7 @@ async function collateralLiquidatorDeploy(deployment: Deployment, contractName: 
   /* Deploy beacon proxy */
   const beaconProxy = await beaconProxyFactory.deploy(
     upgradeableBeacon.address,
-    collateralLiquidatorImpl.interface.encodeFunctionData("initialize")
+    collateralLiquidatorImpl.interface.encodeFunctionData("initialize", parsedArgs)
   );
   await beaconProxy.deployed();
   console.log(`Collateral Liquidator Proxy:          ${beaconProxy.address}`);
