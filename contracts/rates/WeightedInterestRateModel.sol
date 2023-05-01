@@ -114,13 +114,10 @@ contract WeightedInterestRateModel is InterestRateModel {
             /* Skip tick if it's below threshold */
             if (nodes[index].used <= threshold) continue;
 
-            /* Calculate contribution of this tick to total amount */
-            uint256 contribution = Math.mulDiv(nodes[index].used, FIXED_POINT_SCALE, amount);
+            /* Compute scaled weight */
+            uint256 scaledWeight = Math.mulDiv(weight, nodes[index].used, amount);
 
-            /* Calculate interest weight scaled by contribution */
-            uint256 scaledWeight = Math.mulDiv(weight, contribution, FIXED_POINT_SCALE);
-
-            /* Calculate unnormalized interest to tick */
+            /* Assign weighted interest */
             pending[index] = uint128(Math.mulDiv(scaledWeight, interest, FIXED_POINT_SCALE));
 
             /* Accumulate scaled interest weight for later normalization */

@@ -218,9 +218,9 @@ describe("WeightedInterestRateModel", function () {
       );
       expect(pending.length).to.equal(4);
       expect(pending[0]).to.equal(FixedPoint.from("0.079999999999999999"));
-      expect(pending[1]).to.equal(FixedPoint.from("0.479999999999999999"));
-      expect(pending[2]).to.equal(FixedPoint.from("0.900000000000000003"));
-      expect(pending[3]).to.equal(FixedPoint.from("0.539999999999999999"));
+      expect(pending[1]).to.equal(FixedPoint.from("0.480000000000000000"));
+      expect(pending[2]).to.equal(FixedPoint.from("0.900000000000000001"));
+      expect(pending[3]).to.equal(FixedPoint.from("0.540000000000000000"));
     });
     it("distributes interest to five nodes with one dust node", async function () {
       const pending = await interestRateModel2.distribute(
@@ -231,10 +231,10 @@ describe("WeightedInterestRateModel", function () {
       );
       expect(pending.length).to.equal(5);
       expect(pending[0]).to.equal(FixedPoint.from("0.079999999999999999"));
-      expect(pending[1]).to.equal(FixedPoint.from("0.479999999999999999"));
-      expect(pending[2]).to.equal(FixedPoint.from("0.900000000000000003"));
+      expect(pending[1]).to.equal(FixedPoint.from("0.480000000000000000"));
+      expect(pending[2]).to.equal(FixedPoint.from("0.900000000000000001"));
       expect(pending[3]).to.equal(ethers.constants.Zero);
-      expect(pending[4]).to.equal(FixedPoint.from("0.539999999999999999"));
+      expect(pending[4]).to.equal(FixedPoint.from("0.540000000000000000"));
     });
   });
 });
