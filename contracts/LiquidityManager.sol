@@ -486,9 +486,9 @@ library LiquidityManager {
 
             /* Redeem as many shares as possible and pending from available cash */
             uint256 price = Math.mulDiv(node.value, FIXED_POINT_SCALE, node.shares);
-            uint128 shares = Math
-                .min(Math.mulDiv(node.available, FIXED_POINT_SCALE, price), node.redemptions.pending)
-                .toUint128();
+            uint128 shares = uint128(
+                Math.min(Math.mulDiv(node.available, FIXED_POINT_SCALE, price), node.redemptions.pending)
+            );
             uint128 amount = Math.mulDiv(shares, price, FIXED_POINT_SCALE).toUint128();
 
             /* If there's insufficient cash to redeem non-zero pending shares
