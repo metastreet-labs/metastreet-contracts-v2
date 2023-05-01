@@ -491,6 +491,10 @@ library LiquidityManager {
                 .toUint128();
             uint128 amount = Math.mulDiv(shares, price, FIXED_POINT_SCALE).toUint128();
 
+            /* If there's insufficient cash to redeem non-zero pending shares
+             * at current price */
+            if (shares == 0) return (0, 0);
+
             /* Record fullfiled redemption */
             node.redemptions.fulfilled[node.redemptions.index] = FulfilledRedemption({shares: shares, amount: amount});
 

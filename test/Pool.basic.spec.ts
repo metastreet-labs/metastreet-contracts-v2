@@ -534,6 +534,42 @@ describe("Pool Basic", function () {
       expect(shares.sub(FixedPoint.from("3")).abs()).to.be.lt(FixedPoint.from("0.1"));
       expect(amount.sub(FixedPoint.from("3")).abs()).to.be.lt(FixedPoint.from("0.1"));
     });
+
+    it("returns zero redemption available from dust cash", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
+
+      /* Create loan */
+      const [loanReceipt] = await createActiveLoan(FixedPoint.from("10"));
+
+      /* Redeem 10 shares */
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("10"));
+
+      /* No redemption available */
+      let [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"));
+      expect(shares).to.equal(ethers.constants.Zero);
+      expect(amount).to.equal(ethers.constants.Zero);
+
+      /* Deposit from depositor #2, causing a partial redemption of depositor #1 */
+      await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("0.1"));
+
+      /* Validate partial redemption available for depositor #1 */
+      [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"));
+      expect(shares).to.be.gt(ethers.constants.Zero);
+      expect(amount).to.be.gt(ethers.constants.Zero);
+
+      /* Validate tick has rounding dust in cash available */
+      const node = await pool.liquidityNode(Tick.encode("10"));
+      expect(node.available).to.equal(1);
+
+      /* Redeem from depostior #2 */
+      await pool.connect(accountDepositors[1]).redeem(Tick.encode("10"), FixedPoint.from("0.05"));
+
+      /* Validate zero redemption available for depositor #2, despite the dust cash available */
+      [shares, amount] = await pool.redemptionAvailable(accountDepositors[1].address, Tick.encode("10"));
+      expect(shares).to.equal(ethers.constants.Zero);
+      expect(amount).to.equal(ethers.constants.Zero);
+    });
   });
 
   describe("#withdraw", async function () {
