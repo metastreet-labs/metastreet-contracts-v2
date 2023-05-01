@@ -132,7 +132,7 @@ library LoanReceipt {
      */
     function encode(LoanReceiptV1 memory receipt) internal pure returns (bytes memory) {
         /* Encode header */
-        bytes memory encodedReceipt = abi.encodePacked(
+        bytes memory header = abi.encodePacked(
             receipt.version,
             receipt.principal,
             receipt.repayment,
@@ -146,18 +146,17 @@ library LoanReceipt {
         );
 
         /* Encode node receipts */
+        bytes memory nodeReceipts;
         for (uint256 i; i < receipt.nodeReceipts.length; i++) {
-            encodedReceipt = bytes.concat(
-                encodedReceipt,
-                abi.encodePacked(
-                    receipt.nodeReceipts[i].tick,
-                    receipt.nodeReceipts[i].used,
-                    receipt.nodeReceipts[i].pending
-                )
+            nodeReceipts = abi.encodePacked(
+                nodeReceipts,
+                receipt.nodeReceipts[i].tick,
+                receipt.nodeReceipts[i].used,
+                receipt.nodeReceipts[i].pending
             );
         }
 
-        return encodedReceipt;
+        return abi.encodePacked(header, nodeReceipts);
     }
 
     /**
