@@ -499,7 +499,7 @@ describe("Integration", function () {
       consoleLog(`${depositor.address}: Deposited ${amount} at tick ${tick}`);
     } catch (e) {
       consoleLog(`deposit() failed: ${e}`);
-      throw new Error();
+      throw e;
     }
   }
 
@@ -584,7 +584,7 @@ describe("Integration", function () {
       consoleLog(`Borrowed ${principal} for ${duration} seconds`);
     } catch (e) {
       consoleLog(`borrow() failed: ${e}`);
-      throw new Error();
+      throw e;
     }
   }
 
@@ -654,7 +654,7 @@ describe("Integration", function () {
       );
     } catch (e) {
       consoleLog(`repay() failed: ${e}`);
-      throw new Error();
+      throw e;
     }
   }
 
@@ -761,7 +761,7 @@ describe("Integration", function () {
       );
     } catch (e) {
       consoleLog(`refinance() failed: ${e}`);
-      throw new Error();
+      throw e;
     }
   }
 
@@ -812,7 +812,7 @@ describe("Integration", function () {
       consoleLog(`${depositor.address}: Redeemed ${sharesRedeemAmount} shares at tick ${tick}`);
     } catch (e) {
       consoleLog(`redeem() failed: ${e}`);
-      throw new Error();
+      throw e;
     }
   }
 
@@ -873,7 +873,7 @@ describe("Integration", function () {
       consoleLog(`${depositor.address}: Withdrew ${_shares} shares and ${amount} tokens at tick ${tick}`);
     } catch (e) {
       consoleLog(`withdraw() failed: ${e}`);
-      throw new Error();
+      throw e;
     }
   }
 
@@ -926,7 +926,7 @@ describe("Integration", function () {
       );
     } catch (e) {
       consoleLog(`liquidate() failed: ${e}`);
-      throw new Error();
+      throw e;
     }
   }
 
@@ -990,7 +990,7 @@ describe("Integration", function () {
       consoleLog(`Restored liquidation proceeds of ${proceeds}`);
     } catch (e) {
       consoleLog(`onCollateralLiquidated() failed: ${e}`);
-      throw new Error();
+      throw e;
     }
   }
 
