@@ -533,87 +533,86 @@ describe("Pool Gas", function () {
       await setupLiquidity(pool);
     });
 
-    it("refinance (single, 16 ticks)", async function () {
-      const borrowTx = await pool
-        .connect(accountBorrower)
-        .borrow(
-          FixedPoint.from("25"),
-          30 * 86400,
-          nft1.address,
-          123,
-          FixedPoint.from("26"),
-          await sourceLiquidity(pool, FixedPoint.from("25")),
-          "0x"
-        );
+    for (const [principal, numTicks, maxGas] of [
+      [FixedPoint.from("15"), 10, 360000],
+      [FixedPoint.from("25"), 16, 480000],
+    ]) {
+      it(`refinance (single, ${numTicks} ticks)`, async function () {
+        /* Source liquidity */
+        const ticks = await sourceLiquidity(pool, principal);
+        expect(ticks.length).to.equal(numTicks);
 
-      /* Validate 16 nodes were used */
-      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-      const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
-      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
+        const borrowTx = await pool
+          .connect(accountBorrower)
+          .borrow(principal, 30 * 86400, nft1.address, 123, principal.add(FixedPoint.from("1")), ticks, "0x");
 
-      await helpers.time.increase(15 * 86400);
+        /* Validate correct number of nodes were used */
+        const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+        const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
+        expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
 
-      const refinanceTx = await pool
-        .connect(accountBorrower)
-        .refinance(
-          loanReceipt,
-          decodedLoanReceipt.principal,
-          30 * 86400,
-          FixedPoint.from("26"),
-          await sourceLiquidity(pool, FixedPoint.from("25"))
-        );
+        await helpers.time.increase(15 * 86400);
 
-      const gasUsed = (await refinanceTx.wait()).gasUsed;
-      gasReport.push([this.test.title, gasUsed]);
+        const refinanceTx = await pool
+          .connect(accountBorrower)
+          .refinance(loanReceipt, principal, 30 * 86400, principal.add(FixedPoint.from("1")), ticks);
 
-      expect(gasUsed).to.be.lt(492000);
-    });
-    it("refinance (bundle of 10, 16 ticks)", async function () {
-      /* Mint bundle of 10 */
-      const mintTx = await bundleCollateralWrapper
-        .connect(accountBorrower)
-        .mint(nft1.address, [123, 124, 125, 126, 127, 128, 129, 130, 131, 132]);
-      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
-      const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
+        const gasUsed = (await refinanceTx.wait()).gasUsed;
+        gasReport.push([this.test.title, gasUsed]);
 
-      /* Borrow */
-      const borrowTx = await pool
-        .connect(accountBorrower)
-        .borrow(
-          FixedPoint.from("250"),
-          30 * 86400,
-          bundleCollateralWrapper.address,
-          bundleTokenId,
-          FixedPoint.from("260"),
-          await sourceLiquidity(pool, FixedPoint.from("250"), 10),
-          ethers.utils.solidityPack(
-            ["uint16", "uint16", "bytes"],
-            [1, ethers.utils.hexDataLength(bundleData), bundleData]
-          )
-        );
+        expect(gasUsed).to.be.lt(maxGas);
+      });
+    }
 
-      /* Validate 16 nodes were used */
-      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-      const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
-      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
+    for (const [principal, numTicks, maxGas] of [
+      [FixedPoint.from("150"), 10, 385000],
+      [FixedPoint.from("250"), 16, 505000],
+    ]) {
+      it(`refinance (bundle of 10, ${numTicks} ticks)`, async function () {
+        /* Mint bundle of 10 */
+        const mintTx = await bundleCollateralWrapper
+          .connect(accountBorrower)
+          .mint(nft1.address, [123, 124, 125, 126, 127, 128, 129, 130, 131, 132]);
+        const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+        const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
-      await helpers.time.increase(15 * 86400);
+        /* Source liquidity */
+        const ticks = await sourceLiquidity(pool, principal, 10);
+        expect(ticks.length).to.equal(numTicks);
 
-      const refinanceTx = await pool
-        .connect(accountBorrower)
-        .refinance(
-          loanReceipt,
-          decodedLoanReceipt.principal,
-          30 * 86400,
-          FixedPoint.from("260"),
-          await sourceLiquidity(pool, FixedPoint.from("250"), 10)
-        );
+        /* Borrow */
+        const borrowTx = await pool
+          .connect(accountBorrower)
+          .borrow(
+            principal,
+            30 * 86400,
+            bundleCollateralWrapper.address,
+            bundleTokenId,
+            principal.add(FixedPoint.from("10")),
+            ticks,
+            ethers.utils.solidityPack(
+              ["uint16", "uint16", "bytes"],
+              [1, ethers.utils.hexDataLength(bundleData), bundleData]
+            )
+          );
 
-      const gasUsed = (await refinanceTx.wait()).gasUsed;
-      gasReport.push([this.test.title, gasUsed]);
+        /* Validate correct number of nodes were used */
+        const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+        const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
+        expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
 
-      expect(gasUsed).to.be.lt(517000);
-    });
+        await helpers.time.increase(15 * 86400);
+
+        const refinanceTx = await pool
+          .connect(accountBorrower)
+          .refinance(loanReceipt, principal, 30 * 86400, principal.add(FixedPoint.from("10")), ticks);
+
+        const gasUsed = (await refinanceTx.wait()).gasUsed;
+        gasReport.push([this.test.title, gasUsed]);
+
+        expect(gasUsed).to.be.lt(maxGas);
+      });
+    }
   });
 
   describe("#liquidate", async function () {
