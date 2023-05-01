@@ -9,8 +9,8 @@ library Tick {
      * A tick encodes three conditions on liquidity: limit, duration, and rate.
      * Limit is the maximum depth that liquidity sourced from the node can be
      * used in. Duration is the maximum allowed duration for that liquidity.
-     * Rate is the interest rate tier associated with that liquidity. Duration
-     * and rates are encoded as indexes into predetermined, discrete tiers.
+     * Rate is the interest rate associated with that liquidity. Duration and
+     * rates are encoded as indexes into predetermined, discrete tiers.
      *
      * +-----------------------------------------------------------------------+
      * |                                 128                                   |
@@ -125,7 +125,7 @@ library Tick {
     }
 
     /**
-     * @dev Validate a Tick (exhaustive)
+     * @dev Validate a Tick (slow)
      * @param tick Tick
      * @param minLimit Minimum Limit (exclusive)
      * @param minDurationIndex Minimum Duration Index (inclusive)
