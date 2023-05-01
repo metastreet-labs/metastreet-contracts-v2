@@ -692,13 +692,13 @@ abstract contract Pool is
                 loanReceipt.nodeReceipts[i].used,
                 loanReceipt.nodeReceipts[i].pending,
                 loanReceipt.nodeReceipts[i].used +
-                    Math
-                        .mulDiv(
+                    uint128(
+                        Math.mulDiv(
                             loanReceipt.nodeReceipts[i].pending - loanReceipt.nodeReceipts[i].used,
                             proration,
                             LiquidityManager.FIXED_POINT_SCALE
                         )
-                        .toUint128()
+                    )
             );
 
             /* Accumulate pending */
