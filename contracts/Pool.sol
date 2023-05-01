@@ -661,13 +661,12 @@ abstract contract Pool is
     /**
      * @dev Helper function to handle repay accounting
      * @param encodedLoanReceipt Encoded loan receipt
-     * @return LoanReceipt Decoded loan receipt
-     * @return LoanReceiptHash Loan receipt hash
-     * @return Repayment Amount in currency tokens
+     * @return Repayment amount in currency tokens, decoded loan receipt, loan
+     * receipt hash
      */
     function _repay(
         bytes calldata encodedLoanReceipt
-    ) internal returns (LoanReceipt.LoanReceiptV1 memory, bytes32, uint256) {
+    ) internal returns (uint256, LoanReceipt.LoanReceiptV1 memory, bytes32) {
         /* Compute loan receipt hash */
         bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
 
@@ -715,7 +714,7 @@ abstract contract Pool is
         /* Mark loan status repaid */
         _loans[loanReceiptHash] = LoanStatus.Repaid;
 
-        return (loanReceipt, loanReceiptHash, repayment);
+        return (repayment, loanReceipt, loanReceiptHash);
     }
 
     /**************************************************************************/
@@ -818,7 +817,7 @@ abstract contract Pool is
      */
     function repay(bytes calldata encodedLoanReceipt) external nonReentrant returns (uint256) {
         /* Handle repay accounting */
-        (LoanReceipt.LoanReceiptV1 memory loanReceipt, bytes32 loanReceiptHash, uint256 repayment) = _repay(
+        (uint256 repayment, LoanReceipt.LoanReceiptV1 memory loanReceipt, bytes32 loanReceiptHash) = _repay(
             encodedLoanReceipt
         );
 
@@ -853,7 +852,7 @@ abstract contract Pool is
         uint128[] calldata ticks
     ) external nonReentrant returns (uint256) {
         /* Handle repay accounting */
-        (LoanReceipt.LoanReceiptV1 memory loanReceipt, bytes32 loanReceiptHash, uint256 repayment) = _repay(
+        (uint256 repayment, LoanReceipt.LoanReceiptV1 memory loanReceipt, bytes32 loanReceiptHash) = _repay(
             encodedLoanReceipt
         );
 
