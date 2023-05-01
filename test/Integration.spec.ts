@@ -45,7 +45,7 @@ describe("Integration", function () {
   /* Test Config */
   const CONFIG = {
     functionCalls: [deposit, borrow, repay, refinance, redeem, withdraw, liquidate, onCollateralLiquidated],
-    maxFunctionCalls: 2000,
+    maxFunctionCalls: 1000,
     principals: [1, 2] /* min: 1 ethers, max: 2 ethers */,
     ticks: ["1", "2"] /* min and max needs to be within the bounds of principals */,
     borrowDurations: [1, 30 * 86400] /* min: 1 second, max: 30 days */,
