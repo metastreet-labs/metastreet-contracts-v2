@@ -71,7 +71,7 @@ npm run node
   - [`TestTick.sol`](contracts/test/TestTick.sol) - Test Wrapper for Tick library
   - [`TestLoanReceipt.sol`](contracts/test/TestLoanReceipt.sol) - Test Wrapper for Loan Receipt library
   - [`TestLiquidityManager.sol`](contracts/test/TestLiquidityManager.sol) - Test Wrapper for Liquidity Manager library
-  - [`TestCollateralLiquidatorJig.sol`](contracts/test/TestCollateralLiquidatorJig.sol) - Test Wrapper for Collateral Liquidators
+  - [`TestCollateralLiquidatorJig.sol`](contracts/test/TestCollateralLiquidatorJig.sol) - Test Jig for Collateral Liquidators
   - [`TestProxy.sol`](contracts/test/TestProxy.sol) - Test Proxy
 - [`scripts/`](scripts/) - Scripts
   - [`deploy-simulation.ts`](scripts/deploy-simulation.ts) - Simulation deployment
