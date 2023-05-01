@@ -231,7 +231,7 @@ describe("Pool Gas", function () {
       const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
 
       const gasUsed = (await depositTx.wait()).gasUsed;
-      gasReport.push(["deposit (new tick)", gasUsed]);
+      gasReport.push([this.test.title, gasUsed]);
 
       expect(gasUsed).to.be.lt(260000);
     });
@@ -240,7 +240,7 @@ describe("Pool Gas", function () {
       const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
 
       const gasUsed = (await depositTx.wait()).gasUsed;
-      gasReport.push(["deposit (existing tick)", gasUsed]);
+      gasReport.push([this.test.title, gasUsed]);
 
       expect(gasUsed).to.be.lt(105000);
     });
@@ -249,7 +249,7 @@ describe("Pool Gas", function () {
       const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
 
       const gasUsed = (await depositTx.wait()).gasUsed;
-      gasReport.push(["deposit (existing deposit)", gasUsed]);
+      gasReport.push([this.test.title, gasUsed]);
 
       expect(gasUsed).to.be.lt(85000);
     });
@@ -262,7 +262,7 @@ describe("Pool Gas", function () {
       const redeemTx = await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("0.5"));
 
       const gasUsed = (await redeemTx.wait()).gasUsed;
-      gasReport.push(["redeem (partial)", gasUsed]);
+      gasReport.push([this.test.title, gasUsed]);
 
       expect(gasUsed).to.be.lt(110000);
     });
@@ -272,7 +272,7 @@ describe("Pool Gas", function () {
       const redeemTx = await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1.0"));
 
       const gasUsed = (await redeemTx.wait()).gasUsed;
-      gasReport.push(["redeem (entire)", gasUsed]);
+      gasReport.push([this.test.title, gasUsed]);
 
       expect(gasUsed).to.be.lt(110000);
     });
@@ -286,7 +286,7 @@ describe("Pool Gas", function () {
       const withdrawTx = await pool.connect(accountDepositors[0]).withdraw(Tick.encode("10"));
 
       const gasUsed = (await withdrawTx.wait()).gasUsed;
-      gasReport.push(["withdraw", gasUsed]);
+      gasReport.push([this.test.title, gasUsed]);
 
       expect(gasUsed).to.be.lt(60000);
     });
@@ -321,7 +321,7 @@ describe("Pool Gas", function () {
         expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
 
         const gasUsed = (await borrowTx.wait()).gasUsed;
-        gasReport.push([`borrow (single, ${numTicks} ticks)`, gasUsed]);
+        gasReport.push([this.test.title, gasUsed]);
 
         expect(gasUsed).to.be.lt(maxGas);
       });
@@ -345,7 +345,7 @@ describe("Pool Gas", function () {
         expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
 
         const gasUsed = (await borrowTx.wait()).gasUsed;
-        gasReport.push([`borrow (single, existing, ${numTicks} ticks)`, gasUsed]);
+        gasReport.push([this.test.title, gasUsed]);
 
         expect(gasUsed).to.be.lt(maxGas - 15000);
       });
@@ -389,7 +389,7 @@ describe("Pool Gas", function () {
         expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
 
         const gasUsed = (await borrowTx.wait()).gasUsed;
-        gasReport.push([`borrow (bundle of 10, ${numTicks} ticks)`, gasUsed]);
+        gasReport.push([this.test.title, gasUsed]);
 
         expect(gasUsed).to.be.lt(maxGas);
       });
@@ -437,7 +437,7 @@ describe("Pool Gas", function () {
         expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
 
         const gasUsed = (await borrowTx.wait()).gasUsed;
-        gasReport.push([`borrow (bundle of 10, existing, ${numTicks} ticks)`, gasUsed]);
+        gasReport.push([this.test.title, gasUsed]);
 
         expect(gasUsed).to.be.lt(maxGas - 15000);
       });
@@ -473,7 +473,7 @@ describe("Pool Gas", function () {
         const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
         const gasUsed = (await repayTx.wait()).gasUsed;
-        gasReport.push([`repay (single, ${numTicks} ticks)`, gasUsed]);
+        gasReport.push([this.test.title, gasUsed]);
 
         expect(gasUsed).to.be.lt(maxGas);
       });
@@ -483,7 +483,7 @@ describe("Pool Gas", function () {
       [FixedPoint.from("150"), 10, 295000],
       [FixedPoint.from("250"), 16, 385000],
     ]) {
-      it("repay (bundle of 10)", async function () {
+      it(`repay (bundle of 10, ${numTicks} ticks)`, async function () {
         /* Mint bundle of 10 */
         const mintTx = await bundleCollateralWrapper
           .connect(accountBorrower)
@@ -521,7 +521,7 @@ describe("Pool Gas", function () {
         const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
         const gasUsed = (await repayTx.wait()).gasUsed;
-        gasReport.push([`repay (bundle of 10, ${numTicks} ticks)`, gasUsed]);
+        gasReport.push([this.test.title, gasUsed]);
 
         expect(gasUsed).to.be.lt(maxGas);
       });
@@ -533,7 +533,7 @@ describe("Pool Gas", function () {
       await setupLiquidity(pool);
     });
 
-    it("refinance (single)", async function () {
+    it("refinance (single, 16 ticks)", async function () {
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
@@ -564,11 +564,11 @@ describe("Pool Gas", function () {
         );
 
       const gasUsed = (await refinanceTx.wait()).gasUsed;
-      gasReport.push(["refinance (single, 16 ticks)", gasUsed]);
+      gasReport.push([this.test.title, gasUsed]);
 
       expect(gasUsed).to.be.lt(485000);
     });
-    it("refinance (bundle of 10)", async function () {
+    it("refinance (bundle of 10, 16 ticks)", async function () {
       /* Mint bundle of 10 */
       const mintTx = await bundleCollateralWrapper
         .connect(accountBorrower)
@@ -610,7 +610,7 @@ describe("Pool Gas", function () {
         );
 
       const gasUsed = (await refinanceTx.wait()).gasUsed;
-      gasReport.push(["refinance (bundle of 10, 16 ticks)", gasUsed]);
+      gasReport.push([this.test.title, gasUsed]);
 
       expect(gasUsed).to.be.lt(520000);
     });
@@ -621,7 +621,7 @@ describe("Pool Gas", function () {
       await setupLiquidity(pool);
     });
 
-    it("liquidate (single, external)", async function () {
+    it("liquidate (single, external, 16 ticks)", async function () {
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
@@ -644,12 +644,12 @@ describe("Pool Gas", function () {
       const liquidateTx = await pool.liquidate(loanReceipt);
 
       const gasUsed = (await liquidateTx.wait()).gasUsed;
-      gasReport.push([`liquidate (single, external)`, gasUsed]);
+      gasReport.push([this.test.title, gasUsed]);
 
       expect(gasUsed).to.be.lt(180000);
     });
 
-    it("liquidate (bundle of 10, external)", async function () {
+    it("liquidate (bundle of 10, external, 16 ticks)", async function () {
       /* Mint bundle of 10 */
       const mintTx = await bundleCollateralWrapper
         .connect(accountBorrower)
@@ -683,7 +683,7 @@ describe("Pool Gas", function () {
       const liquidateTx = await pool.liquidate(loanReceipt);
 
       const gasUsed = (await liquidateTx.wait()).gasUsed;
-      gasReport.push([`liquidate (bundle of 10, external)`, gasUsed]);
+      gasReport.push([this.test.title, gasUsed]);
 
       expect(gasUsed).to.be.lt(185000);
     });
@@ -802,20 +802,20 @@ describe("Pool Gas", function () {
         await helpers.time.increaseTo((await pool.decodeLoanReceipt(bundleLoanReceipt)).maturity.toNumber() + 1);
       });
 
-      it("liquidate (single, english auction)", async function () {
+      it("liquidate (single, english auction, 16 ticks)", async function () {
         const liquidateTx = await poolEACL.liquidate(singleLoanReceipt);
 
         const gasUsed = (await liquidateTx.wait()).gasUsed;
-        gasReport.push([`liquidate (single, english auction)`, gasUsed]);
+        gasReport.push([this.test.title, gasUsed]);
 
         expect(gasUsed).to.be.lt(280000);
       });
 
-      it("liquidate (bundle of 10, english auction)", async function () {
+      it("liquidate (bundle of 10, english auction, 16 ticks)", async function () {
         const liquidateTx = await poolEACL.liquidate(bundleLoanReceipt);
 
         const gasUsed = (await liquidateTx.wait()).gasUsed;
-        gasReport.push([`liquidate (bundle of 10, english auction)`, gasUsed]);
+        gasReport.push([this.test.title, gasUsed]);
 
         expect(gasUsed).to.be.lt(1300000);
       });
@@ -828,7 +828,7 @@ describe("Pool Gas", function () {
           .bid(nft1.address, 123, FixedPoint.from("1"));
 
         const gasUsed = (await bidTx.wait()).gasUsed;
-        gasReport.push([`bid (first, english auction)`, gasUsed]);
+        gasReport.push([this.test.title, gasUsed]);
 
         expect(gasUsed).to.be.lt(135000);
       });
@@ -844,7 +844,7 @@ describe("Pool Gas", function () {
           .bid(nft1.address, 123, FixedPoint.from("2"));
 
         const gasUsed = (await bid2Tx.wait()).gasUsed;
-        gasReport.push([`bid (second, english auction)`, gasUsed]);
+        gasReport.push([this.test.title, gasUsed]);
 
         expect(gasUsed).to.be.lt(85000);
       });
@@ -866,7 +866,7 @@ describe("Pool Gas", function () {
           .claim(nft1.address, 123, singleLoanReceipt);
 
         const gasUsed = (await claimTx.wait()).gasUsed;
-        gasReport.push([`claim (single, english auction)`, gasUsed]);
+        gasReport.push([this.test.title, gasUsed]);
 
         expect(gasUsed).to.be.lt(375000);
       });
@@ -912,7 +912,7 @@ describe("Pool Gas", function () {
         .mint(nft1.address, [123, 124, 125, 126, 127, 128, 129, 130, 131, 132]);
 
       const gasUsed = (await mintTx.wait()).gasUsed;
-      gasReport.push([`bundle mint (bundle of 10)`, gasUsed]);
+      gasReport.push([this.test.title, gasUsed]);
 
       expect(gasUsed).to.be.lt(250000);
     });
@@ -929,7 +929,7 @@ describe("Pool Gas", function () {
       const unwrapTx = await bundleCollateralWrapper.connect(accountBorrower).unwrap(bundleTokenId, bundleData);
 
       const gasUsed = (await unwrapTx.wait()).gasUsed;
-      gasReport.push([`bundle unwrap (bundle of 10)`, gasUsed]);
+      gasReport.push([this.test.title, gasUsed]);
 
       expect(gasUsed).to.be.lt(170000);
     });
@@ -942,7 +942,7 @@ describe("Pool Gas", function () {
   after("gas report", async function () {
     console.log("\n  Pool Gas Report");
     for (const entry of gasReport) {
-      console.log(`    ${entry[0].padEnd(50)}${entry[1]}`);
+      console.log(`    ${entry[0].padEnd(55)}${entry[1]}`);
     }
   });
 });
