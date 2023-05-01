@@ -41,8 +41,8 @@ abstract contract Pool is
     ILiquidity,
     ICollateralLiquidationReceiver
 {
-    using SafeERC20 for IERC20;
     using SafeCast for uint256;
+    using SafeERC20 for IERC20;
     using LoanReceipt for LoanReceipt.LoanReceiptV1;
     using LiquidityManager for LiquidityManager.Liquidity;
 
@@ -228,6 +228,8 @@ abstract contract Pool is
      * @notice Pool initializer
      * @param currencyToken_ Currency token contract
      * @param collateralLiquidator_ Collateral liquidator contract
+     * @param durations_ Duration tiers
+     * @param rates_ Interest rate tiers
      */
     function _initialize(
         address currencyToken_,
@@ -240,14 +242,18 @@ abstract contract Pool is
         _currencyToken = IERC20(currencyToken_);
         _collateralLiquidator = ICollateralLiquidator(collateralLiquidator_);
 
+        /* Assign durations */
         if (durations_.length > Tick.MAX_NUM_DURATIONS) revert ParameterOutOfBounds();
         for (uint256 i; i < durations_.length; i++) {
+            /* Check duration is monotonic */
             if (i > 0 && durations_[i] <= durations_[i - 1]) revert ParameterOutOfBounds();
             _durations.push(durations_[i]);
         }
 
+        /* Assign rates */
         if (rates_.length > Tick.MAX_NUM_RATES) revert ParameterOutOfBounds();
         for (uint256 i; i < rates_.length; i++) {
+            /* Check rate is monotonic */
             if (i > 0 && rates_[i] <= rates_[i - 1]) revert ParameterOutOfBounds();
             _rates.push(rates_[i]);
         }
@@ -392,8 +398,8 @@ abstract contract Pool is
     /**************************************************************************/
 
     /**
-     * @notice Helper function that scans options data for the specified tag
-     * and returns the associated data.
+     * @notice Helper function to extract specified option tag from options
+     * data
      *
      * @dev Options are encoded as:
      *   2 byte uint16 tag
@@ -432,10 +438,12 @@ abstract contract Pool is
     }
 
     /**
-     * @notice Helper function that returns underlying collateral in (address, uint256[]) shape
+     * @notice Helper function that returns underlying collateral in (address,
+     * uint256[]) shape
      * @param collateralToken Collateral token, either underlying token or collateral wrapper
      * @param collateralTokenId Collateral token ID
      * @param collateralContext Collateral context
+     * @return Underlying collateral token and token IDs
      */
     function _getUnderlyingCollateral(
         address collateralToken,
@@ -451,7 +459,7 @@ abstract contract Pool is
             return ICollateralWrapper(collateralToken).enumerate(collateralTokenId, collateralContext);
         }
 
-        /* If single asset, convert token id to to token id array */
+        /* If single asset, convert to length one token ID array */
         uint256[] memory underlyingCollateralTokenIds = new uint256[](1);
         underlyingCollateralTokenIds[0] = collateralTokenId;
 
@@ -459,7 +467,8 @@ abstract contract Pool is
     }
 
     /**
-     * @notice Helper function that calls delegate.cash registry to delegate token
+     * @notice Helper function that calls delegate.cash registry to delegate
+     * token
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
      * @param options Options data
@@ -506,7 +515,8 @@ abstract contract Pool is
      * @param collateralToken Collateral token address
      * @param collateralTokenIds List of collateral token ids
      * @param ticks Liquidity node ticks
-     * @return Repayment amount in currency tokens, Liquidity nodes, Liquidity node count
+     * @return Repayment amount in currency tokens, liquidity nodes, liquidity
+     * node count
      */
     function _quote(
         uint256 principal,
@@ -579,9 +589,8 @@ abstract contract Pool is
      * @param maxRepayment Maximum repayment amount in currency tokens
      * @param ticks Liquidity node ticks
      * @param collateralContext Collateral context data
-     * @return Repayment Amount in currency tokens
-     * @return EncodedLoanReceipt Encoded loan receipt
-     * @return LoanReceiptHash Loan receipt hash
+     * @return Repayment amount in currency tokens, encoded loan receipt, loan
+     * receipt hash
      */
     function _borrow(
         uint256 principal,
@@ -843,7 +852,6 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-
     function refinance(
         bytes calldata encodedLoanReceipt,
         uint256 principal,
