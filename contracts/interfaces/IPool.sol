@@ -217,6 +217,17 @@ interface IPool {
      */
     function withdraw(uint128 tick) external returns (uint256 amount);
 
+    /**
+     * @notice Rebalance a redemption that is available to a new tick
+     *
+     * Emits {Withdrawn} and {Deposited} events.
+     *
+     * @param srcTick Source tick
+     * @param dstTick Destination Tick
+     * @return amount Amount of currency tokens redeposited
+     */
+    function rebalance(uint128 srcTick, uint128 dstTick) external returns (uint256 amount);
+
     /**************************************************************************/
     /* Lend API */
     /**************************************************************************/

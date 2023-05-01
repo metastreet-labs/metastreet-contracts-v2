@@ -1091,6 +1091,59 @@ abstract contract Pool is
         return amount;
     }
 
+    /**
+     * @inheritdoc IPool
+     */
+    function rebalance(uint128 srcTick, uint128 dstTick) external nonReentrant returns (uint256) {
+        /* Look up Deposit */
+        Deposit storage dep = _deposits[msg.sender][srcTick];
+
+        /* If no redemption is pending */
+        if (dep.redemptionPending == 0) return 0;
+
+        /* Look up redemption available */
+        (uint128 oldShares, uint128 amount) = _liquidity.redemptionAvailable(
+            srcTick,
+            dep.redemptionPending,
+            dep.redemptionIndex,
+            dep.redemptionTarget
+        );
+
+        /* If the entire redemption is ready */
+        if (oldShares == dep.redemptionPending) {
+            dep.shares -= oldShares;
+            dep.redemptionPending = 0;
+            dep.redemptionIndex = 0;
+            dep.redemptionTarget = 0;
+        } else {
+            dep.shares -= oldShares;
+            dep.redemptionPending -= oldShares;
+            dep.redemptionTarget += oldShares;
+        }
+
+        /* Validate destination tick */
+        Tick.validate(dstTick, 0, 0, _durations.length - 1, 0, _rates.length - 1);
+
+        /* Instantiate liquidity node */
+        _liquidity.instantiate(dstTick);
+
+        /* Deposit into liquidity node */
+        uint128 newShares = _liquidity.deposit(dstTick, amount);
+
+        /* Add to deposit */
+        _deposits[msg.sender][dstTick].shares += newShares;
+
+        /* Process redemptions from available cash */
+        _liquidity.processRedemptions(dstTick);
+
+        /* Emit Withdrawn */
+        emit Withdrawn(msg.sender, srcTick, oldShares, amount);
+        /* Emit Deposited */
+        emit Deposited(msg.sender, dstTick, amount, newShares);
+
+        return amount;
+    }
+
     /**************************************************************************/
     /* Admin Fees API */
     /**************************************************************************/

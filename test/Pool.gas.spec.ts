@@ -292,6 +292,41 @@ describe("Pool Gas", function () {
     });
   });
 
+  describe("#rebalance", async function () {
+    it("multicall redeem + rebalance (new tick)", async function () {
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+
+      const redeemRebalanceTx = await pool
+        .connect(accountDepositors[0])
+        .multicall([
+          pool.interface.encodeFunctionData("redeem", [Tick.encode("10"), FixedPoint.from("1.0")]),
+          pool.interface.encodeFunctionData("rebalance", [Tick.encode("10"), Tick.encode("15")]),
+        ]);
+
+      const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
+      gasReport.push([this.test.title, gasUsed]);
+
+      expect(gasUsed).to.be.lt(210000);
+    });
+
+    it("multicall redeem + rebalance (existing tick)", async function () {
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[1]).deposit(Tick.encode("15"), FixedPoint.from("1"));
+
+      const redeemRebalanceTx = await pool
+        .connect(accountDepositors[0])
+        .multicall([
+          pool.interface.encodeFunctionData("redeem", [Tick.encode("10"), FixedPoint.from("1.0")]),
+          pool.interface.encodeFunctionData("rebalance", [Tick.encode("10"), Tick.encode("15")]),
+        ]);
+
+      const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
+      gasReport.push([this.test.title, gasUsed]);
+
+      expect(gasUsed).to.be.lt(160000);
+    });
+  });
+
   /****************************************************************************/
   /* Lend API */
   /****************************************************************************/

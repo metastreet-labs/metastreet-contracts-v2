@@ -863,6 +863,252 @@ describe("Pool Basic", function () {
     });
   });
 
+  describe("#rebalance", async function () {
+    it("rebalances a full redemption into another tick", async function () {
+      /* Deposit 1 ETH */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+
+      /* Redeem all shares */
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1"));
+
+      /* Rebalances to 15 ETH tick */
+      const rebalanceTx = await pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15"));
+
+      /* Validate events */
+      await expectEvent(rebalanceTx, pool, "Withdrawn", {
+        account: accountDepositors[0].address,
+        tick: Tick.encode("10"),
+        shares: FixedPoint.from("1.0"),
+        amount: FixedPoint.from("1.0"),
+      });
+      await expectEvent(rebalanceTx, pool, "Deposited", {
+        account: accountDepositors[0].address,
+        tick: Tick.encode("15"),
+        amount: FixedPoint.from("1.0"),
+        shares: FixedPoint.from("1.0"),
+      });
+
+      /* Validate deposit state */
+      let deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      expect(deposit.shares).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+
+      deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("15"));
+      expect(deposit.shares).to.equal(FixedPoint.from("1.0"));
+      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+
+      /* Validate tick state */
+      let node = await pool.liquidityNode(Tick.encode("10"));
+      expect(node.value).to.equal(ethers.constants.Zero);
+      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.redemptions).to.equal(ethers.constants.Zero);
+
+      node = await pool.liquidityNode(Tick.encode("15"));
+      expect(node.value).to.equal(FixedPoint.from("1.0"));
+      expect(node.available).to.equal(FixedPoint.from("1.0"));
+      expect(node.redemptions).to.equal(ethers.constants.Zero);
+    });
+
+    it("rebalances a partial redemption into another tick", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
+
+      /* Create loan 1 */
+      const [loanReceipt1] = await createActiveLoan(FixedPoint.from("5"));
+
+      /* Create loan 2 */
+      const [loanReceipt2] = await createActiveLoan(FixedPoint.from("5"));
+
+      /* Redeem all shares */
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("10"));
+
+      /* Repay loan 1 */
+      await pool.connect(accountBorrower).repay(loanReceipt1);
+
+      /* Rebalance */
+      const rebalanceTx = await pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15"));
+
+      /* Validate events */
+      await expectEvent(rebalanceTx, pool, "Withdrawn", {
+        account: accountDepositors[0].address,
+        tick: Tick.encode("10"),
+      });
+      await expectEvent(rebalanceTx, pool, "Deposited", {
+        account: accountDepositors[0].address,
+        tick: Tick.encode("15"),
+      });
+
+      /* Validate deposit state */
+      let deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      expect(deposit.shares).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
+      expect(deposit.redemptionPending).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
+
+      deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("15"));
+      expect(deposit.shares).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
+      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
+
+      /* Validate tick state */
+      let node = await pool.liquidityNode(Tick.encode("10"));
+      expect(node.value).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
+      expect(node.available).to.be.closeTo(ethers.constants.Zero, 1);
+      expect(node.redemptions).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
+
+      node = await pool.liquidityNode(Tick.encode("15"));
+      expect(node.value).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
+      expect(node.available).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
+      expect(node.redemptions).to.equal(ethers.constants.Zero);
+    });
+
+    it("rebalances nothing on written down redemption", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
+
+      /* Create loan */
+      const [loanReceipt] = await createActiveLoan(FixedPoint.from("10"));
+
+      /* Redeem 5 shares */
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("5"));
+
+      /* Wait for loan expiration */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
+
+      /* Process expiration */
+      await pool.liquidate(loanReceipt);
+
+      /* Withdraw collateral */
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
+
+      /* Liquidate collateral and process liquidation */
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, ethers.constants.Zero);
+
+      /* Rebalance */
+      const rebalanceTx = await pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15"));
+
+      /* Validate events */
+      await expectEvent(rebalanceTx, pool, "Withdrawn", {
+        account: accountDepositors[0].address,
+        tick: Tick.encode("10"),
+        shares: FixedPoint.from("5"),
+        amount: ethers.constants.Zero,
+      });
+      await expectEvent(rebalanceTx, pool, "Deposited", {
+        account: accountDepositors[0].address,
+        tick: Tick.encode("15"),
+        amount: ethers.constants.Zero,
+        shares: ethers.constants.Zero,
+      });
+
+      /* Validate deposit state */
+      let deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      expect(deposit.shares).to.equal(FixedPoint.from("5"));
+      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+
+      deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("15"));
+      expect(deposit.shares).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+
+      /* Validate tick state */
+      let node = await pool.liquidityNode(Tick.encode("10"));
+      expect(node.value).to.equal(ethers.constants.Zero);
+      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.redemptions).to.equal(ethers.constants.Zero);
+
+      node = await pool.liquidityNode(Tick.encode("15"));
+      expect(node.value).to.equal(ethers.constants.Zero);
+      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.redemptions).to.equal(ethers.constants.Zero);
+    });
+
+    it("rebalances nothing on no pending redemption", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
+
+      /* Rebalance with no pending redemption */
+      const rebalanceTx = await pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15"));
+
+      /* Validate no events */
+      expect((await rebalanceTx.wait()).logs.length).to.equal(0);
+
+      /* Validate deposit state */
+      let deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      expect(deposit.shares).to.equal(FixedPoint.from("10"));
+      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+
+      deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("15"));
+      expect(deposit.shares).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+
+      /* Validate tick state */
+      let node = await pool.liquidityNode(Tick.encode("10"));
+      expect(node.value).to.equal(FixedPoint.from("10"));
+      expect(node.available).to.equal(FixedPoint.from("10"));
+      expect(node.redemptions).to.equal(ethers.constants.Zero);
+
+      node = await pool.liquidityNode(Tick.encode("15"));
+      expect(node.value).to.equal(ethers.constants.Zero);
+      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.redemptions).to.equal(ethers.constants.Zero);
+    });
+
+    it("fails on invalid tick spacing", async function () {
+      /* Deposit 1 ETH */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+
+      /* Redeem half of shares */
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("0.5"));
+
+      await expect(
+        pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("10.1"))
+      ).to.be.revertedWithCustomError(pool, "InsufficientTickSpacing");
+    });
+
+    it("fails on invalid tick", async function () {
+      /* Deposit 1 ETH */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+
+      /* Redeem all shares */
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1"));
+
+      /* Zero limit */
+      await expect(pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), 0)).to.be.revertedWithCustomError(
+        pool,
+        "InvalidTick"
+      );
+
+      /* Out of bounds duration */
+      await expect(
+        pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15", 5, 0))
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
+
+      /* Out of bounds rate */
+      await expect(
+        pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15", 0, 5))
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
+
+      /* Out of bounds reserved field */
+      await expect(
+        pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15", 0, 0).add(2))
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
+    });
+  });
+
   /****************************************************************************/
   /* Liquidity and Loan Helper functions */
   /****************************************************************************/
