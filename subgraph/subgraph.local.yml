@@ -85,6 +85,7 @@ templates:
           handler: handleWithdrawn
         - event: LoanOriginated(indexed bytes32,bytes)
           handler: handleLoanOriginated
+          receipt: true
         - event: LoanRepaid(indexed bytes32,uint256)
           handler: handleLoanRepaid
         - event: LoanLiquidated(indexed bytes32)
