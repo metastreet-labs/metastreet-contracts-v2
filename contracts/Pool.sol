@@ -132,6 +132,7 @@ abstract contract Pool is
     enum BorrowOptions {
         None,
         CollateralWrapperContext,
+        CollateralFilterContext,
         DelegateCash
     }
 
@@ -535,11 +536,13 @@ abstract contract Pool is
         uint64 duration,
         address collateralToken,
         uint256[] memory collateralTokenIds,
-        uint128[] calldata ticks
+        uint128[] calldata ticks,
+        bytes calldata collateralFilterContext
     ) internal view returns (uint256, ILiquidity.NodeSource[] memory, uint16) {
         /* Verify collateral is supported */
         for (uint256 i = 0; i < collateralTokenIds.length; i++) {
-            if (!collateralSupported(collateralToken, collateralTokenIds[i], "")) revert UnsupportedCollateral(i);
+            if (!collateralSupported(collateralToken, collateralTokenIds[i], collateralFilterContext))
+                revert UnsupportedCollateral(i);
         }
 
         /* Lookup duration index */
@@ -600,7 +603,8 @@ abstract contract Pool is
      * @param collateralTokenId Collateral token ID
      * @param maxRepayment Maximum repayment amount in currency tokens
      * @param ticks Liquidity node ticks
-     * @param collateralWrapperContext Collateral wrapper context
+     * @param collateralWrapperContext Collateral wrapper context data
+     * @param collateralFilterContext Collateral filter context data
      * @return Repayment amount in currency tokens, encoded loan receipt, loan
      * receipt hash
      */
@@ -611,7 +615,8 @@ abstract contract Pool is
         uint256 collateralTokenId,
         uint256 maxRepayment,
         uint128[] calldata ticks,
-        bytes memory collateralWrapperContext
+        bytes memory collateralWrapperContext,
+        bytes calldata collateralFilterContext
     ) internal returns (uint256, bytes memory, bytes32) {
         /* Get underlying collateral */
         (address underlyingCollateralToken, uint256[] memory underlyingCollateralTokenIds) = _getUnderlyingCollateral(
@@ -626,7 +631,8 @@ abstract contract Pool is
             duration,
             underlyingCollateralToken,
             underlyingCollateralTokenIds,
-            ticks
+            ticks,
+            collateralFilterContext
         );
 
         /* Validate repayment */
@@ -753,10 +759,15 @@ abstract contract Pool is
         uint128[] calldata ticks,
         bytes calldata options
     ) external view returns (uint256) {
-        options;
-
         /* Quote repayment */
-        (uint256 repayment, , ) = _quote(principal, duration, collateralToken, collateralTokenIds, ticks);
+        (uint256 repayment, , ) = _quote(
+            principal,
+            duration,
+            collateralToken,
+            collateralTokenIds,
+            ticks,
+            _getOptionsData(options, uint16(BorrowOptions.CollateralFilterContext))
+        );
 
         return repayment;
     }
@@ -786,7 +797,8 @@ abstract contract Pool is
             duration,
             underlyingCollateralToken,
             underlyingCollateralTokenIds,
-            ticks
+            ticks,
+            encodedLoanReceipt[0:0]
         );
 
         /* Compute repayment using prorated interest */
@@ -815,7 +827,8 @@ abstract contract Pool is
             collateralTokenId,
             maxRepayment,
             ticks,
-            _getOptionsData(options, uint16(BorrowOptions.CollateralWrapperContext))
+            _getOptionsData(options, uint16(BorrowOptions.CollateralWrapperContext)),
+            _getOptionsData(options, uint16(BorrowOptions.CollateralFilterContext))
         );
 
         /* Handle delegate.cash option */
@@ -884,7 +897,8 @@ abstract contract Pool is
             loanReceipt.collateralTokenId,
             maxRepayment,
             ticks,
-            loanReceipt.collateralWrapperContext
+            loanReceipt.collateralWrapperContext,
+            encodedLoanReceipt[0:0]
         );
 
         /* Determine transfer direction */

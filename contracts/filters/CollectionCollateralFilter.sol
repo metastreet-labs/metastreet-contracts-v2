@@ -61,7 +61,7 @@ contract CollectionCollateralFilter is CollateralFilter {
     /**
      * @inheritdoc CollateralFilter
      */
-    function collateralSupported(address token, uint256, bytes memory) public view override returns (bool) {
+    function collateralSupported(address token, uint256, bytes calldata) public view override returns (bool) {
         return token == _token;
     }
 }

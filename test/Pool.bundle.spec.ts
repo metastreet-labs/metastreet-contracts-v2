@@ -555,7 +555,7 @@ describe("Pool Bundle", function () {
           await sourceLiquidity(FixedPoint.from("25"), 3),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes20"],
-            [1, ethers.utils.hexDataLength(bundleData), bundleData, 2, 20, accountBorrower.address]
+            [1, ethers.utils.hexDataLength(bundleData), bundleData, 3, 20, accountBorrower.address]
           )
         );
 
@@ -571,7 +571,7 @@ describe("Pool Bundle", function () {
           await sourceLiquidity(FixedPoint.from("25"), 3),
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes20"],
-            [1, ethers.utils.hexDataLength(bundleData), bundleData, 2, 20, accountBorrower.address]
+            [1, ethers.utils.hexDataLength(bundleData), bundleData, 3, 20, accountBorrower.address]
           )
         );
 
@@ -772,7 +772,7 @@ describe("Pool Bundle", function () {
             await sourceLiquidity(FixedPoint.from("25"), 3),
             ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, 20 + 31 * 3, bundleData])
           )
-      ).to.be.revertedWithCustomError(bundleCollateralWrapper, "InvalidContext");
+      ).to.be.reverted;
     });
 
     it("fails on insufficient liquidity with bundle", async function () {

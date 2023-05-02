@@ -1602,7 +1602,7 @@ describe("Pool Basic", function () {
           123,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
-          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [2, 20, accountBorrower.address])
+          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [3, 20, accountBorrower.address])
         );
 
       /* Borrow */
@@ -1615,7 +1615,7 @@ describe("Pool Basic", function () {
           123,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
-          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [2, 20, accountBorrower.address])
+          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [3, 20, accountBorrower.address])
         );
 
       /* Validate return value from borrow() */
@@ -1988,7 +1988,7 @@ describe("Pool Basic", function () {
           124,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
-          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [2, 20, accountBorrower.address])
+          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [3, 20, accountBorrower.address])
         );
 
       /* Validate events */

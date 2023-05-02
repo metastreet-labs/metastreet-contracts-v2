@@ -15,6 +15,6 @@ abstract contract CollateralFilter {
     function collateralSupported(
         address token,
         uint256 tokenId,
-        bytes memory context
+        bytes calldata context
     ) public view virtual returns (bool);
 }
