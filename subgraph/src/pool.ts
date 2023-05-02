@@ -75,8 +75,8 @@ function decodeTick(encodedTick: BigInt): DecodedTick {
   const rateIndexMask = TWO.pow(3).minus(ONE);
 
   const limit = encodedTick.rightShift(8).bitAnd(limitMask);
-  const durationIndex = encodedTick.rightShift(5).bitAnd(durationIndexMask).toI32();
-  const rateIndex = encodedTick.rightShift(2).bitAnd(rateIndexMask).toI32();
+  const durationIndex = encodedTick.rightShift(5).bitAnd(durationIndexMask).toU32();
+  const rateIndex = encodedTick.rightShift(2).bitAnd(rateIndexMask).toU32();
 
   return new DecodedTick(limit, durationIndex, rateIndex);
 }

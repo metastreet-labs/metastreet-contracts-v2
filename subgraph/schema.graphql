@@ -6,13 +6,13 @@ type Pool @entity {
   id: ID! # address
   collateralToken: CollateralToken!
   currencyToken: Bytes! # address
-  durations: [Int!]! # i32[] (in seconds)
-  rates: [BigInt!]! # i32[]
+  durations: [BigInt!]! # uint64[] (in seconds)
+  rates: [BigInt!]! # uint64[]
   totalValueLocked: BigInt! # uint256
   totalValueAvailable: BigInt! # uint256
   totalValueUsed: BigInt! # uint256
   maxBorrow: BigInt! # uint256
-  maxLoanDuration: Int! # i32 (in seconds)
+  maxLoanDuration: BigInt! # uint64 (in seconds)
   delegationRegistry: Bytes! # address
   ticks: [Tick!]! @derivedFrom(field: "pool")
   deposits: [Deposit!]! @derivedFrom(field: "pool")
@@ -30,7 +30,7 @@ type CollateralToken @entity {
   totalValueAvailable: BigInt # uint256
   totalValueUsed: BigInt! # uint256
   maxBorrow: BigInt! # uint256
-  maxLoanDuration: Int! # in seconds
+  maxLoanDuration: BigInt! # uint64 (in seconds)
   minAPR: Int! # percentage
   pools: [Pool!]! @derivedFrom(field: "collateralToken")
   poolIds: [String!]!
@@ -47,7 +47,7 @@ type Tick @entity {
   raw: BigInt!
   # decoded tick
   limit: BigInt! # uint128
-  duration: Int! # uint32
+  duration: BigInt! # uint64
   rate: BigInt! # uint64
   # node info
   value: BigInt! # uint128
@@ -104,13 +104,13 @@ type Loan @entity {
   id: ID! # loan receipt hash
   pool: Pool!
   status: LoanStatus!
-  timestamp: Int! # uint64 (in seconds since epoch)
+  timestamp: BigInt! # uint64 (in seconds since epoch)
   bundle: Bundle # set only if this is a bundle loan
   delegate: Bytes # address
   # Decoded Loan Receipt
   borrower: Bytes! # address
-  maturity: Int! # uint64 (in seconds since epoch)
-  duration: Int! # uint64 (in seconds)
+  maturity: BigInt! # uint64 (in seconds since epoch)
+  duration: BigInt! # uint64 (in seconds)
   collateralToken: CollateralToken! # in case of a bundle, this will still refer to the underlying collateral token
   collateralTokenIds: [BigInt!]! # uint256[]
   ticks: [BigInt!]! # uint128[]

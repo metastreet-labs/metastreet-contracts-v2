@@ -26,14 +26,8 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   poolEntity.maxBorrow = BigInt.zero();
   poolEntity.collateralToken = collateralTokenId;
   poolEntity.delegationRegistry = poolContract.delegationRegistry();
-
-  const durationsBigInt = poolContract.durations();
-  const durationsNumber = new Array<i32>(0);
-  for (let i = 0; i < durationsBigInt.length; i++) durationsNumber.push(durationsBigInt[i].toI32());
-  poolEntity.durations = durationsNumber;
-
+  poolEntity.durations = poolContract.durations();
   poolEntity.rates = poolContract.rates();
-
   poolEntity.maxLoanDuration = poolEntity.durations[poolEntity.durations.length - 1];
 
   poolEntity.save();
