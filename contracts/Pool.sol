@@ -417,7 +417,7 @@ abstract contract Pool is
         /* Scan the options for the tag */
         while (offset < options.length) {
             /* The tag is in the first 2 bytes of each options item */
-            uint16 currentTag = uint16(bytes2(options[offset:BORROW_OPTIONS_TAG_SIZE]));
+            uint16 currentTag = uint16(bytes2(options[offset:offset + BORROW_OPTIONS_TAG_SIZE]));
 
             /* The length of the options data is in the second 2 bytes of each options item, after the tag */
             uint256 dataLength = uint16(

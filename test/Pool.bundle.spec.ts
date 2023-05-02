@@ -527,6 +527,123 @@ describe("Pool Bundle", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(1);
     });
 
+    it("originates bundle loan with delegation", async function () {
+      /* Mint bundle */
+      const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
+      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+      const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
+
+      /* Quote repayment */
+      const repayment = await pool.quote(
+        FixedPoint.from("25"),
+        30 * 86400,
+        nft1.address,
+        [123, 124, 125],
+        await sourceLiquidity(FixedPoint.from("25")),
+        "0x"
+      );
+
+      /* Simulate borrow */
+      const simulatedRepayment = await pool
+        .connect(accountBorrower)
+        .callStatic.borrow(
+          FixedPoint.from("25"),
+          30 * 86400,
+          bundleCollateralWrapper.address,
+          bundleTokenId,
+          FixedPoint.from("26"),
+          await sourceLiquidity(FixedPoint.from("25"), 3),
+          ethers.utils.solidityPack(
+            ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes20"],
+            [1, ethers.utils.hexDataLength(bundleData), bundleData, 2, 20, accountBorrower.address]
+          )
+        );
+
+      /* Borrow */
+      const borrowTx = await pool
+        .connect(accountBorrower)
+        .borrow(
+          FixedPoint.from("25"),
+          30 * 86400,
+          bundleCollateralWrapper.address,
+          bundleTokenId,
+          FixedPoint.from("26"),
+          await sourceLiquidity(FixedPoint.from("25"), 3),
+          ethers.utils.solidityPack(
+            ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes20"],
+            [1, ethers.utils.hexDataLength(bundleData), bundleData, 2, 20, accountBorrower.address]
+          )
+        );
+
+      /* Validate return value from borrow() */
+      expect(simulatedRepayment).to.equal(repayment);
+
+      /* Validate events */
+      await expectEvent(mintTx, bundleCollateralWrapper, "Transfer", {
+        from: ethers.constants.AddressZero,
+        to: accountBorrower.address,
+        tokenId: bundleTokenId,
+      });
+
+      await expectEvent(borrowTx, bundleCollateralWrapper, "Transfer", {
+        from: accountBorrower.address,
+        to: pool.address,
+        tokenId: bundleTokenId,
+      });
+
+      await expectEvent(borrowTx, tok1, "Transfer", {
+        from: pool.address,
+        to: accountBorrower.address,
+        value: FixedPoint.from("25"),
+      });
+
+      await expectEvent(borrowTx, delegationRegistry, "DelegateForToken", {
+        vault: pool.address,
+        delegate: accountBorrower.address,
+        contract_: bundleCollateralWrapper.address,
+        tokenId: bundleTokenId,
+        value: true,
+      });
+
+      await expect(borrowTx).to.emit(pool, "LoanOriginated");
+
+      /* Extract loan receipt */
+      const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
+      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+
+      /* Validate hash */
+      expect(loanReceiptHash).to.equal(await loanReceiptLib.hash(loanReceipt));
+
+      /* Validate loan receipt */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+      expect(decodedLoanReceipt.version).to.equal(1);
+      expect(decodedLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedLoanReceipt.maturity).to.equal(
+        (await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp + 30 * 86400
+      );
+      expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
+      expect(decodedLoanReceipt.collateralToken).to.equal(bundleCollateralWrapper.address);
+      expect(decodedLoanReceipt.collateralTokenId).to.equal(bundleTokenId);
+      expect(decodedLoanReceipt.collateralContextLength).to.equal(ethers.utils.hexDataLength(bundleData));
+      expect(decodedLoanReceipt.collateralContextData).to.equal(bundleData);
+      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(4);
+
+      /* Sum used and pending totals from node receipts */
+      let totalUsed = ethers.constants.Zero;
+      let totalPending = ethers.constants.Zero;
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+        totalUsed = totalUsed.add(nodeReceipt.used);
+        totalPending = totalPending.add(nodeReceipt.pending);
+      }
+
+      /* Validate used and pending totals */
+      expect(totalUsed).to.equal(FixedPoint.from("25"));
+      expect(totalPending).to.equal(repayment);
+
+      /* Validate loan state */
+      expect(await pool.loans(loanReceiptHash)).to.equal(1);
+    });
+
     it("originates bundle loan for a 85 ETH principal", async function () {
       /* Mint bundle */
       const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
