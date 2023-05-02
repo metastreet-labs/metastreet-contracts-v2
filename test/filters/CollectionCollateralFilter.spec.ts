@@ -52,22 +52,22 @@ describe("CollectionCollateralFilter", function () {
   describe("#collateralSupported", async function () {
     it("matches supported token", async function () {
       expect(
-        await collateralFilter.collateralSupported("0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b", 123, "0x")
+        await collateralFilter.collateralSupported("0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b", 123, 0, "0x")
       ).to.equal(true);
       expect(
-        await collateralFilter.collateralSupported("0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b", 456, "0x")
+        await collateralFilter.collateralSupported("0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b", 456, 0, "0x")
       ).to.equal(true);
       expect(
-        await collateralFilter.collateralSupported("0x822CB8a23b42Cf37DE879C382BCdA5E20D5764B7", 123, "0x")
+        await collateralFilter.collateralSupported("0x822CB8a23b42Cf37DE879C382BCdA5E20D5764B7", 123, 0, "0x")
       ).to.equal(false);
       expect(
-        await collateralFilter.collateralSupported("0x822CB8a23b42Cf37DE879C382BCdA5E20D5764B7", 456, "0x")
+        await collateralFilter.collateralSupported("0x822CB8a23b42Cf37DE879C382BCdA5E20D5764B7", 456, 0, "0x")
       ).to.equal(false);
       expect(
-        await collateralFilter.collateralSupported("0x4b1B53c6E31997f8954DaEA7A2bC0dD8fEF652Cc", 123, "0x")
+        await collateralFilter.collateralSupported("0x4b1B53c6E31997f8954DaEA7A2bC0dD8fEF652Cc", 123, 0, "0x")
       ).to.equal(false);
       expect(
-        await collateralFilter.collateralSupported("0x4b1B53c6E31997f8954DaEA7A2bC0dD8fEF652Cc", 456, "0x")
+        await collateralFilter.collateralSupported("0x4b1B53c6E31997f8954DaEA7A2bC0dD8fEF652Cc", 456, 0, "0x")
       ).to.equal(false);
     });
   });
