@@ -154,6 +154,8 @@ function updateTickEntity(encodedTick: BigInt): TickEntity {
   tickEntity.limit = decodedTick.limit;
   tickEntity.duration = poolEntity.durations[decodedTick.durationIndex];
   tickEntity.rate = poolEntity.rates[decodedTick.rateIndex];
+  tickEntity.durationIndex = decodedTick.durationIndex;
+  tickEntity.rateIndex = decodedTick.rateIndex;
   tickEntity.value = node.value;
   tickEntity.shares = node.shares;
   tickEntity.available = node.available;
