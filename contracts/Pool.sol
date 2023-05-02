@@ -78,7 +78,7 @@ abstract contract Pool is
     /**
      * @notice Borrow options header size in bytes
      */
-    uint internal constant BORROW_OPTIONS_HEADER_SIZE = BORROW_OPTIONS_TAG_SIZE + BORROW_OPTIONS_LENGTH_SIZE;
+    uint256 internal constant BORROW_OPTIONS_HEADER_SIZE = BORROW_OPTIONS_TAG_SIZE + BORROW_OPTIONS_LENGTH_SIZE;
 
     /**************************************************************************/
     /* Errors */
@@ -421,12 +421,16 @@ abstract contract Pool is
 
             /* The length of the options data is in the second 2 bytes of each options item, after the tag */
             uint256 dataLength = uint16(
-                bytes2(options[offset + BORROW_OPTIONS_TAG_SIZE:offset + BORROW_OPTIONS_HEADER_SIZE])
+                bytes2(
+                    options[offset + BORROW_OPTIONS_TAG_SIZE:offset +
+                        BORROW_OPTIONS_TAG_SIZE +
+                        BORROW_OPTIONS_LENGTH_SIZE]
+                )
             );
 
             /* Return the offset and length if the tag is found */
             if (currentTag == tag) {
-                return options[BORROW_OPTIONS_HEADER_SIZE + offset:BORROW_OPTIONS_HEADER_SIZE + offset + dataLength];
+                return options[offset + BORROW_OPTIONS_HEADER_SIZE:offset + BORROW_OPTIONS_HEADER_SIZE + dataLength];
             }
 
             /* Increment to next options item */
