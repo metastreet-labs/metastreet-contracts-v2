@@ -141,8 +141,8 @@ describe("PoolFactory", function () {
       const poolAddress = (await extractEvent(createTx, poolFactory, "PoolCreated")).args.pool;
       const pool = (await ethers.getContractAt("Pool", poolAddress)) as Pool;
 
-      /* Check pool factory is pool admin */
-      expect(await pool.hasRole(await pool.DEFAULT_ADMIN_ROLE(), poolFactory.address)).to.equal(true);
+      /* Check pool factory is admin */
+      expect(await pool.admin()).to.equal(poolFactory.address);
     });
     it("fails on invalid params", async function () {
       /* Create a pool */
@@ -195,8 +195,8 @@ describe("PoolFactory", function () {
       const poolAddress = (await extractEvent(createTx, poolFactory, "PoolCreated")).args.pool;
       const pool = (await ethers.getContractAt("Pool", poolAddress)) as Pool;
 
-      /* Check pool factory is pool admin */
-      expect(await pool.hasRole(await pool.DEFAULT_ADMIN_ROLE(), poolFactory.address)).to.equal(true);
+      /* Check pool factory is admin */
+      expect(await pool.admin()).to.equal(poolFactory.address);
     });
     it("fails on invalid params", async function () {
       /* Create a pool */

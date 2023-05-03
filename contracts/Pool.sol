@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
@@ -32,7 +31,6 @@ import "./integrations/DelegateCash/IDelegationRegistry.sol";
 abstract contract Pool is
     ERC165,
     ERC721Holder,
-    AccessControl,
     ReentrancyGuard,
     Multicall,
     CollateralFilter,
@@ -183,6 +181,11 @@ abstract contract Pool is
     ICollateralLiquidator internal _collateralLiquidator;
 
     /**
+     * @notice Admin
+     */
+    address private _admin;
+
+    /**
      * @notice Total admin fee balance
      */
     uint256 internal _adminFeeBalance;
@@ -241,6 +244,7 @@ abstract contract Pool is
 
         _currencyToken = IERC20(currencyToken_);
         _collateralLiquidator = ICollateralLiquidator(collateralLiquidator_);
+        _admin = msg.sender;
 
         /* Assign durations */
         if (durations_.length > Tick.MAX_NUM_DURATIONS) revert ParameterOutOfBounds();
@@ -260,9 +264,6 @@ abstract contract Pool is
 
         /* Initialize liquidity */
         _liquidity.initialize();
-
-        /* Grant admin role */
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     /**************************************************************************/
@@ -288,6 +289,13 @@ abstract contract Pool is
      */
     function rates() external view returns (uint64[] memory) {
         return _rates;
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
+    function admin() external view returns (address) {
+        return _admin;
     }
 
     /**
@@ -1164,7 +1172,8 @@ abstract contract Pool is
      *
      * @param rate Rate is the admin fee in basis points
      */
-    function setAdminFeeRate(uint32 rate) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setAdminFeeRate(uint32 rate) external {
+        if (msg.sender != _admin) revert InvalidCaller();
         if (rate == 0 || rate >= BASIS_POINTS_SCALE) revert ParameterOutOfBounds();
         _adminFeeRate = rate;
         emit AdminFeeRateUpdated(rate);
@@ -1178,7 +1187,8 @@ abstract contract Pool is
      * @param recipient Recipient account
      * @param amount Amount to withdraw
      */
-    function withdrawAdminFees(address recipient, uint256 amount) external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
+    function withdrawAdminFees(address recipient, uint256 amount) external nonReentrant {
+        if (msg.sender != _admin) revert InvalidCaller();
         if (recipient == address(0)) revert InvalidAddress();
         if (amount > _adminFeeBalance) revert ParameterOutOfBounds();
 
@@ -1198,7 +1208,7 @@ abstract contract Pool is
     /**
      * @inheritdoc IERC165
      */
-    function supportsInterface(bytes4 interfaceId) public view override(AccessControl, ERC165) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
         return interfaceId == type(IERC721Receiver).interfaceId || super.supportsInterface(interfaceId);
     }
 }

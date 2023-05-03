@@ -148,6 +148,12 @@ interface IPool {
     function rates() external view returns (uint64[] memory);
 
     /**
+     * @notice Get admin
+     * @return Admin
+     */
+    function admin() external view returns (address);
+
+    /**
      * @notice Get admin fee rate
      * @return Admin fee rate in basis points
      */

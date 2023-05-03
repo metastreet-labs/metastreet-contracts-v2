@@ -2757,8 +2757,9 @@ describe("Pool Basic", function () {
     it("fails on invalid caller", async function () {
       const rate = 500;
 
-      await expect(pool.connect(accounts[1]).setAdminFeeRate(rate)).to.be.revertedWith(
-        /AccessControl: account .* is missing role .*/
+      await expect(pool.connect(accounts[1]).setAdminFeeRate(rate)).to.be.revertedWithCustomError(
+        pool,
+        "InvalidCaller"
       );
     });
   });
@@ -2926,7 +2927,7 @@ describe("Pool Basic", function () {
 
       await expect(
         pool.connect(accounts[1]).withdrawAdminFees(accounts[1].address, FixedPoint.from("0.00001"))
-      ).to.be.revertedWith(/AccessControl: account .* is missing role .*/);
+      ).to.be.revertedWithCustomError(pool, "InvalidCaller");
     });
 
     it("fails on invalid address", async function () {
@@ -2963,21 +2964,6 @@ describe("Pool Basic", function () {
     it("returns true on supported interfaces", async function () {
       /* ERC165 */
       expect(await pool.supportsInterface(pool.interface.getSighash("supportsInterface"))).to.equal(true);
-
-      /* AccessControl */
-      expect(
-        await pool.supportsInterface(
-          ethers.utils.hexlify(
-            [
-              pool.interface.getSighash("hasRole"),
-              pool.interface.getSighash("getRoleAdmin"),
-              pool.interface.getSighash("grantRole"),
-              pool.interface.getSighash("revokeRole"),
-              pool.interface.getSighash("renounceRole"),
-            ].reduce((acc, value) => acc.xor(ethers.BigNumber.from(value)), ethers.constants.Zero)
-          )
-        )
-      ).to.equal(true);
 
       /* ERC721 */
       expect(await pool.supportsInterface(pool.interface.getSighash("onERC721Received"))).to.equal(true);
