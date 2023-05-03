@@ -7,7 +7,12 @@ import { Network } from "@ethersproject/networks";
 import { Signer } from "@ethersproject/abstract-signer";
 import { LedgerSigner } from "@anders-t/ethers-ledger";
 
-import { PoolFactory, UpgradeableBeacon, TransparentUpgradeableProxy } from "../typechain";
+import {
+  PoolFactory,
+  UpgradeableBeacon,
+  TransparentUpgradeableProxy,
+  ITransparentUpgradeableProxy,
+} from "../typechain";
 
 /******************************************************************************/
 /* Global Signer */
@@ -92,10 +97,10 @@ async function getBeaconImplementation(address: string): Promise<string> {
 
 async function getTransparentProxyImplementation(address: string): Promise<string> {
   const transparentProxy = (await ethers.getContractAt(
-    "TransparentUpgradeableProxy",
+    "ITransparentUpgradeableProxy",
     address,
     signer
-  )) as TransparentUpgradeableProxy;
+  )) as ITransparentUpgradeableProxy;
   return await transparentProxy.callStatic.implementation();
 }
 
@@ -336,10 +341,10 @@ async function collateralWrapperUpgrade(deployment: Deployment, contractName: st
   }
 
   const collateralWrapperProxy = (await ethers.getContractAt(
-    "TransparentUpgradeableProxy",
+    "ITransparentUpgradeableProxy",
     deployment.collateralWrappers[contractName],
     signer
-  )) as TransparentUpgradeableProxy;
+  )) as ITransparentUpgradeableProxy;
   const collateralWrapperFactory = await ethers.getContractFactory(contractName, signer);
 
   console.log(`Old Collateral Wrapper Implementation: ${await collateralWrapperProxy.callStatic.implementation()}`);
