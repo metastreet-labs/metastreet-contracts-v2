@@ -446,13 +446,13 @@ abstract contract Pool is
      * uint256[]) shape
      * @param collateralToken Collateral token, either underlying token or collateral wrapper
      * @param collateralTokenId Collateral token ID
-     * @param collateralContext Collateral context
+     * @param collateralWrapperContext Collateral wrapper context
      * @return Underlying collateral token and token IDs
      */
     function _getUnderlyingCollateral(
         address collateralToken,
         uint256 collateralTokenId,
-        bytes memory collateralContext
+        bytes memory collateralWrapperContext
     ) internal view returns (address, uint256[] memory) {
         /* Enumerate bundle if collateral token is a collateral wrapper */
         if (
@@ -460,7 +460,7 @@ abstract contract Pool is
             collateralToken == _collateralWrapper2 ||
             collateralToken == _collateralWrapper3
         ) {
-            return ICollateralWrapper(collateralToken).enumerate(collateralTokenId, collateralContext);
+            return ICollateralWrapper(collateralToken).enumerate(collateralTokenId, collateralWrapperContext);
         }
 
         /* If single asset, convert to length one token ID array */
@@ -592,7 +592,7 @@ abstract contract Pool is
      * @param collateralTokenId Collateral token ID
      * @param maxRepayment Maximum repayment amount in currency tokens
      * @param ticks Liquidity node ticks
-     * @param collateralContext Collateral context data
+     * @param collateralWrapperContext Collateral wrapper context
      * @return Repayment amount in currency tokens, encoded loan receipt, loan
      * receipt hash
      */
@@ -603,13 +603,13 @@ abstract contract Pool is
         uint256 collateralTokenId,
         uint256 maxRepayment,
         uint128[] calldata ticks,
-        bytes memory collateralContext
+        bytes memory collateralWrapperContext
     ) internal returns (uint256, bytes memory, bytes32) {
         /* Get underlying collateral */
         (address underlyingCollateralToken, uint256[] memory underlyingCollateralTokenIds) = _getUnderlyingCollateral(
             collateralToken,
             collateralTokenId,
-            collateralContext
+            collateralWrapperContext
         );
 
         /* Quote repayment and liquidity nodes */
@@ -640,8 +640,8 @@ abstract contract Pool is
             duration: duration,
             collateralToken: collateralToken,
             collateralTokenId: collateralTokenId,
-            collateralContextLength: uint16(collateralContext.length),
-            collateralContextData: collateralContext,
+            collateralWrapperContextLen: uint16(collateralWrapperContext.length),
+            collateralWrapperContext: collateralWrapperContext,
             nodeReceipts: new LoanReceipt.NodeReceipt[](count)
         });
 
@@ -769,7 +769,7 @@ abstract contract Pool is
         (address underlyingCollateralToken, uint256[] memory underlyingCollateralTokenIds) = _getUnderlyingCollateral(
             loanReceipt.collateralToken,
             loanReceipt.collateralTokenId,
-            loanReceipt.collateralContextData
+            loanReceipt.collateralWrapperContext
         );
 
         /* Quote repayment */
@@ -876,7 +876,7 @@ abstract contract Pool is
             loanReceipt.collateralTokenId,
             maxRepayment,
             ticks,
-            loanReceipt.collateralContextData
+            loanReceipt.collateralWrapperContext
         );
 
         /* Determine transfer direction */
@@ -921,7 +921,7 @@ abstract contract Pool is
             address(_currencyToken),
             loanReceipt.collateralToken,
             loanReceipt.collateralTokenId,
-            loanReceipt.collateralContextData,
+            loanReceipt.collateralWrapperContext,
             encodedLoanReceipt
         );
 

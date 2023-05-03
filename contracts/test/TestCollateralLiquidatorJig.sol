@@ -102,7 +102,7 @@ contract TestCollateralLiquidatorJig is ERC721Holder {
             address(_currencyToken),
             loanReceipt.collateralToken,
             loanReceipt.collateralTokenId,
-            loanReceipt.collateralContextData,
+            loanReceipt.collateralWrapperContext,
             encodedLoanReceipt
         );
     }
@@ -205,7 +205,7 @@ contract TestCollateralLiquidatorJigTruncated is ERC721Holder {
             address(_currencyToken),
             loanReceipt.collateralToken,
             loanReceipt.collateralTokenId,
-            loanReceipt.collateralContextData,
+            loanReceipt.collateralWrapperContext,
             encodedLoanReceipt
         );
     }

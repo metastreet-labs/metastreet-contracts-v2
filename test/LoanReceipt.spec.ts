@@ -37,8 +37,8 @@ describe("LoanReceipt", function () {
     duration: 2592000,
     collateralToken: "0x7616dF65742332F688e0E0b1D293a3162f0904EA",
     collateralTokenId: 456,
-    collateralContextLength: 0,
-    collateralContextData: "0x",
+    collateralWrapperContextLen: 0,
+    collateralWrapperContext: "0x",
     nodeReceipts: [
       {
         tick: ethers.BigNumber.from("1000000000000000000"),
@@ -67,8 +67,8 @@ describe("LoanReceipt", function () {
     duration: 2592000,
     collateralToken: "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
     collateralTokenId: BigNumber.from("44527239254935349275158812996110366328027393789522367573114992166380918873022"),
-    collateralContextLength: 84,
-    collateralContextData:
+    collateralWrapperContextLen: 84,
+    collateralWrapperContext:
       "0xb7f8bc63bbcad18155201308c8f3540b07f84f5e00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
     nodeReceipts: [
       {
@@ -161,8 +161,8 @@ describe("LoanReceipt", function () {
       expect(decodedLoanReceipt.duration).to.equal(bundleLoanReceipt.duration);
       expect(decodedLoanReceipt.collateralToken).to.equal(bundleLoanReceipt.collateralToken);
       expect(decodedLoanReceipt.collateralTokenId).to.equal(bundleLoanReceipt.collateralTokenId);
-      expect(decodedLoanReceipt.collateralContextLength).to.equal(bundleLoanReceipt.collateralContextLength);
-      expect(decodedLoanReceipt.collateralContextData).to.equal(bundleLoanReceipt.collateralContextData);
+      expect(decodedLoanReceipt.collateralWrapperContextLen).to.equal(bundleLoanReceipt.collateralWrapperContextLen);
+      expect(decodedLoanReceipt.collateralWrapperContext).to.equal(bundleLoanReceipt.collateralWrapperContext);
       expect(decodedLoanReceipt.nodeReceipts.length).to.equal(3);
       for (let i = 0; i < bundleLoanReceipt.nodeReceipts.length; i++) {
         expect(decodedLoanReceipt.nodeReceipts[i].tick).to.equal(bundleLoanReceipt.nodeReceipts[i].tick);

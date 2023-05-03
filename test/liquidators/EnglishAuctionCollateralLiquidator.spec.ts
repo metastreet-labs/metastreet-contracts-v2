@@ -204,8 +204,8 @@ describe("EnglishAuctionCollateralLiquidator", function () {
     duration: 2592000,
     collateralToken: ethers.constants.AddressZero /* To be populated */,
     collateralTokenId: 0 /* To be populated */,
-    collateralContextLength: 0,
-    collateralContextData: "0x",
+    collateralWrapperContextLen: 0,
+    collateralWrapperContext: "0x",
     nodeReceipts: [
       {
         tick: ethers.BigNumber.from("1000000000000000000"),
@@ -228,15 +228,15 @@ describe("EnglishAuctionCollateralLiquidator", function () {
   function makeLoanReceipt(
     collateralToken: string,
     collateralTokenId: number,
-    collateralContextLength: number,
-    collateralContextData: string
+    collateralWrapperContextLen: number,
+    collateralWrapperContext: string
   ) {
     return {
       ...loanReceiptTemplate,
       collateralToken,
       collateralTokenId,
-      collateralContextLength,
-      collateralContextData,
+      collateralWrapperContextLen,
+      collateralWrapperContext,
     };
   }
 
@@ -283,16 +283,16 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       /* Underlying collateral token IDs */
       const tokenIds = [123, 124, 125];
 
-      /* Construct collateral context */
-      const collateralContext = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, tokenIds]);
+      /* Construct collateral wrapper context */
+      const collateralWrapperContext = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, tokenIds]);
 
       /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(
         makeLoanReceipt(
           bundleCollateralWrapper.address,
           bundleTokenId,
-          ethers.utils.arrayify(collateralContext).length,
-          collateralContext
+          ethers.utils.arrayify(collateralWrapperContext).length,
+          collateralWrapperContext
         )
       );
 
@@ -332,16 +332,16 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       /* Underlying collateral token IDs */
       const tokenIds = [126, 127, 128];
 
-      /* Construct collateral context */
-      const collateralContext = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, tokenIds]);
+      /* Construct collateral wrapper context */
+      const collateralWrapperContext = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, tokenIds]);
 
       /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(
         makeLoanReceipt(
           bundleCollateralWrapperFake.address,
           bundleTokenIdFake,
-          ethers.utils.arrayify(collateralContext).length,
-          collateralContext
+          ethers.utils.arrayify(collateralWrapperContext).length,
+          collateralWrapperContext
         )
       );
 
@@ -709,16 +709,16 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       /* Underlying collateral token IDs */
       const tokenIds = [123, 124, 125];
 
-      /* Construct collateral context */
-      const collateralContext = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, tokenIds]);
+      /* Construct collateral wrapper context */
+      const collateralWrapperContext = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, tokenIds]);
 
       /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(
         makeLoanReceipt(
           bundleCollateralWrapper.address,
           bundleTokenId,
-          ethers.utils.arrayify(collateralContext).length,
-          collateralContext
+          ethers.utils.arrayify(collateralWrapperContext).length,
+          collateralWrapperContext
         )
       );
 

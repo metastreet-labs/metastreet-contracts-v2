@@ -16,14 +16,14 @@ interface ICollateralLiquidator {
      * @param currencyToken Curreny token
      * @param collateralToken Collateral token, either underlying token or collateral wrapper
      * @param collateralTokenId Collateral token ID
-     * @param collateralContext Collateral context for collateral wrapper
+     * @param collateralWrapperContext Collateral wrapper context
      * @param liquidationContext Liquidation callback context
      */
     function liquidate(
         address currencyToken,
         address collateralToken,
         uint256 collateralTokenId,
-        bytes calldata collateralContext,
+        bytes calldata collateralWrapperContext,
         bytes calldata liquidationContext
     ) external;
 }

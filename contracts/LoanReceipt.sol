@@ -56,8 +56,8 @@ library LoanReceipt {
      * @param duration Loan duration
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
-     * @param collateralContextLength Collateral context length
-     * @param collateralContextData Collateral context data
+     * @param collateralWrapperContextLen Collateral wrapper context length
+     * @param collateralWrapperContext Collateral wrapper context data
      * @param nodeReceipts Node receipts
      */
     struct LoanReceiptV1 {
@@ -69,8 +69,8 @@ library LoanReceipt {
         uint64 duration;
         address collateralToken;
         uint256 collateralTokenId;
-        uint16 collateralContextLength;
-        bytes collateralContextData;
+        uint16 collateralWrapperContextLen;
+        bytes collateralWrapperContext;
         NodeReceipt[] nodeReceipts;
     }
 
@@ -92,17 +92,17 @@ library LoanReceipt {
 
     /*
       Header (155 bytes)
-          1   uint8   version                 0:1
-          32  uint256 principal               1:33
-          32  uint256 repayment               33:65
-          20  address borrower                65:85
-          8   uint64  maturity                85:93
-          8   uint64  duration                93:101
-          20  address collateralToken         101:121
-          32  uint256 collateralTokenId       121:153
-          2   uint16  collateralContextLength 153:155
+          1   uint8   version                        0:1
+          32  uint256 principal                      1:33
+          32  uint256 repayment                      33:65
+          20  address borrower                       65:85
+          8   uint64  maturity                       85:93
+          8   uint64  duration                       93:101
+          20  address collateralToken                101:121
+          32  uint256 collateralTokenId              121:153
+          2   uint16  collateralWrapperContextLen 153:155
 
-      Collateral Context Data (M bytes)       155:---
+      Collateral Wrapper Context Data (M bytes)      155:---
 
       Node Receipts (48 * N bytes)
           N   NodeReceipts[] nodeReceipts
@@ -141,8 +141,8 @@ library LoanReceipt {
             receipt.duration,
             receipt.collateralToken,
             receipt.collateralTokenId,
-            receipt.collateralContextLength,
-            receipt.collateralContextData
+            receipt.collateralWrapperContextLen,
+            receipt.collateralWrapperContext
         );
 
         /* Encode node receipts */
@@ -168,15 +168,15 @@ library LoanReceipt {
         /* Validate encoded receipt length */
         if (encodedReceipt.length < LOAN_RECEIPT_V1_HEADER_SIZE) revert InvalidReceiptEncoding();
 
-        uint16 collateralContextLength = uint16(bytes2(encodedReceipt[153:155]));
+        uint16 collateralWrapperContextLen = uint16(bytes2(encodedReceipt[153:155]));
 
-        /* Validate length with collateral context */
-        if (encodedReceipt.length < LOAN_RECEIPT_V1_HEADER_SIZE + collateralContextLength)
+        /* Validate length with collateral wrapper context */
+        if (encodedReceipt.length < LOAN_RECEIPT_V1_HEADER_SIZE + collateralWrapperContextLen)
             revert InvalidReceiptEncoding();
 
         /* Validate length with node receipts */
         if (
-            (encodedReceipt.length - LOAN_RECEIPT_V1_HEADER_SIZE - collateralContextLength) %
+            (encodedReceipt.length - LOAN_RECEIPT_V1_HEADER_SIZE - collateralWrapperContextLen) %
                 LOAN_RECEIPT_V1_NODE_RECEIPT_SIZE !=
             0
         ) revert InvalidReceiptEncoding();
@@ -195,17 +195,16 @@ library LoanReceipt {
         receipt.duration = uint64(bytes8(encodedReceipt[93:101]));
         receipt.collateralToken = address(uint160(bytes20(encodedReceipt[101:121])));
         receipt.collateralTokenId = uint256(bytes32(encodedReceipt[121:153]));
-        receipt.collateralContextLength = uint16(bytes2(encodedReceipt[153:155]));
-        receipt.collateralContextData = encodedReceipt[155:155 + receipt.collateralContextLength];
+        receipt.collateralWrapperContextLen = collateralWrapperContextLen;
+        receipt.collateralWrapperContext = encodedReceipt[155:155 + collateralWrapperContextLen];
 
         /* Decode node receipts */
-        uint256 numNodeReceipts = (encodedReceipt.length -
-            LOAN_RECEIPT_V1_HEADER_SIZE -
-            receipt.collateralContextLength) / LOAN_RECEIPT_V1_NODE_RECEIPT_SIZE;
+        uint256 numNodeReceipts = (encodedReceipt.length - LOAN_RECEIPT_V1_HEADER_SIZE - collateralWrapperContextLen) /
+            LOAN_RECEIPT_V1_NODE_RECEIPT_SIZE;
         receipt.nodeReceipts = new NodeReceipt[](numNodeReceipts);
         for (uint256 i; i < numNodeReceipts; i++) {
             uint256 offset = LOAN_RECEIPT_V1_HEADER_SIZE +
-                receipt.collateralContextLength +
+                collateralWrapperContextLen +
                 i *
                 LOAN_RECEIPT_V1_NODE_RECEIPT_SIZE;
             receipt.nodeReceipts[i].tick = uint128(bytes16(encodedReceipt[offset:offset + 16]));

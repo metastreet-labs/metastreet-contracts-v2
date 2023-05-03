@@ -169,7 +169,7 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
      * @param currencyToken Curreny token
-     * @param collateralContext Collateral context for collateral wrapper
+     * @param collateralWrapperContext Collateral wrapper context
      * @param liquidationContext Liquidation callback context
      */
     function _collateralHash(
@@ -177,7 +177,7 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
         address collateralToken,
         uint256 collateralTokenId,
         address currencyToken,
-        bytes calldata collateralContext,
+        bytes calldata collateralWrapperContext,
         bytes calldata liquidationContext
     ) internal view returns (bytes32) {
         return
@@ -187,7 +187,7 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
                     source,
                     collateralToken,
                     collateralTokenId,
-                    collateralContext,
+                    collateralWrapperContext,
                     currencyToken,
                     liquidationContext
                 )
@@ -224,7 +224,7 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
         address currencyToken,
         address collateralToken,
         uint256 collateralTokenId,
-        bytes calldata collateralContext,
+        bytes calldata collateralWrapperContext,
         bytes calldata liquidationContext
     ) external nonReentrant {
         /* Check collateralToken and currencyToken is not zero address */
@@ -236,7 +236,7 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
             collateralToken,
             collateralTokenId,
             currencyToken,
-            collateralContext,
+            collateralWrapperContext,
             liquidationContext
         );
 
@@ -262,7 +262,7 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
      * @param currencyToken Curreny token
      * @param collateralToken Collateral token, either underlying token or collateral wrapper
      * @param collateralTokenId Collateral token ID
-     * @param collateralContext Collateral context for collateral wrapper
+     * @param collateralWrapperContext Collateral wrapper context
      * @param liquidationContext Liquidation callback context
      */
     function withdrawCollateral(
@@ -270,7 +270,7 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
         address currencyToken,
         address collateralToken,
         uint256 collateralTokenId,
-        bytes calldata collateralContext,
+        bytes calldata collateralWrapperContext,
         bytes calldata liquidationContext
     ) external onlyRole(COLLATERAL_LIQUIDATOR_ROLE) {
         /* Compute collateral hash */
@@ -279,7 +279,7 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
             collateralToken,
             collateralTokenId,
             currencyToken,
-            collateralContext,
+            collateralWrapperContext,
             liquidationContext
         );
 
@@ -303,7 +303,7 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
      * @param source Source that provided collateral
      * @param collateralToken Collateral token from liquidate parameter earlier
      * @param collateralTokenId Collateral token ID from liquidate parameter earlier
-     * @param collateralContext Collateral context
+     * @param collateralWrapperContext Collateral wrapper context
      * @param liquidationContext Liquidation context
      */
     function liquidateCollateral(
@@ -311,7 +311,7 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
         address currencyToken,
         address collateralToken,
         uint256 collateralTokenId,
-        bytes calldata collateralContext,
+        bytes calldata collateralWrapperContext,
         bytes calldata liquidationContext,
         uint256 proceeds
     ) external onlyRole(COLLATERAL_LIQUIDATOR_ROLE) {
@@ -321,7 +321,7 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
             collateralToken,
             collateralTokenId,
             currencyToken,
-            collateralContext,
+            collateralWrapperContext,
             liquidationContext
         );
 

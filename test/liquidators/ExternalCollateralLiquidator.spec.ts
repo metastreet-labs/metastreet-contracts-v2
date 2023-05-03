@@ -154,8 +154,8 @@ describe("ExternalCollateralLiquidator", function () {
     duration: 2592000,
     collateralToken: ethers.constants.AddressZero /* To be populated */,
     collateralTokenId: 0 /* To be populated */,
-    collateralContextLength: 0,
-    collateralContextData: "0x",
+    collateralWrapperContextLen: 0,
+    collateralWrapperContext: "0x",
     nodeReceipts: [
       {
         tick: ethers.BigNumber.from("1000000000000000000"),
@@ -178,15 +178,15 @@ describe("ExternalCollateralLiquidator", function () {
   function makeLoanReceipt(
     collateralToken: string,
     collateralTokenId: number,
-    collateralContextLength: number,
-    collateralContextData: string
+    collateralWrapperContextLen: number,
+    collateralWrapperContext: string
   ) {
     return {
       ...loanReceiptTemplate,
       collateralToken,
       collateralTokenId,
-      collateralContextLength,
-      collateralContextData,
+      collateralWrapperContextLen,
+      collateralWrapperContext,
     };
   }
 

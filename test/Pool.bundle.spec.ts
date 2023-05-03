@@ -507,8 +507,8 @@ describe("Pool Bundle", function () {
       expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
       expect(decodedLoanReceipt.collateralToken).to.equal(bundleCollateralWrapper.address);
       expect(decodedLoanReceipt.collateralTokenId).to.equal(bundleTokenId);
-      expect(decodedLoanReceipt.collateralContextLength).to.equal(ethers.utils.hexDataLength(bundleData));
-      expect(decodedLoanReceipt.collateralContextData).to.equal(bundleData);
+      expect(decodedLoanReceipt.collateralWrapperContextLen).to.equal(ethers.utils.hexDataLength(bundleData));
+      expect(decodedLoanReceipt.collateralWrapperContext).to.equal(bundleData);
       expect(decodedLoanReceipt.nodeReceipts.length).to.equal(4);
 
       /* Sum used and pending totals from node receipts */
@@ -624,8 +624,8 @@ describe("Pool Bundle", function () {
       expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
       expect(decodedLoanReceipt.collateralToken).to.equal(bundleCollateralWrapper.address);
       expect(decodedLoanReceipt.collateralTokenId).to.equal(bundleTokenId);
-      expect(decodedLoanReceipt.collateralContextLength).to.equal(ethers.utils.hexDataLength(bundleData));
-      expect(decodedLoanReceipt.collateralContextData).to.equal(bundleData);
+      expect(decodedLoanReceipt.collateralWrapperContextLen).to.equal(ethers.utils.hexDataLength(bundleData));
+      expect(decodedLoanReceipt.collateralWrapperContext).to.equal(bundleData);
       expect(decodedLoanReceipt.nodeReceipts.length).to.equal(4);
 
       /* Sum used and pending totals from node receipts */
@@ -733,8 +733,8 @@ describe("Pool Bundle", function () {
       expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
       expect(decodedLoanReceipt.collateralToken).to.equal(bundleCollateralWrapper.address);
       expect(decodedLoanReceipt.collateralTokenId).to.equal(bundleTokenId);
-      expect(decodedLoanReceipt.collateralContextLength).to.equal(ethers.utils.hexDataLength(bundleData));
-      expect(decodedLoanReceipt.collateralContextData).to.equal(bundleData);
+      expect(decodedLoanReceipt.collateralWrapperContextLen).to.equal(ethers.utils.hexDataLength(bundleData));
+      expect(decodedLoanReceipt.collateralWrapperContext).to.equal(bundleData);
       expect(decodedLoanReceipt.nodeReceipts.length).to.equal(17);
 
       /* Sum used and pending totals from node receipts */

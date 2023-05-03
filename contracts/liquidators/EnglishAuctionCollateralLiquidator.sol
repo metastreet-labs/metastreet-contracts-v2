@@ -426,7 +426,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         address currencyToken,
         address collateralToken,
         uint256 collateralTokenId,
-        bytes calldata collateralContext,
+        bytes calldata collateralWrapperContext,
         bytes calldata liquidationContext
     ) external nonReentrant {
         /* Check collateralToken and currencyToken is not zero address */
@@ -434,7 +434,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
 
         /* Compute liquidation salt */
         bytes32 liquidationSalt = keccak256(
-            abi.encodePacked(currencyToken, collateralToken, collateralTokenId, collateralContext)
+            abi.encodePacked(currencyToken, collateralToken, collateralTokenId, collateralWrapperContext)
         );
 
         /* Compute liquidation hash */
@@ -452,7 +452,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
             /* Get underlying collateral token and underlying collateral token IDs */
             (underlyingCollateralToken, underlyingCollateralTokenIds) = ICollateralWrapper(collateralToken).enumerate(
                 collateralTokenId,
-                collateralContext
+                collateralWrapperContext
             );
         } else {
             /* Assign collateral token address and ID */
@@ -484,7 +484,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
 
         /* Unwrap bundle collateral if collateral token is a collateral wrapper */
         if (_collateralWrappers[collateralToken])
-            ICollateralWrapper(collateralToken).unwrap(collateralTokenId, collateralContext);
+            ICollateralWrapper(collateralToken).unwrap(collateralTokenId, collateralWrapperContext);
     }
 
     /**
