@@ -20,7 +20,6 @@
   "devDependencies": {
     "@anders-t/ethers-ledger": "^1.0.4",
     "@nomicfoundation/hardhat-toolbox": "^2.0.0",
-    "@openzeppelin/contracts": "^4.8.0",
     "@typescript-eslint/eslint-plugin": "^5.48.0",
     "@typescript-eslint/parser": "^5.48.0",
     "commander": "^10.0.0",
@@ -38,5 +37,8 @@
     "prettier-plugin-solidity": "^1.1.1",
     "solhint": "^3.3.7",
     "solhint-plugin-prettier": "^0.0.5"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "4.8.3"
   }
 }
