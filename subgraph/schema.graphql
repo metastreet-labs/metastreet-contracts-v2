@@ -86,7 +86,7 @@ type Deposit @entity {
 type Bundle @entity {
   id: ID! # bundle token id
   owner: Bytes! # address
-  collateralContextData: Bytes!
+  collateralWrapperContext: Bytes!
   underlyingCollateralToken: Bytes! # address
   underlyingCollateralTokenIds: [BigInt!]! # uint256[]
 }

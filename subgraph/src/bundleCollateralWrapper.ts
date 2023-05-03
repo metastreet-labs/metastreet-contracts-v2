@@ -9,7 +9,7 @@ import { Bundle as BundleEntity } from "../generated/schema";
 export function handleBundleMinted(event: BundleMintedEvent): void {
   const bundleEntity = new BundleEntity(event.params.tokenId.toString());
   bundleEntity.owner = event.params.account;
-  bundleEntity.collateralContextData = event.params.encodedBundle;
+  bundleEntity.collateralWrapperContext = event.params.encodedBundle;
 
   const bundleCollateralWrapperContract = BundleCollateralWrapperContract.bind(dataSource.address());
   const result = bundleCollateralWrapperContract.enumerate(event.params.tokenId, event.params.encodedBundle);
