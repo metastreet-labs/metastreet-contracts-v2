@@ -13,6 +13,7 @@ import {
   Tick as TickEntity,
   Withdrawn as WithdrawnEntity,
 } from "../generated/schema";
+import { ICollateralWrapper } from "../generated/templates/Pool/ICollateralWrapper";
 import {
   CollateralLiquidated as CollateralLiquidatedEvent,
   Deposited as DepositedEvent,
@@ -294,10 +295,14 @@ function createLoanEntity(
   } else {
     const bundleId = loanReceipt.collateralTokenId.toString();
     const bundleEntity = BundleEntity.load(bundleId);
-    if (!bundleEntity) throw new Error("Bundle entity not found for this bundle loan");
-    loanEntity.collateralToken = bundleEntity.underlyingCollateralToken.toHexString();
-    loanEntity.collateralTokenIds = bundleEntity.underlyingCollateralTokenIds;
-    loanEntity.bundle = bundleId;
+    if (bundleEntity) loanEntity.bundle = bundleId;
+
+    const result = ICollateralWrapper.bind(loanReceipt.collateralToken).enumerate(
+      loanReceipt.collateralTokenId,
+      loanReceipt.collateralWrapperContext
+    );
+    loanEntity.collateralToken = result.value0.toHexString();
+    loanEntity.collateralTokenIds = result.value1;
   }
 
   const transactionReceipt = event.receipt;

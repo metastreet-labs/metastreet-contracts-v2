@@ -74,8 +74,8 @@ templates:
       abis:
         - name: Pool
           file: ../artifacts/contracts/Pool.sol/Pool.json
-        - name: LoanReceipt
-          file: ../artifacts/contracts/LoanReceipt.sol/LoanReceipt.json
+        - name: ICollateralWrapper
+          file: ../artifacts/contracts/interfaces/ICollateralWrapper.sol/ICollateralWrapper.json
       eventHandlers:
         - event: Deposited(indexed address,indexed uint128,uint256,uint256)
           handler: handleDeposited
