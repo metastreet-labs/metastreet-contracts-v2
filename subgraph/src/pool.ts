@@ -282,6 +282,7 @@ function createLoanEntity(
   loanEntity.borrower = loanReceipt.borrower;
   loanEntity.maturity = loanReceipt.maturity;
   loanEntity.duration = loanReceipt.duration;
+  loanEntity.collateralWrapperContext = loanReceipt.collateralWrapperContext;
   loanEntity.ticks = ticks;
   loanEntity.principal = principal;
   loanEntity.repayment = repayment;

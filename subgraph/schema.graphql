@@ -118,6 +118,7 @@ type Loan @entity {
   ticks: [BigInt!]! # uint128[]
   principal: BigInt! # uint256
   repayment: BigInt! # uint256
+  collateralWrapperContext: Bytes!
   # Raw Loan Receipt
   loanReceipt: Bytes!
 }
