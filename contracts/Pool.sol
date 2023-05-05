@@ -73,11 +73,6 @@ abstract contract Pool is
      */
     uint256 internal constant BORROW_OPTIONS_LENGTH_SIZE = 2;
 
-    /**
-     * @notice Borrow options header size in bytes
-     */
-    uint256 internal constant BORROW_OPTIONS_HEADER_SIZE = BORROW_OPTIONS_TAG_SIZE + BORROW_OPTIONS_LENGTH_SIZE;
-
     /**************************************************************************/
     /* Errors */
     /**************************************************************************/
@@ -421,29 +416,27 @@ abstract contract Pool is
      * @return Options data
      */
     function _getOptionsData(bytes calldata options, uint16 tag) internal pure returns (bytes calldata) {
-        uint256 offset = 0;
+        uint256 offsetTag = 0;
 
         /* Scan the options for the tag */
-        while (offset < options.length) {
+        while (offsetTag < options.length) {
+            /* Compute offsets with for tag length and data */
+            uint256 offsetLength = offsetTag + BORROW_OPTIONS_TAG_SIZE;
+            uint256 offsetData = offsetTag + BORROW_OPTIONS_TAG_SIZE + BORROW_OPTIONS_LENGTH_SIZE;
+
             /* The tag is in the first 2 bytes of each options item */
-            uint16 currentTag = uint16(bytes2(options[offset:offset + BORROW_OPTIONS_TAG_SIZE]));
+            uint16 currentTag = uint16(bytes2(options[offsetTag:offsetLength]));
 
             /* The length of the options data is in the second 2 bytes of each options item, after the tag */
-            uint256 dataLength = uint16(
-                bytes2(
-                    options[offset + BORROW_OPTIONS_TAG_SIZE:offset +
-                        BORROW_OPTIONS_TAG_SIZE +
-                        BORROW_OPTIONS_LENGTH_SIZE]
-                )
-            );
+            uint256 dataLength = uint16(bytes2(options[offsetLength:offsetData]));
 
             /* Return the offset and length if the tag is found */
             if (currentTag == tag) {
-                return options[offset + BORROW_OPTIONS_HEADER_SIZE:offset + BORROW_OPTIONS_HEADER_SIZE + dataLength];
+                return options[offsetData:offsetData + dataLength];
             }
 
             /* Increment to next options item */
-            offset += BORROW_OPTIONS_HEADER_SIZE + dataLength;
+            offsetTag = offsetData + dataLength;
         }
 
         /* Return empty slice if no tag is found */
