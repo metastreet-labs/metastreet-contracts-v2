@@ -19,7 +19,7 @@ import { extractEvent } from "./helpers/EventUtilities";
 import { FixedPoint } from "./helpers/FixedPoint";
 import { Tick } from "./helpers/Tick";
 
-import { PoolModel } from "./integration/PoolModel";
+import { PoolModel } from "./models/PoolModel";
 
 describe("Integration", function () {
   let accounts: SignerWithAddress[];
