@@ -110,4 +110,4 @@ npm run node
 
 ## License
 
-MetaStreet v2 Contracts are primary BUSL-1.1 [licensed](LICENSE). Interfaces are MIT [licensed](contracts/interfaces/LICENSE).
+MetaStreet v2 Contracts are primarily BUSL-1.1 [licensed](LICENSE). Interfaces are MIT [licensed](contracts/interfaces/LICENSE).
