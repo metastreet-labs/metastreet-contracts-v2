@@ -425,25 +425,23 @@ abstract contract Pool is
 
         /* Scan the options for the tag */
         while (offset < options.length) {
+            /* Compute offsets with tag size and header size */
+            uint256 offsetTag = offset + BORROW_OPTIONS_TAG_SIZE;
+            uint256 offsetHeader = offset + BORROW_OPTIONS_HEADER_SIZE;
+
             /* The tag is in the first 2 bytes of each options item */
-            uint16 currentTag = uint16(bytes2(options[offset:offset + BORROW_OPTIONS_TAG_SIZE]));
+            uint16 currentTag = uint16(bytes2(options[offset:offsetTag]));
 
             /* The length of the options data is in the second 2 bytes of each options item, after the tag */
-            uint256 dataLength = uint16(
-                bytes2(
-                    options[offset + BORROW_OPTIONS_TAG_SIZE:offset +
-                        BORROW_OPTIONS_TAG_SIZE +
-                        BORROW_OPTIONS_LENGTH_SIZE]
-                )
-            );
+            uint256 dataLength = uint16(bytes2(options[offsetTag:offsetHeader]));
 
             /* Return the offset and length if the tag is found */
             if (currentTag == tag) {
-                return options[offset + BORROW_OPTIONS_HEADER_SIZE:offset + BORROW_OPTIONS_HEADER_SIZE + dataLength];
+                return options[offsetHeader:offsetHeader + dataLength];
             }
 
             /* Increment to next options item */
-            offset += BORROW_OPTIONS_HEADER_SIZE + dataLength;
+            offset = offsetHeader + dataLength;
         }
 
         /* Return empty slice if no tag is found */
@@ -528,8 +526,9 @@ abstract contract Pool is
      * @param collateralToken Collateral token address
      * @param collateralTokenIds List of collateral token ids
      * @param ticks Liquidity node ticks
-     * @return Repayment amount in currency tokens, liquidity nodes, liquidity
-     * node count
+     * @return repayment amount in currency tokens,
+     * @return nodes used for liquidity
+     * @return count liquidity nodes
      */
     function _quote(
         uint256 principal,
@@ -538,48 +537,47 @@ abstract contract Pool is
         uint256[] memory collateralTokenIds,
         uint128[] calldata ticks,
         bytes calldata collateralFilterContext
-    ) internal view returns (uint256, ILiquidity.NodeSource[] memory, uint16) {
+    ) internal view returns (uint256 repayment, ILiquidity.NodeSource[] memory nodes, uint16 count) {
         /* Verify collateral is supported */
         for (uint256 i = 0; i < collateralTokenIds.length; i++) {
             if (!collateralSupported(collateralToken, collateralTokenIds[i], collateralFilterContext))
                 revert UnsupportedCollateral(i);
         }
 
+        /* Declare durations */
+        uint64[] memory durations_ = _durations;
+
         /* Lookup duration index */
         uint256 durationIndex;
-        for (; durationIndex < _durations.length; durationIndex++) {
-            if (duration <= _durations[durationIndex]) break;
+        for (; durationIndex < durations_.length; durationIndex++) {
+            if (duration <= durations_[durationIndex]) break;
         }
 
         /* Validate duration index */
-        if (durationIndex == _durations.length) revert UnsupportedLoanDuration();
+        if (durationIndex == durations_.length) revert UnsupportedLoanDuration();
 
         /* Source liquidity nodes */
-        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
-            principal,
-            ticks,
-            collateralTokenIds.length,
-            durationIndex
-        );
+        (nodes, count) = _liquidity.source(principal, ticks, collateralTokenIds.length, durationIndex);
 
         /* Calculate repayment from principal, rate, and duration */
-        uint256 repayment = Math.mulDiv(
+        repayment = Math.mulDiv(
             principal,
             LiquidityManager.FIXED_POINT_SCALE + (_rate(principal, _rates, nodes, count) * duration),
             LiquidityManager.FIXED_POINT_SCALE
         );
-
-        return (repayment, nodes, count);
     }
 
     /**
      * @dev Helper function to calculated prorated repayment
      * @param loanReceipt Decoded loan receipt
-     * @return Repayment amount in currency tokens, proration based on elapsed duration
+     * @return repayment amount in currency tokens
+     * @return proration based on elapsed duration
      */
-    function _prorateRepayment(LoanReceipt.LoanReceiptV1 memory loanReceipt) internal view returns (uint256, uint256) {
+    function _prorateRepayment(
+        LoanReceipt.LoanReceiptV1 memory loanReceipt
+    ) internal view returns (uint256 repayment, uint256 proration) {
         /* Minimum of proration and 1.0 */
-        uint256 proration = Math.min(
+        proration = Math.min(
             Math.mulDiv(
                 block.timestamp - (loanReceipt.maturity - loanReceipt.duration),
                 LiquidityManager.FIXED_POINT_SCALE,
@@ -589,10 +587,9 @@ abstract contract Pool is
         );
 
         /* Compute repayment using prorated interest */
-        uint256 repayment = loanReceipt.principal +
+        repayment =
+            loanReceipt.principal +
             Math.mulDiv(loanReceipt.repayment - loanReceipt.principal, proration, LiquidityManager.FIXED_POINT_SCALE);
-
-        return (repayment, proration);
     }
 
     /**
@@ -638,11 +635,14 @@ abstract contract Pool is
         /* Validate repayment */
         if (repayment > maxRepayment) revert RepaymentTooHigh();
 
+        /* Compute total fee */
+        uint256 totalFee = repayment - principal;
+
         /* Compute admin fee */
-        uint256 adminFee = Math.mulDiv(_adminFeeRate, repayment - principal, BASIS_POINTS_SCALE);
+        uint256 adminFee = Math.mulDiv(_adminFeeRate, totalFee, BASIS_POINTS_SCALE);
 
         /* Distribute interest */
-        uint128[] memory interest = _distribute(principal, repayment - principal - adminFee, nodes, count);
+        uint128[] memory interest = _distribute(principal, totalFee - adminFee, nodes, count);
 
         /* Build the loan receipt */
         LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.LoanReceiptV1({
@@ -661,14 +661,17 @@ abstract contract Pool is
 
         /* Use liquidity nodes */
         for (uint256 i; i < count; i++) {
+            /* Compute pending */
+            uint128 pending = nodes[i].used + interest[i];
+
             /* Use node */
-            _liquidity.use(nodes[i].tick, nodes[i].used, nodes[i].used + interest[i]);
+            _liquidity.use(nodes[i].tick, nodes[i].used, pending);
 
             /* Construct node receipt */
             receipt.nodeReceipts[i] = LoanReceipt.NodeReceipt({
                 tick: nodes[i].tick,
                 used: nodes[i].used,
-                pending: nodes[i].used + interest[i]
+                pending: pending
             });
         }
 
@@ -935,11 +938,14 @@ abstract contract Pool is
         /* Validate loan is expired */
         if (block.timestamp <= loanReceipt.maturity) revert LoanNotExpired();
 
+        /* Declare collateral liquidator */
+        ICollateralLiquidator collateralLiquidator_ = _collateralLiquidator;
+
         /* Approve collateral for transfer to _collateralLiquidator */
-        IERC721(loanReceipt.collateralToken).approve(address(_collateralLiquidator), loanReceipt.collateralTokenId);
+        IERC721(loanReceipt.collateralToken).approve(address(collateralLiquidator_), loanReceipt.collateralTokenId);
 
         /* Start liquidation with collateral liquidator */
-        _collateralLiquidator.liquidate(
+        collateralLiquidator_.liquidate(
             address(_currencyToken),
             loanReceipt.collateralToken,
             loanReceipt.collateralTokenId,
