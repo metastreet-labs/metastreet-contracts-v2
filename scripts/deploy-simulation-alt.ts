@@ -56,6 +56,13 @@ async function main() {
   await poolImpl.deployed();
   console.log("Pool Implementation: ", poolImpl.address);
   /**************************************************************************/
+  /* BeaconProxy */
+  /**************************************************************************/
+  const UpgradeableBeacon = await ethers.getContractFactory("UpgradeableBeacon");
+  const poolBeacon = await UpgradeableBeacon.deploy(poolImpl.address);
+  await poolBeacon.deployed();
+  console.log("Pool Beacon: ", poolBeacon.address);
+  /**************************************************************************/
   /* Currency token */
   /**************************************************************************/
   const TestERC20 = await ethers.getContractFactory("TestERC20");
@@ -92,7 +99,11 @@ async function main() {
         [FixedPoint.from("0.05"), FixedPoint.from("2.0")],
       ]
     );
-    const createPoolTx = await poolFactory.create(poolImpl.address, params, externalCollateralLiquidatorProxy.address);
+    const createPoolTx = await poolFactory.createProxied(
+      poolBeacon.address,
+      params,
+      externalCollateralLiquidatorProxy.address
+    );
     const poolAddress = (await extractEvent(createPoolTx, poolFactory, "PoolCreated")).args.pool;
     const poolContract = Pool__factory.connect(poolAddress, accounts[0]);
     const erc20Contract = ERC20__factory.connect(wethTokenContract.address, accounts[0]);
