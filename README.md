@@ -61,18 +61,42 @@ npm run node
     - [`ExternalCollateralLiquidator.sol`](contracts/liquidators/ExternalCollateralLiquidator.sol) - External Collateral Liquidator
     - [`EnglishAuctionCollateralLiquidator.sol`](contracts/liquidators/EnglishAuctionCollateralLiquidator.sol) - English Auction Collateral Liquidator
   - [`integrations/`](contracts/integrations) - Third-party Integrations
-- [`test/`](contracts/test/) - Testing contracts
-  - [`integrations/`](contracts/test/integrations/) - Third-Party Integrations Test Contracts
-  - [`rates/`](contracts/test/rates/) - Test Wrappers for Interest Rate Models
-  - [`filters/`](contracts/test/filters/) - Test Wrappers for Collateral Filters
-  - [`tokens/`](contracts/test/tokens/) - Test Tokens
-    - [`TestERC20.sol`](contracts/test/tokens/TestERC20.sol) - Test ERC20
-    - [`TestERC721.sol`](contracts/test/tokens/TestERC721.sol) - Test ERC721
-  - [`TestTick.sol`](contracts/test/TestTick.sol) - Test Wrapper for Tick library
-  - [`TestLoanReceipt.sol`](contracts/test/TestLoanReceipt.sol) - Test Wrapper for Loan Receipt library
-  - [`TestLiquidityManager.sol`](contracts/test/TestLiquidityManager.sol) - Test Wrapper for Liquidity Manager library
-  - [`TestCollateralLiquidatorJig.sol`](contracts/test/TestCollateralLiquidatorJig.sol) - Test Jig for Collateral Liquidators
-  - [`TestProxy.sol`](contracts/test/TestProxy.sol) - Test Proxy
+  - [`test/`](contracts/test/) - Testing Contracts
+    - [`integrations/`](contracts/test/integrations/) - Third-Party Integrations
+    - [`rates/`](contracts/test/rates/) - Test Wrappers for Interest Rate Models
+    - [`filters/`](contracts/test/filters/) - Test Wrappers for Collateral Filters
+    - [`tokens/`](contracts/test/tokens/) - Test Tokens
+      - [`TestERC20.sol`](contracts/test/tokens/TestERC20.sol) - Test ERC20
+      - [`TestERC721.sol`](contracts/test/tokens/TestERC721.sol) - Test ERC721
+    - [`TestTick.sol`](contracts/test/TestTick.sol) - Test Wrapper for Tick library
+    - [`TestLoanReceipt.sol`](contracts/test/TestLoanReceipt.sol) - Test Wrapper for Loan Receipt library
+    - [`TestLiquidityManager.sol`](contracts/test/TestLiquidityManager.sol) - Test Wrapper for Liquidity Manager library
+    - [`TestCollateralLiquidatorJig.sol`](contracts/test/TestCollateralLiquidatorJig.sol) - Test Jig for Collateral Liquidators
+    - [`TestProxy.sol`](contracts/test/TestProxy.sol) - Test Proxy
+- [`test/`](test/) - Unit tests
+  - [`rates/`](test/rates/) - Interest Rate Model tests
+    - [`WeightedInterestRateModel.spec.ts`](test/rates/WeightedInterestRateModel.spec.ts) - Weighted Interest Rate Model unit test
+  - [`wrappers/`](test/wrappers/) - Collateral Wrapper tests
+    - [`BundleCollateralWrapper.spec.ts`](test/wrappers/BundleCollateralWrapper.spec.ts) - Bundle Collateral Wrapper unit test
+  - [`filters/`](test/filters/) - Collateral Filter tests
+    - [`CollectionCollateralFilter.spec.ts`](test/filters/CollectionCollateralFilter.spec.ts) - Collection Collateral Filter unit test
+  - [`liquidators/`](test/liquidators/) - Collateral Liquidators tests
+    - [`ExternalCollateralLiquidator.spec.ts`](test/liquidators/ExternalCollateralLiquidator.spec.ts) - External Collateral Liquidator unit test
+    - [`EnglishAuctionCollateralLiquidator.spec.ts`](test/liquidators/EnglishAuctionCollateralLiquidator.spec.ts) - English Auction Collateral Liquidator unit test
+  - [`models/`](test/models/) - Integration test models
+    - [`PoolModel.ts`](test/models/PoolModel.ts) - Pool model
+  - [`helpers/`](test/helpers/) - Test helpers
+    - [`EventUtilities.ts`](test/helpers/EventUtilities.ts) - Event utilities
+    - [`FixedPoint.ts`](test/helpers/FixedPoint.ts) - Fixed Point math utility class
+    - [`Tick.ts`](test/helpers/Tick.ts) - Tick utility class
+  - [`Tick.spec.ts`](test/Tick.spec.ts) - Tick unit test
+  - [`LoanReceipt.spec.ts`](test/LoanReceipt.spec.ts) - Loan Receipt unit test
+  - [`LiquidityManager.spec.ts`](test/LiquidityManager.spec.ts) - Liquidity Manager unit test
+  - [`PoolFactory.spec.ts`](test/PoolFactory.spec.ts) - Pool Factory unit test
+  - [`Pool.basic.spec.ts`](test/Pool.basic.spec.ts) - Pool basic unit test
+  - [`Pool.bundle.spec.ts`](test/Pool.bundle.spec.ts) - Pool bundle unit test
+  - [`Pool.gas.spec.ts`](test/Pool.gas.spec.ts) - Pool gas unit test
+  - [`Integration.spec.ts`](test/Integration.spec.ts) - Integration test
 - [`scripts/`](scripts/) - Scripts
   - [`deploy-simulation.ts`](scripts/deploy-simulation.ts) - Simulation deployment
   - [`deployment-manager.ts`](scripts/deployment-manager.ts) - Deployment manager
