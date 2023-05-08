@@ -22,7 +22,7 @@ export function handleBundleMinted(event: BundleMintedEvent): void {
 export function handleTransfer(event: TransferEvent): void {
   if (event.params.from == Address.zero()) return;
 
-  const bundleEntity = BundleEntity.load(event.params.tokenId.toHexString());
+  const bundleEntity = BundleEntity.load(event.params.tokenId.toString());
   if (!bundleEntity) return;
 
   bundleEntity.owner = event.params.to;
