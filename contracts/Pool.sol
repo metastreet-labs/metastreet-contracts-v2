@@ -637,11 +637,14 @@ abstract contract Pool is
         /* Validate repayment */
         if (repayment > maxRepayment) revert RepaymentTooHigh();
 
+        /* Compute total fee */
+        uint256 totalFee = repayment - principal;
+
         /* Compute admin fee */
-        uint256 adminFee = Math.mulDiv(_adminFeeRate, repayment - principal, BASIS_POINTS_SCALE);
+        uint256 adminFee = Math.mulDiv(_adminFeeRate, totalFee, BASIS_POINTS_SCALE);
 
         /* Distribute interest */
-        uint128[] memory interest = _distribute(principal, repayment - principal - adminFee, nodes, count);
+        uint128[] memory interest = _distribute(principal, totalFee - adminFee, nodes, count);
 
         /* Build the loan receipt */
         LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.LoanReceiptV1({
@@ -660,14 +663,17 @@ abstract contract Pool is
 
         /* Use liquidity nodes */
         for (uint256 i; i < count; i++) {
+            /* Compute pending */
+            uint128 pending = nodes[i].used + interest[i];
+
             /* Use node */
-            _liquidity.use(nodes[i].tick, nodes[i].used, nodes[i].used + interest[i]);
+            _liquidity.use(nodes[i].tick, nodes[i].used, pending);
 
             /* Construct node receipt */
             receipt.nodeReceipts[i] = LoanReceipt.NodeReceipt({
                 tick: nodes[i].tick,
                 used: nodes[i].used,
-                pending: nodes[i].used + interest[i]
+                pending: pending
             });
         }
 
