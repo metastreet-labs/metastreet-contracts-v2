@@ -542,7 +542,7 @@ abstract contract Pool is
     ) internal view returns (uint256, ILiquidity.NodeSource[] memory, uint16) {
         /* Verify collateral is supported */
         for (uint256 i = 0; i < collateralTokenIds.length; i++) {
-            if (!collateralSupported(collateralToken, collateralTokenIds[i], i, collateralFilterContext))
+            if (!_collateralSupported(collateralToken, collateralTokenIds[i], i, collateralFilterContext))
                 revert UnsupportedCollateral(i);
         }
 

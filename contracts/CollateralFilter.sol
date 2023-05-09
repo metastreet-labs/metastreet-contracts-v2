@@ -13,10 +13,10 @@ abstract contract CollateralFilter {
      * @param context ABI-encoded context
      * @return True if supported, otherwise false
      */
-    function collateralSupported(
+    function _collateralSupported(
         address token,
         uint256 tokenId,
         uint256 index,
         bytes calldata context
-    ) public view virtual returns (bool);
+    ) internal view virtual returns (bool);
 }
