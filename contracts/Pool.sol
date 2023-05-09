@@ -572,11 +572,14 @@ abstract contract Pool is
     /**
      * @dev Helper function to calculated prorated repayment
      * @param loanReceipt Decoded loan receipt
-     * @return Repayment amount in currency tokens, proration based on elapsed duration
+     * @return repayment amount in currency tokens
+     * @return proration based on elapsed duration
      */
-    function _prorateRepayment(LoanReceipt.LoanReceiptV1 memory loanReceipt) internal view returns (uint256, uint256) {
+    function _prorateRepayment(
+        LoanReceipt.LoanReceiptV1 memory loanReceipt
+    ) internal view returns (uint256 repayment, uint256 proration) {
         /* Minimum of proration and 1.0 */
-        uint256 proration = Math.min(
+        proration = Math.min(
             Math.mulDiv(
                 block.timestamp - (loanReceipt.maturity - loanReceipt.duration),
                 LiquidityManager.FIXED_POINT_SCALE,
@@ -586,10 +589,9 @@ abstract contract Pool is
         );
 
         /* Compute repayment using prorated interest */
-        uint256 repayment = loanReceipt.principal +
+        repayment =
+            loanReceipt.principal +
             Math.mulDiv(loanReceipt.repayment - loanReceipt.principal, proration, LiquidityManager.FIXED_POINT_SCALE);
-
-        return (repayment, proration);
     }
 
     /**
