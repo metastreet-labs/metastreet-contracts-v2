@@ -6,6 +6,12 @@ pragma solidity ^0.8.0;
  */
 abstract contract CollateralFilter {
     /**
+     * @notice Get collateral token
+     * @return Collateral token contract
+     */
+    function collateralToken() external view virtual returns (address);
+
+    /**
      * Query if collateral token is supported
      * @param token Collateral token contract
      * @param tokenId Collateral Token ID
