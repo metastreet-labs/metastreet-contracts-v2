@@ -539,14 +539,17 @@ abstract contract Pool is
                 revert UnsupportedCollateral(i);
         }
 
+        /* Cache durations */
+        uint64[] memory durations_ = _durations;
+
         /* Lookup duration index */
         uint256 durationIndex;
-        for (; durationIndex < _durations.length; durationIndex++) {
-            if (duration <= _durations[durationIndex]) break;
+        for (; durationIndex < durations_.length; durationIndex++) {
+            if (duration <= durations_[durationIndex]) break;
         }
 
         /* Validate duration index */
-        if (durationIndex == _durations.length) revert UnsupportedLoanDuration();
+        if (durationIndex == durations_.length) revert UnsupportedLoanDuration();
 
         /* Source liquidity nodes */
         (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
