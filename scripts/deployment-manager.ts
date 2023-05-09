@@ -33,7 +33,7 @@ class Deployment {
   /* Contract Name to Proxy Address */
   collateralWrappers: { [name: string]: string };
   /* Contract Name to Beacon Address */
-  poolImplementations: { [name: string]: string };
+  poolBeacons: { [name: string]: string };
 
   constructor(
     name?: string,
@@ -41,14 +41,14 @@ class Deployment {
     poolFactory?: string,
     collateralLiquidators?: { [name: string]: { address: string; beacon: string } },
     collateralWrappers?: { [name: string]: string },
-    poolImplementations?: { [name: string]: string }
+    poolBeacons?: { [name: string]: string }
   ) {
     this.name = name;
     this.chainId = chainId;
     this.poolFactory = poolFactory;
     this.collateralLiquidators = collateralLiquidators || {};
     this.collateralWrappers = collateralWrappers || {};
-    this.poolImplementations = poolImplementations || {};
+    this.poolBeacons = poolBeacons || {};
   }
 
   static fromFile(path: string): Deployment {
@@ -59,7 +59,7 @@ class Deployment {
       obj.poolFactory,
       obj.collateralLiquidators,
       obj.collateralWrappers,
-      obj.poolImplementations
+      obj.poolBeacons
     );
   }
 
@@ -77,7 +77,7 @@ class Deployment {
     console.log(`Pool Factory:              ${this.poolFactory || "Not deployed"}`);
     console.log(`Collateral Liquidators:    ${this.collateralLiquidators}`);
     console.log(`Collateral Wrappers:       ${this.collateralWrappers}`);
-    console.log(`Pool Implementations:      ${this.poolImplementations}`);
+    console.log(`Pool Beacons:              ${this.poolBeacons}`);
   }
 }
 
@@ -147,8 +147,8 @@ async function deploymentShow(deployment: Deployment) {
   }
 
   console.log("\nPool Implementations");
-  for (const contractName in deployment.poolImplementations) {
-    const poolImplementation = deployment.poolImplementations[contractName];
+  for (const contractName in deployment.poolBeacons) {
+    const poolImplementation = deployment.poolBeacons[contractName];
     const impl = await getBeaconImplementation(poolImplementation);
     const version = await getImplementationVersion(impl);
 
@@ -364,7 +364,7 @@ async function collateralWrapperUpgrade(deployment: Deployment, contractName: st
 /******************************************************************************/
 
 async function poolImplementationDeploy(deployment: Deployment, contractName: string, args: string[]) {
-  if (deployment.poolImplementations[contractName]) {
+  if (deployment.poolBeacons[contractName]) {
     console.error(`Pool implementation ${contractName} already deployed.`);
     return;
   }
@@ -385,18 +385,18 @@ async function poolImplementationDeploy(deployment: Deployment, contractName: st
   await upgradeableBeacon.deployed();
   console.log(`Pool Beacon:         ${upgradeableBeacon.address}`);
 
-  deployment.poolImplementations[contractName] = upgradeableBeacon.address;
+  deployment.poolBeacons[contractName] = upgradeableBeacon.address;
 }
 
 async function poolImplementationUpgrade(deployment: Deployment, contractName: string, args: string[]) {
-  if (!deployment.poolImplementations[contractName]) {
+  if (!deployment.poolBeacons[contractName]) {
     console.error(`Pool implementation ${contractName} not deployed.`);
     return;
   }
 
   const upgradeableBeacon = (await ethers.getContractAt(
     "UpgradeableBeacon",
-    deployment.poolImplementations[contractName],
+    deployment.poolBeacons[contractName],
     signer
   )) as UpgradeableBeacon;
   const poolFactory = await ethers.getContractFactory(contractName, signer);
