@@ -269,7 +269,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         _timeExtension = timeExtension;
         _minimumBidBasisPoints = minimumBidBasisPoints;
 
-        for (uint256 i = 0; i < collateralWrappers.length; i++) {
+        for (uint256 i; i < collateralWrappers.length; i++) {
             _collateralWrappers[collateralWrappers[i]] = true;
         }
     }
