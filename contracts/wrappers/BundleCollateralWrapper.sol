@@ -109,7 +109,7 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder, Re
         tokenIds = new uint256[](count);
 
         /* Populate asset info array */
-        for (uint256 i = 0; i < count; i++) {
+        for (uint256 i; i < count; i++) {
             uint256 offset = 20 + i * 32;
             tokenIds[i] = uint256(bytes32(context[offset:offset + 32]));
         }
@@ -148,7 +148,7 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder, Re
         bytes memory encodedBundle = abi.encodePacked(token);
 
         /* For each ERC-721 asset, add to encoded bundle and transfer to this contract */
-        for (uint256 i = 0; i < tokenIds.length; i++) {
+        for (uint256 i; i < tokenIds.length; i++) {
             encodedBundle = abi.encodePacked(encodedBundle, tokenIds[i]);
             IERC721(token).transferFrom(msg.sender, address(this), tokenIds[i]);
         }
@@ -182,7 +182,7 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder, Re
         _burn(tokenId);
 
         /* Transfer assets back to owner of token */
-        for (uint256 i = 0; i < count; i++) {
+        for (uint256 i; i < count; i++) {
             uint256 offset = 20 + i * 32;
             IERC721(token).transferFrom(address(this), msg.sender, uint256(bytes32(context[offset:offset + 32])));
         }
