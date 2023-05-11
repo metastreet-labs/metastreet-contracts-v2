@@ -100,7 +100,7 @@ library LoanReceipt {
           8   uint64  duration                       93:101
           20  address collateralToken                101:121
           32  uint256 collateralTokenId              121:153
-          2   uint16  collateralWrapperContextLen 153:155
+          2   uint16  collateralWrapperContextLen    153:155
 
       Collateral Wrapper Context Data (M bytes)      155:---
 
