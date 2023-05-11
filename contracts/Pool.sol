@@ -508,7 +508,7 @@ abstract contract Pool is
             collateralTokenId
         );
 
-        for (uint256 i = 0; i < delegates.length; i++) {
+        for (uint256 i; i < delegates.length; i++) {
             /* Revoke by setting value to false */
             _delegationRegistry.delegateForToken(delegates[i], collateralToken, collateralTokenId, false);
         }
@@ -534,7 +534,7 @@ abstract contract Pool is
         bytes calldata collateralFilterContext
     ) internal view returns (uint256, ILiquidity.NodeSource[] memory, uint16) {
         /* Verify collateral is supported */
-        for (uint256 i = 0; i < collateralTokenIds.length; i++) {
+        for (uint256 i; i < collateralTokenIds.length; i++) {
             if (!_collateralSupported(collateralToken, collateralTokenIds[i], i, collateralFilterContext))
                 revert UnsupportedCollateral(i);
         }
