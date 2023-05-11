@@ -95,8 +95,8 @@ unwrap it for liquidation. The primary purpose of this feature is to implement
 bundles containing multiple collateral.
 
 When enabled, a Pool recognizes the tokens of the Bundle Collateral Wrapper as
-valid collateral — subject to validation of the underlying collateral with the
-collateral filter — and allow them to be used as collateral for a loan.
+collateral, subject to validation of the underlying collateral with the
+collateral filter.
 
 ## Design Details
 
@@ -215,8 +215,8 @@ Similarly, a 14 day loan can be assembled from ticks 1-4, and a 7 day loan from
 ticks 1-6. Longer duration ticks can be used for shorter duration loans.
 
 Note that loan limit is an upper bound on the amount of funds that can be used
-from a tick, but the actual amount pulled from each tick depends on cumulative
-amount built up from previous ticks.
+from a tick, but the actual amount pulled from each tick depends on the
+cumulative amount built up from previous ticks.
 
 The [`LiquidityManager`](../contracts/LiquidityManager.sol), particularly the [`source()`](../contracts/LiquidityManager.sol#L532) function,
 is responsible for sourcing liquidity from ticks and creating a record of their
@@ -328,7 +328,7 @@ fees, while liquidations do not.
 The Pool administrator — the `PoolFactory` contract — can set the admin fee
 rate on a Pool and withdraw admin fees from a Pool.
 
-Admin fees are set to zero for the time being. They could be enabled in the
+Admin fees are set to zero for the time being. They may be enabled in the
 future to accrue fees to the protocol.
 
 ### Collection Collateral Filter
@@ -363,8 +363,8 @@ depreciation with liquidation losses.
 
 The deposit price is computed with the current tick value plus 50% of pending
 interest to the tick. This elevated deposit price is designed to prevent
-capturing appreciation repaid loans prematurely, and to encourage longer term
-deposits.
+capturing the interest of repaid loans prematurely, and to encourage longer
+term deposits.
 
 The [`LiquidityManager`](../contracts/LiquidityManager.sol#L328) imposes a tick
 limit spacing requirement on deposits, to facilitate liquidity aggregation that
@@ -388,7 +388,7 @@ redemptions may be executed at various redemption share prices, as repayment
 and liquidation activity affect the tick value. Redemptions are serviced in the
 order they are scheduled.
 
-Only one redemption can be active in a depositor's tick position at a time.
+Only one redemption can be outstanding in a depositor's tick position at a time.
 
 The current cash available for a redemption can be determined with the
 [`redemptionAvailable()`](../contracts/Pool.sol#L1081) getter.
@@ -439,9 +439,9 @@ function borrow(uint256 principal, uint64 duration, address collateralToken,
 ) external returns (uint256);
 ```
 
-The [`borrow()`](../contracts/Pool.sol#L818) function originates a loan with the specified loan
-terms and liquidity ticks. The collateral may either be the Pool's supported
-collateral token or a collateral wrapper token.
+The [`borrow()`](../contracts/Pool.sol#L818) function originates a loan with
+the specified loan terms and liquidity ticks. The collateral may either be the
+Pool's native collateral token or a collateral wrapper token.
 
 A variety of additional options are supported by `borrow()` in the encoded
 `options` parameter. These include:
@@ -489,7 +489,7 @@ The [`liquidate()`](../contracts/Pool.sol#L930) function liquidates an overdue l
 the collateral to the collateral liquidator for liquidation.
 
 Proceeds from the liquidation are transferred from the collateral liquidator to
-the Pool, and processed in the [`onCollateralLiquidated()`](../contracts/Pool.sol#L972) callback. Any
+the Pool, and are processed in the [`onCollateralLiquidated()`](../contracts/Pool.sol#L972) callback. Any
 surplus from the liquidation is remitted to the borrower.
 
 ### English Auction Collateral Liquidator
@@ -517,8 +517,8 @@ callback.
 
 Collateral wrappers allow a Pool to recognize and accept collateral that exists
 in a wrapped form for a loan. This facility is useful for implementing a number
-of extensions to the Pool, such as bundles, airdrop receivers, and lending
-backed by the promissory notes of third-party lending platforms.
+of extensions to the Pool, such as bundles, airdrop receivers, and collateral
+in the form of promissory notes from third-party lending platforms.
 
 Collateral wrappers are implemented as an ERC721 token that the Pool takes
 custody of instead of the native collateral token for a loan. Additionally,
@@ -529,8 +529,8 @@ to unwrap the underlying collateral for liquidation.
 To reduce storage requirements and for gas efficiency, collateral wrappers may
 use an offchain context that is provided in calldata when borrowing. This
 context is forwarded to the collateral wrapper when enumerating or liquidating
-the wrapped collateral. The context is also stored in the loan receipt to make
-it available for liquidations.
+the underlying collateral. The context is stored in the loan receipt to make it
+available for liquidations.
 
 #### Bundle Collateral Wrapper
 
@@ -573,12 +573,12 @@ The [`PoolFactory`](../contracts/PoolFactory.sol) will ultimately be owned by pr
 The Pool is deployed as an ERC1967 `BeaconProxy`.
 
 Proxied pools can be created with the `PoolFactory`
-[`createProxied()`](../contracts/PoolFactory.sol#L108) method, which accepts a
+[`createProxied()`](../contracts/PoolFactory.sol#L108) function, which accepts a
 Pool implementation beacon and initialization parameters.
 
 Immutable pools can be created with the `PoolFactory` [`create()`](../contracts/PoolFactory.sol#L81)
-method, which accepts a Pool implementation contract and initialization
-parameters. This method creates an ERC1167 minimal clone proxy.
+function, which accepts a Pool implementation contract and initialization
+parameters. This function creates an ERC1167 minimal clone proxy.
 
 As the Pool contract stabilizes, deployment will ultimately switch from
 `createProxied()` to `create()` and use versioned Pool implementations for newly
