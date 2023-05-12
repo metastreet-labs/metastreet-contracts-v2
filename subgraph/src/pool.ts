@@ -25,6 +25,7 @@ import {
   Redeemed as RedeemedEvent,
   Withdrawn as WithdrawnEvent,
 } from "../generated/templates/Pool/Pool";
+import { FixedPoint } from "./utils/FixedPoint";
 
 const poolContract = PoolContract.bind(dataSource.address());
 const poolAddress = dataSource.address().toHexString();
@@ -348,7 +349,8 @@ export function handleRedeemed(event: RedeemedEvent): void {
   redeemedEntity.account = event.params.account;
   redeemedEntity.tick = getTickId(event.params.tick);
   redeemedEntity.shares = event.params.shares;
-  redeemedEntity.amount = oldTickEntity.value.div(oldTickEntity.shares).times(event.params.shares);
+  const tickSharePrice = FixedPoint.div(oldTickEntity.value, oldTickEntity.shares);
+  redeemedEntity.amount = FixedPoint.mul(tickSharePrice, event.params.shares);
   redeemedEntity.save();
 }
 
