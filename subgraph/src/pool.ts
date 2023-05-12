@@ -350,7 +350,7 @@ export function handleRedeemed(event: RedeemedEvent): void {
   redeemedEntity.tick = getTickId(event.params.tick);
   redeemedEntity.shares = event.params.shares;
   const tickSharePrice = FixedPoint.div(oldTickEntity.value, oldTickEntity.shares);
-  redeemedEntity.amount = FixedPoint.mul(tickSharePrice, event.params.shares);
+  redeemedEntity.estimatedAmount = FixedPoint.mul(tickSharePrice, event.params.shares);
   redeemedEntity.save();
 }
 
