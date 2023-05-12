@@ -186,7 +186,7 @@ type Redeemed @entity {
   account: Bytes! # address
   tick: Tick!
   shares: BigInt! # uint256
-  amount: BigInt! # uint256
+  estimatedAmount: BigInt! # uint256
 }
 
 type Withdrawn @entity {
