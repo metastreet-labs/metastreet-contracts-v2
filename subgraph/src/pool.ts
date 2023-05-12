@@ -327,9 +327,13 @@ export function handleDeposited(event: DepositedEvent): void {
 }
 
 export function handleRedeemed(event: RedeemedEvent): void {
+  const tickId = getTickId(event.params.tick);
+  const oldTickEntity = TickEntity.load(tickId);
+  if (!oldTickEntity) throw new Error("Tick entity doesn't exist");
+
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
-  const tickEntity = updateTickEntity(event.params.tick);
+  updateTickEntity(event.params.tick);
 
   const depositEntityId = updateDepositEntity(
     event.params.account,
@@ -344,7 +348,7 @@ export function handleRedeemed(event: RedeemedEvent): void {
   redeemedEntity.account = event.params.account;
   redeemedEntity.tick = getTickId(event.params.tick);
   redeemedEntity.shares = event.params.shares;
-  redeemedEntity.amount = tickEntity.value.div(tickEntity.shares).times(event.params.shares);
+  redeemedEntity.amount = oldTickEntity.value.div(oldTickEntity.shares).times(event.params.shares);
   redeemedEntity.save();
 }
 
