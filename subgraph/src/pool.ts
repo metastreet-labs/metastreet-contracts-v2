@@ -140,7 +140,7 @@ function updateCollateralTokenEntity(id: string): CollateralTokenEntity {
   return collateralTokenEntity;
 }
 
-function updateTickEntity(encodedTick: BigInt): TickEntity {
+function updateTickEntity(encodedTick: BigInt, interestWeightedDurationUpdate: BigInt): TickEntity {
   const node = poolContract.liquidityNode(encodedTick);
   const decodedTick = decodeTick(encodedTick);
   const tickId = getTickId(encodedTick);
@@ -149,7 +149,10 @@ function updateTickEntity(encodedTick: BigInt): TickEntity {
   if (!poolEntity) throw new Error("No Pool entity found for this tick");
 
   let tickEntity = TickEntity.load(tickId);
-  if (!tickEntity) tickEntity = new TickEntity(tickId);
+  if (!tickEntity) {
+    tickEntity = new TickEntity(tickId);
+    tickEntity.interestWeightedDuration = ZERO;
+  }
 
   tickEntity.pool = poolAddress;
   tickEntity.raw = encodedTick;
@@ -165,9 +168,19 @@ function updateTickEntity(encodedTick: BigInt): TickEntity {
   tickEntity.prev = node.prev;
   tickEntity.next = node.next;
   tickEntity.redemptionPending = node.redemptions;
+  tickEntity.interestWeightedDuration = tickEntity.interestWeightedDuration.plus(interestWeightedDurationUpdate);
 
   tickEntity.save();
   return tickEntity;
+}
+
+function updateTickEntitiesFromLoanEntity(loanEntity: LoanEntity, factor: i8): void {
+  for (let i = 0; i < loanEntity.ticks.length; i++) {
+    const interestWeightedDurationUpdate = loanEntity.duration
+      .times(loanEntity.interests[i])
+      .times(BigInt.fromI32(factor));
+    updateTickEntity(loanEntity.ticks[i], interestWeightedDurationUpdate);
+  }
 }
 
 /**************************************************************************/
@@ -242,7 +255,7 @@ function createLoanEntity(
   encodedReceipt: Bytes,
   receiptHash: Bytes,
   event: ethereum.Event
-): void {
+): LoanEntity {
   const nodeReceipts = loanReceipt.nodeReceipts;
 
   /* Create the Loan entity */
@@ -303,6 +316,7 @@ function createLoanEntity(
   }
 
   loanEntity.save();
+  return loanEntity;
 }
 
 /**************************************************************************/
@@ -311,7 +325,7 @@ function createLoanEntity(
 export function handleDeposited(event: DepositedEvent): void {
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
-  updateTickEntity(event.params.tick);
+  updateTickEntity(event.params.tick, ZERO);
 
   const depositEntityId = updateDepositEntity(
     event.params.account,
@@ -337,7 +351,7 @@ export function handleRedeemed(event: RedeemedEvent): void {
 
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
-  updateTickEntity(event.params.tick);
+  updateTickEntity(event.params.tick, ZERO);
 
   const depositEntityId = updateDepositEntity(
     event.params.account,
@@ -360,7 +374,7 @@ export function handleRedeemed(event: RedeemedEvent): void {
 export function handleWithdrawn(event: WithdrawnEvent): void {
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
-  updateTickEntity(event.params.tick);
+  updateTickEntity(event.params.tick, ZERO);
 
   const depositEntityId = updateDepositEntity(
     event.params.account,
@@ -384,9 +398,16 @@ export function handleLoanOriginated(event: LoanOriginatedEvent): void {
 
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
-  for (let i = 0; i < receipt.nodeReceipts.length; i++) updateTickEntity(receipt.nodeReceipts[i].tick);
 
-  createLoanEntity(poolEntity, receipt, event.params.loanReceipt, event.params.loanReceiptHash, event);
+  const loanEntity = createLoanEntity(
+    poolEntity,
+    receipt,
+    event.params.loanReceipt,
+    event.params.loanReceiptHash,
+    event
+  );
+
+  updateTickEntitiesFromLoanEntity(loanEntity, 1);
 
   const poolEventId = createPoolEventEntity(event, PoolEventType.LoanOriginated, receipt.borrower, null);
 
@@ -403,7 +424,7 @@ export function handleLoanRepaid(event: LoanRepaidEvent): void {
 
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
-  for (let i = 0; i < loanEntity.ticks.length; i++) updateTickEntity(loanEntity.ticks[i]);
+  updateTickEntitiesFromLoanEntity(loanEntity, -1);
 
   const poolEventId = createPoolEventEntity(event, PoolEventType.LoanRepaid, loanEntity.borrower, null);
 
@@ -433,5 +454,5 @@ export function handleCollateralLiquidated(event: CollateralLiquidatedEvent): vo
 
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
-  for (let i = 0; i < loanEntity.ticks.length; i++) updateTickEntity(loanEntity.ticks[i]);
+  updateTickEntitiesFromLoanEntity(loanEntity, -1);
 }
