@@ -249,11 +249,13 @@ function createLoanEntity(
   const loanEntity = new LoanEntity(receiptHash.toHexString());
 
   let ticks: BigInt[] = [];
+  let interests: BigInt[] = [];
   let principal: BigInt = BigInt.zero();
   let repayment: BigInt = BigInt.zero();
   for (let i = 0; i < nodeReceipts.length; i++) {
     const nodeReceipt = nodeReceipts[i];
     ticks.push(nodeReceipt.tick);
+    interests.push(nodeReceipt.pending.minus(nodeReceipt.used));
     principal = principal.plus(nodeReceipt.used);
     repayment = repayment.plus(nodeReceipt.pending);
   }
@@ -266,6 +268,7 @@ function createLoanEntity(
   loanEntity.duration = loanReceipt.duration;
   loanEntity.collateralWrapperContext = loanReceipt.collateralWrapperContext;
   loanEntity.ticks = ticks;
+  loanEntity.interests = interests;
   loanEntity.principal = principal;
   loanEntity.repayment = repayment;
   loanEntity.loanReceipt = encodedReceipt;
