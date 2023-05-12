@@ -68,7 +68,8 @@ async function main() {
   const TestERC20 = await ethers.getContractFactory("TestERC20");
   const wethTokenContract = await TestERC20.deploy("Wrapped ETH", "WETH", 18, ethers.utils.parseEther("10000000"));
   await wethTokenContract.deployed();
-  await wethTokenContract.transfer(accounts[0].address, ethers.utils.parseEther("10000000"));
+  await wethTokenContract.transfer(accounts[0].address, ethers.utils.parseEther("5000000"));
+  await wethTokenContract.transfer(accounts[1].address, ethers.utils.parseEther("5000000"));
   console.log("WETH : ", wethTokenContract.address);
   /**************************************************************************/
   /* NFT contracts */
