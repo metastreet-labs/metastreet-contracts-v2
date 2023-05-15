@@ -4,6 +4,7 @@
 
 type Pool @entity {
   id: ID! # address
+  deploymentHash: Bytes!
   collateralToken: CollateralToken!
   currencyToken: Bytes! # address
   durations: [BigInt!]! # uint64[] (in seconds)
