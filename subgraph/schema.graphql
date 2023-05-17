@@ -60,8 +60,9 @@ type Tick @entity {
   redemptionPending: BigInt! # uint128
   prev: BigInt! # uint128
   next: BigInt! # uint128
-  # for calculating apr
+  # for calculating apr and net earnings
   interestWeightedDuration: BigInt! # uint128
+  interestWeightedMaturity: BigInt! # uint128
 }
 
 ################################################################################
