@@ -556,8 +556,15 @@ describe("EnglishAuctionCollateralLiquidator", function () {
         .connect(accountBidder1)
         .bid(nft1.address, 122, ethers.utils.parseEther("2"));
 
-      /* Validate state */
+      /* Validate events */
       const bid2TransactionTime = await getBlockTimestamp(bid2Tx.blockNumber);
+      await expectEvent(bid2Tx, collateralLiquidator, "AuctionExtended", {
+        collateralToken: nft1.address,
+        collateralTokenId: 122,
+        endTime: bid2TransactionTime + 60 * 20,
+      });
+
+      /* Validate state */
       let auction = await collateralLiquidator.auction(nft1.address, 122);
       await expect(auction.endTime).to.equal(bid2TransactionTime + 60 * 20);
     });

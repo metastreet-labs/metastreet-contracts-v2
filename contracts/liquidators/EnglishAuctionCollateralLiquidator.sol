@@ -137,6 +137,14 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
     event AuctionStarted(address indexed collateralToken, uint256 indexed collateralTokenId, uint64 endTime);
 
     /**
+     * @notice Emitted when an auction is extended
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
+     * @param endTime Auction end time
+     */
+    event AuctionExtended(address indexed collateralToken, uint256 indexed collateralTokenId, uint64 endTime);
+
+    /**
      * @notice Emitted when an auction receives a bid
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
@@ -535,9 +543,16 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
 
             /* Emit AuctionStarted */
             emit AuctionStarted(auction_.collateralToken, auction_.collateralTokenId, endTime);
-        } else if ((auction_.endTime - uint64(block.timestamp)) <= _timeExtensionWindow) {
-            /* Update end time if auction is already in progress and bid within _timeExtensionWindow */
-            _auctions[collateralHash].endTime = uint64(block.timestamp) + _timeExtension;
+        } else if (auction_.endTime - uint64(block.timestamp) <= _timeExtensionWindow) {
+            /* Calculate new end time */
+            uint64 endTime = uint64(block.timestamp) + _timeExtension;
+
+            /* Update end time if auction is already in progress and within
+             * time extension window */
+            _auctions[collateralHash].endTime = endTime;
+
+            /* Emit AuctionExtended */
+            emit AuctionExtended(auction_.collateralToken, auction_.collateralTokenId, endTime);
         }
 
         /* Update auction with new bid */
