@@ -419,6 +419,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       const bid1Tx = await collateralLiquidator
         .connect(accountBidder1)
         .bid(nft1.address, 122, ethers.utils.parseEther("100"));
+      const transactionTime = await getBlockTimestamp(bid1Tx.blockNumber);
 
       /* Validate events */
       await expectEvent(bid1Tx, tok1, "Transfer", {
@@ -430,6 +431,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expectEvent(bid1Tx, collateralLiquidator, "AuctionStarted", {
         collateralToken: nft1.address,
         collateralTokenId: 122,
+        endTime: transactionTime + 86400,
       });
 
       await expectEvent(bid1Tx, collateralLiquidator, "AuctionBid", {
@@ -440,7 +442,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       });
 
       /* Validate state */
-      const transactionTime = await getBlockTimestamp(bid1Tx.blockNumber);
+
       let auction = await collateralLiquidator.auction(nft1.address, 122);
       await expect(auction.currencyToken).to.equal(tok1.address);
       await expect(auction.liquidationSalt).to.not.equal(ethers.constants.HashZero);
