@@ -1231,6 +1231,9 @@ abstract contract Pool is
      * @inheritdoc IERC165
      */
     function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
-        return interfaceId == type(IERC721Receiver).interfaceId || super.supportsInterface(interfaceId);
+        return
+            interfaceId == type(IERC721Receiver).interfaceId ||
+            interfaceId == type(ICollateralLiquidationReceiver).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 }

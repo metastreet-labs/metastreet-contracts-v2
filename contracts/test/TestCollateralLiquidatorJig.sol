@@ -4,6 +4,7 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
@@ -16,7 +17,7 @@ import "../interfaces/ICollateralLiquidationReceiver.sol";
  * @title Testing Jig for Collateral Liquidators
  * @author MetaStreet Labs
  */
-contract TestCollateralLiquidatorJig is ERC721Holder {
+contract TestCollateralLiquidatorJig is ERC165, ERC721Holder, ICollateralLiquidationReceiver {
     using SafeERC20 for IERC20;
 
     /**************************************************************************/
@@ -121,6 +122,17 @@ contract TestCollateralLiquidatorJig is ERC721Holder {
         }
 
         emit CollateralLiquidated(proceeds);
+    }
+
+    /******************************************************/
+    /* ERC165 interface */
+    /******************************************************/
+
+    /**
+     * @inheritdoc IERC165
+     */
+    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+        return interfaceId == type(ICollateralLiquidationReceiver).interfaceId || super.supportsInterface(interfaceId);
     }
 }
 
