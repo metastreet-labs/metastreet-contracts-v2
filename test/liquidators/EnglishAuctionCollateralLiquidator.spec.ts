@@ -1051,6 +1051,19 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidClaim");
     });
 
+    it("fails claim before auction started", async function () {
+      /* Construct loan receipt */
+      const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
+
+      /* Calling liquidate() */
+      await testCollateralLiquidatorJig.liquidate(loanReceipt);
+
+      /* Claim with accountBidder1 */
+      await expect(
+        collateralLiquidator.connect(accountBidder1).claim(nft1.address, 122, loanReceipt)
+      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidClaim");
+    });
+
     it("fails claim on invalid auction", async function () {
       /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
