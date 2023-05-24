@@ -576,6 +576,9 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         /* Validate liquidation exists */
         if (_liquidations[liquidationHash].source == address(0)) revert InvalidClaim();
 
+        /* Validate that auction was started */
+        if (auction_.highestBid.bidder == address(0)) revert InvalidClaim();
+
         /* Validate that auction has ended */
         if (uint64(block.timestamp) <= auction_.endTime) revert InvalidClaim();
 
