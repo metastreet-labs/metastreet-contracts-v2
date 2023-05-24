@@ -617,6 +617,9 @@ abstract contract Pool is
         bytes memory collateralWrapperContext,
         bytes calldata collateralFilterContext
     ) internal returns (uint256, bytes memory, bytes32) {
+        /* Validate duration is non-zero */
+        if (duration == 0) revert UnsupportedLoanDuration();
+
         /* Get underlying collateral */
         (address underlyingCollateralToken, uint256[] memory underlyingCollateralTokenIds) = _getUnderlyingCollateral(
             collateralToken,

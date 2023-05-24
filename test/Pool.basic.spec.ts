@@ -1882,6 +1882,22 @@ describe("Pool Basic", function () {
           .borrow(FixedPoint.from("25"), 8 * 86400, nft1.address, 123, FixedPoint.from("26"), ticks, "0x")
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
     });
+
+    it("fails with duration equals 0", async function () {
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .borrow(
+            FixedPoint.from("25"),
+            0,
+            nft1.address,
+            123,
+            FixedPoint.from("26"),
+            await sourceLiquidity(FixedPoint.from("25")),
+            "0x"
+          )
+      ).to.be.revertedWithCustomError(pool, "UnsupportedLoanDuration");
+    });
   });
 
   describe("#repay", async function () {
