@@ -455,11 +455,8 @@ library LiquidityManager {
         node.redemptions.pending += shares;
 
         /* Initialize redemption record to save gas in loan callbacks */
-        if (node.redemptions.fulfilled[node.redemptions.index].shares != type(uint128).max) {
-            node.redemptions.fulfilled[node.redemptions.index] = FulfilledRedemption({
-                shares: type(uint128).max,
-                amount: 0
-            });
+        if (node.redemptions.fulfilled[redemptionIndex].shares != type(uint128).max) {
+            node.redemptions.fulfilled[redemptionIndex] = FulfilledRedemption({shares: type(uint128).max, amount: 0});
         }
 
         return (redemptionIndex, redemptionTarget);
