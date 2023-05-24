@@ -1,4 +1,4 @@
-import { Address, BigInt, Bytes, dataSource, ethereum, store } from "@graphprotocol/graph-ts";
+import { Address, BigInt, Bytes, dataSource, ethereum } from "@graphprotocol/graph-ts";
 import {
   Bundle as BundleEntity,
   CollateralToken as CollateralTokenEntity,
@@ -231,11 +231,6 @@ function updateDepositEntity(
   const depositEntityId = `${poolAddress}-pool-${account.toHexString()}-${encodedTick}`;
 
   const deposit = poolContract.deposits(account, encodedTick);
-
-  if (deposit.shares.isZero()) {
-    store.remove("Deposit", depositEntityId);
-    return depositEntityId;
-  }
 
   const poolEntity = PoolEntity.load(poolAddress);
   if (!poolEntity) throw new Error("updateDepositEntity: Pool entity not found");
