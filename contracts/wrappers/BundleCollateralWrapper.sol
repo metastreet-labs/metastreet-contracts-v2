@@ -35,6 +35,11 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder, Re
      */
     error InvalidContext();
 
+    /**
+     * @notice Invalid length
+     */
+    error InvalidLength();
+
     /**************************************************************************/
     /* Events */
     /**************************************************************************/
@@ -144,6 +149,9 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder, Re
      * @param tokenIds List of token IDs
      */
     function mint(address token, uint256[] calldata tokenIds) external nonReentrant returns (uint256) {
+        /* Validate array of token ids is not empty */
+        if (tokenIds.length == 0) revert InvalidLength();
+
         /* Create encodedBundle */
         bytes memory encodedBundle = abi.encodePacked(token);
 

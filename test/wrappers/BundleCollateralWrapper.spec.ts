@@ -188,6 +188,12 @@ describe("BundleCollateralWrapper", function () {
         bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 456, 3])
       ).to.be.revertedWith("ERC721: invalid token ID");
     });
+
+    it("fails on empty array of token ids", async function () {
+      await expect(
+        bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [])
+      ).to.be.revertedWithCustomError(bundleCollateralWrapper, "InvalidLength");
+    });
   });
 
   describe("#unwrap", async function () {
