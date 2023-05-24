@@ -47,7 +47,7 @@ losses, and this affects the price at which shares are redeemed.
 
 ### Tick Redemption State
 
-Tick redemption state (in [`LiquidityManager`](../contracts/LiquidityManager.sol)):
+Tick redemption state in [`LiquidityManager`](../contracts/LiquidityManager.sol):
 
 ``` solidity
 struct Node {
@@ -108,7 +108,7 @@ a user specifies a number of shares to redeem from a tick. The function
 validates the user's state, and then calls [`redeem()`](../contracts/LiquidityManager.sol#L432) within the
 `LiquidityManager` to schedule the redemption within the tick.
 
-The underlying redeem function snapshots the node's current `redemption.index`
+The underlying [`redeem()`](../contracts/LiquidityManager.sol#L432) function snapshots the node's current `redemption.index`
 and `redemption.pending` state, and then advances `redemption.pending` by the
 number of shares to redeem. The queue snapshot is returned to the `Pool`, and
 stored in the `Deposit` state as `redemptionIndex` and `redemptionTarget`,
@@ -161,7 +161,7 @@ redemptions are now in range of the user's redemption. From this point,
 redeemed shares and their amounts are accumulated up to the user's pending
 shares to be redeemed.
 
-When all of the user's shares are accounted for or the end of the fulfilled
+When all of the user's shares are accounted for, or the end of the fulfilled
 redemption queue is reached, the function returns with the total redeemed
 shares and amount.
 
@@ -183,7 +183,7 @@ tokens.
 The user also has the option to use [`rebalance()`](../contracts/Pool.sol#L1133) to redeposit a
 redeemed amount into another tick, instead of withdrawing it as currency
 tokens. This function behaves the same way as [`withdraw()`](../contracts/Pool.sol#L1094), but deposits the
-redeemed amount in another tick, instead of transferring currency tokens.
+redeemed amount in another tick instead of transferring currency tokens.
 
 ### Performance
 
@@ -191,8 +191,8 @@ The redemption queue is designed to schedule and process redemptions in
 constant time, so it can support concurrent redemptions from many users while
 keeping repay and liquidate gas costs low and predictable.
 
-Tracking and withdrawing for each user is linear time, due to scanning the
-fulfilled redemption queue to find the user's redemption. However, each entry
-in the fulfilled redemption queue is stored in a single slot, and a fulfilled
-redemption entry can span many user's shares with the proceeds of a repaid or
-liquidated loan.
+Tracking and withdrawing redemptions for each user is linear time, due to the
+scanning of the fulfilled redemption queue to find the user's redemption.
+However, each entry in the fulfilled redemption queue is stored in a single
+slot, and a fulfilled redemption entry can span many user's shares with the
+proceeds of a repaid or liquidated loan.
