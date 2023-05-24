@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
 import "../interfaces/ICollateralLiquidationReceiver.sol";
 import "../interfaces/ICollateralLiquidator.sol";
@@ -391,14 +392,15 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
             /* Transfer proceeds from this contract to source */
             IERC20(auction_.currencyToken).safeTransfer(liquidation_.source, liquidation_.proceeds);
 
-            /* If source is a contract, try collateral liquidation callback */
-            if (Address.isContract(liquidation_.source))
-                try
-                    ICollateralLiquidationReceiver(liquidation_.source).onCollateralLiquidated(
-                        liquidationContext,
-                        liquidation_.proceeds
-                    )
-                {} catch {}
+            /* If source is a contract that implements ICollateralLiquidationReceiver, make collateral liquidation callback */
+            if (
+                Address.isContract(liquidation_.source) &&
+                ERC165Checker.supportsInterface(liquidation_.source, type(ICollateralLiquidationReceiver).interfaceId)
+            )
+                ICollateralLiquidationReceiver(liquidation_.source).onCollateralLiquidated(
+                    liquidationContext,
+                    liquidation_.proceeds
+                );
 
             /* Delete liquidation since all auctions are completed */
             delete _liquidations[liquidationHash];
