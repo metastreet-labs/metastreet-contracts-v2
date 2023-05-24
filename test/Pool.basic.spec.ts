@@ -268,7 +268,7 @@ describe("Pool Basic", function () {
     });
 
     it("fails on invalid tick", async function () {
-      /* Zero limit */
+      /* Zero tick */
       await expect(pool.connect(accountDepositors[0]).deposit(0, FixedPoint.from("1"))).to.be.revertedWithCustomError(
         pool,
         "InvalidTick"
@@ -287,6 +287,11 @@ describe("Pool Basic", function () {
       /* Out of bounds reserved field */
       await expect(
         pool.connect(accountDepositors[0]).deposit(Tick.encode("10", 0, 0).add(2), FixedPoint.from("1"))
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
+
+      /* Zero limit */
+      await expect(
+        pool.connect(accountDepositors[0]).deposit(Tick.encode("0", 0, 0), FixedPoint.from("1"))
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
     });
 
