@@ -21,6 +21,11 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder, Re
      */
     string public constant IMPLEMENTATION_VERSION = "1.0";
 
+    /**
+     * @notice Maximum bundle size
+     */
+    uint256 internal constant MAXIMUM_BUNDLE_SIZE = 16;
+
     /**************************************************************************/
     /* Errors */
     /**************************************************************************/
@@ -36,9 +41,9 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder, Re
     error InvalidContext();
 
     /**
-     * @notice Invalid length
+     * @notice Invalid bundle size
      */
-    error InvalidLength();
+    error InvalidSize();
 
     /**************************************************************************/
     /* Events */
@@ -149,8 +154,8 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder, Re
      * @param tokenIds List of token IDs
      */
     function mint(address token, uint256[] calldata tokenIds) external nonReentrant returns (uint256) {
-        /* Validate array of token ids is not empty */
-        if (tokenIds.length == 0) revert InvalidLength();
+        /* Validate the count of token ids */
+        if (tokenIds.length == 0 || tokenIds.length > MAXIMUM_BUNDLE_SIZE) revert InvalidSize();
 
         /* Create encodedBundle */
         bytes memory encodedBundle = abi.encodePacked(token);
