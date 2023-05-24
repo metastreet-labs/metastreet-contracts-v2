@@ -659,7 +659,7 @@ abstract contract Pool is
             duration: duration,
             collateralToken: collateralToken,
             collateralTokenId: collateralTokenId,
-            collateralWrapperContextLen: uint16(collateralWrapperContext.length),
+            collateralWrapperContextLen: collateralWrapperContext.length.toUint16(),
             collateralWrapperContext: collateralWrapperContext,
             nodeReceipts: new LoanReceipt.NodeReceipt[](count)
         });
