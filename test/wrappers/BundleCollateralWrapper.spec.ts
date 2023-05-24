@@ -44,6 +44,9 @@ describe("BundleCollateralWrapper", function () {
     await nft1.mint(accountBorrower.address, 768);
     await nft2.mint(accountBorrower.address, 111);
     await nft2.mint(accountBorrower.address, 222);
+    for (let i = 223; i < 223 + 16; i++) {
+      await nft2.mint(accountBorrower.address, i);
+    }
 
     /* Approve bundle token to transfer NFTs */
     await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
@@ -192,7 +195,16 @@ describe("BundleCollateralWrapper", function () {
     it("fails on empty list of token ids", async function () {
       await expect(
         bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [])
-      ).to.be.revertedWithCustomError(bundleCollateralWrapper, "InvalidLength");
+      ).to.be.revertedWithCustomError(bundleCollateralWrapper, "InvalidSize");
+    });
+
+    it("fails on more than 16 token ids", async function () {
+      await expect(
+        bundleCollateralWrapper.connect(accountBorrower).mint(
+          nft1.address,
+          Array.from({ length: 17 }, (_, n) => n + 222) // 222 to 238 (17 token ids in total)
+        )
+      ).to.be.revertedWithCustomError(bundleCollateralWrapper, "InvalidSize");
     });
   });
 
