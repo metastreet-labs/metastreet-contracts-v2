@@ -45,7 +45,7 @@ contract WeightedInterestRateModel is InterestRateModel {
 
     /**
      * @notice Parameters
-     * @param tickThreshold Tick interest threhsold
+     * @param tickThreshold Tick interest threshold
      * @param tickExponential Tick exponential base
      */
     struct Parameters {

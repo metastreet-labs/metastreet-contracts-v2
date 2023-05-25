@@ -236,7 +236,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
     /**************************************************************************/
 
     /**
-     * @notice ExternalCollateralLiquidator constructor
+     * @notice EnglishAuctionCollateralLiquidator constructor
      */
     constructor() {
         /* Disable initialization of implementation contract */
@@ -330,7 +330,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      *
      * Emits a {AuctionCreated} event.
      *
-     * @param currencyToken Curreny token
+     * @param currencyToken Currency token
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
      * @param liquidationSalt Liquidation salt
@@ -483,7 +483,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         /* Transfer collateral token from source to this contract */
         IERC721(collateralToken).transferFrom(msg.sender, address(this), collateralTokenId);
 
-        /* Unwrap bundle collateral if collateral token is a collateral wrapper */
+        /* Unwrap if collateral token is a collateral wrapper */
         if (_collateralWrappers[collateralToken])
             ICollateralWrapper(collateralToken).unwrap(collateralTokenId, collateralWrapperContext);
     }
