@@ -417,9 +417,7 @@ library LiquidityManager {
         Node storage node = liquidity.nodes[tick];
 
         unchecked {
-            uint128 delta = (restored > used) ? (restored - used) : (used - restored);
-
-            node.value = (restored > used) ? (node.value + delta) : (node.value - delta);
+            node.value = node.value - used + restored;
             node.available += restored;
             node.pending -= pending;
         }
