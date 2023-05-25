@@ -13,7 +13,7 @@ interface ICollateralLiquidator {
 
     /**
      * @notice Liquidate collateral
-     * @param currencyToken Curreny token
+     * @param currencyToken Currency token
      * @param collateralToken Collateral token, either underlying token or collateral wrapper
      * @param collateralTokenId Collateral token ID
      * @param collateralWrapperContext Collateral wrapper context

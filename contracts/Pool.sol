@@ -373,7 +373,7 @@ abstract contract Pool is
     /**
      * @notice Hash loan receipt
      * @param loanReceipt Loan receipt
-     * @return Hahshed loan receipt
+     * @return Hashed loan receipt
      */
     function hashLoanReceipt(bytes calldata loanReceipt) external view returns (bytes32) {
         return LoanReceipt.hash(loanReceipt);

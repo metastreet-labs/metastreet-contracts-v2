@@ -331,7 +331,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      *
      * Emits a {AuctionCreated} event.
      *
-     * @param currencyToken Curreny token
+     * @param currencyToken Currency token
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
      * @param liquidationSalt Liquidation salt

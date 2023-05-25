@@ -49,7 +49,7 @@ interface IDelegationRegistry {
     /// @notice Emitted when a user revokes all delegations
     event RevokeAllDelegates(address vault);
 
-    /// @notice Emitted when a user revoes all delegations for a given delegate
+    /// @notice Emitted when a user revokes all delegations for a given delegate
     event RevokeDelegate(address vault, address delegate);
 
     /**

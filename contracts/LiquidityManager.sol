@@ -237,7 +237,7 @@ library LiquidityManager {
     /**
      * @dev Check if tick is reserved
      * @param tick Tick
-     * @return True if resreved, otherwise false
+     * @return True if reserved, otherwise false
      */
     function _isReserved(uint128 tick) internal pure returns (bool) {
         return tick == 0 || tick == type(uint128).max;
@@ -468,7 +468,7 @@ library LiquidityManager {
             /* Process all pending shares */
             uint128 shares = node.redemptions.pending;
 
-            /* Record fullfiled redemption */
+            /* Record fulfilled redemption */
             node.redemptions.fulfilled[node.redemptions.index] = FulfilledRedemption({
                 shares: node.redemptions.pending,
                 amount: 0
@@ -498,7 +498,7 @@ library LiquidityManager {
              * at current price */
             if (shares == 0) return (0, 0);
 
-            /* Record fullfiled redemption */
+            /* Record fulfilled redemption */
             node.redemptions.fulfilled[node.redemptions.index] = FulfilledRedemption({shares: shares, amount: amount});
 
             /* Update node state */

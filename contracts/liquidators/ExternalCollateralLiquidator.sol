@@ -168,7 +168,7 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
      * @param source Source that provided collateral
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
-     * @param currencyToken Curreny token
+     * @param currencyToken Currency token
      * @param collateralWrapperContext Collateral wrapper context
      * @param liquidationContext Liquidation callback context
      */
@@ -259,7 +259,7 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
      * Emits a {CollateralWithdrawn} event.
      *
      * @param source Source that provided collateral
-     * @param currencyToken Curreny token
+     * @param currencyToken Currency token
      * @param collateralToken Collateral token, either underlying token or collateral wrapper
      * @param collateralTokenId Collateral token ID
      * @param collateralWrapperContext Collateral wrapper context
