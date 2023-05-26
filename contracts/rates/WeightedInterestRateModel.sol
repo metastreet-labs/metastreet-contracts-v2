@@ -31,6 +31,15 @@ contract WeightedInterestRateModel is InterestRateModel {
     uint256 internal constant FIXED_POINT_SCALE = 1e18;
 
     /**************************************************************************/
+    /* Errors */
+    /**************************************************************************/
+
+    /**
+     * @notice Insufficient utilization
+     */
+    error InsufficientUtilization();
+
+    /**************************************************************************/
     /* Structures */
     /**************************************************************************/
 
@@ -129,6 +138,9 @@ contract WeightedInterestRateModel is InterestRateModel {
             /* Adjust interest weight for next tick */
             weight = Math.mulDiv(weight, FIXED_POINT_SCALE, base);
         }
+
+        /* Validate normalization is non-zero */
+        if (normalization == 0) revert InsufficientUtilization();
 
         /* Normalize weighted interest */
         for (uint256 i; i < count; i++) {
