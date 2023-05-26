@@ -219,7 +219,7 @@ library LiquidityManager {
             }
 
             processedShares += redemption.shares;
-            if (processedShares < target) {
+            if (processedShares <= target) {
                 /* Have not reached the redemption queue position yet */
                 continue;
             } else {
