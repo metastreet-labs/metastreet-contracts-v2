@@ -261,7 +261,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
       await expect(liquidateTx)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, nft1.address, 122);
+        .withArgs(liquidationHash, nft1.address, 122, testCollateralLiquidatorJig.address);
 
       /* Validate state */
       const liquidation = await collateralLiquidator.liquidation(liquidationHash);
@@ -308,11 +308,11 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       }
       await expect(liquidateTx)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, nft1.address, tokenIds[0])
+        .withArgs(liquidationHash, nft1.address, tokenIds[0], testCollateralLiquidatorJig.address)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, nft1.address, tokenIds[1])
+        .withArgs(liquidationHash, nft1.address, tokenIds[1], testCollateralLiquidatorJig.address)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, nft1.address, tokenIds[2]);
+        .withArgs(liquidationHash, nft1.address, tokenIds[2], testCollateralLiquidatorJig.address);
 
       /* Validate state */
       for (const [index, tokenId] of tokenIds.entries()) {
@@ -352,7 +352,12 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "AuctionCreated")).args[0];
       await expect(liquidateTx)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, bundleCollateralWrapperFake.address, bundleTokenIdFake);
+        .withArgs(
+          liquidationHash,
+          bundleCollateralWrapperFake.address,
+          bundleTokenIdFake,
+          testCollateralLiquidatorJig.address
+        );
 
       /* Validate state */
       const liquidation = await collateralLiquidator.liquidation(liquidationHash);
