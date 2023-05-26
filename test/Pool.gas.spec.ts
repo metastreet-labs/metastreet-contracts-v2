@@ -233,7 +233,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(200000);
+      expect(gasUsed).to.be.lt(220000);
     });
     it("deposit (existing tick)", async function () {
       await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("1"));

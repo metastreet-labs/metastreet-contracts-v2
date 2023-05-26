@@ -338,7 +338,7 @@ library LiquidityManager {
         /* Link new node */
         node.prev = prevTick;
         node.next = prevNode.next;
-        if (prevNode.next != type(uint128).max) liquidity.nodes[prevNode.next].prev = tick;
+        liquidity.nodes[prevNode.next].prev = tick;
         prevNode.next = tick;
     }
 
