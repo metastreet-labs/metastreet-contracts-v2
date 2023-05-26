@@ -125,11 +125,13 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      * @param liquidationHash Liquidation hash
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
+     * @param liquidationSource Liquidation source
      */
     event AuctionCreated(
         bytes32 indexed liquidationHash,
         address indexed collateralToken,
-        uint256 indexed collateralTokenId
+        uint256 indexed collateralTokenId,
+        address liquidationSource
     );
 
     /**
@@ -350,7 +352,8 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         address collateralToken,
         uint256 collateralTokenId,
         bytes32 liquidationSalt,
-        bytes32 liquidationHash
+        bytes32 liquidationHash,
+        address liquidationSource
     ) internal {
         /* Compute collateral hash */
         bytes32 collateralHash = _collateralHash(collateralToken, collateralTokenId);
@@ -369,7 +372,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         });
 
         /* Emit AuctionCreated */
-        emit AuctionCreated(liquidationHash, collateralToken, collateralTokenId);
+        emit AuctionCreated(liquidationHash, collateralToken, collateralTokenId, liquidationSource);
     }
 
     /**
@@ -477,7 +480,8 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
                 underlyingCollateralToken,
                 underlyingCollateralTokenIds[i],
                 liquidationSalt,
-                liquidationHash
+                liquidationHash,
+                msg.sender
             );
         }
 
