@@ -469,7 +469,7 @@ library LiquidityManager {
             uint128 shares = node.redemptions.pending;
 
             /* Record fulfilled redemption */
-            node.redemptions.fulfilled[node.redemptions.index] = FulfilledRedemption({
+            node.redemptions.fulfilled[node.redemptions.index++] = FulfilledRedemption({
                 shares: node.redemptions.pending,
                 amount: 0
             });
@@ -477,8 +477,7 @@ library LiquidityManager {
             /* Update node state */
             node.shares -= shares;
             /* node.value and node.available already zero */
-            node.redemptions.pending -= shares;
-            node.redemptions.index += 1;
+            node.redemptions.pending = 0;
 
             return (shares, 0);
         } else {
@@ -499,14 +498,16 @@ library LiquidityManager {
             if (shares == 0) return (0, 0);
 
             /* Record fulfilled redemption */
-            node.redemptions.fulfilled[node.redemptions.index] = FulfilledRedemption({shares: shares, amount: amount});
+            node.redemptions.fulfilled[node.redemptions.index++] = FulfilledRedemption({
+                shares: shares,
+                amount: amount
+            });
 
             /* Update node state */
             node.shares -= shares;
             node.value -= amount;
             node.available -= amount;
             node.redemptions.pending -= shares;
-            node.redemptions.index += 1;
 
             /* Garbage collect node if it is now empty */
             _garbageCollect(liquidity, node);
