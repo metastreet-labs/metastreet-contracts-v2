@@ -448,8 +448,11 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         address underlyingCollateralToken;
         uint256[] memory underlyingCollateralTokenIds;
 
+        /* Cache check for collateral wrapper  */
+        bool isCollateralWrapper = _collateralWrappers[collateralToken];
+
         /* Determine if collateral token is a whitelisted collateral wrapper */
-        if (_collateralWrappers[collateralToken]) {
+        if (isCollateralWrapper) {
             /* Get underlying collateral token and underlying collateral token IDs */
             (underlyingCollateralToken, underlyingCollateralTokenIds) = ICollateralWrapper(collateralToken).enumerate(
                 collateralTokenId,
@@ -484,7 +487,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         IERC721(collateralToken).transferFrom(msg.sender, address(this), collateralTokenId);
 
         /* Unwrap if collateral token is a collateral wrapper */
-        if (_collateralWrappers[collateralToken])
+        if (isCollateralWrapper)
             ICollateralWrapper(collateralToken).unwrap(collateralTokenId, collateralWrapperContext);
     }
 
