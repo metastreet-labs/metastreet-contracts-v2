@@ -524,11 +524,9 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
 
             /* Emit AuctionStarted */
             emit AuctionStarted(auction_.collateralToken, auction_.collateralTokenId);
-        } else {
+        } else if ((auction_.endTime - uint64(block.timestamp)) <= _timeExtensionWindow) {
             /* Update end time if auction is already in progress and bid within _timeExtensionWindow */
-            _auctions[collateralHash].endTime = (auction_.endTime - uint64(block.timestamp)) <= _timeExtensionWindow
-                ? uint64(block.timestamp) + _timeExtension
-                : auction_.endTime;
+            _auctions[collateralHash].endTime = uint64(block.timestamp) + _timeExtension;
         }
 
         /* Update auction with new bid */
