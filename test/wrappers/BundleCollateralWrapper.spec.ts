@@ -339,13 +339,6 @@ describe("BundleCollateralWrapper", function () {
         )
       ).to.equal(true);
 
-      /* ERC721Receiver */
-      expect(
-        await bundleCollateralWrapper.supportsInterface(
-          bundleCollateralWrapper.interface.getSighash("onERC721Received")
-        )
-      ).to.equal(true);
-
       /* ICollateralWrapper */
       expect(
         await bundleCollateralWrapper.supportsInterface(

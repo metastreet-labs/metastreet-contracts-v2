@@ -11,7 +11,7 @@ import "../interfaces/ICollateralWrapper.sol";
 /**
  * @title Bundle Collateral Wrapper
  */
-contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder, ReentrancyGuard {
+contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard {
     /**************************************************************************/
     /* Constants */
     /**************************************************************************/
@@ -211,9 +211,6 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ERC721Holder, Re
      * @inheritdoc IERC165
      */
     function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
-        return
-            interfaceId == type(ICollateralWrapper).interfaceId ||
-            interfaceId == type(IERC721Receiver).interfaceId ||
-            super.supportsInterface(interfaceId);
+        return interfaceId == type(ICollateralWrapper).interfaceId || super.supportsInterface(interfaceId);
     }
 }
