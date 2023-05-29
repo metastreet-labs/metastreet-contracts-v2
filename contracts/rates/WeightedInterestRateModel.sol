@@ -120,11 +120,10 @@ contract WeightedInterestRateModel is InterestRateModel {
         /* Assign weighted interest to ticks backwards */
         uint128[] memory pending = new uint128[](count);
         uint256 normalization;
+        uint256 index = count;
         for (uint256 i; i < count; i++) {
-            uint256 index = count - i - 1;
-
             /* Skip tick if it's below threshold */
-            if (nodes[index].used <= threshold) continue;
+            if (nodes[--index].used <= threshold) continue;
 
             /* Compute scaled weight */
             uint256 scaledWeight = Math.mulDiv(weight, nodes[index].used, amount);
