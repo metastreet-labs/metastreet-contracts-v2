@@ -119,9 +119,10 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard 
         tokenIds = new uint256[](count);
 
         /* Populate asset info array */
+        uint256 offset = 20;
         for (uint256 i; i < count; i++) {
-            uint256 offset = 20 + i * 32;
             tokenIds[i] = uint256(bytes32(context[offset:offset + 32]));
+            offset += 32;
         }
     }
 
