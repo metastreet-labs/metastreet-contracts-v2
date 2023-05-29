@@ -202,14 +202,12 @@ library LoanReceipt {
         uint256 numNodeReceipts = (encodedReceipt.length - LOAN_RECEIPT_V1_HEADER_SIZE - collateralWrapperContextLen) /
             LOAN_RECEIPT_V1_NODE_RECEIPT_SIZE;
         receipt.nodeReceipts = new NodeReceipt[](numNodeReceipts);
+        uint256 offset = LOAN_RECEIPT_V1_HEADER_SIZE + collateralWrapperContextLen;
         for (uint256 i; i < numNodeReceipts; i++) {
-            uint256 offset = LOAN_RECEIPT_V1_HEADER_SIZE +
-                collateralWrapperContextLen +
-                i *
-                LOAN_RECEIPT_V1_NODE_RECEIPT_SIZE;
             receipt.nodeReceipts[i].tick = uint128(bytes16(encodedReceipt[offset:offset + 16]));
             receipt.nodeReceipts[i].used = uint128(bytes16(encodedReceipt[offset + 16:offset + 32]));
             receipt.nodeReceipts[i].pending = uint128(bytes16(encodedReceipt[offset + 32:offset + 48]));
+            offset += LOAN_RECEIPT_V1_NODE_RECEIPT_SIZE;
         }
 
         return receipt;
