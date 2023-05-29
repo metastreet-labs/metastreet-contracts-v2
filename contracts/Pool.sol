@@ -946,6 +946,12 @@ abstract contract Pool is
         /* Approve collateral for transfer to _collateralLiquidator */
         IERC721(loanReceipt.collateralToken).approve(address(_collateralLiquidator), loanReceipt.collateralTokenId);
 
+        /* Mark loan status liquidated */
+        _loans[loanReceiptHash] = LoanStatus.Liquidated;
+
+        /* Revoke delegates */
+        _revokeDelegates(loanReceipt.collateralToken, loanReceipt.collateralTokenId);
+
         /* Start liquidation with collateral liquidator */
         _collateralLiquidator.liquidate(
             address(_currencyToken),
@@ -954,12 +960,6 @@ abstract contract Pool is
             loanReceipt.collateralWrapperContext,
             encodedLoanReceipt
         );
-
-        /* Mark loan status liquidated */
-        _loans[loanReceiptHash] = LoanStatus.Liquidated;
-
-        /* Revoke delegates */
-        _revokeDelegates(loanReceipt.collateralToken, loanReceipt.collateralTokenId);
 
         /* Emit Loan Liquidated */
         emit LoanLiquidated(loanReceiptHash);
