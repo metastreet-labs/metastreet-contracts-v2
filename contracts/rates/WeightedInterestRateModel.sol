@@ -92,7 +92,7 @@ contract WeightedInterestRateModel is InterestRateModel {
         /* Accumulate weighted rate */
         for (uint256 i; i < count; i++) {
             (, , uint256 rateIndex, ) = Tick.decode(nodes[i].tick);
-            weightedRate += Math.mulDiv(nodes[i].used, rates[rateIndex], FIXED_POINT_SCALE);
+            weightedRate += (nodes[i].used * rates[rateIndex]) / FIXED_POINT_SCALE;
         }
 
         /* Normalize weighted rate */
@@ -115,7 +115,7 @@ contract WeightedInterestRateModel is InterestRateModel {
 
         /* Interest weight starting at final tick */
         uint256 base = _params.tickExponential;
-        uint256 weight = Math.mulDiv(FIXED_POINT_SCALE, FIXED_POINT_SCALE, base);
+        uint256 weight = (FIXED_POINT_SCALE * FIXED_POINT_SCALE) / base;
 
         /* Assign weighted interest to ticks backwards */
         uint128[] memory pending = new uint128[](count);
@@ -144,7 +144,7 @@ contract WeightedInterestRateModel is InterestRateModel {
         /* Normalize weighted interest */
         for (uint256 i; i < count; i++) {
             /* Calculate normalized interest to tick */
-            pending[i] = uint128(Math.mulDiv(pending[i], FIXED_POINT_SCALE, normalization));
+            pending[i] = uint128((pending[i] * FIXED_POINT_SCALE) / normalization);
 
             /* Track remaining interest */
             interest -= pending[i];
