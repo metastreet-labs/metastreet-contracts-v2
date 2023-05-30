@@ -560,11 +560,9 @@ abstract contract Pool is
         );
 
         /* Calculate repayment from principal, rate, and duration */
-        uint256 repayment = Math.mulDiv(
-            principal,
-            LiquidityManager.FIXED_POINT_SCALE + (_rate(principal, _rates, nodes, count) * duration),
-            LiquidityManager.FIXED_POINT_SCALE
-        );
+        uint256 repayment = (principal *
+            (LiquidityManager.FIXED_POINT_SCALE + (_rate(principal, _rates, nodes, count) * duration))) /
+            LiquidityManager.FIXED_POINT_SCALE;
 
         return (repayment, nodes, count);
     }
@@ -580,18 +578,15 @@ abstract contract Pool is
     ) internal view returns (uint256 repayment, uint256 proration) {
         /* Minimum of proration and 1.0 */
         proration = Math.min(
-            Math.mulDiv(
-                block.timestamp - (loanReceipt.maturity - loanReceipt.duration),
-                LiquidityManager.FIXED_POINT_SCALE,
-                loanReceipt.duration
-            ),
+            ((block.timestamp - (loanReceipt.maturity - loanReceipt.duration)) * LiquidityManager.FIXED_POINT_SCALE) /
+                loanReceipt.duration,
             LiquidityManager.FIXED_POINT_SCALE
         );
 
         /* Compute repayment using prorated interest */
         repayment =
             loanReceipt.principal +
-            Math.mulDiv(loanReceipt.repayment - loanReceipt.principal, proration, LiquidityManager.FIXED_POINT_SCALE);
+            (((loanReceipt.repayment - loanReceipt.principal) * proration) / LiquidityManager.FIXED_POINT_SCALE);
     }
 
     /**
@@ -644,7 +639,7 @@ abstract contract Pool is
         uint256 totalFee = repayment - principal;
 
         /* Compute admin fee */
-        uint256 adminFee = Math.mulDiv(_adminFeeRate, totalFee, BASIS_POINTS_SCALE);
+        uint256 adminFee = (_adminFeeRate * totalFee) / BASIS_POINTS_SCALE;
 
         /* Distribute interest */
         uint128[] memory interest = _distribute(principal, totalFee - adminFee, nodes, count);
@@ -727,11 +722,8 @@ abstract contract Pool is
                 loanReceipt.nodeReceipts[i].pending,
                 loanReceipt.nodeReceipts[i].used +
                     uint128(
-                        Math.mulDiv(
-                            loanReceipt.nodeReceipts[i].pending - loanReceipt.nodeReceipts[i].used,
-                            proration,
+                        ((loanReceipt.nodeReceipts[i].pending - loanReceipt.nodeReceipts[i].used) * proration) /
                             LiquidityManager.FIXED_POINT_SCALE
-                        )
                     )
             );
 
@@ -740,11 +732,7 @@ abstract contract Pool is
         }
 
         /* Update admin fee total balance with prorated admin fee */
-        _adminFeeBalance += Math.mulDiv(
-            loanReceipt.repayment - totalPending,
-            proration,
-            LiquidityManager.FIXED_POINT_SCALE
-        );
+        _adminFeeBalance += ((loanReceipt.repayment - totalPending) * proration) / LiquidityManager.FIXED_POINT_SCALE;
 
         /* Mark loan status repaid */
         _loans[loanReceiptHash] = LoanStatus.Repaid;
