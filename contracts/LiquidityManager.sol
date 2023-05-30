@@ -228,7 +228,7 @@ library LiquidityManager {
                 uint128 shares = (((processedShares > target + pending) ? pending : (processedShares - target))) -
                     totalRedeemedShares;
                 /* Compute price of shares in this redemption batch */
-                uint256 price = Math.mulDiv(redemption.amount, FIXED_POINT_SCALE, redemption.shares);
+                uint256 price = (redemption.amount * FIXED_POINT_SCALE) / redemption.shares;
 
                 /* Accumulate redeemed shares and corresponding amount */
                 totalRedeemedShares += shares;
@@ -369,12 +369,8 @@ library LiquidityManager {
         /* Compute deposit price as current value + 50% of pending returns */
         uint256 price = node.shares == 0
             ? FIXED_POINT_SCALE
-            : Math.mulDiv(
-                node.value + (node.available + node.pending - node.value) / 2,
-                FIXED_POINT_SCALE,
-                node.shares
-            );
-        uint128 shares = Math.mulDiv(amount, FIXED_POINT_SCALE, price).toUint128();
+            : ((node.value + (node.available + node.pending - node.value) / 2) * FIXED_POINT_SCALE) / node.shares;
+        uint128 shares = ((amount * FIXED_POINT_SCALE) / price).toUint128();
 
         node.value += amount;
         node.shares += shares;
@@ -496,10 +492,8 @@ library LiquidityManager {
             if (node.available == 0) return (0, 0);
 
             /* Redeem as many shares as possible and pending from available cash */
-            uint256 price = Math.mulDiv(node.value, FIXED_POINT_SCALE, node.shares);
-            uint128 shares = uint128(
-                Math.min(Math.mulDiv(node.available, FIXED_POINT_SCALE, price), node.redemptions.pending)
-            );
+            uint256 price = (node.value * FIXED_POINT_SCALE) / node.shares;
+            uint128 shares = uint128(Math.min((node.available * FIXED_POINT_SCALE) / price, node.redemptions.pending));
             uint128 amount = Math.mulDiv(shares, price, FIXED_POINT_SCALE).toUint128();
 
             /* If there's insufficient cash to redeem non-zero pending shares
