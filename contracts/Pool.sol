@@ -866,7 +866,7 @@ abstract contract Pool is
         /* Revoke delegates */
         _revokeDelegates(loanReceipt.collateralToken, loanReceipt.collateralTokenId);
 
-        /* Transfer repayment from borrower to lender */
+        /* Transfer repayment from borrower to pool */
         _currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), repayment);
 
         /* Transfer collateral from pool to borrower */
@@ -979,7 +979,7 @@ abstract contract Pool is
         /* Compute loan receipt hash */
         bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
 
-        /* Validate loan status is active */
+        /* Validate loan status is liquidated */
         if (_loans[loanReceiptHash] != LoanStatus.Liquidated) revert InvalidLoanReceipt();
 
         /* Decode loan receipt */
