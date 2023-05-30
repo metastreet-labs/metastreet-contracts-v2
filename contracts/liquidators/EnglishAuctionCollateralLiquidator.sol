@@ -518,7 +518,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         if (
             amount <= auction_.highestBid.amount ||
             amount - auction_.highestBid.amount <
-            Math.mulDiv(auction_.highestBid.amount, _minimumBidBasisPoints, BASIS_POINTS_SCALE)
+            (auction_.highestBid.amount * _minimumBidBasisPoints) / BASIS_POINTS_SCALE
         ) revert InvalidBid();
 
         /* If auction has not started */
