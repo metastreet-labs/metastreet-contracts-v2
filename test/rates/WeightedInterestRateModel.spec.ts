@@ -21,10 +21,10 @@ describe("WeightedInterestRateModel", function () {
   before("deploy fixture", async () => {
     const weightedInterestRateModelFactory = await ethers.getContractFactory("TestWeightedInterestRateModel");
 
-    interestRateModel1 = await weightedInterestRateModelFactory.deploy(PARAMETERS_1);
+    interestRateModel1 = await weightedInterestRateModelFactory.deploy(PARAMETERS_1[0], PARAMETERS_1[1]);
     await interestRateModel1.deployed();
 
-    interestRateModel2 = await weightedInterestRateModelFactory.deploy(PARAMETERS_2);
+    interestRateModel2 = await weightedInterestRateModelFactory.deploy(PARAMETERS_2[0], PARAMETERS_2[1]);
     await interestRateModel2.deployed();
   });
 

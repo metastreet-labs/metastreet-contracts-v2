@@ -74,7 +74,12 @@ describe("PoolFactory", function () {
     await bundleCollateralWrapper.deployed();
 
     /* Deploy pool implementation */
-    poolImpl = (await poolImplFactory.deploy(delegationRegistry.address, [bundleCollateralWrapper.address])) as Pool;
+    poolImpl = (await poolImplFactory.deploy(
+      delegationRegistry.address,
+      [bundleCollateralWrapper.address],
+      FixedPoint.from("0.05"),
+      FixedPoint.from("2.0")
+    )) as Pool;
     await poolImpl.deployed();
 
     /* Deploy pool factory implementation */

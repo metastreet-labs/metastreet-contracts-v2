@@ -30,6 +30,21 @@ contract WeightedInterestRateModel is InterestRateModel {
      */
     uint256 internal constant FIXED_POINT_SCALE = 1e18;
 
+    /**
+     * @notice Maximum tick threshold (0.5)
+     */
+    uint256 internal constant MAXIMUM_TICK_THRESHOLD = 5 * 1e17;
+
+    /**
+     * @notice Minimum tick exponential (0.25)
+     */
+    uint256 internal constant MINIMUM_TICK_EXPONENTIAL = 25 * 1e16;
+
+    /**
+     * @notice Maximum tick exponential (4)
+     */
+    uint256 internal constant MAXIMUM_TICK_EXPONENTIAL = 4 * 1e18;
+
     /**************************************************************************/
     /* Errors */
     /**************************************************************************/
@@ -39,39 +54,39 @@ contract WeightedInterestRateModel is InterestRateModel {
      */
     error InsufficientUtilization();
 
+    /**
+     * @notice Invalid Tick Parameter
+     */
+    error InvalidParameter();
+
     /**************************************************************************/
-    /* Structures */
+    /* Immutable State */
     /**************************************************************************/
 
     /**
-     * @notice Parameters
-     * @param tickThreshold Tick interest threshold
-     * @param tickExponential Tick exponential base
+     * @notice Tick interest threshold
      */
-    struct Parameters {
-        uint64 tickThreshold;
-        uint64 tickExponential;
-    }
+    uint64 internal immutable _tickThreshold;
+
+    /**
+     * @notice Tick exponential base
+     */
+    uint64 internal immutable _tickExponential;
 
     /**************************************************************************/
-    /* State */
+    /* Constructor */
     /**************************************************************************/
 
     /**
-     * @notice Parameters
+     * @notice WeightedInterestRateModel constructor
      */
-    Parameters private _params;
+    constructor(uint64 tickThreshold, uint64 tickExponential) {
+        if (tickThreshold > MAXIMUM_TICK_THRESHOLD) revert InvalidParameter();
+        if (tickExponential < MINIMUM_TICK_EXPONENTIAL || tickExponential > MAXIMUM_TICK_EXPONENTIAL)
+            revert InvalidParameter();
 
-    /**************************************************************************/
-    /* Initializer */
-    /**************************************************************************/
-
-    /**
-     * @notice Initializer
-     * @param params Parameters
-     */
-    function _initialize(Parameters memory params) internal {
-        _params = params;
+        _tickThreshold = tickThreshold;
+        _tickExponential = tickExponential;
     }
 
     /**************************************************************************/
@@ -111,10 +126,10 @@ contract WeightedInterestRateModel is InterestRateModel {
         uint16 count
     ) internal view override returns (uint128[] memory) {
         /* Interest threshold for tick to receive interest */
-        uint256 threshold = Math.mulDiv(_params.tickThreshold, amount, FIXED_POINT_SCALE);
+        uint256 threshold = Math.mulDiv(_tickThreshold, amount, FIXED_POINT_SCALE);
 
         /* Interest weight starting at final tick */
-        uint256 base = _params.tickExponential;
+        uint256 base = _tickExponential;
         uint256 weight = (FIXED_POINT_SCALE * FIXED_POINT_SCALE) / base;
 
         /* Assign weighted interest to ticks backwards */

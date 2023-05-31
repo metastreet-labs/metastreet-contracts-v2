@@ -12,9 +12,10 @@ contract TestWeightedInterestRateModel is WeightedInterestRateModel {
     /* Constructor */
     /**************************************************************************/
 
-    constructor(Parameters memory params) {
-        _initialize(params);
-    }
+    constructor(
+        uint64 tickThreshold,
+        uint64 tickExponential
+    ) WeightedInterestRateModel(tickThreshold, tickExponential) {}
 
     /**************************************************************************/
     /* Wrapper for Primary API */
