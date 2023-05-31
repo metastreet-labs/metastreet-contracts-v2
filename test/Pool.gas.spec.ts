@@ -62,7 +62,11 @@ describe("Pool Gas", function () {
     await bundleCollateralWrapper.deployed();
 
     /* Deploy pool implementation */
-    poolImpl = (await poolImplFactory.deploy(ethers.constants.AddressZero, [bundleCollateralWrapper.address])) as Pool;
+    poolImpl = (await poolImplFactory.deploy(
+      ethers.constants.AddressZero,
+      [bundleCollateralWrapper.address],
+      [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
+    )) as Pool;
     await poolImpl.deployed();
 
     /* Deploy external collateral liquidator implementation */
@@ -85,13 +89,12 @@ describe("Pool Gas", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address", "address", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+          ["address", "address", "uint64[]", "uint64[]"],
           [
             nft1.address,
             tok1.address,
             [7 * 86400, 14 * 86400, 30 * 86400],
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
-            [FixedPoint.from("0.05"), FixedPoint.from("2.0")],
           ]
         ),
         externalCollateralLiquidator.address,

@@ -12,9 +12,7 @@ contract TestWeightedInterestRateModel is WeightedInterestRateModel {
     /* Constructor */
     /**************************************************************************/
 
-    constructor(Parameters memory params) {
-        _initialize(params);
-    }
+    constructor(WeightedInterestRateModel.Parameters memory parameters) WeightedInterestRateModel(parameters) {}
 
     /**************************************************************************/
     /* Wrapper for Primary API */

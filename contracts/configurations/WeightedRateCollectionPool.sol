@@ -29,8 +29,9 @@ contract WeightedRateCollectionPool is Pool, WeightedInterestRateModel, Collecti
      */
     constructor(
         address delegationRegistry_,
-        address[] memory collateralWrappers
-    ) Pool(delegationRegistry_, collateralWrappers) {
+        address[] memory collateralWrappers,
+        WeightedInterestRateModel.Parameters memory parameters
+    ) Pool(delegationRegistry_, collateralWrappers) WeightedInterestRateModel(parameters) {
         /* Disable initialization of implementation contract */
         _initialized = true;
     }
@@ -45,21 +46,13 @@ contract WeightedRateCollectionPool is Pool, WeightedInterestRateModel, Collecti
         _initialized = true;
 
         /* Decode parameters */
-        (
-            address collateralToken_,
-            address currencyToken_,
-            uint64[] memory durations_,
-            uint64[] memory rates_,
-            WeightedInterestRateModel.Parameters memory rateParameters
-        ) = abi.decode(params, (address, address, uint64[], uint64[], WeightedInterestRateModel.Parameters));
+        (address collateralToken_, address currencyToken_, uint64[] memory durations_, uint64[] memory rates_) = abi
+            .decode(params, (address, address, uint64[], uint64[]));
 
         /* Initialize Pool */
         Pool._initialize(currencyToken_, collateralLiquidator_, durations_, rates_);
 
         /* Initialize Collateral Filter */
         CollectionCollateralFilter._initialize(collateralToken_);
-
-        /* Initialize Interest Rate Model */
-        WeightedInterestRateModel._initialize(rateParameters);
     }
 }

@@ -129,7 +129,11 @@ describe("Integration", function () {
     await bundleCollateralWrapper.deployed();
 
     /* Deploy pool implementation */
-    poolImpl = (await poolImplFactory.deploy(delegationRegistry.address, [bundleCollateralWrapper.address])) as Pool;
+    poolImpl = (await poolImplFactory.deploy(
+      delegationRegistry.address,
+      [bundleCollateralWrapper.address],
+      [CONFIG.tickThreshold, CONFIG.tickExponential]
+    )) as Pool;
     await poolImpl.deployed();
 
     /* Deploy pool */
@@ -137,14 +141,8 @@ describe("Integration", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address", "address", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
-          [
-            nft1.address,
-            tok1.address,
-            CONFIG.tickDurations,
-            CONFIG.tickRates,
-            [CONFIG.tickThreshold, CONFIG.tickExponential],
-          ]
+          ["address", "address", "uint64[]", "uint64[]"],
+          [nft1.address, tok1.address, CONFIG.tickDurations, CONFIG.tickRates]
         ),
         collateralLiquidator.address,
       ])
