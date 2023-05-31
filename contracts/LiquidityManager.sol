@@ -137,7 +137,8 @@ library LiquidityManager {
     }
 
     /**
-     * Get liquidity nodes spanning [startTick, endTick] range
+     * Get liquidity nodes spanning [startTick, endTick] range where startTick
+     * must be 0 or an instantiated tick
      * @param startTick Start tick
      * @param endTick End tick
      * @return Liquidity nodes
@@ -147,6 +148,9 @@ library LiquidityManager {
         uint128 startTick,
         uint128 endTick
     ) internal view returns (ILiquidity.NodeInfo[] memory) {
+        /* Validate start tick has active liquidity */
+        if (liquidity.nodes[startTick].next == 0) revert InactiveLiquidity();
+
         /* Count nodes first to figure out how to size liquidity nodes array */
         uint256 i = 0;
         uint128 t = startTick;
