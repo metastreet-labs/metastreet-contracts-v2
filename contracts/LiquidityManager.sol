@@ -53,6 +53,11 @@ library LiquidityManager {
      */
     error InsufficientTickSpacing();
 
+    /**
+     * @notice Invalid tick ordering
+     */
+    error InvalidTickOrdering();
+
     /**************************************************************************/
     /* Structures */
     /**************************************************************************/
@@ -532,14 +537,14 @@ library LiquidityManager {
     ) internal view returns (ILiquidity.NodeSource[] memory, uint16) {
         ILiquidity.NodeSource[] memory sources = new ILiquidity.NodeSource[](ticks.length);
 
-        uint256 prevLimit;
+        uint256 prevTick;
         uint256 taken;
         uint256 count;
         for (; count < ticks.length && taken != amount; count++) {
             uint128 tick = ticks[count];
 
             /* Validate tick and decode limit */
-            uint256 limit = Tick.validate(tick, prevLimit, durationIndex);
+            uint256 limit = Tick.validate(tick, prevTick, durationIndex);
 
             /* Look up liquidity node */
             Node storage node = liquidity.nodes[tick];
@@ -551,7 +556,7 @@ library LiquidityManager {
             sources[count] = ILiquidity.NodeSource({tick: tick, used: take});
 
             taken += take;
-            prevLimit = limit;
+            prevTick = tick;
         }
 
         /* If unable to source required liquidity amount from provided ticks */
