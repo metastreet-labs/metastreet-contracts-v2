@@ -201,3 +201,33 @@ type Withdrawn @entity {
   shares: BigInt! # uint256
   amount: BigInt! # uint256
 }
+
+################################################################################
+# Auction Entities
+################################################################################
+enum AuctionStatus {
+  Created
+  Active
+  Ended
+}
+
+type Auction @entity {
+  id: Bytes!
+  liquidationSource: Bytes!
+  liquidationSourceDeploymentHash: Bytes
+  liquidationHash: Bytes!
+  collateralToken: CollateralToken
+  collateralTokenId: BigInt! # uint256
+  highestBid: Bid
+  bids: [Bid!]! @derivedFrom(field: "auction")
+  bidIds: [Bytes!]! # used to delete bids when deleting the auction
+  bidsCount: Int!
+  endTime: BigInt! # uint64
+}
+
+type Bid @entity {
+  id: Bytes!
+  auction: Auction!
+  bidder: Bytes!
+  amount: BigInt! # uint256
+}
