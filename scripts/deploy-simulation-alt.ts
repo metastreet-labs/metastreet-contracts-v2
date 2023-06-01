@@ -16,16 +16,26 @@ async function main() {
   const BundleCollateralWrapper = await ethers.getContractFactory("BundleCollateralWrapper", accounts[9]);
   const bundleCollateralWrapper = await BundleCollateralWrapper.deploy();
   console.log("BundleCollateralWrapper: ", bundleCollateralWrapper.address);
-  /* Deploy External Collateral Liquidator Implementation */
-  const ExternalCollateralLiquidator = await ethers.getContractFactory("ExternalCollateralLiquidator", accounts[9]);
-  const externalCollateralLiquidatorImpl = await ExternalCollateralLiquidator.deploy();
-  /* Deploy External Collateral Liquidator (Proxied) */
-  const TestProxy = await ethers.getContractFactory("TestProxy", accounts[9]);
-  const externalCollateralLiquidatorProxy = await TestProxy.deploy(
-    externalCollateralLiquidatorImpl.address,
-    externalCollateralLiquidatorImpl.interface.encodeFunctionData("initialize")
+  /* Deploy English Auction Collateral Liquidator Implementation */
+  const EnglishAuctionCollateralLiquidator = await ethers.getContractFactory(
+    "EnglishAuctionCollateralLiquidator",
+    accounts[9]
   );
-  console.log("ExternalCollateralLiquidator: ", externalCollateralLiquidatorProxy.address);
+  const englishAuctionCollateralLiquidatorImpl = await EnglishAuctionCollateralLiquidator.deploy();
+  /* Deploy English Auction Collateral Liquidator (Proxied) */
+  const TestProxy = await ethers.getContractFactory("TestProxy", accounts[9]);
+  const englishAuctionCollateralLiquidatorProxy = await TestProxy.deploy(
+    englishAuctionCollateralLiquidatorImpl.address,
+    englishAuctionCollateralLiquidatorImpl.interface.encodeFunctionData("initialize", [
+      accounts[9].address,
+      ethers.BigNumber.from(60 * 2),
+      ethers.BigNumber.from(60),
+      ethers.BigNumber.from(60 + 1),
+      ethers.BigNumber.from(199),
+      [bundleCollateralWrapper.address],
+    ])
+  );
+  console.log("EnglishAuctionCollateralLiquidator: ", englishAuctionCollateralLiquidatorProxy.address);
   /**************************************************************************/
   /* PoolFactory */
   /**************************************************************************/
@@ -74,14 +84,21 @@ async function main() {
   /**************************************************************************/
   /* NFT contracts */
   /**************************************************************************/
+  const tokenIds = [0, 1, 2, 3];
   const TestERC721 = await ethers.getContractFactory("TestERC721");
-  const names = ["CryptoPunks", "Bored Ape Yacht Club", "Mutant Ape Yacht Club", "Otherdeed for Otherside", "Azuki"];
+  const collectionNames = [
+    "CryptoPunks",
+    "Bored Ape Yacht Club",
+    "Mutant Ape Yacht Club",
+    "Otherdeed for Otherside",
+    "Azuki",
+  ];
   const collateralTokens: string[] = [];
-  for (const name of names) {
+  for (const name of collectionNames) {
     const nftContract = await TestERC721.deploy(name, name, "ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/");
     await nftContract.deployed();
     collateralTokens.push(nftContract.address);
-    await Promise.all([[0, 1, 2, 3].map((id) => nftContract.mint(accounts[0].address, id))]);
+    await Promise.all([tokenIds.map((id) => nftContract.mint(accounts[0].address, id))]);
     console.log("%s: %s", name, nftContract.address);
   }
   /**************************************************************************/
@@ -103,7 +120,7 @@ async function main() {
     const createPoolTx = await poolFactory.createProxied(
       poolBeacon.address,
       params,
-      externalCollateralLiquidatorProxy.address
+      englishAuctionCollateralLiquidatorProxy.address
     );
     const poolAddress = (await extractEvent(createPoolTx, poolFactory, "PoolCreated")).args.pool;
     const poolContract = Pool__factory.connect(poolAddress, accounts[0]);
@@ -127,39 +144,73 @@ async function main() {
   /**************************************************************************/
   /* Loans */
   /**************************************************************************/
-  const collateralToken = collateralTokens[0];
-  const poolAddress = pools[0];
+  {
+    const collateralToken = collateralTokens[0];
+    const poolAddress = pools[0];
+    const poolTicks = poolsTicks[poolAddress];
+    const poolContract = Pool__factory.connect(poolAddress, accounts[0]);
+    const nftContract = ERC721__factory.connect(collateralToken, accounts[0]);
+
+    // originate simple loan
+    console.log("Originating single loan");
+    await nftContract.setApprovalForAll(poolAddress, true);
+    await poolContract.borrow(
+      ethers.utils.parseEther("1"),
+      7 * 86400,
+      collateralToken,
+      0,
+      ethers.utils.parseEther("99"),
+      poolTicks,
+      "0x"
+    );
+
+    // originate bundle loan
+    console.log("Originating bundle loan");
+    await nftContract.setApprovalForAll(bundleCollateralWrapper.address, true);
+    const mintTx = await bundleCollateralWrapper.connect(accounts[0]).mint(collateralToken, [1, 2]);
+    const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+    const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
+    await bundleCollateralWrapper.connect(accounts[0]).setApprovalForAll(poolAddress, true);
+    await poolContract.borrow(
+      ethers.utils.parseEther("1"),
+      7 * 86400,
+      bundleCollateralWrapper.address,
+      bundleTokenId,
+      ethers.utils.parseEther("99"),
+      poolTicks,
+      ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, ethers.utils.hexDataLength(bundleData), bundleData])
+    );
+  }
+  /**************************************************************************/
+  /* Auctions */
+  /**************************************************************************/
+  const collateralToken = collateralTokens[1];
+  const poolAddress = pools[1];
   const poolTicks = poolsTicks[poolAddress];
-  const poolContract = Pool__factory.connect(pools[0], accounts[0]);
+  const poolContract = Pool__factory.connect(poolAddress, accounts[0]);
   const nftContract = ERC721__factory.connect(collateralToken, accounts[0]);
 
-  // originate simple loan
   await nftContract.setApprovalForAll(poolAddress, true);
-  await poolContract.borrow(
-    ethers.utils.parseEther("1"),
-    7 * 86400,
-    collateralToken,
-    0,
-    ethers.utils.parseEther("99"),
-    poolTicks,
-    "0x"
-  );
 
-  // originate bundle loan
-  await nftContract.setApprovalForAll(bundleCollateralWrapper.address, true);
-  const mintTx = await bundleCollateralWrapper.connect(accounts[0]).mint(collateralToken, [1, 2]);
-  const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
-  const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
-  await bundleCollateralWrapper.connect(accounts[0]).setApprovalForAll(poolAddress, true);
-  await poolContract.borrow(
-    ethers.utils.parseEther("1"),
-    7 * 86400,
-    bundleCollateralWrapper.address,
-    bundleTokenId,
-    ethers.utils.parseEther("99"),
-    poolTicks,
-    ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, ethers.utils.hexDataLength(bundleData), bundleData])
-  );
+  const receipts: string[] = [];
+  for (let i = 0; i < tokenIds.length; i++) {
+    const tx = await poolContract.borrow(
+      ethers.utils.parseEther("1"),
+      1,
+      collateralToken,
+      tokenIds[i],
+      ethers.utils.parseEther("99"),
+      poolTicks,
+      "0x"
+    );
+    const loanOriginatedEvent = await extractEvent(tx, poolContract, "LoanOriginated");
+    receipts.push(loanOriginatedEvent.args.loanReceipt);
+  }
+
+  for (let i = 0; i < receipts.length; i++) {
+    await poolContract.liquidate(receipts[i]);
+    console.log("Liquidated " + collectionNames[i] + " #" + tokenIds[i]);
+  }
 }
 
 main().catch((error) => {
