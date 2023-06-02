@@ -63,10 +63,6 @@ describe("EnglishAuctionCollateralLiquidator", function () {
     loanReceiptLibrary = await testLoanReceiptFactory.deploy();
     await loanReceiptLibrary.deployed();
 
-    /* Deploy collateral liquidator implementation */
-    const collateralLiquidatorImpl = await englishAuctionCollateralLiquidatorFactory.deploy();
-    await collateralLiquidatorImpl.deployed();
-
     /* Deploy bundle collateral wrapper */
     bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
     await bundleCollateralWrapper.deployed();
@@ -75,16 +71,20 @@ describe("EnglishAuctionCollateralLiquidator", function () {
     bundleCollateralWrapperFake = await bundleCollateralWrapperFactory.deploy();
     await bundleCollateralWrapper.deployed();
 
+    /* Deploy collateral liquidator implementation */
+    const collateralLiquidatorImpl = await englishAuctionCollateralLiquidatorFactory.deploy([
+      bundleCollateralWrapper.address,
+    ]);
+    await collateralLiquidatorImpl.deployed();
+
     /* Deploy collateral liquidator */
     const proxy = await testProxyFactory.deploy(
       collateralLiquidatorImpl.address,
       collateralLiquidatorImpl.interface.encodeFunctionData("initialize", [
-        accounts[3].address,
         ethers.BigNumber.from(86400),
         ethers.BigNumber.from(60 * 10),
         ethers.BigNumber.from(60 * 20),
         ethers.BigNumber.from(199),
-        [bundleCollateralWrapper.address],
       ])
     );
     await proxy.deployed();
