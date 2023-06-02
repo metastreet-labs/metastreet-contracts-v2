@@ -4,6 +4,8 @@
 
 type Pool @entity {
   id: ID! # address
+
+  # Properties
   deploymentHash: Bytes!
   collateralToken: CollateralToken!
   collateralWrappers: [Bytes!]! # address[]
@@ -12,16 +14,27 @@ type Pool @entity {
   rates: [BigInt!]! # uint64[]
   adminFeeRate: BigInt! # uint64
   collateralLiquidator: Bytes! # address
-  totalValueLocked: BigInt! # uint256
-  totalValueAvailable: BigInt! # uint256
-  totalValueUsed: BigInt! # uint256
-  adminFeeBalance: BigInt! # uint256
+  delegationRegistry: Bytes! # address
+
+  # Derived Properties
   maxBorrow: BigInt! # uint256
   maxLoanDuration: BigInt! # uint64 (in seconds)
-  delegationRegistry: Bytes! # address
+
+  # State
+  adminFeeBalance: BigInt! # uint256
   ticks: [Tick!]! @derivedFrom(field: "pool")
   deposits: [Deposit!]! @derivedFrom(field: "pool")
   loans: [Loan!]! @derivedFrom(field: "pool")
+
+  # Statistics
+  totalValueLocked: BigInt! # uint256
+  totalValueAvailable: BigInt! # uint256
+  totalValueUsed: BigInt! # uint256
+  loansOriginated: BigInt!
+  loansActive: BigInt!
+  loansRepaid: BigInt!
+  loansLiquidated: BigInt!
+  loansCollateralLiquidated: BigInt!
 }
 
 ################################################################################
