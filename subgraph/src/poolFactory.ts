@@ -1,4 +1,4 @@
-import { BigInt } from "@graphprotocol/graph-ts";
+import { BigInt, Bytes } from "@graphprotocol/graph-ts";
 import { ERC721 } from "../generated/PoolFactory/ERC721";
 
 import { CollectionCollateralFilter as CollectionCollateralFilterContract } from "../generated/PoolFactory/CollectionCollateralFilter";
@@ -26,6 +26,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   poolEntity.totalValueUsed = BigInt.zero();
   poolEntity.maxBorrow = BigInt.zero();
   poolEntity.collateralToken = collateralTokenId;
+  poolEntity.collateralWrappers = poolContract.collateralWrappers().map<Bytes>((x) => x);
   poolEntity.delegationRegistry = poolContract.delegationRegistry();
   poolEntity.durations = poolContract.durations();
   poolEntity.rates = poolContract.rates();
