@@ -407,6 +407,10 @@ export function handleLoanOriginated(event: LoanOriginatedEvent): void {
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
 
+  poolEntity.loansOriginated = poolEntity.loansOriginated.plus(ONE);
+  poolEntity.loansActive = poolEntity.loansActive.plus(ONE);
+  poolEntity.save();
+
   const loanEntity = createLoanEntity(
     poolEntity,
     receipt,
@@ -434,6 +438,10 @@ export function handleLoanRepaid(event: LoanRepaidEvent): void {
   updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntitiesFromLoanEntity(loanEntity, -1);
 
+  poolEntity.loansActive = poolEntity.loansActive.minus(ONE);
+  poolEntity.loansRepaid = poolEntity.loansRepaid.plus(ONE);
+  poolEntity.save();
+
   const poolEventId = createPoolEventEntity(event, PoolEventType.LoanRepaid, loanEntity.borrower, null);
 
   const loanRepaidEntity = new LoanRepaidEntity(poolEventId);
@@ -446,6 +454,13 @@ export function handleLoanLiquidated(event: LoanLiquidatedEvent): void {
   if (!loanEntity) throw new Error("Loan entity not found");
   loanEntity.status = LoanStatus.Liquidated;
   loanEntity.save();
+
+  const poolEntity = PoolEntity.load(poolAddress);
+  if (!poolEntity) throw new Error("Pool entity not found");
+
+  poolEntity.loansActive = poolEntity.loansActive.minus(ONE);
+  poolEntity.loansLiquidated = poolEntity.loansLiquidated.plus(ONE);
+  poolEntity.save();
 
   const poolEventId = createPoolEventEntity(event, PoolEventType.LoanLiquidated, loanEntity.borrower, null);
 
@@ -463,6 +478,10 @@ export function handleCollateralLiquidated(event: CollateralLiquidatedEvent): vo
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntitiesFromLoanEntity(loanEntity, -1);
+
+  poolEntity.loansLiquidated = poolEntity.loansLiquidated.minus(ONE);
+  poolEntity.loansCollateralLiquidated = poolEntity.loansCollateralLiquidated.plus(ONE);
+  poolEntity.save();
 }
 
 export function handleAdminFeeRateUpdated(event: AdminFeeRateUpdatedEvent): void {
