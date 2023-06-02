@@ -1,6 +1,7 @@
 import { Address, BigInt, Bytes, dataSource, ethereum } from "@graphprotocol/graph-ts";
 import {
   Bundle as BundleEntity,
+  CollateralLiquidated as CollateralLiquidatedEntity,
   CollateralToken as CollateralTokenEntity,
   Deposit as DepositEntity,
   Deposited as DepositedEntity,
@@ -15,6 +16,7 @@ import {
 } from "../generated/schema";
 import { ICollateralWrapper } from "../generated/templates/Pool/ICollateralWrapper";
 import {
+  AdminFeeRateUpdated as AdminFeeRateUpdatedEvent,
   CollateralLiquidated as CollateralLiquidatedEvent,
   Deposited as DepositedEvent,
   LoanLiquidated as LoanLiquidatedEvent,
@@ -24,7 +26,6 @@ import {
   Pool as PoolContract,
   Redeemed as RedeemedEvent,
   Withdrawn as WithdrawnEvent,
-  AdminFeeRateUpdated as AdminFeeRateUpdatedEvent,
 } from "../generated/templates/Pool/Pool";
 import { FixedPoint } from "./utils/FixedPoint";
 
@@ -45,6 +46,7 @@ class PoolEventType {
   static LoanPurchased: string = "LoanPurchased";
   static LoanRepaid: string = "LoanRepaid";
   static LoanLiquidated: string = "LoanLiquidated";
+  static CollateralLiquidated: string = "CollateralLiquidated";
   static Deposited: string = "Deposited";
   static Redeemed: string = "Redeemed";
   static Withdrawn: string = "Withdrawn";
@@ -217,6 +219,7 @@ function createPoolEventEntity(
   else if (type == PoolEventType.LoanPurchased) eventEntity.loanPurchased = id;
   else if (type == PoolEventType.LoanRepaid) eventEntity.LoanRepaid = id;
   else if (type == PoolEventType.LoanLiquidated) eventEntity.loanLiquidated = id;
+  else if (type == PoolEventType.CollateralLiquidated) eventEntity.collateralLiquidated = id;
   else if (type == PoolEventType.Deposited) eventEntity.deposited = id;
   else if (type == PoolEventType.Redeemed) eventEntity.redeemed = id;
   else if (type == PoolEventType.Withdrawn) eventEntity.withdrawn = id;
@@ -485,6 +488,13 @@ export function handleCollateralLiquidated(event: CollateralLiquidatedEvent): vo
   poolEntity.loansLiquidated = poolEntity.loansLiquidated.minus(ONE);
   poolEntity.loansCollateralLiquidated = poolEntity.loansCollateralLiquidated.plus(ONE);
   poolEntity.save();
+
+  const poolEventId = createPoolEventEntity(event, PoolEventType.CollateralLiquidated, loanEntity.borrower, null);
+
+  const collateralLiquidatedEntity = new CollateralLiquidatedEntity(poolEventId);
+  collateralLiquidatedEntity.loan = loanEntity.id;
+  collateralLiquidatedEntity.proceeds = event.params.proceeds;
+  collateralLiquidatedEntity.save();
 }
 
 export function handleAdminFeeRateUpdated(event: AdminFeeRateUpdatedEvent): void {

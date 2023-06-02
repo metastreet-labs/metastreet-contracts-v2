@@ -162,6 +162,7 @@ type PoolEvent @entity {
   loanPurchased: LoanPurchased
   LoanRepaid: LoanRepaid
   loanLiquidated: LoanLiquidated
+  collateralLiquidated: CollateralLiquidated
   deposited: Deposited
   redeemed: Redeemed
   withdrawn: Withdrawn
@@ -171,6 +172,7 @@ enum PoolEventType {
   LoanOriginated
   LoanRepaid
   LoanLiquidated
+  CollateralLiquidated
   Deposited
   Redeemed
   Withdrawn
@@ -194,6 +196,12 @@ type LoanRepaid @entity {
 type LoanLiquidated @entity {
   id: ID! # <pool>-<tx hash>
   loan: Loan!
+}
+
+type CollateralLiquidated @entity {
+  id: ID! # <pool>-<tx hash>
+  loan: Loan!
+  proceeds: BigInt!
 }
 
 type Deposited @entity {
