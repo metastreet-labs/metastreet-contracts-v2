@@ -19,21 +19,25 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   /* Create Pool entity*/
   /**************************************************************************/
   const poolEntity = new PoolEntity(poolId);
+  // Properties
   poolEntity.deploymentHash = event.params.deploymentHash;
-  poolEntity.currencyToken = poolContract.currencyToken();
-  poolEntity.adminFeeBalance = BigInt.zero();
-  poolEntity.totalValueLocked = BigInt.zero();
-  poolEntity.totalValueAvailable = BigInt.zero();
-  poolEntity.totalValueUsed = BigInt.zero();
-  poolEntity.maxBorrow = BigInt.zero();
   poolEntity.collateralToken = collateralTokenId;
   poolEntity.collateralWrappers = poolContract.collateralWrappers().map<Bytes>((x) => x);
-  poolEntity.delegationRegistry = poolContract.delegationRegistry();
+  poolEntity.currencyToken = poolContract.currencyToken();
   poolEntity.durations = poolContract.durations();
   poolEntity.rates = poolContract.rates();
   poolEntity.adminFeeRate = poolContract.adminFeeRate();
   poolEntity.collateralLiquidator = poolContract.collateralLiquidator();
+  poolEntity.delegationRegistry = poolContract.delegationRegistry();
+  // Derived properties
+  poolEntity.maxBorrow = BigInt.zero();
   poolEntity.maxLoanDuration = poolEntity.durations[poolEntity.durations.length - 1];
+  // State
+  poolEntity.adminFeeBalance = BigInt.zero();
+  // Statistics
+  poolEntity.totalValueLocked = BigInt.zero();
+  poolEntity.totalValueAvailable = BigInt.zero();
+  poolEntity.totalValueUsed = BigInt.zero();
   poolEntity.loansOriginated = BigInt.zero();
   poolEntity.loansActive = BigInt.zero();
   poolEntity.loansRepaid = BigInt.zero();
