@@ -43,7 +43,6 @@ const MAX_UINT128 = TWO.pow(128).minus(ONE);
 
 class PoolEventType {
   static LoanOriginated: string = "LoanOriginated";
-  static LoanPurchased: string = "LoanPurchased";
   static LoanRepaid: string = "LoanRepaid";
   static LoanLiquidated: string = "LoanLiquidated";
   static CollateralLiquidated: string = "CollateralLiquidated";
@@ -216,7 +215,6 @@ function createPoolEventEntity(
   eventEntity.account = account;
   eventEntity.type = type;
   if (type == PoolEventType.LoanOriginated) eventEntity.loanOriginated = id;
-  else if (type == PoolEventType.LoanPurchased) eventEntity.loanPurchased = id;
   else if (type == PoolEventType.LoanRepaid) eventEntity.LoanRepaid = id;
   else if (type == PoolEventType.LoanLiquidated) eventEntity.loanLiquidated = id;
   else if (type == PoolEventType.CollateralLiquidated) eventEntity.collateralLiquidated = id;
