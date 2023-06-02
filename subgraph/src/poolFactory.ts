@@ -34,6 +34,11 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   poolEntity.adminFeeRate = poolContract.adminFeeRate();
   poolEntity.collateralLiquidator = poolContract.collateralLiquidator();
   poolEntity.maxLoanDuration = poolEntity.durations[poolEntity.durations.length - 1];
+  poolEntity.loansOriginated = BigInt.zero();
+  poolEntity.loansActive = BigInt.zero();
+  poolEntity.loansRepaid = BigInt.zero();
+  poolEntity.loansLiquidated = BigInt.zero();
+  poolEntity.loansCollateralLiquidated = BigInt.zero();
 
   poolEntity.save();
 
