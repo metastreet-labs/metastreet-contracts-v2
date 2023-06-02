@@ -10,6 +10,7 @@ type Pool @entity {
   currencyToken: Bytes! # address
   durations: [BigInt!]! # uint64[] (in seconds)
   rates: [BigInt!]! # uint64[]
+  adminFeeRate: BigInt! # uint64
   collateralLiquidator: Bytes! # address
   totalValueLocked: BigInt! # uint256
   totalValueAvailable: BigInt! # uint256

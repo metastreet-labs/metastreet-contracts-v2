@@ -94,4 +94,6 @@ templates:
           handler: handleLoanLiquidated
         - event: CollateralLiquidated(indexed bytes32,uint256)
           handler: handleCollateralLiquidated
+        - event: AdminFeeRateUpdated(uint256)
+          handler: handleAdminFeeRateUpdated
       file: src/pool.ts

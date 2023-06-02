@@ -30,6 +30,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   poolEntity.delegationRegistry = poolContract.delegationRegistry();
   poolEntity.durations = poolContract.durations();
   poolEntity.rates = poolContract.rates();
+  poolEntity.adminFeeRate = poolContract.adminFeeRate();
   poolEntity.collateralLiquidator = poolContract.collateralLiquidator();
   poolEntity.maxLoanDuration = poolEntity.durations[poolEntity.durations.length - 1];
 
