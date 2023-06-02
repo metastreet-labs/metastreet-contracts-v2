@@ -222,14 +222,13 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
     uint64 private _minimumBidBasisPoints;
 
     /**
-     * @notice Admin
+     * @notice Collateral wrappers (max 5)
      */
-    address private _admin;
-
-    /**
-     * @notice Collateral wrappers
-     */
-    mapping(address => bool) private _collateralWrappers;
+    address internal immutable _collateralWrapper1;
+    address internal immutable _collateralWrapper2;
+    address internal immutable _collateralWrapper3;
+    address internal immutable _collateralWrapper4;
+    address internal immutable _collateralWrapper5;
 
     /**
      * @dev Collateral auctions
@@ -282,9 +281,19 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
     /**************************************************************************/
 
     /**
-     * @notice ExternalCollateralLiquidator constructor
+     * @notice EnglishAuctionCollateralLiquidator constructor
      */
-    constructor() {
+    constructor(address[] memory collateralWrappers_) {
+        /* Validate number of collateral wrappers */
+        if (collateralWrappers_.length > 5) revert InvalidParameters();
+
+        /* Assign collateral wrappers */
+        _collateralWrapper1 = (collateralWrappers_.length > 0) ? collateralWrappers_[0] : address(0);
+        _collateralWrapper2 = (collateralWrappers_.length > 1) ? collateralWrappers_[1] : address(0);
+        _collateralWrapper3 = (collateralWrappers_.length > 2) ? collateralWrappers_[2] : address(0);
+        _collateralWrapper4 = (collateralWrappers_.length > 3) ? collateralWrappers_[3] : address(0);
+        _collateralWrapper5 = (collateralWrappers_.length > 4) ? collateralWrappers_[4] : address(0);
+
         /* Disable initialization of implementation contract */
         _initialized = true;
     }
@@ -297,12 +306,10 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      * @notice Initializer
      */
     function initialize(
-        address admin,
         uint64 auctionDuration_,
         uint64 timeExtensionWindow_,
         uint64 timeExtension_,
-        uint64 minimumBidBasisPoints_,
-        address[] calldata collateralWrappers
+        uint64 minimumBidBasisPoints_
     ) external {
         require(!_initialized, "Already initialized");
         if (timeExtension_ <= timeExtensionWindow_) revert InvalidParameters();
@@ -310,15 +317,10 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         if (auctionDuration_ == 0) revert InvalidParameters();
 
         _initialized = true;
-        _admin = admin;
         _auctionDuration = auctionDuration_;
         _timeExtensionWindow = timeExtensionWindow_;
         _timeExtension = timeExtension_;
         _minimumBidBasisPoints = minimumBidBasisPoints_;
-
-        for (uint256 i; i < collateralWrappers.length; i++) {
-            _collateralWrappers[collateralWrappers[i]] = true;
-        }
     }
 
     /**************************************************************************/
@@ -350,6 +352,19 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
     /**************************************************************************/
     /* Helper Functions */
     /**************************************************************************/
+
+    /**
+     * @notice Helper function to check if collateral token is a collateral wrapper
+     * @param collateralToken Collateral token
+     */
+    function _isCollateralWrapper(address collateralToken) internal view returns (bool) {
+        return
+            collateralToken == _collateralWrapper1 ||
+            collateralToken == _collateralWrapper2 ||
+            collateralToken == _collateralWrapper3 ||
+            collateralToken == _collateralWrapper4 ||
+            collateralToken == _collateralWrapper5;
+    }
 
     /**
      * @notice Helper function to compute liquidation hash
@@ -495,8 +510,11 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         address underlyingCollateralToken;
         uint256[] memory underlyingCollateralTokenIds;
 
-        /* Determine if collateral token is a whitelisted collateral wrapper */
-        if (_collateralWrappers[collateralToken]) {
+        /* Determine if collateral token is a collateral wrapper */
+        bool isCollateralWrapper = _isCollateralWrapper(collateralToken);
+
+        /* Enumerate if collateral token is a collateral wrapper */
+        if (isCollateralWrapper) {
             /* Get underlying collateral token and underlying collateral token IDs */
             (underlyingCollateralToken, underlyingCollateralTokenIds) = ICollateralWrapper(collateralToken).enumerate(
                 collateralTokenId,
@@ -532,7 +550,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         IERC721(collateralToken).transferFrom(msg.sender, address(this), collateralTokenId);
 
         /* Unwrap bundle collateral if collateral token is a collateral wrapper */
-        if (_collateralWrappers[collateralToken])
+        if (isCollateralWrapper)
             ICollateralWrapper(collateralToken).unwrap(collateralTokenId, collateralWrapperContext);
     }
 
@@ -656,23 +674,5 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
             auction_.highestBid.bidder,
             auction_.highestBid.amount
         );
-    }
-
-    /**
-     * @notice Update collateral wrapper
-     *
-     * Emits a {CollateralWrapperUpdated} event.
-     *
-     * @param collateralWrapper Collateral wrapper
-     * @param enabled True if enabled, false if disabled
-     */
-    function setCollateralWrapper(address collateralWrapper, bool enabled) external {
-        if (msg.sender != _admin) revert InvalidCaller();
-
-        /* Update collateral wrappers */
-        _collateralWrappers[collateralWrapper] = enabled;
-
-        /* Emit CollateralWrapperUpdated */
-        emit CollateralWrapperUpdated(collateralWrapper, enabled);
     }
 }

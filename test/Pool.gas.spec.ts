@@ -735,19 +735,19 @@ describe("Pool Gas", function () {
         );
 
         /* Deploy english auction collateral liquidator implementation */
-        const englishAuctionCollateralLiquidatorImpl = await englishAuctionCollateralLiquidatorFactory.deploy();
+        const englishAuctionCollateralLiquidatorImpl = await englishAuctionCollateralLiquidatorFactory.deploy([
+          bundleCollateralWrapper.address,
+        ]);
         await englishAuctionCollateralLiquidatorImpl.deployed();
 
         /* Deploy english auction collateral liquidator */
         let proxy = await testProxyFactory.deploy(
           englishAuctionCollateralLiquidatorImpl.address,
           englishAuctionCollateralLiquidatorImpl.interface.encodeFunctionData("initialize", [
-            accounts[3].address,
             ethers.BigNumber.from(86400),
             ethers.BigNumber.from(60 * 10),
             ethers.BigNumber.from(60 * 20),
             ethers.BigNumber.from(199),
-            [bundleCollateralWrapper.address],
           ])
         );
         await proxy.deployed();
