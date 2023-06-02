@@ -242,6 +242,42 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
     mapping(bytes32 => Liquidation) private _liquidations;
 
     /**************************************************************************/
+    /* Getters */
+    /**************************************************************************/
+
+    /**
+     * @notice Get auction duration
+     * @return Auction duration
+     */
+    function auctionDuration() external view returns (uint64) {
+        return _auctionDuration;
+    }
+
+    /**
+     * @notice Get time extension window
+     * @return Time extension window
+     */
+    function timeExtensionWindow() external view returns (uint64) {
+        return _timeExtensionWindow;
+    }
+
+    /**
+     * @notice Get time extension
+     * @return Time extension
+     */
+    function timeExtension() external view returns (uint64) {
+        return _timeExtension;
+    }
+
+    /**
+     * @notice Get minimum bid basis points
+     * @return Minimum bid basis points
+     */
+    function minimumBidBasisPoints() external view returns (uint64) {
+        return _minimumBidBasisPoints;
+    }
+
+    /**************************************************************************/
     /* Constructor */
     /**************************************************************************/
 
@@ -262,23 +298,23 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      */
     function initialize(
         address admin,
-        uint64 auctionDuration,
-        uint64 timeExtensionWindow,
-        uint64 timeExtension,
-        uint64 minimumBidBasisPoints,
+        uint64 auctionDuration_,
+        uint64 timeExtensionWindow_,
+        uint64 timeExtension_,
+        uint64 minimumBidBasisPoints_,
         address[] calldata collateralWrappers
     ) external {
         require(!_initialized, "Already initialized");
-        if (timeExtension <= timeExtensionWindow) revert InvalidParameters();
-        if (auctionDuration <= timeExtensionWindow) revert InvalidParameters();
-        if (auctionDuration == 0) revert InvalidParameters();
+        if (timeExtension_ <= timeExtensionWindow_) revert InvalidParameters();
+        if (auctionDuration_ <= timeExtensionWindow_) revert InvalidParameters();
+        if (auctionDuration_ == 0) revert InvalidParameters();
 
         _initialized = true;
         _admin = admin;
-        _auctionDuration = auctionDuration;
-        _timeExtensionWindow = timeExtensionWindow;
-        _timeExtension = timeExtension;
-        _minimumBidBasisPoints = minimumBidBasisPoints;
+        _auctionDuration = auctionDuration_;
+        _timeExtensionWindow = timeExtensionWindow_;
+        _timeExtension = timeExtension_;
+        _minimumBidBasisPoints = minimumBidBasisPoints_;
 
         for (uint256 i; i < collateralWrappers.length; i++) {
             _collateralWrappers[collateralWrappers[i]] = true;
