@@ -24,6 +24,7 @@ import {
   Pool as PoolContract,
   Redeemed as RedeemedEvent,
   Withdrawn as WithdrawnEvent,
+  AdminFeeRateUpdated as AdminFeeRateUpdatedEvent,
 } from "../generated/templates/Pool/Pool";
 import { FixedPoint } from "./utils/FixedPoint";
 
@@ -461,4 +462,12 @@ export function handleCollateralLiquidated(event: CollateralLiquidatedEvent): vo
   const poolEntity = updatePoolEntity();
   updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntitiesFromLoanEntity(loanEntity, -1);
+}
+
+export function handleAdminFeeRateUpdated(event: AdminFeeRateUpdatedEvent): void {
+  const poolEntity = PoolEntity.load(poolAddress);
+  if (!poolEntity) throw new Error("Pool entity not found");
+
+  poolEntity.adminFeeRate = event.params.rate;
+  poolEntity.save();
 }
