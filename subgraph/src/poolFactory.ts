@@ -21,6 +21,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   const poolEntity = new PoolEntity(poolId);
   poolEntity.deploymentHash = event.params.deploymentHash;
   poolEntity.currencyToken = poolContract.currencyToken();
+  poolEntity.adminFeeBalance = BigInt.zero();
   poolEntity.totalValueLocked = BigInt.zero();
   poolEntity.totalValueAvailable = BigInt.zero();
   poolEntity.totalValueUsed = BigInt.zero();

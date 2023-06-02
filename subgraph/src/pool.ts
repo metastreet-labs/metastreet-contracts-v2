@@ -108,6 +108,7 @@ function updatePoolEntity(): PoolEntity {
   poolEntity.totalValueLocked = locked;
   poolEntity.totalValueAvailable = available;
   poolEntity.totalValueUsed = locked.minus(available);
+  poolEntity.adminFeeBalance = poolContract.adminFeeBalance();
 
   poolEntity.save();
   return poolEntity;
