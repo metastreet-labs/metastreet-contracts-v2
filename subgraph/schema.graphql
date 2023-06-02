@@ -15,6 +15,7 @@ type Pool @entity {
   totalValueLocked: BigInt! # uint256
   totalValueAvailable: BigInt! # uint256
   totalValueUsed: BigInt! # uint256
+  adminFeeBalance: BigInt! # uint256
   maxBorrow: BigInt! # uint256
   maxLoanDuration: BigInt! # uint64 (in seconds)
   delegationRegistry: Bytes! # address
