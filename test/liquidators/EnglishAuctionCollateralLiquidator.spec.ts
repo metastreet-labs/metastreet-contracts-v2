@@ -246,6 +246,25 @@ describe("EnglishAuctionCollateralLiquidator", function () {
   }
 
   /****************************************************************************/
+  /* Getters */
+  /****************************************************************************/
+
+  describe("getters", async function () {
+    it("returns auction duration", async function () {
+      expect(await collateralLiquidator.auctionDuration()).to.equal(ethers.BigNumber.from(86400));
+    });
+    it("returns time extension window", async function () {
+      expect(await collateralLiquidator.timeExtensionWindow()).to.equal(ethers.BigNumber.from(60 * 10));
+    });
+    it("returns time extension", async function () {
+      expect(await collateralLiquidator.timeExtension()).to.equal(ethers.BigNumber.from(60 * 20));
+    });
+    it("returns minimum bid basis point", async function () {
+      expect(await collateralLiquidator.minimumBidBasisPoints()).to.equal(ethers.BigNumber.from(199));
+    });
+  });
+
+  /****************************************************************************/
   /* Primay API */
   /****************************************************************************/
 
