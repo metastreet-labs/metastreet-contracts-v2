@@ -137,6 +137,7 @@ type Loan @entity {
   collateralToken: CollateralToken! # in case of a bundle/note, this will still refer to the underlying collateral token
   collateralTokenIds: [BigInt!]! # uint256[] (in case of a bundle/note, this will still refer to the underlying collateral token ids)
   ticks: [BigInt!]! # uint128[]
+  useds: [BigInt!]! # uint128[]
   interests: [BigInt!]! # uint128[]
   principal: BigInt! # uint256
   repayment: BigInt! # uint256
