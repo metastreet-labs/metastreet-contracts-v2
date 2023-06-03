@@ -64,6 +64,11 @@ abstract contract Pool is
     uint256 internal constant BASIS_POINTS_SCALE = 10_000;
 
     /**
+     * @notice Borrower's share of proceed surplus in basis points
+     */
+    uint256 internal constant BORROWER_SURPLUS_SHARE = 9_500;
+
+    /**
      * @notice Borrow options tag size in bytes
      */
     uint256 internal constant BORROW_OPTIONS_TAG_SIZE = 2;
@@ -982,14 +987,21 @@ abstract contract Pool is
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
-        /* Compute liquidation surplus */
-        uint256 surplus = proceeds > loanReceipt.repayment ? proceeds - loanReceipt.repayment : 0;
+        /* Compute borrower's share of liquidation surplus */
+        uint256 borrowerSurplus = proceeds > loanReceipt.repayment
+            ? Math.mulDiv(proceeds - loanReceipt.repayment, BORROWER_SURPLUS_SHARE, BASIS_POINTS_SCALE)
+            : 0;
+
+        /* Compute remaining proceeds */
+        uint128 proceedsRemaining = (proceeds - borrowerSurplus).toUint128();
 
         /* Restore liquidity nodes */
-        uint128 proceedsRemaining = (proceeds - surplus).toUint128();
+        uint256 lastIndex = loanReceipt.nodeReceipts.length - 1;
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
             /* Restore node */
-            uint128 restored = uint128(Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining));
+            uint128 restored = (i == lastIndex)
+                ? proceedsRemaining
+                : uint128(Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining));
             _liquidity.restore(
                 loanReceipt.nodeReceipts[i].tick,
                 loanReceipt.nodeReceipts[i].used,
@@ -1005,7 +1017,7 @@ abstract contract Pool is
         _loans[loanReceiptHash] = LoanStatus.CollateralLiquidated;
 
         /* Transfer surplus to borrower */
-        if (surplus != 0) IERC20(_currencyToken).transfer(loanReceipt.borrower, surplus);
+        if (borrowerSurplus != 0) IERC20(_currencyToken).transfer(loanReceipt.borrower, borrowerSurplus);
 
         /* Emit Collateral Liquidated */
         emit CollateralLiquidated(loanReceiptHash, proceeds);
