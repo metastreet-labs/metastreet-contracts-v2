@@ -108,9 +108,11 @@ interface IPool {
     /**
      * @notice Emitted when loan collateral is liquidated
      * @param loanReceiptHash Loan receipt hash
-     * @param proceeds Liquidation proceeds in currency tokens
+     * @param proceeds Total liquidation proceeds in currency tokens
+     * @param borrowerProceeds Borrower's share of liquidation proceeds in
+     * currency tokens
      */
-    event CollateralLiquidated(bytes32 indexed loanReceiptHash, uint256 proceeds);
+    event CollateralLiquidated(bytes32 indexed loanReceiptHash, uint256 proceeds, uint256 borrowerProceeds);
 
     /**
      * @notice Emitted when admin fee rate is updated
