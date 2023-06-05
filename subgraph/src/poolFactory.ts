@@ -57,7 +57,6 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
     collateralTokenEntity.totalValueUsed = BigInt.zero();
     collateralTokenEntity.maxBorrow = BigInt.zero();
     collateralTokenEntity.maxLoanDuration = poolEntity.maxLoanDuration;
-    collateralTokenEntity.minAPR = 0;
     const erc721Contract = ERC721.bind(collateralTokenAddress);
     const tokenName = erc721Contract.try_name();
     if (tokenName.reverted) collateralTokenEntity.name = "Unnamed Token";
