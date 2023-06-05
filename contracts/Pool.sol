@@ -706,6 +706,9 @@ abstract contract Pool is
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
+        /* Validate borrow and repay is not in same block */
+        if (loanReceipt.maturity - loanReceipt.duration == block.timestamp) revert InvalidLoanReceipt();
+
         /* Validate caller is borrower */
         if (msg.sender != loanReceipt.borrower) revert InvalidCaller();
 
