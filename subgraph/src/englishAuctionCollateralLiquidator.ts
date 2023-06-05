@@ -6,7 +6,12 @@ import {
   AuctionExtended as AuctionExtendedEvent,
   AuctionStarted as AuctionStartedEvent,
 } from "../generated/EnglishAuctionCollateralLiquidator/EnglishAuctionCollateralLiquidator";
-import { Auction as AuctionEntity, Bid as BidEntity, Pool as PoolEntity } from "../generated/schema";
+import {
+  Auction as AuctionEntity,
+  Bid as BidEntity,
+  CollateralToken as CollateralTokenEntity,
+  Pool as PoolEntity,
+} from "../generated/schema";
 
 function getAuctionEntityId(collateralToken: Bytes, collateralTokenId: BigInt): Bytes {
   return collateralToken.concat(Bytes.fromByteArray(Bytes.fromBigInt(collateralTokenId)));
@@ -17,6 +22,14 @@ function loadAuctionEntity(collateralToken: Bytes, collateralTokenId: BigInt): A
   const auctionEntity = AuctionEntity.load(auctionEntityId);
   if (!auctionEntity) throw new Error("Auction entity not found");
   return auctionEntity;
+}
+
+function updateCollateralTokenEntityAuctionsActiveCount(collateralToken: Bytes, countUpdate: i8): void {
+  const collateralTokenEntity = CollateralTokenEntity.load(collateralToken.toHexString());
+  if (collateralTokenEntity) {
+    collateralTokenEntity.auctionsActive = collateralTokenEntity.auctionsActive.plus(BigInt.fromI32(countUpdate));
+    collateralTokenEntity.save();
+  }
 }
 
 export function handleAuctionCreated(event: AuctionCreatedEvent): void {
@@ -38,6 +51,8 @@ export function handleAuctionCreated(event: AuctionCreatedEvent): void {
     if (pool) auctionEntity.liquidationSourceDeploymentHash = pool.deploymentHash;
 
     auctionEntity.save();
+
+    updateCollateralTokenEntityAuctionsActiveCount(event.params.collateralToken, 1);
   }
 }
 
@@ -82,4 +97,6 @@ export function handleAuctionEnded(event: AuctionEndedEvent): void {
     store.remove("Bid", auctionEntity.bidIds[i].toHexString());
   }
   store.remove("Auction", auctionEntity.id.toHexString());
+
+  updateCollateralTokenEntityAuctionsActiveCount(event.params.collateralToken, -1);
 }

@@ -46,6 +46,7 @@ type CollateralToken @entity {
   totalValueUsed: BigInt! # uint256
   maxBorrow: BigInt! # uint256
   maxLoanDuration: BigInt! # uint64 (in seconds)
+  auctionsActive: BigInt!
   pools: [Pool!]! @derivedFrom(field: "collateralToken")
   poolIds: [String!]!
 }
