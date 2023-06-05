@@ -50,6 +50,34 @@ dataSources:
         - event: Transfer(indexed address,indexed address,indexed uint256)
           handler: handleTransfer
       file: src/bundleCollateralWrapper.ts
+  - kind: ethereum/contract
+    name: EnglishAuctionCollateralLiquidator
+    network: goerli
+    source:
+      address: "0xf0d9410f38d629fE27d9B9A624bC03c86CAbB1B2"
+      abi: EnglishAuctionCollateralLiquidator
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Auction
+        - Bid
+        - Pool
+        - CollateralToken
+      abis:
+        - name: EnglishAuctionCollateralLiquidator
+          file: ../artifacts/contracts/liquidators/EnglishAuctionCollateralLiquidator.sol/EnglishAuctionCollateralLiquidator.json
+      eventHandlers:
+        - event: AuctionBid(indexed address,indexed uint256,indexed address,uint256)
+          handler: handleAuctionBid
+        - event: AuctionCreated(indexed bytes32,indexed address,indexed uint256,address)
+          handler: handleAuctionCreated
+        - event: AuctionEnded(indexed address,indexed uint256,indexed address,uint256)
+          handler: handleAuctionEnded
+        - event: AuctionStarted(indexed address,indexed uint256,uint64)
+          handler: handleAuctionStarted
+      file: ./src/englishAuctionCollateralLiquidator.ts
 templates:
   - kind: ethereum
     name: Pool
