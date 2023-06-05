@@ -389,10 +389,8 @@ library LiquidityManager {
     function use(Liquidity storage liquidity, uint128 tick, uint128 used, uint128 pending) internal {
         Node storage node = liquidity.nodes[tick];
 
-        unchecked {
-            node.available -= used;
-            node.pending += pending;
-        }
+        node.available -= used;
+        node.pending += pending;
     }
 
     /**
@@ -412,11 +410,9 @@ library LiquidityManager {
     ) internal {
         Node storage node = liquidity.nodes[tick];
 
-        unchecked {
-            node.value = node.value - used + restored;
-            node.available += restored;
-            node.pending -= pending;
-        }
+        node.value = node.value - used + restored;
+        node.available += restored;
+        node.pending -= pending;
 
         /* Garbage collect node if it is now insolvent */
         _garbageCollect(liquidity, node);
