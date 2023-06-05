@@ -2,6 +2,7 @@
 pragma solidity 0.8.19;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import "../InterestRateModel.sol";
 import "../Tick.sol";
@@ -11,6 +12,8 @@ import "../Tick.sol";
  * @author MetaStreet Labs
  */
 contract WeightedInterestRateModel is InterestRateModel {
+    using SafeCast for uint256;
+
     /**************************************************************************/
     /* Constants */
     /**************************************************************************/
@@ -158,7 +161,7 @@ contract WeightedInterestRateModel is InterestRateModel {
             uint256 scaledWeight = Math.mulDiv(weight, nodes[index].used, amount);
 
             /* Assign weighted interest */
-            pending[index] = uint128(Math.mulDiv(scaledWeight, interest, FIXED_POINT_SCALE));
+            pending[index] = Math.mulDiv(scaledWeight, interest, FIXED_POINT_SCALE).toUint128();
 
             /* Accumulate scaled weight for later normalization */
             normalization += scaledWeight;
@@ -173,14 +176,14 @@ contract WeightedInterestRateModel is InterestRateModel {
         /* Normalize weighted interest */
         for (uint256 i; i < count; i++) {
             /* Calculate normalized interest to tick */
-            pending[i] = uint128((pending[i] * FIXED_POINT_SCALE) / normalization);
+            pending[i] = ((pending[i] * FIXED_POINT_SCALE) / normalization).toUint128();
 
             /* Track remaining interest */
             interest -= pending[i];
         }
 
         /* Drop off remaining dust at lowest tick */
-        pending[0] += uint128(interest);
+        pending[0] += interest.toUint128();
 
         return pending;
     }
