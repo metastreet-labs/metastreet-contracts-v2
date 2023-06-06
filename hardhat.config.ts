@@ -15,7 +15,7 @@ const config: HardhatUserConfig = {
           viaIR: true,
           optimizer: {
             enabled: true,
-            runs: 195,
+            runs: 150,
           },
           outputSelection: { "*": { "*": ["storageLayout"] } },
         },
