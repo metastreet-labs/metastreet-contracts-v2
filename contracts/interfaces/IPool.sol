@@ -15,9 +15,9 @@ interface IPool {
     error InvalidCaller();
 
     /**
-     * @notice Invalid shares
+     * @notice Insufficient shares
      */
-    error InvalidShares();
+    error InsufficientShares();
 
     /**
      * @notice Invalid loan receipt

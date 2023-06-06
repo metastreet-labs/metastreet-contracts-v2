@@ -1049,7 +1049,7 @@ abstract contract Pool is
         Deposit storage dep = _deposits[msg.sender][tick];
 
         /* Validate shares */
-        if (shares > dep.shares) revert InvalidShares();
+        if (shares > dep.shares) revert InsufficientShares();
 
         /* Validate redemption isn't pending */
         if (dep.redemptionPending != 0) revert RedemptionInProgress();

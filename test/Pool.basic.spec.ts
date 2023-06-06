@@ -375,14 +375,14 @@ describe("Pool Basic", function () {
       expect(node.redemptions).to.equal(FixedPoint.from("5"));
     });
 
-    it("fails on invalid shares", async function () {
+    it("fails on insufficient shares", async function () {
       /* Deposit 1 ETH */
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
 
       /* Redeem 1.25 shares */
       await expect(
         pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1.25"))
-      ).to.be.revertedWithCustomError(pool, "InvalidShares");
+      ).to.be.revertedWithCustomError(pool, "InsufficientShares");
     });
 
     it("fails on redemption in progress", async function () {
