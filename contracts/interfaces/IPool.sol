@@ -188,8 +188,9 @@ interface IPool {
      *
      * @param tick Tick
      * @param amount Amount of currency tokens
+     * @param minShares Minimum amount of shares to receive
      */
-    function deposit(uint128 tick, uint256 amount) external;
+    function deposit(uint128 tick, uint256 amount, uint128 minShares) external;
 
     /**
      * @notice Redeem deposit shares for currency tokens. Currency tokens can
@@ -231,8 +232,9 @@ interface IPool {
      * @param srcTick Source tick
      * @param dstTick Destination Tick
      * @return amount Amount of currency tokens redeposited
+     * @param minShares Minimum amount of shares to receive
      */
-    function rebalance(uint128 srcTick, uint128 dstTick) external returns (uint256 amount);
+    function rebalance(uint128 srcTick, uint128 dstTick, uint128 minShares) external returns (uint256 amount);
 
     /**************************************************************************/
     /* Lend API */

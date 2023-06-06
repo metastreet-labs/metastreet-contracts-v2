@@ -461,7 +461,7 @@ describe("Integration", function () {
 
       /* Execute deposit() on Pool */
       consoleLog(`Params => tick: ${tick}, amount: ${amount}`);
-      const depositTx = await pool.connect(depositor).deposit(tick, amount);
+      const depositTx = await pool.connect(depositor).deposit(tick, amount, 0);
 
       const [value, available, pending] = await liquidityNodes();
 

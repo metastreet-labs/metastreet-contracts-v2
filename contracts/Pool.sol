@@ -1012,7 +1012,7 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function deposit(uint128 tick, uint256 amount_) external nonReentrant {
+    function deposit(uint128 tick, uint256 amount_, uint128 minShares) external nonReentrant {
         /* Validate tick */
         Tick.validate(tick, 0, 0, _durations.length - 1, 0, _rates.length - 1);
 
@@ -1024,6 +1024,9 @@ abstract contract Pool is
 
         /* Deposit into liquidity node */
         uint128 shares = _liquidity.deposit(tick, amount);
+
+        /* Validate shares received is sufficient */
+        if (shares == 0 || shares < minShares) revert InsufficientShares();
 
         /* Add to deposit */
         _deposits[msg.sender][tick].shares += shares;
@@ -1124,7 +1127,7 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function rebalance(uint128 srcTick, uint128 dstTick) external nonReentrant returns (uint256) {
+    function rebalance(uint128 srcTick, uint128 dstTick, uint128 minShares) external nonReentrant returns (uint256) {
         /* Look up Deposit */
         Deposit storage dep = _deposits[msg.sender][srcTick];
 
@@ -1159,6 +1162,9 @@ abstract contract Pool is
 
         /* Deposit into liquidity node */
         uint128 newShares = _liquidity.deposit(dstTick, amount);
+
+        /* Validate new shares received is sufficient */
+        if (newShares == 0 || newShares < minShares) revert InsufficientShares();
 
         /* Add to deposit */
         _deposits[msg.sender][dstTick].shares += newShares;
