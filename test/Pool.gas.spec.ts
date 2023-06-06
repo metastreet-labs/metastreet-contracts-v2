@@ -168,7 +168,7 @@ describe("Pool Gas", function () {
 
     let limit = FixedPoint.from("6.5");
     for (let i = 0; i < NUM_TICKS; i++) {
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode(limit), FixedPoint.from("80"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode(limit), FixedPoint.from("80"), 0);
       limit = limit.mul(TICK_LIMIT_SPACING_BASIS_POINTS.add(10000)).div(10000);
     }
   }
@@ -200,9 +200,9 @@ describe("Pool Gas", function () {
 
   async function setupInsolventTick(): Promise<void> {
     /* Create two deposits at 10 ETH and 20 ETH ticks */
-    await pool.connect(accountDepositors[0]).deposit(Tick.encode("5"), FixedPoint.from("5"));
-    await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("5"));
-    await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"));
+    await pool.connect(accountDepositors[0]).deposit(Tick.encode("5"), FixedPoint.from("5"), 0);
+    await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("5"), 0);
+    await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
     /* Create expired loan taking 15 ETH */
     const [loanReceipt] = await createExpiredLoan(FixedPoint.from("15"));
@@ -231,7 +231,7 @@ describe("Pool Gas", function () {
 
   describe("#deposit", async function () {
     it("deposit (new tick)", async function () {
-      const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
@@ -239,8 +239,8 @@ describe("Pool Gas", function () {
       expect(gasUsed).to.be.lt(220000);
     });
     it("deposit (existing tick)", async function () {
-      await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("1"));
-      const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
@@ -248,8 +248,8 @@ describe("Pool Gas", function () {
       expect(gasUsed).to.be.lt(100000);
     });
     it("deposit (existing deposit)", async function () {
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
-      const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
@@ -260,7 +260,7 @@ describe("Pool Gas", function () {
 
   describe("#redeem", async function () {
     it("redeem (partial)", async function () {
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       const redeemTx = await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("0.5"));
 
@@ -270,7 +270,7 @@ describe("Pool Gas", function () {
       expect(gasUsed).to.be.lt(100000);
     });
     it("redeem (entire)", async function () {
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       const redeemTx = await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1.0"));
 
@@ -283,7 +283,7 @@ describe("Pool Gas", function () {
 
   describe("#withdraw", async function () {
     it("withdraw", async function () {
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1.0"));
 
       const withdrawTx = await pool.connect(accountDepositors[0]).withdraw(Tick.encode("10"));
@@ -297,13 +297,13 @@ describe("Pool Gas", function () {
 
   describe("#rebalance", async function () {
     it("multicall redeem + rebalance (new tick)", async function () {
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       const redeemRebalanceTx = await pool
         .connect(accountDepositors[0])
         .multicall([
           pool.interface.encodeFunctionData("redeem", [Tick.encode("10"), FixedPoint.from("1.0")]),
-          pool.interface.encodeFunctionData("rebalance", [Tick.encode("10"), Tick.encode("15")]),
+          pool.interface.encodeFunctionData("rebalance", [Tick.encode("10"), Tick.encode("15"), 0]),
         ]);
 
       const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
@@ -313,14 +313,14 @@ describe("Pool Gas", function () {
     });
 
     it("multicall redeem + rebalance (existing tick)", async function () {
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
-      await pool.connect(accountDepositors[1]).deposit(Tick.encode("15"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[1]).deposit(Tick.encode("15"), FixedPoint.from("1"), 0);
 
       const redeemRebalanceTx = await pool
         .connect(accountDepositors[0])
         .multicall([
           pool.interface.encodeFunctionData("redeem", [Tick.encode("10"), FixedPoint.from("1.0")]),
-          pool.interface.encodeFunctionData("rebalance", [Tick.encode("10"), Tick.encode("15")]),
+          pool.interface.encodeFunctionData("rebalance", [Tick.encode("10"), Tick.encode("15"), 0]),
         ]);
 
       const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;

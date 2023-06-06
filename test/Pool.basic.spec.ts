@@ -188,7 +188,7 @@ describe("Pool Basic", function () {
 
   describe("#deposit", async function () {
     it("successfully deposits", async function () {
-      const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Validate events */
       await expectEvent(depositTx, pool, "Deposited", {
@@ -217,10 +217,10 @@ describe("Pool Basic", function () {
 
     it("successfully deposits additional", async function () {
       /* Deposit 1 */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Deposit 2 */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
 
       /* Validate deposit state */
       const deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
@@ -235,7 +235,7 @@ describe("Pool Basic", function () {
 
     it("successfully deposits at new tick after garbage collecting old tick", async function () {
       /* Deposit 1 ETH */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Only two nodes (including head) */
       expect((await pool.liquidityNodes(0, MaxUint128)).length).to.equal(2);
@@ -247,16 +247,16 @@ describe("Pool Basic", function () {
       expect((await pool.liquidityNodes(0, MaxUint128)).length).to.equal(1);
 
       /* Deposit 1 ETH at new tick close to garbage collected one */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10.1"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10.1"), FixedPoint.from("1"), 0);
 
       /* Two nodes again */
       expect((await pool.liquidityNodes(0, MaxUint128)).length).to.equal(2);
     });
 
     it("fails on invalid tick spacing", async function () {
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
       await expect(
-        pool.connect(accountDepositors[0]).deposit(Tick.encode("10.1"), FixedPoint.from("2"))
+        pool.connect(accountDepositors[0]).deposit(Tick.encode("10.1"), FixedPoint.from("2"), 0)
       ).to.be.revertedWithCustomError(pool, "InsufficientTickSpacing");
     });
 
@@ -266,49 +266,76 @@ describe("Pool Basic", function () {
 
       /* Attempt to deposit */
       await expect(
-        pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"))
+        pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0)
       ).to.be.revertedWithCustomError(pool, "InsolventLiquidity");
     });
 
     it("fails on invalid tick", async function () {
       /* Zero tick */
-      await expect(pool.connect(accountDepositors[0]).deposit(0, FixedPoint.from("1"))).to.be.revertedWithCustomError(
-        pool,
-        "InvalidTick"
-      );
+      await expect(
+        pool.connect(accountDepositors[0]).deposit(0, FixedPoint.from("1"), 0)
+      ).to.be.revertedWithCustomError(pool, "InvalidTick");
 
       /* Out of bounds duration */
       await expect(
-        pool.connect(accountDepositors[0]).deposit(Tick.encode("10", 5, 0), FixedPoint.from("1"))
+        pool.connect(accountDepositors[0]).deposit(Tick.encode("10", 5, 0), FixedPoint.from("1"), 0)
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
 
       /* Out of bounds rate */
       await expect(
-        pool.connect(accountDepositors[0]).deposit(Tick.encode("10", 0, 5), FixedPoint.from("1"))
+        pool.connect(accountDepositors[0]).deposit(Tick.encode("10", 0, 5), FixedPoint.from("1"), 0)
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
 
       /* Out of bounds reserved field */
       await expect(
-        pool.connect(accountDepositors[0]).deposit(Tick.encode("10", 0, 0).add(2), FixedPoint.from("1"))
+        pool.connect(accountDepositors[0]).deposit(Tick.encode("10", 0, 0).add(2), FixedPoint.from("1"), 0)
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
 
       /* Zero limit */
       await expect(
-        pool.connect(accountDepositors[0]).deposit(Tick.encode("0", 0, 0), FixedPoint.from("1"))
+        pool.connect(accountDepositors[0]).deposit(Tick.encode("0", 0, 0), FixedPoint.from("1"), 0)
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
     });
 
     it("fails on transfer failure", async function () {
       await expect(
-        pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2000"))
+        pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2000"), 0)
       ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+    });
+
+    it("fails on insufficient shares", async function () {
+      /* Deposit 1000 ETH */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("1"), FixedPoint.from("1000"), 0);
+
+      /* Borrow 0.5 ETH */
+      await pool
+        .connect(accountBorrower)
+        .borrow(
+          FixedPoint.from("1"),
+          30 * 86400,
+          nft1.address,
+          123,
+          FixedPoint.from("2"),
+          await sourceLiquidity(FixedPoint.from("1")),
+          "0x"
+        );
+
+      /* Revert since shares received is 0 */
+      await expect(
+        pool.connect(accountDepositors[1]).deposit(Tick.encode("1"), FixedPoint.from("0.000000000000000001"), 0)
+      ).to.be.revertedWithCustomError(pool, "InsufficientShares");
+
+      /* Revert since shares received less than min shares */
+      await expect(
+        pool.connect(accountDepositors[1]).deposit(Tick.encode("1"), FixedPoint.from("1"), "999995890427848045")
+      ).to.be.revertedWithCustomError(pool, "InsufficientShares");
     });
   });
 
   describe("#redeem", async function () {
     it("successfully redeems entire deposit from available cash", async function () {
       /* Deposit 1 ETH */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Redeem 1 shares */
       const redeemTx = await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1"));
@@ -330,7 +357,7 @@ describe("Pool Basic", function () {
 
     it("successfully redeems partial deposit from available cash", async function () {
       /* Deposit 1 ETH */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Redeem 0.5 shares */
       const redeemTx = await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("0.5"));
@@ -352,8 +379,8 @@ describe("Pool Basic", function () {
 
     it("successfully schedules redemption", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("10"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("10"), 0);
 
       /* Create loan */
       await createActiveLoan(FixedPoint.from("15"));
@@ -377,7 +404,7 @@ describe("Pool Basic", function () {
 
     it("fails on insufficient shares", async function () {
       /* Deposit 1 ETH */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Redeem 1.25 shares */
       await expect(
@@ -387,7 +414,7 @@ describe("Pool Basic", function () {
 
     it("fails on redemption in progress", async function () {
       /* Deposit 1 ETH */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Redeem 0.5 shares */
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("0.5"));
@@ -407,7 +434,7 @@ describe("Pool Basic", function () {
       expect(amount).to.equal(ethers.constants.Zero);
 
       /* Deposit 1 ETH */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Redeem 0.5 shares */
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("0.5"));
@@ -420,8 +447,8 @@ describe("Pool Basic", function () {
 
     it("returns full redemption available from repaid loan", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
       /* Create active loan */
       const [loanReceipt] = await createActiveLoan(FixedPoint.from("14"));
@@ -445,8 +472,8 @@ describe("Pool Basic", function () {
 
     it("returns partial redemption available from repaid loan", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
       /* Create loan 1 */
       const [loanReceipt1] = await createActiveLoan(FixedPoint.from("3"));
@@ -481,8 +508,8 @@ describe("Pool Basic", function () {
 
     it("returns written down redemption available from liquidated loan", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
       /* Create loan */
       const [loanReceipt] = await createActiveLoan(FixedPoint.from("14"));
@@ -520,8 +547,8 @@ describe("Pool Basic", function () {
 
     it("returns partial redemption available from subsequent deposit", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
       /* Create loan */
       const [loanReceipt] = await createActiveLoan(FixedPoint.from("14"));
@@ -535,7 +562,7 @@ describe("Pool Basic", function () {
       expect(amount).to.equal(ethers.constants.Zero);
 
       /* Subsequent deposit */
-      await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("3"));
+      await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("3"), 0);
 
       /* Full redemption should be available */
       [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"));
@@ -545,7 +572,7 @@ describe("Pool Basic", function () {
 
     it("returns zero redemption available from dust cash", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
 
       /* Create loan */
       const [loanReceipt] = await createActiveLoan(FixedPoint.from("10"));
@@ -559,7 +586,7 @@ describe("Pool Basic", function () {
       expect(amount).to.equal(ethers.constants.Zero);
 
       /* Deposit from depositor #2, causing a partial redemption of depositor #1 */
-      await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("0.1"));
+      await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("0.1"), 0);
 
       /* Validate partial redemption available for depositor #1 */
       [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"));
@@ -583,7 +610,7 @@ describe("Pool Basic", function () {
   describe("#withdraw", async function () {
     it("withdraws nothing on no pending redemption", async function () {
       /* Deposit 1 ETH */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Simulate withdrawal should return 0 */
       expect(await pool.connect(accountDepositors[0]).callStatic.withdraw(Tick.encode("10"))).to.equal(
@@ -598,7 +625,7 @@ describe("Pool Basic", function () {
 
     it("withdraws fully available redemption from cash", async function () {
       /* Deposit 1 ETH */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Redeem 0.5 shares */
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("0.5"));
@@ -637,8 +664,8 @@ describe("Pool Basic", function () {
 
     it("withdraws fully available redemption from repaid loan", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
       /* Create loan */
       const [loanReceipt] = await createActiveLoan(FixedPoint.from("14"));
@@ -677,8 +704,8 @@ describe("Pool Basic", function () {
 
     it("withdraws partially available redemption from repaid loan", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
       /* Create loan 1 */
       const [loanReceipt1] = await createActiveLoan(FixedPoint.from("3"));
@@ -750,8 +777,8 @@ describe("Pool Basic", function () {
 
     it("withdraws fully written down redemption from liquidated loan", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
       /* Create loan */
       const [loanReceipt] = await createActiveLoan(FixedPoint.from("14"));
@@ -802,8 +829,8 @@ describe("Pool Basic", function () {
 
     it("withdraws partially available redemption from subsequent deposit", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
       /* Create loan */
       const [loanReceipt] = await createActiveLoan(FixedPoint.from("14"));
@@ -812,7 +839,7 @@ describe("Pool Basic", function () {
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("5"));
 
       /* Subsequent deposit */
-      await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("3"));
+      await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("3"), 0);
 
       /* Withdraw */
       const withdrawTx1 = await pool.connect(accountDepositors[0]).withdraw(Tick.encode("10"));
@@ -874,13 +901,13 @@ describe("Pool Basic", function () {
   describe("#rebalance", async function () {
     it("rebalances a full redemption into another tick", async function () {
       /* Deposit 1 ETH */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Redeem all shares */
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1"));
 
       /* Rebalances to 15 ETH tick */
-      const rebalanceTx = await pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15"));
+      const rebalanceTx = await pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15"), 0);
 
       /* Validate events */
       await expectEvent(rebalanceTx, pool, "Withdrawn", {
@@ -923,7 +950,7 @@ describe("Pool Basic", function () {
 
     it("rebalances a partial redemption into another tick", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
 
       /* Create loan 1 */
       const [loanReceipt1] = await createActiveLoan(FixedPoint.from("5"));
@@ -938,7 +965,7 @@ describe("Pool Basic", function () {
       await pool.connect(accountBorrower).repay(loanReceipt1);
 
       /* Rebalance */
-      const rebalanceTx = await pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15"));
+      const rebalanceTx = await pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15"), 0);
 
       /* Validate events */
       await expectEvent(rebalanceTx, pool, "Withdrawn", {
@@ -971,81 +998,12 @@ describe("Pool Basic", function () {
       expect(node.redemptions).to.equal(ethers.constants.Zero);
     });
 
-    it("rebalances nothing on written down redemption", async function () {
-      /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
-
-      /* Create loan */
-      const [loanReceipt] = await createActiveLoan(FixedPoint.from("10"));
-
-      /* Redeem 5 shares */
-      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("5"));
-
-      /* Wait for loan expiration */
-      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
-
-      /* Process expiration */
-      await pool.liquidate(loanReceipt);
-
-      /* Withdraw collateral */
-      await collateralLiquidator
-        .connect(accountLiquidator)
-        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
-
-      /* Liquidate collateral and process liquidation */
-      await collateralLiquidator
-        .connect(accountLiquidator)
-        .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, ethers.constants.Zero);
-
-      /* Rebalance */
-      const rebalanceTx = await pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15"));
-
-      /* Validate events */
-      await expectEvent(rebalanceTx, pool, "Withdrawn", {
-        account: accountDepositors[0].address,
-        tick: Tick.encode("10"),
-        shares: FixedPoint.from("5"),
-        amount: ethers.constants.Zero,
-      });
-      await expectEvent(rebalanceTx, pool, "Deposited", {
-        account: accountDepositors[0].address,
-        tick: Tick.encode("15"),
-        amount: ethers.constants.Zero,
-        shares: ethers.constants.Zero,
-      });
-
-      /* Validate deposit state */
-      let deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(deposit.shares).to.equal(FixedPoint.from("5"));
-      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
-      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
-      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
-
-      deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("15"));
-      expect(deposit.shares).to.equal(ethers.constants.Zero);
-      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
-      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
-      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
-
-      /* Validate tick state */
-      let node = await pool.liquidityNode(Tick.encode("10"));
-      expect(node.value).to.equal(ethers.constants.Zero);
-      expect(node.available).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-
-      node = await pool.liquidityNode(Tick.encode("15"));
-      expect(node.value).to.equal(ethers.constants.Zero);
-      expect(node.available).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-    });
-
     it("rebalances nothing on no pending redemption", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
 
       /* Rebalance with no pending redemption */
-      const rebalanceTx = await pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15"));
+      const rebalanceTx = await pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15"), 0);
 
       /* Validate no events */
       expect((await rebalanceTx.wait()).logs.length).to.equal(0);
@@ -1077,43 +1035,116 @@ describe("Pool Basic", function () {
 
     it("fails on invalid tick spacing", async function () {
       /* Deposit 1 ETH */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Redeem half of shares */
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("0.5"));
 
       await expect(
-        pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("10.1"))
+        pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("10.1"), 0)
       ).to.be.revertedWithCustomError(pool, "InsufficientTickSpacing");
     });
 
     it("fails on invalid tick", async function () {
       /* Deposit 1 ETH */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Redeem all shares */
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1"));
 
       /* Zero limit */
-      await expect(pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), 0)).to.be.revertedWithCustomError(
+      await expect(pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), 0, 0)).to.be.revertedWithCustomError(
         pool,
         "InvalidTick"
       );
 
       /* Out of bounds duration */
       await expect(
-        pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15", 5, 0))
+        pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15", 5, 0), 0)
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
 
       /* Out of bounds rate */
       await expect(
-        pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15", 0, 5))
+        pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15", 0, 5), 0)
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
 
       /* Out of bounds reserved field */
       await expect(
-        pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15", 0, 0).add(2))
+        pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15", 0, 0).add(2), 0)
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
+    });
+
+    it("fails on insufficient shares", async function () {
+      /* Deposit 1000 ETH */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("1"), FixedPoint.from("1000"), 0);
+
+      /* Deposit 1 ETH */
+      await pool.connect(accountDepositors[1]).deposit(Tick.encode("2"), FixedPoint.from("0.000000000000000001"), 0);
+
+      /* Deposit 1 ETH */
+      await pool.connect(accountDepositors[2]).deposit(Tick.encode("2"), FixedPoint.from("1"), 0);
+
+      /* Borrow 0.5 ETH */
+      await pool
+        .connect(accountBorrower)
+        .borrow(
+          FixedPoint.from("1"),
+          30 * 86400,
+          nft1.address,
+          123,
+          FixedPoint.from("2"),
+          await sourceLiquidity(FixedPoint.from("1")),
+          "0x"
+        );
+
+      /* Redeem all shares */
+      await pool.connect(accountDepositors[1]).redeem(Tick.encode("2"), FixedPoint.from("0.000000000000000001"));
+
+      /* Revert since shares received is 0 */
+      await expect(
+        pool.connect(accountDepositors[1]).rebalance(Tick.encode("2"), Tick.encode("1"), 0)
+      ).to.be.revertedWithCustomError(pool, "InsufficientShares");
+
+      /* Redeem all shares */
+      await pool.connect(accountDepositors[2]).redeem(Tick.encode("2"), FixedPoint.from("1"));
+
+      /* Revert since shares received less than min shares */
+      await expect(
+        pool.connect(accountDepositors[2]).rebalance(Tick.encode("2"), Tick.encode("1"), "999995890427848045")
+      ).to.be.revertedWithCustomError(pool, "InsufficientShares");
+    });
+
+    it("fails on written down redemption (insufficient shares)", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+
+      /* Create loan */
+      const [loanReceipt] = await createActiveLoan(FixedPoint.from("10"));
+
+      /* Redeem 5 shares */
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("5"));
+
+      /* Wait for loan expiration */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
+
+      /* Process expiration */
+      await pool.liquidate(loanReceipt);
+
+      /* Withdraw collateral */
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
+
+      /* Liquidate collateral and process liquidation */
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, ethers.constants.Zero);
+
+      /* Rebalance */
+      await expect(
+        pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15"), 0)
+      ).to.be.revertedWithCustomError(pool, "InsufficientShares");
     });
   });
 
@@ -1131,7 +1162,7 @@ describe("Pool Basic", function () {
 
     let limit = FixedPoint.from("6.5");
     for (let i = 0; i < NUM_LIMITS; i++) {
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode(limit), FixedPoint.from("25"));
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode(limit), FixedPoint.from("25"), 0);
       limit = limit.mul(TICK_LIMIT_SPACING_BASIS_POINTS.add(10000)).div(10000);
     }
   }
@@ -1142,10 +1173,10 @@ describe("Pool Basic", function () {
     ticks[5] = Tick.encode(Tick.decode(ticks[5]).limit, 1, 1);
     ticks[7] = Tick.encode(Tick.decode(ticks[7]).limit, 1, 1);
     ticks[9] = Tick.encode(Tick.decode(ticks[9]).limit, 0, 2);
-    await pool.connect(accountDepositors[0]).deposit(ticks[3], FixedPoint.from("25"));
-    await pool.connect(accountDepositors[0]).deposit(ticks[5], FixedPoint.from("25"));
-    await pool.connect(accountDepositors[0]).deposit(ticks[7], FixedPoint.from("25"));
-    await pool.connect(accountDepositors[0]).deposit(ticks[9], FixedPoint.from("25"));
+    await pool.connect(accountDepositors[0]).deposit(ticks[3], FixedPoint.from("25"), 0);
+    await pool.connect(accountDepositors[0]).deposit(ticks[5], FixedPoint.from("25"), 0);
+    await pool.connect(accountDepositors[0]).deposit(ticks[7], FixedPoint.from("25"), 0);
+    await pool.connect(accountDepositors[0]).deposit(ticks[9], FixedPoint.from("25"), 0);
     return ticks;
   }
 
@@ -1177,9 +1208,9 @@ describe("Pool Basic", function () {
 
   async function setupInsolventTick(): Promise<void> {
     /* Create two deposits at 10 ETH and 20 ETH ticks */
-    await pool.connect(accountDepositors[0]).deposit(Tick.encode("5"), FixedPoint.from("5"));
-    await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("5"));
-    await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"));
+    await pool.connect(accountDepositors[0]).deposit(Tick.encode("5"), FixedPoint.from("5"), 0);
+    await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("5"), 0);
+    await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
     /* Create expired loan taking 15 ETH */
     const [loanReceipt] = await createExpiredLoan(FixedPoint.from("15"));
