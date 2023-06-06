@@ -259,7 +259,6 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         address[] calldata collateralWrappers
     ) external {
         require(!_initialized, "Already initialized");
-        if (timeExtension <= timeExtensionWindow) revert InvalidParameters();
         if (auctionDuration <= timeExtensionWindow) revert InvalidParameters();
         if (auctionDuration == 0) revert InvalidParameters();
 
