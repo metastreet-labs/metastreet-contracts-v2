@@ -15,9 +15,14 @@ library LiquidityManager {
     /**************************************************************************/
 
     /**
-     * @notice Tick limit spacing basis points (10%)
+     * @notice Tick limit upper spacing basis points (10%)
      */
-    uint256 internal constant TICK_LIMIT_SPACING_BASIS_POINTS = 1000;
+    uint256 internal constant TICK_LIMIT_UPPER_SPACING_BASIS_POINTS = 1000;
+
+    /**
+     * @notice Tick limit lower spacing basis points (9%)
+     */
+    uint256 internal constant TICK_LIMIT_LOWER_SPACING_BASIS_POINTS = 900;
 
     /**
      * @notice Fixed point scale
@@ -337,11 +342,11 @@ library LiquidityManager {
         /* Validate tick limit spacing */
         if (
             newLimit != prevLimit &&
-            newLimit < (prevLimit * (BASIS_POINTS_SCALE + TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
+            newLimit < (prevLimit * (BASIS_POINTS_SCALE + TICK_LIMIT_UPPER_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
         ) revert InsufficientTickSpacing();
         if (
             newLimit != nextLimit &&
-            nextLimit < (newLimit * (BASIS_POINTS_SCALE + TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
+            nextLimit < (newLimit * (BASIS_POINTS_SCALE + TICK_LIMIT_LOWER_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
         ) revert InsufficientTickSpacing();
 
         /* Link new node */

@@ -54,9 +54,16 @@ abstract contract Pool is
     string public constant IMPLEMENTATION_VERSION = "1.0";
 
     /**
-     * @notice Tick spacing basis points
+     * @notice Tick limit upper spacing basis points
      */
-    uint256 public constant TICK_LIMIT_SPACING_BASIS_POINTS = LiquidityManager.TICK_LIMIT_SPACING_BASIS_POINTS;
+    uint256 public constant TICK_LIMIT_UPPER_SPACING_BASIS_POINTS =
+        LiquidityManager.TICK_LIMIT_UPPER_SPACING_BASIS_POINTS;
+
+    /**
+     * @notice Tick limit lower spacing basis points
+     */
+    uint256 public constant TICK_LIMIT_LOWER_SPACING_BASIS_POINTS =
+        LiquidityManager.TICK_LIMIT_LOWER_SPACING_BASIS_POINTS;
 
     /**
      * @notice Basis points scale

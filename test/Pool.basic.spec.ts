@@ -1159,12 +1159,12 @@ describe("Pool Basic", function () {
 
   async function setupLiquidity(): Promise<void> {
     const NUM_LIMITS = 20;
-    const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.TICK_LIMIT_SPACING_BASIS_POINTS();
+    const TICK_LIMIT_UPPER_SPACING_BASIS_POINTS = await pool.TICK_LIMIT_UPPER_SPACING_BASIS_POINTS();
 
     let limit = FixedPoint.from("6.5");
     for (let i = 0; i < NUM_LIMITS; i++) {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode(limit), FixedPoint.from("25"), 0);
-      limit = limit.mul(TICK_LIMIT_SPACING_BASIS_POINTS.add(10000)).div(10000);
+      limit = limit.mul(TICK_LIMIT_UPPER_SPACING_BASIS_POINTS.add(10000)).div(10000);
     }
   }
 

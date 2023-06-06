@@ -79,6 +79,18 @@ describe("LiquidityManager", function () {
       expect(nodes[3].prev).to.equal(Tick.encode("10"));
       expect(nodes[3].next).to.equal(MaxUint128);
     });
+
+    it("instantiates a new liquidity node at 1.1e18 between 1.0e18 and 1.21e18-1", async function () {
+      /* Instantiate node at 1.0e18 */
+      await liquidityManager.instantiate(Tick.encode("1"));
+
+      /* Instantiate node at 1.21e18 - 1 */
+      await liquidityManager.instantiate(Tick.encode("1.209999999999999999"));
+
+      /* Instantiate new node at 1.1e18 */
+      await liquidityManager.instantiate(Tick.encode("1.1"));
+    });
+
     it("no-op on existing node", async function () {
       /* Instantiate one node */
       await liquidityManager.instantiate(Tick.encode("1"));
