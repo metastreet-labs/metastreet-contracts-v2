@@ -456,13 +456,12 @@ library LiquidityManager {
      * @notice Process redemptions from available liquidity
      * @param liquidity Liquidity state
      * @param tick Tick
-     * @return Shares redeemed, amount redeemed
      */
-    function processRedemptions(Liquidity storage liquidity, uint128 tick) internal returns (uint128, uint128) {
+    function processRedemptions(Liquidity storage liquidity, uint128 tick) internal {
         Node storage node = liquidity.nodes[tick];
 
         /* If there's no pending shares to redeem */
-        if (node.redemptions.pending == 0) return (0, 0);
+        if (node.redemptions.pending == 0) return;
 
         /* If node is insolvent, redeem all pending shares for zero amount */
         if (_isInsolvent(node)) {
@@ -480,12 +479,12 @@ library LiquidityManager {
             /* node.value and node.available already zero */
             node.redemptions.pending = 0;
 
-            return (shares, 0);
+            return;
         } else {
             /* Node is solvent */
 
             /* If there's no cash to redeem from */
-            if (node.available == 0) return (0, 0);
+            if (node.available == 0) return;
 
             /* Redeem as many shares as possible and pending from available cash */
             uint256 price = (node.value * FIXED_POINT_SCALE) / node.shares;
@@ -494,7 +493,7 @@ library LiquidityManager {
 
             /* If there's insufficient cash to redeem non-zero pending shares
              * at current price */
-            if (shares == 0) return (0, 0);
+            if (shares == 0) return;
 
             /* Record fulfilled redemption */
             node.redemptions.fulfilled[node.redemptions.index++] = FulfilledRedemption({
@@ -511,7 +510,7 @@ library LiquidityManager {
             /* Garbage collect node if it is now empty */
             _garbageCollect(liquidity, node);
 
-            return (shares, amount);
+            return;
         }
     }
 

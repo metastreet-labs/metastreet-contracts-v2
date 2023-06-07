@@ -28,13 +28,6 @@ contract TestLiquidityManager is ILiquidity {
      */
     event RedemptionTarget(uint128 index, uint128 target);
 
-    /**
-     * @notice Emitted with return values from processRedemptions()
-     * @param shares Shares redeemed
-     * @param amount Amount redeemed
-     */
-    event RedemptionProcessed(uint128 shares, uint128 amount);
-
     /**************************************************************************/
     /* State */
     /**************************************************************************/
@@ -128,10 +121,8 @@ contract TestLiquidityManager is ILiquidity {
     /**
      * @dev External wrapper function for LiquidityManager.processRedemptions()
      */
-    function processRedemptions(uint128 tick) external returns (uint128, uint128) {
-        (uint128 shares, uint128 amount) = _liquidity.processRedemptions(tick);
-        emit RedemptionProcessed(shares, amount);
-        return (shares, amount);
+    function processRedemptions(uint128 tick) external {
+        _liquidity.processRedemptions(tick);
     }
 
     /**

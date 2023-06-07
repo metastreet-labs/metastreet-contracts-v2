@@ -448,12 +448,6 @@ describe("LiquidityManager", function () {
       /* Process redemption */
       const processRedemptionTx = await liquidityManager.processRedemptions(Tick.encode("3"));
 
-      /* Validate return value */
-      await expectEvent(processRedemptionTx, liquidityManager, "RedemptionProcessed", {
-        shares: FixedPoint.from("1"),
-        amount: FixedPoint.from("1"),
-      });
-
       /* Validate node */
       let node = await liquidityManager.liquidityNode(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("4"));
@@ -537,12 +531,6 @@ describe("LiquidityManager", function () {
 
       /* Process redemptions */
       const processRedemptionsTx = await liquidityManager.processRedemptions(Tick.encode("3"));
-
-      /* Validate return value */
-      await expectEvent(processRedemptionsTx, liquidityManager, "RedemptionProcessed", {
-        shares: FixedPoint.from("3"),
-        amount: FixedPoint.from("3"),
-      });
 
       /* Validate redemption available */
       expect(
@@ -782,12 +770,6 @@ describe("LiquidityManager", function () {
       /* Process redemptions */
       const processRedemptionsTx = await liquidityManager.processRedemptions(Tick.encode("3"));
 
-      /* Validate return value */
-      await expectEvent(processRedemptionsTx, liquidityManager, "RedemptionProcessed", {
-        shares: FixedPoint.from("2"),
-        amount: ethers.constants.Zero,
-      });
-
       /* Validate redemption available */
       expect(
         await liquidityManager.redemptionAvailable(
@@ -883,12 +865,6 @@ describe("LiquidityManager", function () {
 
       /* Process redemptions */
       const processRedemptionsTx = await liquidityManager.processRedemptions(Tick.encode("3"));
-
-      /* Validate return value */
-      await expectEvent(processRedemptionsTx, liquidityManager, "RedemptionProcessed", {
-        shares: FixedPoint.from("2"),
-        amount: ethers.constants.Zero,
-      });
 
       /* Validate redemption available */
       expect(
