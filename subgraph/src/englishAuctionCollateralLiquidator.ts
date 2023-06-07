@@ -17,11 +17,9 @@ function getAuctionEntityId(collateralToken: Bytes, collateralTokenId: BigInt): 
   return collateralToken.concat(Bytes.fromByteArray(Bytes.fromBigInt(collateralTokenId)));
 }
 
-function loadAuctionEntity(collateralToken: Bytes, collateralTokenId: BigInt): AuctionEntity {
+function loadAuctionEntity(collateralToken: Bytes, collateralTokenId: BigInt): AuctionEntity | null {
   const auctionEntityId = getAuctionEntityId(collateralToken, collateralTokenId);
-  const auctionEntity = AuctionEntity.load(auctionEntityId);
-  if (!auctionEntity) throw new Error("Auction entity not found");
-  return auctionEntity;
+  return AuctionEntity.load(auctionEntityId);
 }
 
 function updateCollateralTokenEntityAuctionsActiveCount(collateralToken: Bytes, countUpdate: i8): void {
@@ -58,18 +56,21 @@ export function handleAuctionCreated(event: AuctionCreatedEvent): void {
 
 export function handleAuctionStarted(event: AuctionStartedEvent): void {
   const auctionEntity = loadAuctionEntity(event.params.collateralToken, event.params.collateralTokenId);
+  if (!auctionEntity) return;
   auctionEntity.endTime = event.params.endTime;
   auctionEntity.save();
 }
 
 export function handleAuctionExtended(event: AuctionExtendedEvent): void {
   const auctionEntity = loadAuctionEntity(event.params.collateralToken, event.params.collateralTokenId);
+  if (!auctionEntity) return;
   auctionEntity.endTime = event.params.endTime;
   auctionEntity.save();
 }
 
 export function handleAuctionBid(event: AuctionBidEvent): void {
   const auctionEntity = loadAuctionEntity(event.params.collateralToken, event.params.collateralTokenId);
+  if (!auctionEntity) return;
 
   const bidId = auctionEntity.id
     .concat(event.params.bidder)
@@ -92,6 +93,7 @@ export function handleAuctionBid(event: AuctionBidEvent): void {
 
 export function handleAuctionEnded(event: AuctionEndedEvent): void {
   const auctionEntity = loadAuctionEntity(event.params.collateralToken, event.params.collateralTokenId);
+  if (!auctionEntity) return;
 
   for (let i = 0; i < auctionEntity.bidIds.length; i++) {
     store.remove("Bid", auctionEntity.bidIds[i].toHexString());
