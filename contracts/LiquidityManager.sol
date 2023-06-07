@@ -291,7 +291,7 @@ library LiquidityManager {
         node.prev = 0;
 
         /* Handle insolvent dust */
-        if (node.value > 0) {
+        if (node.value > 0 || node.available > 0) {
             node.value = 0;
             node.available = 0;
         }
@@ -370,6 +370,8 @@ library LiquidityManager {
         if (_isReserved(tick)) revert InactiveLiquidity();
         /* If node is inactive */
         if (_isInactive(node)) revert InactiveLiquidity();
+        /* If node has 0 shares but has pending */
+        if (node.shares == 0 && node.pending != 0) revert InactiveLiquidity();
 
         /* Compute deposit price as current value + 50% of pending returns */
         uint256 price = node.shares == 0
@@ -415,7 +417,7 @@ library LiquidityManager {
     ) internal {
         Node storage node = liquidity.nodes[tick];
 
-        node.value = node.value - used + restored;
+        node.value = node.value + restored - used;
         node.available += restored;
         node.pending -= pending;
 

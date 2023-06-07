@@ -331,6 +331,77 @@ describe("Pool Basic", function () {
         pool.connect(accountDepositors[1]).deposit(Tick.encode("1"), FixedPoint.from("1"), "999995890427848045")
       ).to.be.revertedWithCustomError(pool, "InsufficientShares");
     });
+
+    it("fails on deposits with 0 shares but has pending", async function () {
+      /* Deposit 3.000000000000000001 ETH */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("3.000000000000000001"), 0);
+
+      /* Borrow 3 ETH */
+      const borrowTx1 = await pool
+        .connect(accountBorrower)
+        .borrow(
+          FixedPoint.from("3"),
+          15 * 86400,
+          nft1.address,
+          123,
+          FixedPoint.from("4"),
+          await sourceLiquidity(FixedPoint.from("3")),
+          "0x"
+        );
+
+      /* Extract loan receipt */
+      const loanReceipt1 = (await extractEvent(borrowTx1, pool, "LoanOriginated")).args.loanReceipt;
+
+      /* Validate loan receipt */
+      const decodedLoanReceipt1 = await loanReceiptLib.decode(loanReceipt1);
+
+      /* Borrow 0.000000000000000001 ETH */
+      const borrowTx2 = await pool
+        .connect(accountBorrower)
+        .borrow(
+          FixedPoint.from("0.000000000000000001"),
+          30 * 86400,
+          nft1.address,
+          124,
+          FixedPoint.from("0.000000000000000002"),
+          await sourceLiquidity(FixedPoint.from("0.000000000000000001")),
+          "0x"
+        );
+
+      /* Extract loan receipt */
+      const loanReceipt2 = (await extractEvent(borrowTx2, pool, "LoanOriginated")).args.loanReceipt;
+
+      /* Wait for loan expiration */
+      await helpers.time.increaseTo(decodedLoanReceipt1.maturity.toNumber() + 1);
+
+      /* Process expiration */
+      await pool.liquidate(loanReceipt1);
+
+      /* Withdraw collateral */
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt1);
+
+      /* Liquidate collateral and process liquidation */
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .liquidateCollateral(
+          pool.address,
+          tok1.address,
+          nft1.address,
+          123,
+          "0x",
+          loanReceipt1,
+          FixedPoint.from("0.000000000000000001")
+        );
+
+      /* Redeem all shares (3000000000000000001 shares) */
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), "3000000000000000001");
+
+      await expect(
+        pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("3"), 0)
+      ).to.be.revertedWithCustomError(pool, "InactiveLiquidity");
+    });
   });
 
   describe("#redeem", async function () {

@@ -310,7 +310,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(210000);
+      expect(gasUsed).to.be.lt(210200);
     });
 
     it("multicall redeem + rebalance (existing tick)", async function () {
