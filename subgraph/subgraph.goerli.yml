@@ -120,6 +120,7 @@ templates:
           handler: handleLoanRepaid
         - event: LoanLiquidated(indexed bytes32)
           handler: handleLoanLiquidated
+          receipt: true
         - event: CollateralLiquidated(indexed bytes32,uint256)
           handler: handleCollateralLiquidated
         - event: AdminFeeRateUpdated(uint256)
