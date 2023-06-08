@@ -277,7 +277,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(110000);
+      expect(gasUsed).to.be.lt(100000);
     });
   });
 
@@ -309,7 +309,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(210000);
+      expect(gasUsed).to.be.lt(215000);
     });
 
     it("multicall redeem + rebalance (existing tick)", async function () {
@@ -341,7 +341,7 @@ describe("Pool Gas", function () {
 
     for (const [principal, numTicks, maxGas] of [
       [FixedPoint.from("15"), 10, 270000],
-      [FixedPoint.from("25"), 16, 348000],
+      [FixedPoint.from("25"), 16, 345000],
     ]) {
       it(`borrow (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
@@ -390,8 +390,8 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 288000],
-      [FixedPoint.from("250"), 16, 366000],
+      [FixedPoint.from("150"), 10, 285000],
+      [FixedPoint.from("250"), 16, 365000],
     ]) {
       it(`borrow (bundle of 10, ${numTicks} ticks)`, async function () {
         /* Mint bundle of 10 */
@@ -573,7 +573,7 @@ describe("Pool Gas", function () {
 
     for (const [principal, numTicks, maxGas] of [
       [FixedPoint.from("15"), 10, 355000],
-      [FixedPoint.from("25"), 16, 472000],
+      [FixedPoint.from("25"), 16, 470000],
     ]) {
       it(`refinance (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
@@ -603,7 +603,7 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 380000],
+      [FixedPoint.from("150"), 10, 375000],
       [FixedPoint.from("250"), 16, 495000],
     ]) {
       it(`refinance (bundle of 10, ${numTicks} ticks)`, async function () {
@@ -883,7 +883,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await bid2Tx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
 
-        expect(gasUsed).to.be.lt(85000);
+        expect(gasUsed).to.be.lt(90000);
       });
 
       it("claim (single, english auction)", async function () {
@@ -905,7 +905,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await claimTx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
 
-        expect(gasUsed).to.be.lt(376400);
+        expect(gasUsed).to.be.lt(380000);
       });
 
       it("claim (first / middle / last of bundle, english auction)", async function () {
@@ -935,9 +935,9 @@ describe("Pool Gas", function () {
         gasReport.push([`claim (middle of bundle, english auction)`, gasUsed[4]]);
         gasReport.push([`claim (last of bundle, english auction)`, gasUsed[9]]);
 
-        expect(gasUsed[0]).to.be.lt(120000);
+        expect(gasUsed[0]).to.be.lt(125000);
         expect(gasUsed[4]).to.be.lt(95000);
-        expect(gasUsed[9]).to.be.lt(361000);
+        expect(gasUsed[9]).to.be.lt(365000);
       });
     });
   });
