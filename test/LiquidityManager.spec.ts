@@ -409,6 +409,9 @@ describe("LiquidityManager", function () {
     });
 
     it("redeems from current index", async function () {
+      /* Use liquidity */
+      await liquidityManager.use(Tick.encode("3"), FixedPoint.from("5"), FixedPoint.from("5"));
+
       /* Redeem */
       const redeemTx1 = await liquidityManager.redeem(Tick.encode("3"), FixedPoint.from("1"));
 
@@ -431,8 +434,8 @@ describe("LiquidityManager", function () {
       const node = await liquidityManager.liquidityNode(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("5"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
-      expect(node.available).to.equal(FixedPoint.from("5"));
-      expect(node.pending).to.equal(ethers.constants.Zero);
+      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(FixedPoint.from("5"));
       expect(node.redemptions).to.equal(FixedPoint.from("2"));
     });
     it("redeems from subsequent index", async function () {
@@ -444,9 +447,6 @@ describe("LiquidityManager", function () {
         index: ethers.constants.Zero,
         target: ethers.constants.Zero,
       });
-
-      /* Process redemption */
-      const processRedemptionTx = await liquidityManager.processRedemptions(Tick.encode("3"));
 
       /* Validate node */
       let node = await liquidityManager.liquidityNode(Tick.encode("3"));
@@ -462,16 +462,16 @@ describe("LiquidityManager", function () {
       /* Validate return value */
       await expectEvent(redeemTx2, liquidityManager, "RedemptionTarget", {
         index: 1,
-        target: FixedPoint.from("0"),
+        target: ethers.constants.Zero,
       });
 
       /* Validate node */
       node = await liquidityManager.liquidityNode(Tick.encode("3"));
-      expect(node.value).to.equal(FixedPoint.from("4"));
-      expect(node.shares).to.equal(FixedPoint.from("4"));
-      expect(node.available).to.equal(FixedPoint.from("4"));
+      expect(node.value).to.equal(FixedPoint.from("3"));
+      expect(node.shares).to.equal(FixedPoint.from("3"));
+      expect(node.available).to.equal(FixedPoint.from("3"));
       expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(FixedPoint.from("1"));
+      expect(node.redemptions).to.equal(ethers.constants.Zero);
     });
     it("fails on reserved node", async function () {
       await expect(liquidityManager.redeem(0, FixedPoint.from("1"))).to.be.revertedWithCustomError(
@@ -511,35 +511,6 @@ describe("LiquidityManager", function () {
           redemptionIndex1,
           redemptionTarget1
         )
-      ).to.deep.equal([ethers.constants.Zero, ethers.constants.Zero]);
-      expect(
-        await liquidityManager.redemptionAvailable(
-          Tick.encode("3"),
-          FixedPoint.from("1"),
-          redemptionIndex2,
-          redemptionTarget2
-        )
-      ).to.deep.equal([ethers.constants.Zero, ethers.constants.Zero]);
-
-      /* Validate node */
-      let node = await liquidityManager.liquidityNode(Tick.encode("3"));
-      expect(node.value).to.equal(FixedPoint.from("5"));
-      expect(node.shares).to.equal(FixedPoint.from("5"));
-      expect(node.available).to.equal(FixedPoint.from("5"));
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(FixedPoint.from("3"));
-
-      /* Process redemptions */
-      const processRedemptionsTx = await liquidityManager.processRedemptions(Tick.encode("3"));
-
-      /* Validate redemption available */
-      expect(
-        await liquidityManager.redemptionAvailable(
-          Tick.encode("3"),
-          FixedPoint.from("2"),
-          redemptionIndex1,
-          redemptionTarget1
-        )
       ).to.deep.equal([FixedPoint.from("2"), FixedPoint.from("2")]);
       expect(
         await liquidityManager.redemptionAvailable(
@@ -551,7 +522,7 @@ describe("LiquidityManager", function () {
       ).to.deep.equal([FixedPoint.from("1"), FixedPoint.from("1")]);
 
       /* Validate node */
-      node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      const node = await liquidityManager.liquidityNode(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("2"));
       expect(node.shares).to.equal(FixedPoint.from("2"));
       expect(node.available).to.equal(FixedPoint.from("2"));

@@ -122,7 +122,7 @@ contract TestLiquidityManager is ILiquidity {
      * @dev External wrapper function for LiquidityManager.processRedemptions()
      */
     function processRedemptions(uint128 tick) external {
-        _liquidity.processRedemptions(tick);
+        _liquidity._processRedemptions(_liquidity.nodes[tick]);
     }
 
     /**

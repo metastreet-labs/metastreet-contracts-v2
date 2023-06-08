@@ -1031,9 +1031,6 @@ abstract contract Pool is
         /* Add to deposit */
         _deposits[msg.sender][tick].shares += shares;
 
-        /* Process redemptions from available cash */
-        _liquidity.processRedemptions(tick);
-
         /* Transfer deposit amount */
         _currencyToken.safeTransferFrom(msg.sender, address(this), amount);
 
@@ -1064,9 +1061,6 @@ abstract contract Pool is
         dep.redemptionPending = shares;
         dep.redemptionIndex = redemptionIndex;
         dep.redemptionTarget = redemptionTarget;
-
-        /* Process redemptions from available cash */
-        _liquidity.processRedemptions(tick);
 
         /* Emit Redeemed event */
         emit Redeemed(msg.sender, tick, shares);
@@ -1168,9 +1162,6 @@ abstract contract Pool is
 
         /* Add to deposit */
         _deposits[msg.sender][dstTick].shares += newShares;
-
-        /* Process redemptions from available cash */
-        _liquidity.processRedemptions(dstTick);
 
         /* Emit Withdrawn */
         emit Withdrawn(msg.sender, srcTick, oldShares, amount);
