@@ -212,6 +212,7 @@ function createPoolEventEntity(
   eventEntity.deposit = depositEntityId;
   eventEntity.transactionHash = event.transaction.hash;
   eventEntity.timestamp = event.block.timestamp;
+  eventEntity.from = event.transaction.from;
   eventEntity.account = account;
   eventEntity.type = type;
   if (type == PoolEventType.LoanOriginated) eventEntity.loanOriginated = id;

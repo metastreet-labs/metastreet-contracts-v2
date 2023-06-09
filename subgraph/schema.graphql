@@ -153,6 +153,7 @@ type PoolEvent @entity {
   id: ID! # <pool>-<tx hash>
   transactionHash: Bytes!
   timestamp: BigInt! # uint64
+  from: Bytes! # address
   account: Bytes! # address
   type: PoolEventType!
   pool: Pool!
