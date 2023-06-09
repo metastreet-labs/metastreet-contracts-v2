@@ -216,7 +216,7 @@ function createPoolEventEntity(
   eventEntity.account = account;
   eventEntity.type = type;
   if (type == PoolEventType.LoanOriginated) eventEntity.loanOriginated = id;
-  else if (type == PoolEventType.LoanRepaid) eventEntity.LoanRepaid = id;
+  else if (type == PoolEventType.LoanRepaid) eventEntity.loanRepaid = id;
   else if (type == PoolEventType.LoanLiquidated) eventEntity.loanLiquidated = id;
   else if (type == PoolEventType.CollateralLiquidated) eventEntity.collateralLiquidated = id;
   else if (type == PoolEventType.Deposited) eventEntity.deposited = id;
