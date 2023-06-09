@@ -249,6 +249,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
 
     /**
      * @notice Initializer
+     * @dev Fee-on-transfer currency tokens are not supported
      */
     function initialize(
         address admin,
