@@ -41,6 +41,10 @@ contract WeightedRateCollectionPool is Pool, WeightedInterestRateModel, Collecti
     /* Initializer */
     /**************************************************************************/
 
+    /**
+     * @notice Initializer
+     * @dev Fee-on-transfer currency tokens are not supported
+     */
     function initialize(bytes memory params, address collateralLiquidator_) external {
         require(!_initialized, "Already initialized");
 
