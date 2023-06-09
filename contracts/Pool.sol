@@ -232,6 +232,7 @@ abstract contract Pool is
 
     /**
      * @notice Pool initializer
+     * @dev Fee-on-transfer currency tokens are not supported
      * @param currencyToken_ Currency token contract
      * @param collateralLiquidator_ Collateral liquidator contract
      * @param durations_ Duration tiers
