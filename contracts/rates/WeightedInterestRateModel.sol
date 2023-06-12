@@ -124,7 +124,7 @@ contract WeightedInterestRateModel is InterestRateModel {
         /* Accumulate weighted rate */
         for (uint256 i; i < count; i++) {
             (, , uint256 rateIndex, ) = Tick.decode(nodes[i].tick);
-            weightedRate += (nodes[i].used * rates[rateIndex]) / FIXED_POINT_SCALE;
+            weightedRate += (uint256(nodes[i].used) * rates[rateIndex]) / FIXED_POINT_SCALE;
         }
 
         /* Normalize weighted rate */
