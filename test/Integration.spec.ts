@@ -458,6 +458,13 @@ describe("Integration", function () {
         getRandomInteger(CONFIG.depositAmounts[0], CONFIG.depositAmounts[CONFIG.depositAmounts.length - 1]).toString()
       );
 
+      /* Check node is empty */
+      const node = await pool.liquidityNode(tick);
+      if (!node.value.add(node.shares).add(node.available).add(node.pending).eq(ethers.constants.Zero)) {
+        consoleLog("Node is not empty");
+        return;
+      }
+
       /* Execute deposit() on Pool */
       consoleLog(`Params => tick: ${tick}, amount: ${amount}`);
       const depositTx = await pool.connect(depositor).deposit(tick, amount, 0);
