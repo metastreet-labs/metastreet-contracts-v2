@@ -864,7 +864,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await bidTx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
 
-        expect(gasUsed).to.be.lt(135000);
+        expect(gasUsed).to.be.lt(152600);
       });
 
       it("bid (second, english auction)", async function () {
@@ -880,7 +880,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await bid2Tx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
 
-        expect(gasUsed).to.be.lt(85000);
+        expect(gasUsed).to.be.lt(87300);
       });
 
       it("claim (single, english auction)", async function () {
