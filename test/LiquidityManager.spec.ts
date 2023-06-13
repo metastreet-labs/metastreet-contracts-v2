@@ -473,16 +473,6 @@ describe("LiquidityManager", function () {
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
     });
-    it("fails on reserved node", async function () {
-      await expect(liquidityManager.redeem(0, FixedPoint.from("1"))).to.be.revertedWithCustomError(
-        liquidityManager,
-        "InactiveLiquidity"
-      );
-      await expect(liquidityManager.redeem(MaxUint128, FixedPoint.from("1"))).to.be.revertedWithCustomError(
-        liquidityManager,
-        "InactiveLiquidity"
-      );
-    });
   });
 
   describe("#processRedemptions", async function () {

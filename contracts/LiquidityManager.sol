@@ -493,13 +493,10 @@ library LiquidityManager {
      * @return Redemption index, Redemption target
      */
     function redeem(Liquidity storage liquidity, uint128 tick, uint128 shares) internal returns (uint128, uint128) {
-        /* If tick is reserved */
-        if (_isReserved(tick)) revert InactiveLiquidity();
-
         Node storage node = liquidity.nodes[tick];
 
         /* Redemption from inactive liquidity nodes is allowed to facilitate
-         * garbage collection of insolvent nodes */
+         * restoring garbage collected nodes */
 
         /* Snapshot redemption target */
         uint128 redemptionIndex = node.redemptions.index;
