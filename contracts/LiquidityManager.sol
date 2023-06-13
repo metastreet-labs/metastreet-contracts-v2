@@ -29,6 +29,11 @@ library LiquidityManager {
      */
     uint256 internal constant BASIS_POINTS_SCALE = 10_000;
 
+    /**
+     * @notice Impaired price threshold (5%)
+     */
+    uint256 internal constant IMPAIRED_PRICE_THRESHOLD = 0.05 * 1e18;
+
     /**************************************************************************/
     /* Errors */
     /**************************************************************************/
@@ -42,11 +47,6 @@ library LiquidityManager {
      * @notice Inactive liquidity
      */
     error InactiveLiquidity();
-
-    /**
-     * @notice Insolvent liquidity
-     */
-    error InsolventLiquidity();
 
     /**
      * @notice Insufficient tick spacing
@@ -253,32 +253,42 @@ library LiquidityManager {
     }
 
     /**
-     * @dev Check if liquidity node is inactive
+     * @dev Check if liquidity node is empty
      * @param node Liquidity node
-     * @return True if inactive, otherwise false
+     * @return True if empty, otherwise false
      */
-    function _isInactive(Node storage node) internal view returns (bool) {
-        return node.prev == 0 && node.next == 0;
+    function _isEmpty(Node storage node) internal view returns (bool) {
+        return node.value == 0 && node.shares == 0 && node.available == 0 && node.pending == 0;
     }
 
     /**
-     * @dev Check if liquidity node is insolvent
+     * @dev Check if liquidity node is active
      * @param node Liquidity node
-     * @return True if insolvent, otherwise false
+     * @return True if active, otherwise false
      */
-    function _isInsolvent(Node storage node) internal view returns (bool) {
-        /* If there's shares, but insufficient value to compute a non-zero share price */
-        return node.shares != 0 && (node.value * FIXED_POINT_SCALE < node.shares);
+    function _isActive(Node storage node) internal view returns (bool) {
+        return node.prev != 0 || node.next != 0;
     }
 
     /**
-     * @dev Garbage collect a node
+     * @dev Check if liquidity node is impaired
+     * @param node Liquidity node
+     * @return True if impaired, otherwise false
+     */
+    function _isImpaired(Node storage node) internal view returns (bool) {
+        /* If there's shares, but insufficient value for a stable share price */
+        return node.shares != 0 && node.value * FIXED_POINT_SCALE < node.shares * IMPAIRED_PRICE_THRESHOLD;
+    }
+
+    /**
+     * @dev Garbage collect an impaired or empty node, unlinking it from active
+     * liquidity
      * @param liquidity Liquidity state
      * @param node Liquidity node
      */
     function _garbageCollect(Liquidity storage liquidity, Node storage node) internal {
-        /* If node is still solvent (non-zero shares and non-zero value), leave it in place */
-        if (node.shares != 0 && !_isInsolvent(node)) return;
+        /* If node is not impaired and not empty, or already inactive, do nothing */
+        if ((!_isImpaired(node) && !_isEmpty(node)) || !_isActive(node)) return;
 
         /* Make node inactive by unlinking it */
         liquidity.nodes[node.prev].next = node.next;
@@ -368,12 +378,10 @@ library LiquidityManager {
     function instantiate(Liquidity storage liquidity, uint128 tick) internal {
         Node storage node = liquidity.nodes[tick];
 
-        /* If tick is reserved */
-        if (_isReserved(tick)) revert InactiveLiquidity();
         /* If node is active, do nothing */
-        if (!_isInactive(node)) return;
-        /* If node is insolvent, refuse to link */
-        if (_isInsolvent(node)) revert InsolventLiquidity();
+        if (_isActive(node)) return;
+        /* If node is inactive and not empty, revert */
+        if (!_isEmpty(node)) revert InactiveLiquidity();
 
         /* Find prior node to new tick */
         uint128 prevTick = 0;
@@ -418,7 +426,7 @@ library LiquidityManager {
         /* If tick is reserved */
         if (_isReserved(tick)) revert InactiveLiquidity();
         /* If node is inactive */
-        if (_isInactive(node)) revert InactiveLiquidity();
+        if (!_isActive(node)) revert InactiveLiquidity();
 
         /* Compute deposit price as current value + 50% of pending returns */
         uint256 price = node.shares == 0
@@ -471,7 +479,7 @@ library LiquidityManager {
         node.available += restored;
         node.pending -= pending;
 
-        /* Garbage collect node if it is now insolvent */
+        /* Garbage collect node if it is now impaired */
         _garbageCollect(liquidity, node);
 
         /* Process any pending redemptions */

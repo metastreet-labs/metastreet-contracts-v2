@@ -260,6 +260,16 @@ describe("Pool Basic", function () {
       ).to.be.revertedWithCustomError(pool, "InsufficientTickSpacing");
     });
 
+    it("fails on impaired tick", async function () {
+      /* Setup impaired tick at 10 ETH */
+      await setupImpairedTick();
+
+      /* Attempt to deposit */
+      await expect(
+        pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0)
+      ).to.be.revertedWithCustomError(pool, "InactiveLiquidity");
+    });
+
     it("fails on insolvent tick", async function () {
       /* Setup insolvent tick at 10 ETH */
       await setupInsolventTick();
@@ -267,7 +277,7 @@ describe("Pool Basic", function () {
       /* Attempt to deposit */
       await expect(
         pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0)
-      ).to.be.revertedWithCustomError(pool, "InsolventLiquidity");
+      ).to.be.revertedWithCustomError(pool, "InactiveLiquidity");
     });
 
     it("fails on invalid tick", async function () {
@@ -1206,8 +1216,31 @@ describe("Pool Basic", function () {
     return ticks;
   }
 
+  async function setupImpairedTick(): Promise<void> {
+    /* Create deposit at 10 ETH tick */
+    await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("5"), 0);
+
+    /* Create expired loan taking 5 ETH */
+    const [loanReceipt] = await createExpiredLoan(FixedPoint.from("5"));
+
+    /* Process expiration */
+    await pool.liquidate(loanReceipt);
+
+    /* Withdraw collateral */
+    await collateralLiquidator
+      .connect(accountLiquidator)
+      .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
+
+    /* Liquidate collateral and process liquidation for 0.20 ETH */
+    await collateralLiquidator
+      .connect(accountLiquidator)
+      .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, FixedPoint.from("0.20"));
+
+    /* 10 ETH tick price is 0.20 ETH / 5.0 shares = 0.04 */
+  }
+
   async function setupInsolventTick(): Promise<void> {
-    /* Create two deposits at 10 ETH and 20 ETH ticks */
+    /* Create deposits at 5 ETH, 10 ETH, and 15 ETH ticks */
     await pool.connect(accountDepositors[0]).deposit(Tick.encode("5"), FixedPoint.from("5"), 0);
     await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("5"), 0);
     await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
@@ -1227,6 +1260,8 @@ describe("Pool Basic", function () {
     await collateralLiquidator
       .connect(accountLiquidator)
       .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, FixedPoint.from("5"));
+
+    /* Ticks 10 ETH and 15 ETH are now insolvent */
   }
 
   async function createActiveLoan(
