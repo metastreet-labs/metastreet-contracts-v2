@@ -310,6 +310,9 @@ library LiquidityManager {
         uint256 price = (node.value * FIXED_POINT_SCALE) / node.shares;
 
         if (price == 0) {
+            /* If node has pending interest */
+            if (node.pending != 0) return;
+
             /* If node is insolvent, redeem all shares for zero amount */
             uint128 shares = node.redemptions.pending;
 

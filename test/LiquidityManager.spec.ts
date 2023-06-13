@@ -841,6 +841,78 @@ describe("LiquidityManager", function () {
       expect(node.prev).to.equal(ethers.constants.Zero);
       expect(node.next).to.equal(ethers.constants.Zero);
     });
+
+    it("delays redemption of insolvent node with pending interest", async function () {
+      /* Use 2 and 3 amounts */
+      await liquidityManager.use(Tick.encode("3"), FixedPoint.from("5").sub(1), FixedPoint.from("6"));
+      await liquidityManager.use(Tick.encode("3"), 1, 5);
+
+      /* Redeem all shares */
+      const redeemTx1 = await liquidityManager.redeem(Tick.encode("3"), FixedPoint.from("5"));
+      const [redemptionIndex1, redemptionTarget1] = (
+        await extractEvent(redeemTx1, liquidityManager, "RedemptionTarget")
+      ).args;
+
+      /* Validate redemption target */
+      expect(redemptionIndex1).to.equal(0);
+      expect(redemptionTarget1).to.equal(ethers.constants.Zero);
+
+      /* Validate redemption is not available */
+      expect(
+        await liquidityManager.redemptionAvailable(
+          Tick.encode("3"),
+          FixedPoint.from("5"),
+          redemptionIndex1,
+          redemptionTarget1
+        )
+      ).to.deep.equal([ethers.constants.Zero, ethers.constants.Zero]);
+
+      /* Restore first to zero, making node insolvent */
+      await liquidityManager.restore(Tick.encode("3"), FixedPoint.from("5").sub(1), FixedPoint.from("6"), ethers.constants.Zero);
+
+      /* Validate redemption is not available */
+      expect(
+        await liquidityManager.redemptionAvailable(
+          Tick.encode("3"),
+          FixedPoint.from("5"),
+          redemptionIndex1,
+          redemptionTarget1
+        )
+      ).to.deep.equal([ethers.constants.Zero, ethers.constants.Zero]);
+
+      /* Validate node is inactive */
+      let node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      expect(node.value).to.equal(1);
+      expect(node.shares).to.equal(FixedPoint.from("5"));
+      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(5);
+      expect(node.redemptions).to.equal(FixedPoint.from("5"));
+      expect(node.prev).to.equal(ethers.constants.Zero);
+      expect(node.next).to.equal(ethers.constants.Zero);
+
+      /* Restore second to 3, leaving insolvent dust */
+      await liquidityManager.restore(Tick.encode("3"), 1, 5, 3);
+
+      /* Validate redemption is available */
+      expect(
+        await liquidityManager.redemptionAvailable(
+          Tick.encode("3"),
+          FixedPoint.from("5"),
+          redemptionIndex1,
+          redemptionTarget1
+        )
+      ).to.deep.equal([FixedPoint.from("5"), ethers.constants.Zero]);
+
+      /* Validate node is inactive */
+      node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      expect(node.value).to.equal(ethers.constants.Zero);
+      expect(node.shares).to.equal(ethers.constants.Zero);
+      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(ethers.constants.Zero);
+      expect(node.redemptions).to.equal(ethers.constants.Zero);
+      expect(node.prev).to.equal(ethers.constants.Zero);
+      expect(node.next).to.equal(ethers.constants.Zero);
+    });
   });
 
   /****************************************************************************/
