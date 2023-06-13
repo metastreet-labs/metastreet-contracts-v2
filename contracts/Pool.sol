@@ -1020,9 +1020,6 @@ abstract contract Pool is
         /* Cast amount */
         uint128 amount = amount_.toUint128();
 
-        /* Instantiate liquidity node */
-        _liquidity.instantiate(tick);
-
         /* Deposit into liquidity node */
         uint128 shares = _liquidity.deposit(tick, amount);
 
@@ -1151,9 +1148,6 @@ abstract contract Pool is
 
         /* Validate destination tick */
         Tick.validate(dstTick, 0, 0, _durations.length - 1, 0, _rates.length - 1);
-
-        /* Instantiate liquidity node */
-        _liquidity.instantiate(dstTick);
 
         /* Deposit into liquidity node */
         uint128 newShares = _liquidity.deposit(dstTick, amount);

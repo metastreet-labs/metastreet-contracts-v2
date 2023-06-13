@@ -121,9 +121,6 @@ describe("LiquidityManager", function () {
 
   describe("#deposit", async function () {
     it("deposits into active node", async function () {
-      /* Instantiate one node */
-      await liquidityManager.instantiate(Tick.encode("3"));
-
       /* Deposit */
       const depositTx = await liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("5"));
 
@@ -142,7 +139,6 @@ describe("LiquidityManager", function () {
     });
     it("deposits into active node that has appreciated", async function () {
       /* Appreciate node */
-      await liquidityManager.instantiate(Tick.encode("3"));
       await liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("5"));
       await liquidityManager.use(Tick.encode("3"), FixedPoint.from("5"), FixedPoint.from("6"));
       await liquidityManager.restore(
@@ -172,7 +168,6 @@ describe("LiquidityManager", function () {
     });
     it("deposits into active node that has depreciated", async function () {
       /* Depreciate node */
-      await liquidityManager.instantiate(Tick.encode("3"));
       await liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("5"));
       await liquidityManager.use(Tick.encode("3"), FixedPoint.from("5"), FixedPoint.from("6"));
       await liquidityManager.restore(
@@ -202,7 +197,6 @@ describe("LiquidityManager", function () {
     });
     it("deposits into active node that has pending returns", async function () {
       /* Create node with used liquidity */
-      await liquidityManager.instantiate(Tick.encode("3"));
       await liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("5"));
       await liquidityManager.use(Tick.encode("3"), FixedPoint.from("5"), FixedPoint.from("7"));
 
@@ -224,12 +218,6 @@ describe("LiquidityManager", function () {
       expect(node.pending).to.equal(FixedPoint.from("7"));
       expect(node.redemptions).to.equal(ethers.constants.Zero);
     });
-    it("fails on inactive node", async function () {
-      await expect(liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("5"))).to.be.revertedWithCustomError(
-        liquidityManager,
-        "InactiveLiquidity"
-      );
-    });
     it("fails on reserved node", async function () {
       await expect(liquidityManager.deposit(0, FixedPoint.from("5"))).to.be.revertedWithCustomError(
         liquidityManager,
@@ -242,7 +230,6 @@ describe("LiquidityManager", function () {
     });
     it("fails on impaired node", async function () {
       /* Create impaired node */
-      await liquidityManager.instantiate(Tick.encode("3"));
       await liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("5"));
       await liquidityManager.use(Tick.encode("3"), FixedPoint.from("5"), FixedPoint.from("6"));
       await liquidityManager.restore(
@@ -260,7 +247,6 @@ describe("LiquidityManager", function () {
     });
     it("fails on insolvent node", async function () {
       /* Create insolvent node */
-      await liquidityManager.instantiate(Tick.encode("3"));
       await liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("5"));
       await liquidityManager.use(Tick.encode("3"), FixedPoint.from("5"), FixedPoint.from("6"));
       await liquidityManager.restore(
@@ -281,7 +267,6 @@ describe("LiquidityManager", function () {
   describe("#use", async function () {
     it("uses from active node", async function () {
       /* Instantiate and deposit in node */
-      await liquidityManager.instantiate(Tick.encode("3"));
       await liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("5"));
 
       /* Use from node */
@@ -300,7 +285,6 @@ describe("LiquidityManager", function () {
   describe("#restore", async function () {
     beforeEach("setup liquidity", async function () {
       /* Instantiate and deposit into node */
-      await liquidityManager.instantiate(Tick.encode("3"));
       await liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("5"));
     });
 
@@ -394,7 +378,6 @@ describe("LiquidityManager", function () {
   describe("#redeem", async function () {
     beforeEach("setup liquidity", async function () {
       /* Instantiate and deposit into node */
-      await liquidityManager.instantiate(Tick.encode("3"));
       await liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("5"));
     });
 
@@ -468,7 +451,6 @@ describe("LiquidityManager", function () {
   describe("#processRedemptions", async function () {
     beforeEach("setup liquidity", async function () {
       /* Instantiate and deposit into node */
-      await liquidityManager.instantiate(Tick.encode("3"));
       await liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("5"));
     });
 
@@ -743,7 +725,6 @@ describe("LiquidityManager", function () {
       expect(node.next).to.equal(ethers.constants.Zero);
 
       /* Instantiate and deposit into node */
-      await liquidityManager.instantiate(Tick.encode("3"));
       await liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("4"));
 
       /* Validate node */
@@ -868,7 +849,12 @@ describe("LiquidityManager", function () {
       ).to.deep.equal([ethers.constants.Zero, ethers.constants.Zero]);
 
       /* Restore first to zero, making node insolvent */
-      await liquidityManager.restore(Tick.encode("3"), FixedPoint.from("5").sub(1), FixedPoint.from("6"), ethers.constants.Zero);
+      await liquidityManager.restore(
+        Tick.encode("3"),
+        FixedPoint.from("5").sub(1),
+        FixedPoint.from("6"),
+        ethers.constants.Zero
+      );
 
       /* Validate redemption is not available */
       expect(
@@ -924,14 +910,12 @@ describe("LiquidityManager", function () {
     for (const limit of [FixedPoint.from("10"), FixedPoint.from("20"), FixedPoint.from("30"), FixedPoint.from("40")]) {
       for (const duration of [0, 1, 2]) {
         for (const rate of [0, 1, 2]) {
-          await liquidityManager.instantiate(Tick.encode(limit, duration, rate));
           await liquidityManager.deposit(Tick.encode(limit, duration, rate), FixedPoint.from("50"));
         }
       }
     }
 
     /* Setup insolvent liquidity at 50 ETH */
-    await liquidityManager.instantiate(Tick.encode("50"));
     await liquidityManager.deposit(Tick.encode("50"), FixedPoint.from("5"));
     await liquidityManager.use(Tick.encode("50"), FixedPoint.from("5"), FixedPoint.from("6"));
     await liquidityManager.restore(

@@ -276,6 +276,47 @@ library LiquidityManager {
     }
 
     /**
+     * @notice Instantiate liquidity
+     * @param liquidity Liquidity state
+     * @param tick Tick
+     */
+    function _instantiate(Liquidity storage liquidity, Node storage node, uint128 tick) internal {
+        /* If node is active, do nothing */
+        if (_isActive(node)) return;
+        /* If node is inactive and not empty, revert */
+        if (!_isEmpty(node)) revert InactiveLiquidity();
+
+        /* Find prior node to new tick */
+        uint128 prevTick = 0;
+        Node storage prevNode = liquidity.nodes[prevTick];
+        while (prevNode.next < tick) {
+            prevTick = prevNode.next;
+            prevNode = liquidity.nodes[prevTick];
+        }
+
+        /* Decode limits from previous tick, new tick, and next tick */
+        (uint256 prevLimit, , , ) = Tick.decode(prevTick);
+        (uint256 newLimit, , , ) = Tick.decode(tick);
+        (uint256 nextLimit, , , ) = Tick.decode(prevNode.next);
+
+        /* Validate tick limit spacing */
+        if (
+            newLimit != prevLimit &&
+            newLimit < (prevLimit * (BASIS_POINTS_SCALE + TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
+        ) revert InsufficientTickSpacing();
+        if (
+            newLimit != nextLimit &&
+            nextLimit < (newLimit * (BASIS_POINTS_SCALE + TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
+        ) revert InsufficientTickSpacing();
+
+        /* Link new node */
+        node.prev = prevTick;
+        node.next = prevNode.next;
+        liquidity.nodes[prevNode.next].prev = tick;
+        prevNode.next = tick;
+    }
+
+    /**
      * @dev Garbage collect an impaired or empty node, unlinking it from active
      * liquidity
      * @param liquidity Liquidity state
@@ -369,49 +410,6 @@ library LiquidityManager {
     }
 
     /**
-     * @notice Instantiate liquidity
-     * @param liquidity Liquidity state
-     * @param tick Tick
-     */
-    function instantiate(Liquidity storage liquidity, uint128 tick) internal {
-        Node storage node = liquidity.nodes[tick];
-
-        /* If node is active, do nothing */
-        if (_isActive(node)) return;
-        /* If node is inactive and not empty, revert */
-        if (!_isEmpty(node)) revert InactiveLiquidity();
-
-        /* Find prior node to new tick */
-        uint128 prevTick = 0;
-        Node storage prevNode = liquidity.nodes[prevTick];
-        while (prevNode.next < tick) {
-            prevTick = prevNode.next;
-            prevNode = liquidity.nodes[prevTick];
-        }
-
-        /* Decode limits from previous tick, new tick, and next tick */
-        (uint256 prevLimit, , , ) = Tick.decode(prevTick);
-        (uint256 newLimit, , , ) = Tick.decode(tick);
-        (uint256 nextLimit, , , ) = Tick.decode(prevNode.next);
-
-        /* Validate tick limit spacing */
-        if (
-            newLimit != prevLimit &&
-            newLimit < (prevLimit * (BASIS_POINTS_SCALE + TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
-        ) revert InsufficientTickSpacing();
-        if (
-            newLimit != nextLimit &&
-            nextLimit < (newLimit * (BASIS_POINTS_SCALE + TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
-        ) revert InsufficientTickSpacing();
-
-        /* Link new node */
-        node.prev = prevTick;
-        node.next = prevNode.next;
-        liquidity.nodes[prevNode.next].prev = tick;
-        prevNode.next = tick;
-    }
-
-    /**
      * @notice Deposit liquidity
      * @param liquidity Liquidity state
      * @param tick Tick
@@ -423,8 +421,9 @@ library LiquidityManager {
 
         /* If tick is reserved */
         if (_isReserved(tick)) revert InactiveLiquidity();
-        /* If node is inactive */
-        if (!_isActive(node)) revert InactiveLiquidity();
+
+        /* Instantiate node, if necessary */
+        _instantiate(liquidity, node, tick);
 
         /* Compute deposit price as current value + 50% of pending returns */
         uint256 price = node.shares == 0
