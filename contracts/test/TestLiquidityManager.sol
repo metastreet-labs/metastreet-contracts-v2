@@ -80,10 +80,10 @@ contract TestLiquidityManager is ILiquidity {
     }
 
     /**
-     * @dev External wrapper function for LiquidityManager.instantiate()
+     * @dev External wrapper function for LiquidityManager._instantiate()
      */
     function instantiate(uint128 tick) external {
-        return _liquidity.instantiate(tick);
+        return _liquidity._instantiate(_liquidity.nodes[tick], tick);
     }
 
     /**
@@ -116,13 +116,6 @@ contract TestLiquidityManager is ILiquidity {
         (uint128 index, uint128 target) = _liquidity.redeem(tick, shares);
         emit RedemptionTarget(index, target);
         return (index, target);
-    }
-
-    /**
-     * @dev External wrapper function for LiquidityManager.processRedemptions()
-     */
-    function processRedemptions(uint128 tick) external {
-        _liquidity._processRedemptions(_liquidity.nodes[tick]);
     }
 
     /**
