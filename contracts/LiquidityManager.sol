@@ -362,9 +362,9 @@ library LiquidityManager {
      * @param liquidity Liquidity state
      */
     function initialize(Liquidity storage liquidity) internal {
-        /* Liquidity state defaults to zero, but need to make head node */
-        Node storage node = liquidity.nodes[0];
-        node.next = type(uint128).max;
+        /* Liquidity state defaults to zero, but need to make head and tail nodes */
+        liquidity.nodes[0].next = type(uint128).max;
+        liquidity.nodes[type(uint128).max].prev = 0;
     }
 
     /**
