@@ -285,12 +285,6 @@ library LiquidityManager {
         liquidity.nodes[node.next].prev = node.prev;
         node.next = 0;
         node.prev = 0;
-
-        /* Handle insolvent dust */
-        if (node.value > 0) {
-            node.value = 0;
-            node.available = 0;
-        }
     }
 
     /**
@@ -302,20 +296,20 @@ library LiquidityManager {
         /* If there's no pending shares to redeem */
         if (node.redemptions.pending == 0) return;
 
-        /* If node is insolvent, redeem all pending shares for zero amount */
-        if (_isInsolvent(node)) {
-            /* Process all pending shares */
+        /* Compute redemption price */
+        uint256 price = (node.value * FIXED_POINT_SCALE) / node.shares;
+
+        if (price == 0) {
+            /* If node is insolvent, redeem all shares for zero amount */
             uint128 shares = node.redemptions.pending;
 
             /* Record fulfilled redemption */
-            node.redemptions.fulfilled[node.redemptions.index++] = FulfilledRedemption({
-                shares: node.redemptions.pending,
-                amount: 0
-            });
+            node.redemptions.fulfilled[node.redemptions.index++] = FulfilledRedemption({shares: shares, amount: 0});
 
             /* Update node state */
             node.shares -= shares;
-            /* node.value and node.available already zero */
+            node.value = 0;
+            node.available = 0;
             node.redemptions.pending = 0;
 
             return;
@@ -326,7 +320,6 @@ library LiquidityManager {
             if (node.available == 0) return;
 
             /* Redeem as many shares as possible and pending from available cash */
-            uint256 price = (node.value * FIXED_POINT_SCALE) / node.shares;
             uint128 shares = uint128(Math.min((node.available * FIXED_POINT_SCALE) / price, node.redemptions.pending));
             uint128 amount = Math.mulDiv(shares, price, FIXED_POINT_SCALE).toUint128();
 

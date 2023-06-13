@@ -386,9 +386,9 @@ describe("LiquidityManager", function () {
 
       /* Validate node */
       let node = await liquidityManager.liquidityNode(Tick.encode("3"));
-      expect(node.value).to.equal(ethers.constants.Zero);
+      expect(node.value).to.equal(4);
       expect(node.shares).to.equal(FixedPoint.from("5"));
-      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.available).to.equal(4);
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
       expect(node.prev).to.equal(ethers.constants.Zero);
