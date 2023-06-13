@@ -192,9 +192,9 @@ library LiquidityManager {
      * @notice Get redemption available amount
      * @param liquidity Liquidity state
      * @param tick Tick
+     * @param pending Redemption pending
      * @param index Redemption index
      * @param target Redemption target
-     * @param pending Redemption pending
      * @return Redeemed shares, redeemed amount
      */
     function redemptionAvailable(
