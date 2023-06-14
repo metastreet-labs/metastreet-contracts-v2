@@ -67,13 +67,13 @@ dataSources:
         - name: EnglishAuctionCollateralLiquidator
           file: ../artifacts/contracts/liquidators/EnglishAuctionCollateralLiquidator.sol/EnglishAuctionCollateralLiquidator.json
       eventHandlers:
-        - event: AuctionBid(indexed address,indexed uint256,indexed address,uint256)
+        - event: AuctionBid(indexed bytes32,indexed address,indexed uint256,address,uint256)
           handler: handleAuctionBid
-        - event: AuctionCreated(indexed bytes32,indexed address,indexed uint256,address)
+        - event: AuctionCreated(indexed bytes32,indexed address,indexed uint256)
           handler: handleAuctionCreated
-        - event: AuctionEnded(indexed address,indexed uint256,indexed address,uint256)
+        - event: AuctionEnded(indexed bytes32,indexed address,indexed uint256,address,uint256)
           handler: handleAuctionEnded
-        - event: AuctionStarted(indexed address,indexed uint256,uint64)
+        - event: AuctionStarted(indexed bytes32,indexed address,indexed uint256,uint64)
           handler: handleAuctionStarted
       file: ./src/englishAuctionCollateralLiquidator.ts
 templates:
@@ -119,7 +119,7 @@ templates:
         - event: LoanLiquidated(indexed bytes32)
           handler: handleLoanLiquidated
           receipt: true
-        - event: CollateralLiquidated(indexed bytes32,uint256)
+        - event: CollateralLiquidated(indexed bytes32,uint256,uint256)
           handler: handleCollateralLiquidated
         - event: AdminFeeRateUpdated(uint256)
           handler: handleAdminFeeRateUpdated
