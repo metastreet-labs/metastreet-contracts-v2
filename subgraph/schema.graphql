@@ -225,6 +225,7 @@ type Withdrawn @entity {
 ################################################################################
 type Auction @entity {
   id: Bytes!
+  loan: Loan!
   liquidationSource: Bytes!
   liquidationSourceDeploymentHash: Bytes
   liquidationHash: Bytes!

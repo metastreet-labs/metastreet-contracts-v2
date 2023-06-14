@@ -40,8 +40,9 @@ export function handleAuctionCreated(event: AuctionCreatedEvent): void {
 
     const englishAuctionCollateralLiquidator = EnglishAuctionCollateralLiquidator.bind(dataSource.address());
     const liquidation = englishAuctionCollateralLiquidator.liquidations(event.params.liquidationHash);
-    auctionEntity.liquidationSource = liquidation.source;
 
+    auctionEntity.loan = liquidation.liquidationContextHash.toHexString();
+    auctionEntity.liquidationSource = liquidation.source;
     auctionEntity.liquidationHash = event.params.liquidationHash;
     auctionEntity.collateralToken = event.params.collateralToken.toHexString();
     auctionEntity.collateralTokenId = event.params.collateralTokenId;
