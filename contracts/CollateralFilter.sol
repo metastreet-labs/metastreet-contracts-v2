@@ -6,6 +6,18 @@ pragma solidity ^0.8.0;
  */
 abstract contract CollateralFilter {
     /**
+     * @notice Get collateral filter name
+     * @return Collateral filter name
+     */
+    function COLLATERAL_FILTER_NAME() external view virtual returns (string memory);
+
+    /**
+     * @notice Get collateral filter version
+     * @return Collateral filter version
+     */
+    function COLLATERAL_FILTER_VERSION() external view virtual returns (string memory);
+
+    /**
      * @notice Get collateral token
      * @return Collateral token contract
      */

@@ -15,12 +15,12 @@ contract CollectionCollateralFilter is CollateralFilter {
     /**
      * @notice Collateral filter name
      */
-    string public constant COLLATERAL_FILTER_NAME = "CollectionCollateralFilter";
+    string public constant override COLLATERAL_FILTER_NAME = "CollectionCollateralFilter";
 
     /**
      * @notice Collateral filter version
      */
-    string public constant COLLATERAL_FILTER_VERSION = "1.0";
+    string public constant override COLLATERAL_FILTER_VERSION = "1.0";
 
     /**************************************************************************/
     /* State */
