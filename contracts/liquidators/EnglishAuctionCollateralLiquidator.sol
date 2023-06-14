@@ -250,7 +250,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
     /**
      * @dev Collateral auctions
      */
-    mapping(bytes32 => Auction) private _auctions;
+    mapping(address => mapping(uint256 => Auction)) private _auctions;
 
     /**
      * @dev Liquidation tracker
@@ -356,10 +356,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      * @return Auction Auction details
      */
     function auctions(address collateralToken, uint256 collateralTokenId) external view returns (Auction memory) {
-        /* Compute collateral hash */
-        bytes32 collateralHash = _collateralHash(collateralToken, collateralTokenId);
-
-        return _auctions[collateralHash];
+        return _auctions[collateralToken][collateralTokenId];
     }
 
     /**************************************************************************/
@@ -406,14 +403,11 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      * @param collateralTokenId Collateral token ID
      */
     function _createAuction(bytes32 liquidationHash, address collateralToken, uint256 collateralTokenId) internal {
-        /* Compute collateral hash */
-        bytes32 collateralHash = _collateralHash(collateralToken, collateralTokenId);
-
         /* Validate auction does not exists */
-        if (_auctions[collateralHash].liquidationHash != bytes32(0)) revert InvalidAuction();
+        if (_auctions[collateralToken][collateralTokenId].liquidationHash != bytes32(0)) revert InvalidAuction();
 
         /* Create collateral auction */
-        _auctions[collateralHash] = Auction({
+        _auctions[collateralToken][collateralTokenId] = Auction({
             liquidationHash: liquidationHash,
             endTime: 0,
             highestBid: Bid(address(0), 0)
@@ -526,8 +520,8 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         /* Emit LiquidationStarted */
         emit LiquidationStarted(
             liquidationHash,
-            liquidationContextHash,
             msg.sender,
+            liquidationContextHash,
             currencyToken,
             uint16(underlyingCollateralTokenIds.length)
         );
@@ -564,11 +558,8 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      * @param amount Bid amount
      */
     function bid(address collateralToken, uint256 collateralTokenId, uint256 amount) external nonReentrant {
-        /* Compute collateral hash */
-        bytes32 collateralHash = _collateralHash(collateralToken, collateralTokenId);
-
         /* Get auction */
-        Auction memory auction_ = _auctions[collateralHash];
+        Auction memory auction_ = _auctions[collateralToken][collateralTokenId];
 
         /* Get liquidation */
         Liquidation memory liquidation_ = _liquidations[auction_.liquidationHash];
@@ -595,7 +586,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
             uint64 endTime = uint64(block.timestamp) + _auctionDuration;
 
             /* Start auction */
-            _auctions[collateralHash].endTime = endTime;
+            _auctions[collateralToken][collateralTokenId].endTime = endTime;
 
             /* Emit AuctionStarted */
             emit AuctionStarted(auction_.liquidationHash, collateralToken, collateralTokenId, endTime);
@@ -605,14 +596,14 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
 
             /* Update end time if auction is already in progress and within
              * time extension window */
-            _auctions[collateralHash].endTime = endTime;
+            _auctions[collateralToken][collateralTokenId].endTime = endTime;
 
             /* Emit AuctionExtended */
             emit AuctionExtended(auction_.liquidationHash, collateralToken, collateralTokenId, endTime);
         }
 
         /* Update auction with new bid */
-        _auctions[collateralHash].highestBid = Bid({bidder: msg.sender, amount: amount});
+        _auctions[collateralToken][collateralTokenId].highestBid = Bid({bidder: msg.sender, amount: amount});
 
         /* If not first bidder */
         if (auction_.highestBid.bidder != address(0)) {
@@ -642,11 +633,8 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         uint256 collateralTokenId,
         bytes calldata liquidationContext
     ) external nonReentrant {
-        /* Compute collateral hash */
-        bytes32 collateralHash = _collateralHash(collateralToken, collateralTokenId);
-
         /* Get auction */
-        Auction memory auction_ = _auctions[collateralHash];
+        Auction memory auction_ = _auctions[collateralToken][collateralTokenId];
 
         /* Validate that auction exists */
         if (auction_.liquidationHash == bytes32(0)) revert InvalidAuction();
@@ -661,7 +649,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         _processLiquidation(auction_, liquidationContext);
 
         /* Delete auction */
-        delete _auctions[collateralHash];
+        delete _auctions[collateralToken][collateralTokenId];
 
         /* Transfer collateral from contract to auction winner */
         IERC721(collateralToken).transferFrom(address(this), auction_.highestBid.bidder, collateralTokenId);
