@@ -19,8 +19,8 @@ dataSources:
           file: ../artifacts/contracts/PoolFactory.sol/PoolFactory.json
         - name: Pool
           file: ../artifacts/contracts/Pool.sol/Pool.json
-        - name: CollectionCollateralFilter
-          file: ../artifacts/contracts/filters/CollectionCollateralFilter.sol/CollectionCollateralFilter.json
+        - name: RangedCollectionCollateralFilter
+          file: ../artifacts/contracts/filters/RangedCollectionCollateralFilter.sol/RangedCollectionCollateralFilter.json
         - name: ERC721
           file: ../artifacts/@openzeppelin/contracts/token/ERC721/ERC721.sol/ERC721.json
       eventHandlers:

@@ -39,7 +39,10 @@ type Pool @entity {
 ################################################################################
 
 type CollateralToken @entity {
-  id: ID! # address
+  id: ID!
+  address: Bytes!
+  startTokenId: BigInt # uint256
+  endTokenId: BigInt # uint256
   name: String!
   totalValueLocked: BigInt! # uint256
   totalValueAvailable: BigInt # uint256

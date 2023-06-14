@@ -1,9 +1,11 @@
 import { BigInt, Bytes } from "@graphprotocol/graph-ts";
 import { ERC721 } from "../generated/PoolFactory/ERC721";
-
-import { CollectionCollateralFilter as CollectionCollateralFilterContract } from "../generated/PoolFactory/CollectionCollateralFilter";
 import { Pool as PoolContract } from "../generated/PoolFactory/Pool";
 import { PoolCreated as PoolCreatedEvent } from "../generated/PoolFactory/PoolFactory";
+import {
+  RangedCollectionCollateralFilter as RangedCollectionCollateralFilterContract,
+  RangedCollectionCollateralFilter__collateralTokenIdRangeResult,
+} from "../generated/PoolFactory/RangedCollectionCollateralFilter";
 import { CollateralToken as CollateralTokenEntity, Pool as PoolEntity } from "../generated/schema";
 import { Pool as PoolTemplate } from "../generated/templates";
 
@@ -11,9 +13,20 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   const poolAddress = event.params.pool;
   const poolId = poolAddress.toHexString();
   const poolContract = PoolContract.bind(poolAddress);
-  const collectionCollateralFilterContract = CollectionCollateralFilterContract.bind(poolAddress);
-  const collateralTokenAddress = collectionCollateralFilterContract.collateralToken();
-  const collateralTokenId = collateralTokenAddress.toHexString();
+
+  const collateralFilterName = poolContract.COLLATERAL_FILTER_NAME();
+  const collateralTokenAddress = poolContract.collateralToken();
+
+  let collateralTokenEntityId: string;
+  let range: RangedCollectionCollateralFilter__collateralTokenIdRangeResult | null;
+  if (collateralFilterName == "CollectionCollateralFilter") {
+    collateralTokenEntityId = collateralTokenAddress.toHexString();
+    range = null;
+  } else {
+    const rangedCollectionCollateralFilterContract = RangedCollectionCollateralFilterContract.bind(poolAddress);
+    range = rangedCollectionCollateralFilterContract.collateralTokenIdRange();
+    collateralTokenEntityId = `${collateralTokenAddress.toHexString()}:${range.value0}:${range.value1}`;
+  }
 
   /**************************************************************************/
   /* Create Pool entity*/
@@ -21,7 +34,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   const poolEntity = new PoolEntity(poolId);
   // Properties
   poolEntity.deploymentHash = event.params.deploymentHash;
-  poolEntity.collateralToken = collateralTokenId;
+  poolEntity.collateralToken = collateralTokenEntityId;
   poolEntity.collateralWrappers = poolContract.collateralWrappers().map<Bytes>((x) => x);
   poolEntity.currencyToken = poolContract.currencyToken();
   poolEntity.durations = poolContract.durations();
@@ -49,7 +62,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   /**************************************************************************/
   /* Create or update CollateralToken entity*/
   /**************************************************************************/
-  let collateralTokenEntity = CollateralTokenEntity.load(collateralTokenId);
+  let collateralTokenEntity = CollateralTokenEntity.load(collateralTokenEntityId);
   if (collateralTokenEntity) {
     /* Update collateral token entity if it exists */
     const poolIds = collateralTokenEntity.poolIds;
@@ -60,7 +73,12 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
     }
   } else {
     /* Create collateral token entity if it doesn't exists */
-    collateralTokenEntity = new CollateralTokenEntity(collateralTokenId);
+    collateralTokenEntity = new CollateralTokenEntity(collateralTokenEntityId);
+    collateralTokenEntity.address = collateralTokenAddress;
+    if (range) {
+      collateralTokenEntity.startTokenId = range.value0;
+      collateralTokenEntity.endTokenId = range.value1;
+    }
     collateralTokenEntity.poolIds = [poolId];
     collateralTokenEntity.totalValueLocked = BigInt.zero();
     collateralTokenEntity.totalValueUsed = BigInt.zero();
