@@ -53,16 +53,16 @@ async function main() {
   const poolFactory = await ethers.getContractAt("PoolFactory", poolFactoryProxy.address);
   console.log("PoolFactory: ", poolFactory.address);
   /**************************************************************************/
-  /* Pool implementation */
+  /* Pool implementations */
   /**************************************************************************/
   /* Deploy Test Delegation Registry */
   const TestDelegationRegistry = await ethers.getContractFactory("TestDelegationRegistry", accounts[9]);
   const testDelegationRegistry = await TestDelegationRegistry.deploy();
   await testDelegationRegistry.deployed();
   console.log("TestDelegationRegistry: ", testDelegationRegistry.address);
-  /* Deploy Pool Implementation */
-  const Pool = await ethers.getContractFactory("WeightedRateCollectionPool", accounts[9]);
-  const poolImpl = await Pool.deploy(
+  /* Deploy WeightedRateCollectionPool Implementation */
+  const WeightedRateCollectionPool = await ethers.getContractFactory("WeightedRateCollectionPool", accounts[9]);
+  const weightedRateCollectionPoolImpl = await WeightedRateCollectionPool.deploy(
     englishAuctionCollateralLiquidatorProxy.address,
     testDelegationRegistry.address,
     [bundleCollateralWrapper.address],
@@ -71,15 +71,38 @@ async function main() {
       tickExponential: FixedPoint.from("1.5"),
     }
   );
-  await poolImpl.deployed();
-  console.log("Pool Implementation: ", poolImpl.address);
+  await weightedRateCollectionPoolImpl.deployed();
+  console.log("WeightedRateCollectionPool Implementation: ", weightedRateCollectionPoolImpl.address);
+  /* Deploy WeightedRateRangedCollectionPool Implementation */
+  const WeightedRateRangedCollectionPool = await ethers.getContractFactory(
+    "WeightedRateRangedCollectionPool",
+    accounts[9]
+  );
+  const weightedRateRangedCollectionPoolImpl = await WeightedRateRangedCollectionPool.deploy(
+    englishAuctionCollateralLiquidatorProxy.address,
+    testDelegationRegistry.address,
+    [bundleCollateralWrapper.address],
+    {
+      tickThreshold: FixedPoint.from("0.05"),
+      tickExponential: FixedPoint.from("1.5"),
+    }
+  );
+  await weightedRateRangedCollectionPoolImpl.deployed();
+  console.log("WeightedRateRangedCollectionPool Implementation: ", weightedRateRangedCollectionPoolImpl.address);
   /**************************************************************************/
-  /* BeaconProxy */
+  /* Pool beacons */
   /**************************************************************************/
   const UpgradeableBeacon = await ethers.getContractFactory("UpgradeableBeacon");
-  const poolBeacon = await UpgradeableBeacon.deploy(poolImpl.address);
-  await poolBeacon.deployed();
-  console.log("Pool Beacon: ", poolBeacon.address);
+
+  const weightedRateCollectionPoolBeacon = await UpgradeableBeacon.deploy(weightedRateCollectionPoolImpl.address);
+  await weightedRateCollectionPoolBeacon.deployed();
+  console.log("WeightedRateCollectionPool Beacon: ", weightedRateCollectionPoolBeacon.address);
+
+  const weightedRateRangedCollectionPoolBeacon = await UpgradeableBeacon.deploy(
+    weightedRateRangedCollectionPoolImpl.address
+  );
+  await weightedRateRangedCollectionPoolBeacon.deployed();
+  console.log("WeightedRateRangedCollectionPool Beacon: ", weightedRateRangedCollectionPoolBeacon.address);
   /**************************************************************************/
   /* Currency token */
   /**************************************************************************/
@@ -124,7 +147,7 @@ async function main() {
         [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
       ]
     );
-    const createPoolTx = await poolFactory.createProxied(poolBeacon.address, params);
+    const createPoolTx = await poolFactory.createProxied(weightedRateCollectionPoolBeacon.address, params);
     const poolAddress = (await extractEvent(createPoolTx, poolFactory, "PoolCreated")).args.pool;
     const poolContract = Pool__factory.connect(poolAddress, accounts[0]);
     const erc20Contract = ERC20__factory.connect(wethTokenContract.address, accounts[0]);
@@ -216,7 +239,11 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main()
+  .then(() => {
+    console.log("Deploy simulation succeeded");
+  })
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
