@@ -53,11 +53,6 @@ library LiquidityManager {
      */
     error InsufficientTickSpacing();
 
-    /**
-     * @notice Invalid tick ordering
-     */
-    error InvalidTickOrdering();
-
     /**************************************************************************/
     /* Structures */
     /**************************************************************************/
