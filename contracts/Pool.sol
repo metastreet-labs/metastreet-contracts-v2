@@ -273,6 +273,12 @@ abstract contract Pool is
     /**************************************************************************/
 
     /**
+     * @notice Get implementation name
+     * @return Implementation name
+     */
+    function IMPLEMENTATION_NAME() external pure virtual returns (string memory);
+
+    /**
      * @inheritdoc IPool
      */
     function currencyToken() external view returns (address) {

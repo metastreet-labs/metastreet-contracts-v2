@@ -59,4 +59,15 @@ contract WeightedRateCollectionPool is Pool, WeightedInterestRateModel, Collecti
         /* Initialize Collateral Filter */
         CollectionCollateralFilter._initialize(collateralToken_);
     }
+
+    /**************************************************************************/
+    /* Name */
+    /**************************************************************************/
+
+    /**
+     * @inheritdoc Pool
+     */
+    function IMPLEMENTATION_NAME() external pure override returns (string memory) {
+        return "WeightedRateCollectionPool";
+    }
 }
