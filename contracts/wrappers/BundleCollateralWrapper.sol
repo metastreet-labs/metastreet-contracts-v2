@@ -196,9 +196,10 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard 
         _burn(tokenId);
 
         /* Transfer assets back to owner of token */
+        uint256 offset = 20;
         for (uint256 i; i < count; i++) {
-            uint256 offset = 20 + i * 32;
             IERC721(token).transferFrom(address(this), msg.sender, uint256(bytes32(context[offset:offset + 32])));
+            offset += 32;
         }
 
         emit BundleUnwrapped(tokenId, msg.sender);
