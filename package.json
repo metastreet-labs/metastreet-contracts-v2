@@ -10,6 +10,7 @@
     "test:coverage": "hardhat coverage",
     "lint": "solhint 'contracts/**/*.sol' && eslint .",
     "format": "prettier --write .",
+    "size": "hardhat size-contracts",
     "analyze": "slither --filter-paths 'node_modules|contracts/test' .",
     "deployment-manager": "ts-node --files scripts/deployment-manager.ts",
     "node": "hardhat node"
@@ -32,6 +33,7 @@
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-promise": "^6.1.1",
     "hardhat": "^2.14.0",
+    "hardhat-contract-sizer": "^2.10.0",
     "hardhat-tracer": "^2.2.2",
     "prettier": "^2.8.1",
     "prettier-plugin-solidity": "^1.1.1",
