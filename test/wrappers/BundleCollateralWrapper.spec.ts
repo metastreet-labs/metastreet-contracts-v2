@@ -202,7 +202,7 @@ describe("BundleCollateralWrapper", function () {
       await expect(
         bundleCollateralWrapper.connect(accountBorrower).mint(
           nft1.address,
-          Array.from({ length: 17 }, (_, n) => n + 222) // 222 to 238 (17 token ids in total)
+          Array.from({ length: 33 }, (_, n) => n + 222) // 222 to 255 (33 token ids in total)
         )
       ).to.be.revertedWithCustomError(bundleCollateralWrapper, "InvalidSize");
     });
