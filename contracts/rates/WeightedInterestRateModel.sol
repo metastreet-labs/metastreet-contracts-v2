@@ -21,12 +21,12 @@ contract WeightedInterestRateModel is InterestRateModel {
     /**
      * @notice Interest rate model name
      */
-    string public constant INTEREST_RATE_MODEL_NAME = "WeightedInterestRateModel";
+    string public constant override INTEREST_RATE_MODEL_NAME = "WeightedInterestRateModel";
 
     /**
      * @notice Interest rate model version
      */
-    string public constant INTEREST_RATE_MODEL_VERSION = "1.0";
+    string public constant override INTEREST_RATE_MODEL_VERSION = "1.0";
 
     /**
      * @notice Fixed point scale
