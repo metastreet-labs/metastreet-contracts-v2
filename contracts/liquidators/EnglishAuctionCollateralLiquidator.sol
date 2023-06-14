@@ -44,11 +44,6 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
     error InvalidParameters();
 
     /**
-     * @notice Invalid caller
-     */
-    error InvalidCaller();
-
-    /**
      * @notice Invalid token
      */
     error InvalidToken();
