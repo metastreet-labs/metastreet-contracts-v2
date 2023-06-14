@@ -175,7 +175,9 @@ describe("Pool Basic", function () {
     });
     it("returns expected collateral wrappers", async function () {
       const collateralWrappers = await pool.collateralWrappers();
-      expect(collateralWrappers.length).to.equal(0);
+      expect(collateralWrappers[0]).to.equal(ethers.constants.AddressZero);
+      expect(collateralWrappers[1]).to.equal(ethers.constants.AddressZero);
+      expect(collateralWrappers[2]).to.equal(ethers.constants.AddressZero);
     });
     it("returns expected collateral liquidator", async function () {
       expect(await pool.collateralLiquidator()).to.equal(collateralLiquidator.address);

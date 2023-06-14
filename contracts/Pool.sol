@@ -317,14 +317,10 @@ abstract contract Pool is
      * @inheritdoc IPool
      */
     function collateralWrappers() external view returns (address[] memory) {
-        uint256 count;
-        if (_collateralWrapper3 != address(0)) count = 3;
-        else if (_collateralWrapper2 != address(0)) count = 2;
-        else if (_collateralWrapper1 != address(0)) count = 1;
-        address[] memory collateralWrappers_ = new address[](count);
-        if (count > 0) collateralWrappers_[0] = _collateralWrapper1;
-        if (count > 1) collateralWrappers_[1] = _collateralWrapper2;
-        if (count > 2) collateralWrappers_[2] = _collateralWrapper3;
+        address[] memory collateralWrappers_ = new address[](3);
+        collateralWrappers_[0] = _collateralWrapper1;
+        collateralWrappers_[1] = _collateralWrapper2;
+        collateralWrappers_[2] = _collateralWrapper3;
         return collateralWrappers_;
     }
 

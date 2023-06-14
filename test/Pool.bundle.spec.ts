@@ -188,8 +188,9 @@ describe("Pool Bundle", function () {
     });
     it("returns expected collateral wrappers", async function () {
       const collateralWrappers = await pool.collateralWrappers();
-      expect(collateralWrappers.length).to.equal(1);
       expect(collateralWrappers[0]).to.equal(bundleCollateralWrapper.address);
+      expect(collateralWrappers[1]).to.equal(ethers.constants.AddressZero);
+      expect(collateralWrappers[2]).to.equal(ethers.constants.AddressZero);
     });
     it("returns expected collateral liquidator", async function () {
       expect(await pool.collateralLiquidator()).to.equal(collateralLiquidator.address);
