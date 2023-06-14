@@ -315,7 +315,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      * @param liquidationHash Liquidation hash
      * @return Liquidation Liquidation details
      */
-    function liquidation(bytes32 liquidationHash) external view returns (Liquidation memory) {
+    function liquidations(bytes32 liquidationHash) external view returns (Liquidation memory) {
         return _liquidations[liquidationHash];
     }
 
@@ -325,7 +325,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      * @param collateralTokenId Collateral token ID
      * @return Auction Auction details
      */
-    function auction(address collateralToken, uint256 collateralTokenId) external view returns (Auction memory) {
+    function auctions(address collateralToken, uint256 collateralTokenId) external view returns (Auction memory) {
         /* Compute collateral hash */
         bytes32 collateralHash = _collateralHash(collateralToken, collateralTokenId);
 
