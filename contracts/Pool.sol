@@ -49,11 +49,6 @@ abstract contract Pool is
     /**************************************************************************/
 
     /**
-     * @notice Implementation version
-     */
-    string public constant IMPLEMENTATION_VERSION = "1.0";
-
-    /**
      * @notice Tick spacing basis points
      */
     uint256 public constant TICK_LIMIT_SPACING_BASIS_POINTS = LiquidityManager.TICK_LIMIT_SPACING_BASIS_POINTS;
@@ -277,6 +272,14 @@ abstract contract Pool is
      * @return Implementation name
      */
     function IMPLEMENTATION_NAME() external pure virtual returns (string memory);
+
+    /**
+     * @notice Get implementation version
+     * @return Implementation version
+     */
+    function IMPLEMENTATION_VERSION() external pure returns (string memory) {
+        return "1.0";
+    }
 
     /**
      * @inheritdoc IPool
