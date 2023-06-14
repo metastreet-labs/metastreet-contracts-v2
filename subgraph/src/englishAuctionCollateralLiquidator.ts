@@ -1,10 +1,11 @@
-import { BigInt, Bytes, store } from "@graphprotocol/graph-ts";
+import { BigInt, Bytes, dataSource, store } from "@graphprotocol/graph-ts";
 import {
   AuctionBid as AuctionBidEvent,
   AuctionCreated as AuctionCreatedEvent,
   AuctionEnded as AuctionEndedEvent,
   AuctionExtended as AuctionExtendedEvent,
   AuctionStarted as AuctionStartedEvent,
+  EnglishAuctionCollateralLiquidator,
 } from "../generated/EnglishAuctionCollateralLiquidator/EnglishAuctionCollateralLiquidator";
 import {
   Auction as AuctionEntity,
@@ -37,7 +38,10 @@ export function handleAuctionCreated(event: AuctionCreatedEvent): void {
   if (!auctionEntity) {
     auctionEntity = new AuctionEntity(auctionEntityId);
 
-    auctionEntity.liquidationSource = event.params.liquidationSource;
+    const englishAuctionCollateralLiquidator = EnglishAuctionCollateralLiquidator.bind(dataSource.address());
+    const liquidation = englishAuctionCollateralLiquidator.liquidations(event.params.liquidationHash);
+    auctionEntity.liquidationSource = liquidation.source;
+
     auctionEntity.liquidationHash = event.params.liquidationHash;
     auctionEntity.collateralToken = event.params.collateralToken.toHexString();
     auctionEntity.collateralTokenId = event.params.collateralTokenId;
@@ -45,7 +49,7 @@ export function handleAuctionCreated(event: AuctionCreatedEvent): void {
     auctionEntity.bidsCount = 0;
     auctionEntity.bidIds = [];
 
-    const pool = PoolEntity.load(event.params.liquidationSource.toHexString());
+    const pool = PoolEntity.load(liquidation.source.toHexString());
     if (pool) auctionEntity.liquidationSourceDeploymentHash = pool.deploymentHash;
 
     auctionEntity.save();

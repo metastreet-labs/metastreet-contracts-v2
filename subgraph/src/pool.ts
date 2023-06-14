@@ -478,15 +478,14 @@ export function handleLoanLiquidated(event: LoanLiquidatedEvent): void {
 
   const transactionReceipt = event.receipt;
   if (transactionReceipt) {
-    const AUCTION_CREATED_TOPIC = "0x027e2a5d75bef0fc7327decdfa80cdade5ef4a4f2fcad5fdd62984abe6801f52";
+    const AUCTION_CREATED_TOPIC = "0x15271099786b82529b8cdd3fb785da93c0460a55d76f84d4c6dbce07f11c70e8";
     for (let i = 0; i < transactionReceipt.logs.length; i++) {
       const receiptLog = transactionReceipt.logs[i];
       if (receiptLog.topics[0].toHexString() == AUCTION_CREATED_TOPIC) {
         let encodedLogData = Bytes.fromHexString("0x");
         for (let i = 1; i < receiptLog.topics.length; i++) encodedLogData = encodedLogData.concat(receiptLog.topics[i]);
-        encodedLogData = encodedLogData.concat(receiptLog.data);
 
-        const decodedLogData = ethereum.decode("(bytes32,address,uint256,address)", encodedLogData);
+        const decodedLogData = ethereum.decode("(bytes32,address,uint256)", encodedLogData);
 
         if (decodedLogData) {
           const logParams = decodedLogData.toTuple();
@@ -510,10 +509,6 @@ export function handleLoanLiquidated(event: LoanLiquidatedEvent): void {
               new ethereum.EventParam(
                 "collateralTokenId",
                 new ethereum.Value(ethereum.ValueKind.UINT, changetype<u32>(logParams.at(2).toBigInt()))
-              ),
-              new ethereum.EventParam(
-                "liquidationSource",
-                new ethereum.Value(ethereum.ValueKind.ADDRESS, changetype<u32>(logParams.at(3).toAddress()))
               ),
             ],
             event.receipt
