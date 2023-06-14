@@ -21,18 +21,18 @@ async function main() {
     "EnglishAuctionCollateralLiquidator",
     accounts[9]
   );
-  const englishAuctionCollateralLiquidatorImpl = await EnglishAuctionCollateralLiquidator.deploy();
+  const englishAuctionCollateralLiquidatorImpl = await EnglishAuctionCollateralLiquidator.deploy([
+    bundleCollateralWrapper.address,
+  ]);
   /* Deploy English Auction Collateral Liquidator (Proxied) */
   const TestProxy = await ethers.getContractFactory("TestProxy", accounts[9]);
   const englishAuctionCollateralLiquidatorProxy = await TestProxy.deploy(
     englishAuctionCollateralLiquidatorImpl.address,
     englishAuctionCollateralLiquidatorImpl.interface.encodeFunctionData("initialize", [
-      accounts[9].address,
       ethers.BigNumber.from(60 * 2),
       ethers.BigNumber.from(60),
       ethers.BigNumber.from(60 + 1),
       ethers.BigNumber.from(199),
-      [bundleCollateralWrapper.address],
     ])
   );
   console.log("EnglishAuctionCollateralLiquidator: ", englishAuctionCollateralLiquidatorProxy.address);
@@ -62,7 +62,15 @@ async function main() {
   console.log("TestDelegationRegistry: ", testDelegationRegistry.address);
   /* Deploy Pool Implementation */
   const Pool = await ethers.getContractFactory("WeightedRateCollectionPool", accounts[9]);
-  const poolImpl = await Pool.deploy(testDelegationRegistry.address, [bundleCollateralWrapper.address]);
+  const poolImpl = await Pool.deploy(
+    englishAuctionCollateralLiquidatorProxy.address,
+    testDelegationRegistry.address,
+    [bundleCollateralWrapper.address],
+    {
+      tickThreshold: FixedPoint.from("0.05"),
+      tickExponential: FixedPoint.from("1.5"),
+    }
+  );
   await poolImpl.deployed();
   console.log("Pool Implementation: ", poolImpl.address);
   /**************************************************************************/
@@ -108,20 +116,15 @@ async function main() {
   const poolsTicks: Record<string, BigNumber[]> = {};
   for (let i = 0; i < collateralTokens.length; i++) {
     const params = ethers.utils.defaultAbiCoder.encode(
-      ["address", "address", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+      ["address", "address", "uint64[]", "uint64[]"],
       [
         collateralTokens[i],
         wethTokenContract.address,
         [7 * 86400, 14 * 86400, 30 * 86400],
         [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
-        [FixedPoint.from("0.05"), FixedPoint.from("2.0")],
       ]
     );
-    const createPoolTx = await poolFactory.createProxied(
-      poolBeacon.address,
-      params,
-      englishAuctionCollateralLiquidatorProxy.address
-    );
+    const createPoolTx = await poolFactory.createProxied(poolBeacon.address, params);
     const poolAddress = (await extractEvent(createPoolTx, poolFactory, "PoolCreated")).args.pool;
     const poolContract = Pool__factory.connect(poolAddress, accounts[0]);
     const erc20Contract = ERC20__factory.connect(wethTokenContract.address, accounts[0]);
@@ -133,7 +136,7 @@ async function main() {
     const ticks: BigNumber[] = [];
     for (let k = 0; k < 3; k++) {
       const tick = Tick.encode(ethers.utils.parseEther(`${depth}`));
-      await poolContract.deposit(tick, ethers.utils.parseEther(`${maxBorrow * depth}`));
+      await poolContract.deposit(tick, ethers.utils.parseEther(`${maxBorrow * depth}`), 0);
       ticks.push(tick);
       depth *= 1.26;
     }
