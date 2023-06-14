@@ -73,25 +73,17 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
     /**************************************************************************/
 
     /**
-     * @notice Bid
-     * @param bidder Bidder offering the amount
-     * @param amount Amount of tokens offered
-     */
-    struct Bid {
-        address bidder;
-        uint256 amount;
-    }
-
-    /**
      * @notice Auction
      * @param liquidationHash Liquidation hash
      * @param endTime Auction end time
+     * @param highestBidder Highest bidder
      * @param highestBid Highest bid
      */
     struct Auction {
         bytes32 liquidationHash;
         uint64 endTime;
-        Bid highestBid;
+        address highestBidder;
+        uint256 highestBid;
     }
 
     /**
@@ -410,7 +402,8 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         _auctions[collateralToken][collateralTokenId] = Auction({
             liquidationHash: liquidationHash,
             endTime: 0,
-            highestBid: Bid(address(0), 0)
+            highestBidder: address(0),
+            highestBid: 0
         });
 
         /* Emit AuctionCreated */
@@ -438,7 +431,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         /* Liquidate if all auctions for the liquidation are completed */
         if (liquidation_.auctionCount - 1 == 0) {
             /* Compute total proceeds */
-            uint256 proceeds = liquidation_.proceeds + auction_.highestBid.amount;
+            uint256 proceeds = liquidation_.proceeds + auction_.highestBid;
 
             /* Transfer proceeds from this contract to source */
             IERC20(liquidation_.currencyToken).safeTransfer(liquidation_.source, proceeds);
@@ -456,7 +449,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
             emit LiquidationEnded(auction_.liquidationHash, proceeds);
         } else {
             /* Update liquidation proceeds */
-            _liquidations[auction_.liquidationHash].proceeds += auction_.highestBid.amount;
+            _liquidations[auction_.liquidationHash].proceeds += auction_.highestBid;
 
             /* Update liquidation active auctions */
             _liquidations[auction_.liquidationHash].auctionCount -= 1;
@@ -575,9 +568,8 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
 
         /* Validate bid amount is bigger than the minimum bid amount */
         if (
-            amount <= auction_.highestBid.amount ||
-            amount - auction_.highestBid.amount <
-            (auction_.highestBid.amount * _minimumBidBasisPoints) / BASIS_POINTS_SCALE
+            amount <= auction_.highestBid ||
+            amount - auction_.highestBid < (auction_.highestBid * _minimumBidBasisPoints) / BASIS_POINTS_SCALE
         ) revert InvalidBid();
 
         /* If auction has not started */
@@ -603,12 +595,13 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         }
 
         /* Update auction with new bid */
-        _auctions[collateralToken][collateralTokenId].highestBid = Bid({bidder: msg.sender, amount: amount});
+        _auctions[collateralToken][collateralTokenId].highestBidder = msg.sender;
+        _auctions[collateralToken][collateralTokenId].highestBid = amount;
 
         /* If not first bidder */
-        if (auction_.highestBid.bidder != address(0)) {
+        if (auction_.highestBidder != address(0)) {
             /* Transfer previous bid back from collateral liquidator to previous bidder */
-            IERC20(liquidation_.currencyToken).transfer(auction_.highestBid.bidder, auction_.highestBid.amount);
+            IERC20(liquidation_.currencyToken).transfer(auction_.highestBidder, auction_.highestBid);
         }
 
         /* Transfer bid amount from bidder to collateral liquidator */
@@ -640,7 +633,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         if (auction_.liquidationHash == bytes32(0)) revert InvalidAuction();
 
         /* Validate that auction was started */
-        if (auction_.highestBid.bidder == address(0)) revert InvalidClaim();
+        if (auction_.highestBidder == address(0)) revert InvalidClaim();
 
         /* Validate that auction has ended */
         if (uint64(block.timestamp) <= auction_.endTime) revert InvalidClaim();
@@ -652,15 +645,15 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         delete _auctions[collateralToken][collateralTokenId];
 
         /* Transfer collateral from contract to auction winner */
-        IERC721(collateralToken).transferFrom(address(this), auction_.highestBid.bidder, collateralTokenId);
+        IERC721(collateralToken).transferFrom(address(this), auction_.highestBidder, collateralTokenId);
 
         /* Emit AuctionEnded */
         emit AuctionEnded(
             auction_.liquidationHash,
             collateralToken,
             collateralTokenId,
-            auction_.highestBid.bidder,
-            auction_.highestBid.amount
+            auction_.highestBidder,
+            auction_.highestBid
         );
     }
 }

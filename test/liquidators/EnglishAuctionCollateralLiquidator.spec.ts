@@ -301,8 +301,8 @@ describe("EnglishAuctionCollateralLiquidator", function () {
 
       const auction = await collateralLiquidator.auctions(nft1.address, 122);
       await expect(auction.endTime).to.equal(0);
-      await expect(auction.highestBid.amount).to.equal(0);
-      await expect(auction.highestBid.bidder).to.equal(ethers.constants.AddressZero);
+      await expect(auction.highestBid).to.equal(0);
+      await expect(auction.highestBidder).to.equal(ethers.constants.AddressZero);
     });
 
     it("succeeds starting an auction on bundled collateral", async function () {
@@ -352,8 +352,8 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       for (const [index, tokenId] of tokenIds.entries()) {
         const auction = await collateralLiquidator.auctions(nft1.address, tokenId);
         await expect(auction.endTime).to.equal(0);
-        await expect(auction.highestBid.amount).to.equal(0);
-        await expect(auction.highestBid.bidder).to.equal(ethers.constants.AddressZero);
+        await expect(auction.highestBid).to.equal(0);
+        await expect(auction.highestBidder).to.equal(ethers.constants.AddressZero);
       }
     });
 
@@ -402,8 +402,8 @@ describe("EnglishAuctionCollateralLiquidator", function () {
 
       const auction = await collateralLiquidator.auctions(bundleCollateralWrapperFake.address, bundleTokenIdFake);
       await expect(auction.endTime).to.equal(0);
-      await expect(auction.highestBid.amount).to.equal(0);
-      await expect(auction.highestBid.bidder).to.equal(ethers.constants.AddressZero);
+      await expect(auction.highestBid).to.equal(0);
+      await expect(auction.highestBidder).to.equal(ethers.constants.AddressZero);
     });
 
     it("fails if there exists the same liquidation hash", async function () {
@@ -482,8 +482,8 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       /* Validate state */
       let auction = await collateralLiquidator.auctions(nft1.address, 122);
       await expect(auction.endTime).to.equal(transactionTime + 86400);
-      await expect(auction.highestBid.amount).to.equal(ethers.utils.parseEther("100"));
-      await expect(auction.highestBid.bidder).to.equal(accountBidder1.address);
+      await expect(auction.highestBid).to.equal(ethers.utils.parseEther("100"));
+      await expect(auction.highestBidder).to.equal(accountBidder1.address);
 
       /* Bid with accountBidder2 */
       const bid2Tx = await collateralLiquidator
@@ -520,8 +520,8 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       /* Validate state */
       auction = await collateralLiquidator.auctions(nft1.address, 122);
       await expect(auction.endTime).to.equal(transactionTime + 86400);
-      await expect(auction.highestBid.amount).to.equal(ethers.utils.parseEther("102"));
-      await expect(auction.highestBid.bidder).to.equal(accountBidder2.address);
+      await expect(auction.highestBid).to.equal(ethers.utils.parseEther("102"));
+      await expect(auction.highestBidder).to.equal(accountBidder2.address);
 
       /* Bid with accountBidder1 */
       const bid3Tx = await collateralLiquidator
@@ -558,8 +558,8 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       /* Validate state */
       auction = await collateralLiquidator.auctions(nft1.address, 122);
       await expect(auction.endTime).to.equal(transactionTime + 86400);
-      await expect(auction.highestBid.amount).to.equal(ethers.utils.parseEther("105"));
-      await expect(auction.highestBid.bidder).to.equal(accountBidder1.address);
+      await expect(auction.highestBid).to.equal(ethers.utils.parseEther("105"));
+      await expect(auction.highestBidder).to.equal(accountBidder1.address);
     });
 
     it("extends time on an auction within 10 minutes of end time", async function () {
