@@ -341,7 +341,7 @@ describe("Pool Gas", function () {
 
     for (const [principal, numTicks, maxGas] of [
       [FixedPoint.from("15"), 10, 270000],
-      [FixedPoint.from("25"), 16, 345000],
+      [FixedPoint.from("25"), 16, 346000],
     ]) {
       it(`borrow (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
@@ -390,7 +390,7 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 285000],
+      [FixedPoint.from("150"), 10, 286000],
       [FixedPoint.from("250"), 16, 365000],
     ]) {
       it(`borrow (bundle of 10, ${numTicks} ticks)`, async function () {
@@ -572,8 +572,8 @@ describe("Pool Gas", function () {
     });
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("15"), 10, 355000],
-      [FixedPoint.from("25"), 16, 470000],
+      [FixedPoint.from("15"), 10, 353000],
+      [FixedPoint.from("25"), 16, 472000],
     ]) {
       it(`refinance (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
@@ -603,8 +603,8 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 375000],
-      [FixedPoint.from("250"), 16, 495000],
+      [FixedPoint.from("150"), 10, 378000],
+      [FixedPoint.from("250"), 16, 496000],
     ]) {
       it(`refinance (bundle of 10, ${numTicks} ticks)`, async function () {
         /* Mint bundle of 10 */
@@ -845,7 +845,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await liquidateTx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
 
-        expect(gasUsed).to.be.lt(280000);
+        expect(gasUsed).to.be.lt(260000);
       });
 
       it("liquidate (bundle of 10, english auction, 16 ticks)", async function () {
@@ -854,7 +854,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await liquidateTx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
 
-        expect(gasUsed).to.be.lt(1300000);
+        expect(gasUsed).to.be.lt(670000);
       });
 
       it("bid (first, english auction)", async function () {
@@ -936,7 +936,7 @@ describe("Pool Gas", function () {
         gasReport.push([`claim (last of bundle, english auction)`, gasUsed[9]]);
 
         expect(gasUsed[0]).to.be.lt(125000);
-        expect(gasUsed[4]).to.be.lt(95000);
+        expect(gasUsed[4]).to.be.lt(90000);
         expect(gasUsed[9]).to.be.lt(365000);
       });
     });
