@@ -24,7 +24,7 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard 
     /**
      * @notice Maximum bundle size
      */
-    uint256 internal constant MAX_BUNDLE_SIZE = 16;
+    uint256 internal constant MAX_BUNDLE_SIZE = 32;
 
     /**************************************************************************/
     /* Errors */
