@@ -19,16 +19,6 @@ contract WeightedInterestRateModel is InterestRateModel {
     /**************************************************************************/
 
     /**
-     * @notice Interest rate model name
-     */
-    string public constant override INTEREST_RATE_MODEL_NAME = "WeightedInterestRateModel";
-
-    /**
-     * @notice Interest rate model version
-     */
-    string public constant override INTEREST_RATE_MODEL_VERSION = "1.0";
-
-    /**
      * @notice Fixed point scale
      */
     uint256 internal constant FIXED_POINT_SCALE = 1e18;
@@ -109,6 +99,20 @@ contract WeightedInterestRateModel is InterestRateModel {
     /**************************************************************************/
     /* Implementation */
     /**************************************************************************/
+
+    /**
+     * @inheritdoc InterestRateModel
+     */
+    function INTEREST_RATE_MODEL_NAME() external pure override returns (string memory) {
+        return "WeightedInterestRateModel";
+    }
+
+    /**
+     * @inheritdoc InterestRateModel
+     */
+    function INTEREST_RATE_MODEL_VERSION() external pure override returns (string memory) {
+        return "1.0";
+    }
 
     /**
      * @inheritdoc InterestRateModel
