@@ -9,20 +9,6 @@ import "../CollateralFilter.sol";
  */
 contract CollectionCollateralFilter is CollateralFilter {
     /**************************************************************************/
-    /* Constants */
-    /**************************************************************************/
-
-    /**
-     * @notice Collateral filter name
-     */
-    string public constant override COLLATERAL_FILTER_NAME = "CollectionCollateralFilter";
-
-    /**
-     * @notice Collateral filter version
-     */
-    string public constant override COLLATERAL_FILTER_VERSION = "1.0";
-
-    /**************************************************************************/
     /* State */
     /**************************************************************************/
 
@@ -43,8 +29,22 @@ contract CollectionCollateralFilter is CollateralFilter {
     }
 
     /**************************************************************************/
-    /* Getters */
+    /* Implementation */
     /**************************************************************************/
+
+    /**
+     * @inheritdoc CollateralFilter
+     */
+    function COLLATERAL_FILTER_NAME() external pure override returns (string memory) {
+        return "CollectionCollateralFilter";
+    }
+
+    /**
+     * @inheritdoc CollateralFilter
+     */
+    function COLLATERAL_FILTER_VERSION() external pure override returns (string memory) {
+        return "1.0";
+    }
 
     /**
      * @notice Get collateral token
@@ -53,10 +53,6 @@ contract CollectionCollateralFilter is CollateralFilter {
     function collateralToken() external view override returns (address) {
         return _token;
     }
-
-    /**************************************************************************/
-    /* Implementation */
-    /**************************************************************************/
 
     /**
      * @inheritdoc CollateralFilter
