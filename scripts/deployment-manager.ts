@@ -555,6 +555,8 @@ async function main() {
 
   /* Save deployment */
   deployment.toFile(deploymentPath);
+
+  process.exit();
 }
 
 main().catch((error) => {
