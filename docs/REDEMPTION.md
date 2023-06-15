@@ -8,9 +8,9 @@ It is the inverse operation of depositing.
 
 Redemptions occur instantly when sufficient cash is available. In this case,
 shares are converted to cash at the current tick price (`value / shares`) and
-made available for withdrawal to the user. When cash is unavailable, because it
-has been redeemed or is currently deployed into loans, redemptions are
-scheduled and fulfilled with future proceeds.
+made available for withdrawal to the user. When cash is unavailable because it
+is all currently deployed into loans, redemptions are scheduled and fulfilled
+with future proceeds.
 
 As loans are repaid or liquidated, the cash restored to a tick is used to first
 service any scheduled redemptions, then the remaining is made available for new
@@ -103,12 +103,12 @@ redemption queue at time of redemption formed by `redemptionIndex` and
 
 ### Scheduling
 
-Scheduling a redemption begins with the [`redeem()`](../contracts/Pool.sol#L1050) function, in which
+Scheduling a redemption begins with the [`redeem()`](../contracts/Pool.sol#L1045) function, in which
 a user specifies a number of shares to redeem from a tick. The function
-validates the user's state, and then calls [`redeem()`](../contracts/LiquidityManager.sol#L432) within the
+validates the user's state, and then calls [`redeem()`](../contracts/LiquidityManager.sol#L497) within the
 `LiquidityManager` to schedule the redemption within the tick.
 
-The underlying [`redeem()`](../contracts/LiquidityManager.sol#L432) function snapshots the node's current `redemption.index`
+The underlying [`redeem()`](../contracts/LiquidityManager.sol#L497) function snapshots the node's current `redemption.index`
 and `redemption.pending` state, and then advances `redemption.pending` by the
 number of shares to redeem. The queue snapshot is returned to the `Pool`, and
 stored in the `Deposit` state as `redemptionIndex` and `redemptionTarget`,
@@ -123,12 +123,12 @@ how many of the user's shares have been redeemed.
 
 ### Processing
 
-As loans are repaid or liquidated, [`restore()`](../contracts/LiquidityManager.sol#L401) in `LiquidityManager`
+As loans are repaid or liquidated, [`restore()`](../contracts/LiquidityManager.sol#L470) in `LiquidityManager`
 is called on the tick to update the tick's value and cash available with the
-repayment or incurred losses. This in turn calls [`processRedemptions()`](../contracts/LiquidityManager.sol#L465),
+repayment or incurred losses. This in turn calls [`_processRedemptions()`](../contracts/LiquidityManager.sol#L345),
 which is responsible for using the available cash to process redemptions.
 
-[`processRedemptions()`](../contracts/LiquidityManager.sol#L465) computes a current redemption price using the current
+[`_processRedemptions()`](../contracts/LiquidityManager.sol#L345) computes a current redemption price using the current
 `node.value` of the tick, and then determines the maximum number of shares it
 can redeem at this price from the available cash. The number of shares redeemed
 and the amount they are redeemed for are recorded in the fulfilled redemption
@@ -144,17 +144,17 @@ at a zero price for zero amount, and this is recorded in the fulfilled
 redemption queue.
 
 Deposits into a tick and redemptions from a tick also call
-[`processRedemptions()`](../contracts/LiquidityManager.sol#L465), to process redemptions from any available cash
+[`_processRedemptions()`](../contracts/LiquidityManager.sol#L345), to process redemptions from any available cash
 immediately.
 
 ### Tracking
 
 Users can track their redemption progress with the
-[`redemptionAvailable()`](../contracts/Pool.sol#L1081) getter in `Pool`, which in turn calls the
-[`redemptionAvailable()`](../contracts/LiquidityManager.sol#L191) helper in `LiquidityManager` with the user's
+[`redemptionAvailable()`](../contracts/Pool.sol#L1073) getter in `Pool`, which in turn calls the
+[`redemptionAvailable()`](../contracts/LiquidityManager.sol#L199) helper in `LiquidityManager` with the user's
 redemption pending shares and queue snapshot.
 
-[`redemptionAvailable()`](../contracts/LiquidityManager.sol#L191) scans the fulfilled redemption queue, starting at
+[`redemptionAvailable()`](../contracts/LiquidityManager.sol#L199) scans the fulfilled redemption queue, starting at
 the index in the user's snapshot, until the number of redeemed shares exceeds
 the target in the user's snapshot, indicating that the subsequent fulfilled
 redemptions are now in range of the user's redemption. From this point,
@@ -167,8 +167,8 @@ shares and amount.
 
 ### Withdrawing
 
-Users can withdraw their redeemed shares as cash with [`withdraw()`](../contracts/Pool.sol#L1094) in
-`Pool`, which uses the [`redemptionAvailable()`](../contracts/LiquidityManager.sol#L191) helper in `LiquidityManager` to
+Users can withdraw their redeemed shares as cash with [`withdraw()`](../contracts/Pool.sol#L1086) in
+`Pool`, which uses the [`redemptionAvailable()`](../contracts/LiquidityManager.sol#L199) helper in `LiquidityManager` to
 determine how many shares have been redeemed and for what amount.
 
 For a partial withdrawal, the user's `redemptionPending` is decremented and
@@ -177,12 +177,12 @@ effectively withdraws the head of the user's redemption that is ready, while
 leaving the rest to be fulfilled later. For a full withdrawal, the
 `redemptionPending`, `redemptionTarget`, and `redemptionIndex` state is simply
 reset to zero. Finally, the function transfers the amount determined by
-[`redemptionAvailable()`](../contracts/LiquidityManager.sol#L191) for the redeemed shares to the user in currency
+[`redemptionAvailable()`](../contracts/LiquidityManager.sol#L199) for the redeemed shares to the user in currency
 tokens.
 
-The user also has the option to use [`rebalance()`](../contracts/Pool.sol#L1133) to redeposit a
+The user also has the option to use [`rebalance()`](../contracts/Pool.sol#L1125) to redeposit a
 redeemed amount into another tick, instead of withdrawing it as currency
-tokens. This function behaves the same way as [`withdraw()`](../contracts/Pool.sol#L1094), but deposits the
+tokens. This function behaves the same way as [`withdraw()`](../contracts/Pool.sol#L1086), but deposits the
 redeemed amount in another tick instead of transferring currency tokens.
 
 ### Performance
@@ -194,5 +194,5 @@ keeping repay and liquidate gas costs low and predictable.
 Tracking and withdrawing redemptions for each user is linear time, due to the
 scanning of the fulfilled redemption queue to find the user's redemption.
 However, each entry in the fulfilled redemption queue is stored in a single
-slot, and a fulfilled redemption entry can span many user's shares with the
-proceeds of a repaid or liquidated loan.
+slot, and a fulfilled redemption entry can span many different user's shares
+with the proceeds of a repaid or liquidated loan.
