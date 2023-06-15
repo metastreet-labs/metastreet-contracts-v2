@@ -350,7 +350,7 @@ capital into a Pool with user-defined risk parameters.
 
 #### Deposit
 
-``` solidity
+```solidity
 function deposit(uint128 tick, uint256 amount) external;
 ```
 
@@ -374,7 +374,7 @@ with a loan limit within 10% of an existing tick loan limit.
 
 #### Redeem
 
-``` solidity
+```solidity
 function redeem(uint128 tick, uint256 shares) external;
 ```
 
@@ -395,7 +395,7 @@ The current cash available for a redemption can be determined with the
 
 #### Withdraw
 
-``` solidity
+```solidity
 function withdraw(uint128 tick) external returns (uint256 amount);
 ```
 
@@ -404,8 +404,11 @@ available.
 
 #### Rebalance
 
-``` solidity
-function rebalance(uint128 srcTick, uint128 dstTick) external returns (uint256 amount);
+```solidity
+function rebalance(
+  uint128 srcTick,
+  uint128 dstTick
+) external returns (uint256 amount);
 ```
 
 The [`rebalance()`](../contracts/Pool.sol#L1133) function deposits cash from a redemption that is
@@ -418,10 +421,15 @@ refinancing, and liquidating loans with the Pool.
 
 #### Quote
 
-``` solidity
-function quote(uint256 principal, uint64 duration, address collateralToken,
-               uint256[] calldata collateralTokenIds, uint128[] calldata ticks,
-               bytes calldata options) external view returns (uint256);
+```solidity
+function quote(
+  uint256 principal,
+  uint64 duration,
+  address collateralToken,
+  uint256[] calldata collateralTokenIds,
+  uint128[] calldata ticks,
+  bytes calldata options
+) external view returns (uint256);
 ```
 
 The [`quote()`](../contracts/Pool.sol#L759) function quotes a loan repayment with the specified loan
@@ -432,10 +440,15 @@ required for refinancing a loan.
 
 #### Borrow
 
-``` solidity
-function borrow(uint256 principal, uint64 duration, address collateralToken,
-                uint256 collateralTokenId, uint256 maxRepayment,
-                uint128[] calldata ticks, bytes calldata options
+```solidity
+function borrow(
+  uint256 principal,
+  uint64 duration,
+  address collateralToken,
+  uint256 collateralTokenId,
+  uint256 maxRepayment,
+  uint128[] calldata ticks,
+  bytes calldata options
 ) external returns (uint256);
 ```
 
@@ -446,9 +459,9 @@ Pool's native collateral token or a collateral wrapper token.
 A variety of additional options are supported by `borrow()` in the encoded
 `options` parameter. These include:
 
-* Collateral wrapper context, needed by some collateral wrappers
-* An optional [delegate.cash](https://delegate.cash/) delegation address for the token
-* Collateral filter context, reserved for future use
+- Collateral wrapper context, needed by some collateral wrappers
+- An optional [delegate.cash](https://delegate.cash/) delegation address for the token
+- Collateral filter context, reserved for future use
 
 Option data is encoded with a type-length-value (TLV) system, with a 2 byte
 type or tag, 2 byte length, and variable length data. See
@@ -460,7 +473,7 @@ in future repay, refinance, and liquidate operations for the loan.
 
 #### Repay
 
-``` solidity
+```solidity
 function repay(bytes calldata encodedLoanReceipt) external returns (uint256);
 ```
 
@@ -469,10 +482,14 @@ elapsed loan duration, and transfers the collateral back to the borrower.
 
 #### Refinance
 
-``` solidity
-function refinance(bytes calldata encodedLoanReceipt, uint256 principal,
-                   uint64 duration, uint256 maxRepayment,
-                   uint128[] calldata ticks) external returns (uint256);
+```solidity
+function refinance(
+  bytes calldata encodedLoanReceipt,
+  uint256 principal,
+  uint64 duration,
+  uint256 maxRepayment,
+  uint128[] calldata ticks
+) external returns (uint256);
 ```
 
 The [`refinance()`](../contracts/Pool.sol#L885) function refinances a loan with the specified loan terms and
@@ -481,7 +498,7 @@ a [`LoanOriginated`](../contracts/interfaces/IPool.sol#L93) event with a new loa
 
 #### Liquidate
 
-``` solidity
+```solidity
 function liquidate(bytes calldata loanReceipt) external;
 ```
 
