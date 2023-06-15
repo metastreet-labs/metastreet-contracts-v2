@@ -240,7 +240,12 @@ async function poolFactoryList(deployment: Deployment) {
 /* Collateral Liquidator Commands */
 /******************************************************************************/
 
-async function collateralLiquidatorDeploy(deployment: Deployment, contractName: string, args: string[]) {
+async function collateralLiquidatorDeploy(
+  deployment: Deployment,
+  contractName: string,
+  ctorArgs: string[],
+  initArgs: string[]
+) {
   if (deployment.collateralLiquidators[contractName]) {
     console.error(`Collateral liquidator ${contractName} already deployed.`);
     return;
@@ -251,7 +256,7 @@ async function collateralLiquidatorDeploy(deployment: Deployment, contractName: 
   const beaconProxyFactory = await ethers.getContractFactory("BeaconProxy", signer);
 
   /* Deploy implementation contract */
-  const collateralLiquidatorImpl = await collateralLiquidatorFactory.deploy();
+  const collateralLiquidatorImpl = await collateralLiquidatorFactory.deploy(...decodeArgs(ctorArgs));
   await collateralLiquidatorImpl.deployed();
   console.log(`Collateral Liquidator Implementation: ${collateralLiquidatorImpl.address}`);
 
@@ -263,7 +268,7 @@ async function collateralLiquidatorDeploy(deployment: Deployment, contractName: 
   /* Deploy beacon proxy */
   const beaconProxy = await beaconProxyFactory.deploy(
     upgradeableBeacon.address,
-    collateralLiquidatorImpl.interface.encodeFunctionData("initialize", decodeArgs(args))
+    collateralLiquidatorImpl.interface.encodeFunctionData("initialize", decodeArgs(initArgs))
   );
   await beaconProxy.deployed();
   console.log(`Collateral Liquidator Proxy:          ${beaconProxy.address}`);
@@ -507,8 +512,9 @@ async function main() {
     .command("collateral-liquidator-deploy")
     .description("Deploy Collateral Liquidator")
     .argument("contract", "Collateral liquidator contract name")
-    .argument("[args...]", "Arguments")
-    .action((contract, args) => collateralLiquidatorDeploy(deployment, contract, args));
+    .option("--ctor-args <ctor_args...>", "Constructor Arguments")
+    .option("--init-args <init_args...>", "Initializer Arguments")
+    .action((contract, opts) => collateralLiquidatorDeploy(deployment, contract, opts.ctorArgs, opts.initArgs));
   program
     .command("collateral-liquidator-upgrade")
     .description("Upgrade Collateral Liquidator")
