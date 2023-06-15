@@ -104,6 +104,11 @@ async function getTransparentProxyImplementation(address: string): Promise<strin
   return await transparentProxy.callStatic.implementation();
 }
 
+function decodeArgs(args: string[]): (string | string[])[] {
+  /* FIXME hack to handle arrays */
+  return args.map((arg) => (arg.startsWith("[") && arg.endsWith("]") ? arg.slice(1, -1).split(",") : arg));
+}
+
 /******************************************************************************/
 /* Deployment Commands */
 /******************************************************************************/
@@ -245,9 +250,6 @@ async function collateralLiquidatorDeploy(deployment: Deployment, contractName: 
   const upgradeableBeaconFactory = await ethers.getContractFactory("UpgradeableBeacon", signer);
   const beaconProxyFactory = await ethers.getContractFactory("BeaconProxy", signer);
 
-  /* FIXME hack to handle arrays */
-  const parsedArgs = args.map((arg) => (arg.startsWith("[") && arg.endsWith("]") ? arg.slice(1, -1).split(",") : arg));
-
   /* Deploy implementation contract */
   const collateralLiquidatorImpl = await collateralLiquidatorFactory.deploy();
   await collateralLiquidatorImpl.deployed();
@@ -261,7 +263,7 @@ async function collateralLiquidatorDeploy(deployment: Deployment, contractName: 
   /* Deploy beacon proxy */
   const beaconProxy = await beaconProxyFactory.deploy(
     upgradeableBeacon.address,
-    collateralLiquidatorImpl.interface.encodeFunctionData("initialize", parsedArgs)
+    collateralLiquidatorImpl.interface.encodeFunctionData("initialize", decodeArgs(args))
   );
   await beaconProxy.deployed();
   console.log(`Collateral Liquidator Proxy:          ${beaconProxy.address}`);
@@ -290,7 +292,7 @@ async function collateralLiquidatorUpgrade(deployment: Deployment, contractName:
   );
 
   /* Deploy new implementation contract */
-  const collateralLiquidatorImpl = await collateralLiquidatorFactory.deploy(...args);
+  const collateralLiquidatorImpl = await collateralLiquidatorFactory.deploy(...decodeArgs(args));
   await collateralLiquidatorImpl.deployed();
 
   /* Upgrade beacon */
@@ -318,7 +320,7 @@ async function collateralWrapperDeploy(deployment: Deployment, contractName: str
   const transparentUpgradeableProxyFactory = await ethers.getContractFactory("TransparentUpgradeableProxy", signer);
 
   /* Deploy implementation contract */
-  const collateralWrapperImpl = await collateralWrapperFactory.deploy(...args);
+  const collateralWrapperImpl = await collateralWrapperFactory.deploy(...decodeArgs(args));
   await collateralWrapperImpl.deployed();
   console.log(`Collateral Wrapper Implementation: ${collateralWrapperImpl.address}`);
 
@@ -350,7 +352,7 @@ async function collateralWrapperUpgrade(deployment: Deployment, contractName: st
   console.log(`Old Collateral Wrapper Implementation: ${await collateralWrapperProxy.callStatic.implementation()}`);
 
   /* Deploy new implementation contract */
-  const collateralWrapperImpl = await collateralWrapperFactory.deploy(...args);
+  const collateralWrapperImpl = await collateralWrapperFactory.deploy(...decodeArgs(args));
   await collateralWrapperImpl.deployed();
 
   /* Upgrade proxy */
@@ -372,11 +374,8 @@ async function poolImplementationDeploy(deployment: Deployment, contractName: st
   const poolFactory = await ethers.getContractFactory(contractName, signer);
   const upgradeableBeaconFactory = await ethers.getContractFactory("UpgradeableBeacon", signer);
 
-  /* FIXME hack to handle arrays */
-  const parsedArgs = args.map((arg) => (arg.startsWith("[") && arg.endsWith("]") ? arg.slice(1, -1).split(",") : arg));
-
   /* Deploy implementation contract */
-  const poolImpl = await poolFactory.deploy(...parsedArgs);
+  const poolImpl = await poolFactory.deploy(...decodeArgs(args));
   await poolImpl.deployed();
   console.log(`Pool Implementation: ${poolImpl.address}`);
 
@@ -401,14 +400,11 @@ async function poolImplementationUpgrade(deployment: Deployment, contractName: s
   )) as UpgradeableBeacon;
   const poolFactory = await ethers.getContractFactory(contractName, signer);
 
-  /* FIXME hack to handle arrays */
-  const parsedArgs = args.map((arg) => (arg.startsWith("[") && arg.endsWith("]") ? arg.slice(1, -1).split(",") : arg));
-
   console.log(`Old Pool Implementation: ${await upgradeableBeacon.implementation()}`);
   console.log(`Old Pool Version:        ${await getImplementationVersion(await upgradeableBeacon.implementation())}`);
 
   /* Deploy new implementation contract */
-  const poolImpl = await poolFactory.deploy(...parsedArgs);
+  const poolImpl = await poolFactory.deploy(...decodeArgs(args));
   await poolImpl.deployed();
 
   /* Upgrade beacon */
