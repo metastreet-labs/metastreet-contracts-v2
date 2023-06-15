@@ -21,7 +21,7 @@ Vaults:
 
 In addition, v2 Pools have refactored the debt purchasing functionality of v1
 Vaults into Note Collateral Wrappers, which isolate the core protocol from
-third-party integrations.
+third-party lending platforms.
 
 ## Design Overview
 
@@ -53,6 +53,7 @@ duration.
 
 Overdue loans are subject to liquidation, but borrowers are afforded a grace
 period to repay the loan until an external actor executes the liquidation.
+Borrowers also receive a split of the liquidation surplus.
 
 ### Automatic Tranching
 
@@ -73,7 +74,8 @@ the Pool. Currently, the primary collateral liquidator is the English Auction
 Collateral Liquidator contract, which hosts an onchain English Auction for
 collateral. On completion of liquidation, proceeds are returned to the Pool to
 reimburse the depositor funds used in the loan. Liquidation losses are absorbed
-by the highest tranches, while surpluses are remitted to the borrower.
+by the highest tranches, while surpluses are split between the highest tranch
+and the borrower.
 
 ### Collateral Filters
 
@@ -95,7 +97,7 @@ unwrap it for liquidation. The primary purpose of this feature is to implement
 bundles containing multiple collateral.
 
 When enabled, a Pool recognizes the tokens of the Bundle Collateral Wrapper as
-collateral, subject to validation of the underlying collateral with the
+collateral, subject to validation of the underlying collateral by the
 collateral filter.
 
 ## Design Details
@@ -146,7 +148,7 @@ support future collection of admin fees.
 Pools have two sets of parameters, those bound at a construction and those
 bound at initialization. Since the Pool contract is large, it is deployed as an
 implementation contract and the [`PoolFactory`](../contracts/PoolFactory.sol)
-creates a proxy for a new Pool.
+creates a proxy instance for each new Pool.
 
 Construction parameters include up to three collateral wrappers and an optional
 [delegate.cash](https://delegate.cash/) registry address (see Borrow section below for more
@@ -218,10 +220,10 @@ Note that loan limit is an upper bound on the amount of funds that can be used
 from a tick, but the actual amount pulled from each tick depends on the
 cumulative amount built up from previous ticks.
 
-The [`LiquidityManager`](../contracts/LiquidityManager.sol), particularly the [`source()`](../contracts/LiquidityManager.sol#L532) function,
+The [`LiquidityManager`](../contracts/LiquidityManager.sol), particularly the [`source()`](../contracts/LiquidityManager.sol#L530) function,
 is responsible for sourcing liquidity from ticks and creating a record of their
-usage for bookkeeping. It also responsible for enforcing the conditions on tick
-usage, like the loan limit and maximum duration.
+usage for bookkeeping. It is also responsible for enforcing the conditions on
+tick usage, like the loan limit and maximum duration.
 
 ### Offchain Ticks and Loan Receipts
 
@@ -233,7 +235,7 @@ or more expensive (e.g. higher interest rate tier) ticks than necessary.
 However, this is not a violation of the protocol, as the protocol's guarantee
 is that funds from a tick are not used beyond its loan limit or maximum
 duration, and that the loan is priced according to the associated interest rate
-tier.
+tiers.
 
 In order to reduce storage costs, loan metadata is stored offchain and a
 commitment to it stored onchain. (Technically, the loan metadata is onchain, as
@@ -279,13 +281,13 @@ interest rate for a loan given the ticks used, and distributing that interest
 to the ticks used.
 
 The primary interest rate model is the [`WeightedInterestRateModel`](../contracts/rates/WeightedInterestRateModel.sol). It
-determines the interest rate of a loan in [`_rate()`](../contracts/rates/WeightedInterestRateModel.sol#L75) by computing the average of all tick
+determines the interest rate of a loan in [`_rate()`](../contracts/rates/WeightedInterestRateModel.sol#L120) by computing the average of all tick
 rates, weighted by the amount used for each tick. For example, if a `20 ETH`
 loan used `5 ETH at 10%`, `10 ETH at 10%`, and `10 ETH at 30%`, the weighted
 average interest rate would be `(5 * 10% + 10 * 10% + 10 * 30%)/20` or `22.5%`.
 
 The `WeightedInterestRateModel` distributes interest in
-[`_distribute()`](../contracts/rates/WeightedInterestRateModel.sol#L98) along a
+[`_distribute()`](../contracts/rates/WeightedInterestRateModel.sol#L143) along a
 negative exponential curve, to allocate greater interest to higher ticks in
 compensation for their greater exposure to default risk. The negative
 exponential base is configured at Pool initialization time.
@@ -316,7 +318,7 @@ Ticks that contribute insignificant liquidity to a loan below a tick interest
 threshold configured at Pool initialization time, also called "dust ticks",
 receive no interest in a loan. This is to prevent a class of attacks where
 borrowers could otherwise receive a free or significantly reduced interest
-loans by borrowing from their own high position ticks with little deposited
+loans by borrowing from their own high loan limit ticks with little deposited
 liquidity and paying interest to themselves.
 
 ### Admin Fees
@@ -328,8 +330,8 @@ fees, while liquidations do not.
 The Pool administrator — the `PoolFactory` contract — can set the admin fee
 rate on a Pool and withdraw admin fees from a Pool.
 
-Admin fees are set to zero for the time being. They may be enabled in the
-future to accrue fees to the protocol.
+Admin fees are set to zero for the time being. They may be enabled and managed
+through a governance process in the future to accrue fees to the protocol.
 
 ### Collection Collateral Filter
 
@@ -351,10 +353,10 @@ capital into a Pool with user-defined risk parameters.
 #### Deposit
 
 ```solidity
-function deposit(uint128 tick, uint256 amount) external;
+function deposit(uint128 tick, uint256 amount, uint256 minShares) external;
 ```
 
-The [`deposit()`](../contracts/Pool.sol#L1021) function accepts an amount of
+The [`deposit()`](../contracts/Pool.sol#L1019) function accepts an amount of
 cash to deposit under a tick in exchange for tick shares.
 
 Tick shares represent an ownership stake in the tick value, which will
@@ -364,9 +366,10 @@ depreciation with liquidation losses.
 The deposit price is computed with the current tick value plus 50% of pending
 interest to the tick. This elevated deposit price is designed to prevent
 capturing the interest of repaid loans prematurely, and to encourage longer
-term deposits.
+term deposits. The `minShares` parameter enforces a minimum on the shares
+exchanged for the deposited amount.
 
-The [`LiquidityManager`](../contracts/LiquidityManager.sol#L328) imposes a tick
+The [`LiquidityManager`](../contracts/LiquidityManager.sol#L306) imposes a tick
 limit spacing requirement on deposits, to facilitate liquidity aggregation that
 ultimately minimizes the amount of ticks needed in a loan. Currently, this
 spacing requirement is set to 10%, so no deposit can instantiate a new tick
@@ -378,7 +381,7 @@ with a loan limit within 10% of an existing tick loan limit.
 function redeem(uint128 tick, uint256 shares) external;
 ```
 
-The [`redeem()`](../contracts/Pool.sol#L1050) function redeems shares from a tick for cash.
+The [`redeem()`](../contracts/Pool.sol#L1045) function redeems shares from a tick for cash.
 
 If sufficient cash is available in the tick, the shares are immediately
 redeemed at a redemption price computed from the current tick value. The
@@ -391,7 +394,7 @@ order they are scheduled.
 Only one redemption can be outstanding in a depositor's tick position at a time.
 
 The current cash available for a redemption can be determined with the
-[`redemptionAvailable()`](../contracts/Pool.sol#L1081) getter.
+[`redemptionAvailable()`](../contracts/Pool.sol#L1073) getter.
 
 #### Withdraw
 
@@ -399,7 +402,7 @@ The current cash available for a redemption can be determined with the
 function withdraw(uint128 tick) external returns (uint256 amount);
 ```
 
-The [`withdraw()`](../contracts/Pool.sol#L1094) function withdraws the cash for a redemption that is
+The [`withdraw()`](../contracts/Pool.sol#L1086) function withdraws the cash for a redemption that is
 available.
 
 #### Rebalance
@@ -407,12 +410,14 @@ available.
 ```solidity
 function rebalance(
   uint128 srcTick,
-  uint128 dstTick
+  uint128 dstTick,
+  uint256 minShares
 ) external returns (uint256 amount);
 ```
 
-The [`rebalance()`](../contracts/Pool.sol#L1133) function deposits cash from a redemption that is
-available into another tick, instead of withdrawing it.
+The [`rebalance()`](../contracts/Pool.sol#L1125) function deposits cash from a redemption that is
+available into another tick, instead of withdrawing it. The `minShares`
+parameter enforces a minimum on the shares received in the new tick.
 
 ### Lending Interface
 
@@ -432,10 +437,10 @@ function quote(
 ) external view returns (uint256);
 ```
 
-The [`quote()`](../contracts/Pool.sol#L759) function quotes a loan repayment with the specified loan
+The [`quote()`](../contracts/Pool.sol#L751) function quotes a loan repayment with the specified loan
 terms and liquidity ticks.
 
-The [`quoteRefinance()`](../contracts/Pool.sol#L783) variant quotes downpayment and repayment
+The [`quoteRefinance()`](../contracts/Pool.sol#L775) variant quotes downpayment and repayment
 required for refinancing a loan.
 
 #### Borrow
@@ -452,7 +457,7 @@ function borrow(
 ) external returns (uint256);
 ```
 
-The [`borrow()`](../contracts/Pool.sol#L818) function originates a loan with
+The [`borrow()`](../contracts/Pool.sol#L810) function originates a loan with
 the specified loan terms and liquidity ticks. The collateral may either be the
 Pool's native collateral token or a collateral wrapper token.
 
@@ -465,7 +470,7 @@ A variety of additional options are supported by `borrow()` in the encoded
 
 Option data is encoded with a type-length-value (TLV) system, with a 2 byte
 type or tag, 2 byte length, and variable length data. See
-[`_getOptionsData()`](../contracts/Pool.sol#L418) for more details.
+[`_getOptionsData()`](../contracts/Pool.sol#L416) for more details.
 
 On successful loan origination, the `borrow()` function emits a
 [`LoanOriginated`](../contracts/interfaces/IPool.sol#L93) event with an encoded loan receipt. This loan receipt is used
@@ -477,7 +482,7 @@ in future repay, refinance, and liquidate operations for the loan.
 function repay(bytes calldata encodedLoanReceipt) external returns (uint256);
 ```
 
-The [`repay()`](../contracts/Pool.sol#L857) function repays a loan, prorating the repayment with the
+The [`repay()`](../contracts/Pool.sol#L849) function repays a loan, prorating the repayment with the
 elapsed loan duration, and transfers the collateral back to the borrower.
 
 #### Refinance
@@ -492,7 +497,7 @@ function refinance(
 ) external returns (uint256);
 ```
 
-The [`refinance()`](../contracts/Pool.sol#L885) function refinances a loan with the specified loan terms and
+The [`refinance()`](../contracts/Pool.sol#L877) function refinances a loan with the specified loan terms and
 liquidity ticks. Internally, it combines repay and borrow operations, and emits
 a [`LoanOriginated`](../contracts/interfaces/IPool.sol#L93) event with a new loan receipt.
 
@@ -502,11 +507,11 @@ a [`LoanOriginated`](../contracts/interfaces/IPool.sol#L93) event with a new loa
 function liquidate(bytes calldata loanReceipt) external;
 ```
 
-The [`liquidate()`](../contracts/Pool.sol#L930) function liquidates an overdue loan, transferring
+The [`liquidate()`](../contracts/Pool.sol#L922) function liquidates an overdue loan, transferring
 the collateral to the collateral liquidator for liquidation.
 
 Proceeds from the liquidation are transferred from the collateral liquidator to
-the Pool, and are processed in the [`onCollateralLiquidated()`](../contracts/Pool.sol#L972) callback. Any
+the Pool, and are processed in the [`onCollateralLiquidated()`](../contracts/Pool.sol#L964) callback. Any
 surplus from the liquidation is remitted to the borrower.
 
 ### English Auction Collateral Liquidator
@@ -521,13 +526,13 @@ The primary collateral liquidator is the
 [`EnglishAuctionCollateralLiquidator`](../contracts/liquidators/EnglishAuctionCollateralLiquidator.sol). When a loan is liquidated with a
 Pool, it transfers the collateral to the liquidator. The
 [`EnglishAuctionCollateralLiquidator`](../contracts/liquidators/EnglishAuctionCollateralLiquidator.sol) starts an auction for the collateral with
-the first [`bid()`](../contracts/liquidators/EnglishAuctionCollateralLiquidator.sol#L499) on the collateral. The auction runs for the auction
+the first [`bid()`](../contracts/liquidators/EnglishAuctionCollateralLiquidator.sol#L553) on the collateral. The auction runs for the auction
 duration configured at initialization. If a higher bid appears within a time
 extension window before the end of the auction, the contract extends the
 auction by a time extension, both of which are also configured at
 initialization. Finally, when the auction ends, the winning bidder can
-[`claim()`](../contracts/liquidators/EnglishAuctionCollateralLiquidator.sol#L559) the collateral, the proceeds are transferred to the Pool,
-and then processed by the Pool in the [`onCollateralLiquidated()`](../contracts/Pool.sol#L972)
+[`claim()`](../contracts/liquidators/EnglishAuctionCollateralLiquidator.sol#L624) the collateral, the proceeds are transferred to the Pool,
+and then processed by the Pool in the [`onCollateralLiquidated()`](../contracts/Pool.sol#L964)
 callback.
 
 ### Collateral Wrappers
@@ -555,12 +560,12 @@ The [`BundleCollateralWrapper`](../contracts/wrappers/BundleCollateralWrapper.so
 all Pools. It allows a borrower to wrap multiple collateral tokens into a
 bundle and borrow a greater principal, multiplied by the count of collateral.
 
-A user can mint a bundle with the [`mint()`](../contracts/wrappers/BundleCollateralWrapper.sol#L146) function, which will
+A user can mint a bundle with the [`mint()`](../contracts/wrappers/BundleCollateralWrapper.sol#L157) function, which will
 transfer the specified token IDs to the bundle contract, and mint a bundle
 token to the user. The minted bundle token can then be used in a loan with a
 Pool that supports the underlying collateral. The bundle token is held by the
 Pool during a loan, and transferred back to the borrower on repayment. A
-borrower can withdraw their bundled NFTs with [`unwrap()`](../contracts/wrappers/BundleCollateralWrapper.sol#L172), which also
+borrower can withdraw their bundled NFTs with [`unwrap()`](../contracts/wrappers/BundleCollateralWrapper.sol#L186), which also
 burns the bundle. Bundles do not support partial withdrawals.
 
 #### Note Collateral Wrapper
@@ -581,7 +586,7 @@ immutable Pools, which is already supported in the codebase.
 ### Pool Factory Deployment
 
 The [`PoolFactory`](../contracts/PoolFactory.sol) contract is deployed as an ERC1967 proxy, with a
-permissioned [`upgradeToAndCall()`](../contracts/PoolFactory.sol#L178) API to facilitate upgrades.
+permissioned [`upgradeToAndCall()`](../contracts/PoolFactory.sol#L158) API to facilitate upgrades.
 
 The [`PoolFactory`](../contracts/PoolFactory.sol) will ultimately be owned by protocol governance.
 
@@ -590,7 +595,7 @@ The [`PoolFactory`](../contracts/PoolFactory.sol) will ultimately be owned by pr
 The Pool is deployed as an ERC1967 `BeaconProxy`.
 
 Proxied pools can be created with the `PoolFactory`
-[`createProxied()`](../contracts/PoolFactory.sol#L108) function, which accepts a
+[`createProxied()`](../contracts/PoolFactory.sol#L98) function, which accepts a
 Pool implementation beacon and initialization parameters.
 
 Immutable pools can be created with the `PoolFactory` [`create()`](../contracts/PoolFactory.sol#L81)
@@ -606,8 +611,7 @@ created Pools.
 The [`EnglishAuctionCollateralLiquidator`](../contracts/liquidators/EnglishAuctionCollateralLiquidator.sol) contract is deployed as an
 ERC1967 `BeaconProxy`.
 
-This contract can be made immutable with the removal of the currently
-privileged collateral wrapper management.
+This contract can also be deployed immutably.
 
 ### Collateral Wrapper Deployment
 
