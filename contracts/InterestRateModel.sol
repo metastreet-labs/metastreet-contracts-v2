@@ -5,6 +5,7 @@ import "./interfaces/ILiquidity.sol";
 
 /**
  * @title Interest Rate Model API
+ * @author MetaStreet Labs
  */
 abstract contract InterestRateModel {
     /**

@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.so
 
 import "./interfaces/IPoolFactory.sol";
 
-/*
+/**
  * @title PoolFactory
  * @author MetaStreet Labs
  */

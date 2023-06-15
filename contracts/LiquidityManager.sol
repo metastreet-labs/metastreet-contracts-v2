@@ -7,6 +7,10 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "./interfaces/ILiquidity.sol";
 import "./Tick.sol";
 
+/**
+ * @title LiquidityManager
+ * @author MetaStreet Labs
+ */
 library LiquidityManager {
     using SafeCast for uint256;
 

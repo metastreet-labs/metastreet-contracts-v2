@@ -4,6 +4,10 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
+/**
+ * @title Tick
+ * @author MetaStreet Labs
+ */
 library Tick {
     /*
      * A tick encodes three conditions on liquidity: limit, duration, and rate.
