@@ -49,7 +49,7 @@ losses, and this affects the price at which shares are redeemed.
 
 Tick redemption state in [`LiquidityManager`](../contracts/LiquidityManager.sol):
 
-``` solidity
+```solidity
 struct Node {
     uint128 value;
     uint128 shares;
@@ -85,7 +85,7 @@ entry.
 
 Deposit redemption state in [`Pool`](../contracts/Pool.sol):
 
-``` solidity
+```solidity
 mapping(address => mapping(uint128 => Deposit)) internal _deposits;
 
 struct Deposit {
