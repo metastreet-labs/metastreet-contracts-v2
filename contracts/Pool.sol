@@ -247,7 +247,7 @@ abstract contract Pool is
         if (durations_.length > Tick.MAX_NUM_DURATIONS) revert ParameterOutOfBounds();
         for (uint256 i; i < durations_.length; i++) {
             /* Check duration is monotonic */
-            if (i > 0 && durations_[i] <= durations_[i - 1]) revert ParameterOutOfBounds();
+            if (i != 0 && durations_[i] <= durations_[i - 1]) revert ParameterOutOfBounds();
             _durations.push(durations_[i]);
         }
 
@@ -255,7 +255,7 @@ abstract contract Pool is
         if (rates_.length > Tick.MAX_NUM_RATES) revert ParameterOutOfBounds();
         for (uint256 i; i < rates_.length; i++) {
             /* Check rate is monotonic */
-            if (i > 0 && rates_[i] <= rates_[i - 1]) revert ParameterOutOfBounds();
+            if (i != 0 && rates_[i] <= rates_[i - 1]) revert ParameterOutOfBounds();
             _rates.push(rates_[i]);
         }
 
