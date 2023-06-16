@@ -75,6 +75,7 @@ describe("PoolFactory", function () {
 
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
+      collateralLiquidator.address,
       delegationRegistry.address,
       [bundleCollateralWrapper.address],
       [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
@@ -120,24 +121,21 @@ describe("PoolFactory", function () {
     it("creates a pool", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+        ["address", "address", "uint64[]", "uint64[]"],
         [
           nft1.address,
           tok1.address,
           [7 * 86400, 14 * 86400, 30 * 86400],
           [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
-          [FixedPoint.from("0.05"), FixedPoint.from("2.0")],
         ]
       );
-      const createTx = await poolFactory
-        .connect(accounts[5])
-        .create(poolImpl.address, params, collateralLiquidator.address);
+      const createTx = await poolFactory.connect(accounts[5]).create(poolImpl.address, params);
 
       /* Validate events */
       await expectEvent(createTx, poolFactory, "PoolCreated", {
         deploymentHash: ethers.utils.solidityKeccak256(
-          ["uint256", "address", "address"],
-          [network.config.chainId, poolImpl.address, collateralLiquidator.address]
+          ["uint256", "address"],
+          [network.config.chainId, poolImpl.address]
         ),
       });
 
@@ -151,15 +149,14 @@ describe("PoolFactory", function () {
     it("fails on invalid params", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint64"],
+        ["address", "address"],
         [
           nft1.address,
           tok1.address,
-          30 * 86400,
-          /* Missing interest rate model params */
+          /* Missing duration and rate params */
         ]
       );
-      await expect(poolFactory.create(poolImpl.address, params, collateralLiquidator.address)).to.be.reverted;
+      await expect(poolFactory.create(poolImpl.address, params)).to.be.reverted;
     });
   });
 
@@ -174,24 +171,21 @@ describe("PoolFactory", function () {
     it("creates a proxied pool", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+        ["address", "address", "uint64[]", "uint64[]"],
         [
           nft1.address,
           tok1.address,
           [7 * 86400, 14 * 86400, 30 * 86400],
           [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
-          [FixedPoint.from("0.05"), FixedPoint.from("2.0")],
         ]
       );
-      const createTx = await poolFactory
-        .connect(accounts[5])
-        .createProxied(poolBeacon.address, params, collateralLiquidator.address);
+      const createTx = await poolFactory.connect(accounts[5]).createProxied(poolBeacon.address, params);
 
       /* Validate events */
       await expectEvent(createTx, poolFactory, "PoolCreated", {
         deploymentHash: ethers.utils.solidityKeccak256(
-          ["uint256", "address", "address"],
-          [network.config.chainId, poolBeacon.address, collateralLiquidator.address]
+          ["uint256", "address"],
+          [network.config.chainId, poolBeacon.address]
         ),
       });
 
@@ -213,7 +207,7 @@ describe("PoolFactory", function () {
           /* Missing interest rate model params */
         ]
       );
-      await expect(poolFactory.create(poolBeacon.address, params, collateralLiquidator.address)).to.be.reverted;
+      await expect(poolFactory.create(poolBeacon.address, params)).to.be.reverted;
     });
   });
 
@@ -224,18 +218,15 @@ describe("PoolFactory", function () {
   /* Helper function to create a pool */
   async function createPool(): Promise<string> {
     const params = ethers.utils.defaultAbiCoder.encode(
-      ["address", "address", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+      ["address", "address", "uint64[]", "uint64[]"],
       [
         nft1.address,
         tok1.address,
         [7 * 86400, 14 * 86400, 30 * 86400],
         [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
-        [FixedPoint.from("0.05"), FixedPoint.from("2.0")],
       ]
     );
-    const createTx = await poolFactory
-      .connect(accounts[5])
-      .create(poolImpl.address, params, collateralLiquidator.address);
+    const createTx = await poolFactory.connect(accounts[5]).create(poolImpl.address, params);
     return (await extractEvent(createTx, poolFactory, "PoolCreated")).args.pool;
   }
 

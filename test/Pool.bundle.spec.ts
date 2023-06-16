@@ -84,6 +84,7 @@ describe("Pool Bundle", function () {
 
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
+      collateralLiquidator.address,
       delegationRegistry.address,
       [bundleCollateralWrapper.address],
       [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
@@ -103,7 +104,6 @@ describe("Pool Bundle", function () {
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
           ]
         ),
-        collateralLiquidator.address,
       ])
     );
     await proxy.deployed();

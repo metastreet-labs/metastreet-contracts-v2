@@ -26,12 +26,17 @@ contract WeightedRateCollectionPool is Pool, WeightedInterestRateModel, Collecti
 
     /**
      * @notice Pool constructor
+     * @param collateralLiquidator_ Collateral liquidator
+     * @param delegationRegistry_ Delegation registry contract
+     * @param collateralWrappers Collateral wrappers
+     * @param parameters WeightedInterestRateModel parameters
      */
     constructor(
+        address collateralLiquidator_,
         address delegationRegistry_,
         address[] memory collateralWrappers,
         WeightedInterestRateModel.Parameters memory parameters
-    ) Pool(delegationRegistry_, collateralWrappers) WeightedInterestRateModel(parameters) {
+    ) Pool(collateralLiquidator_, delegationRegistry_, collateralWrappers) WeightedInterestRateModel(parameters) {
         /* Disable initialization of implementation contract */
         _initialized = true;
     }
@@ -43,8 +48,9 @@ contract WeightedRateCollectionPool is Pool, WeightedInterestRateModel, Collecti
     /**
      * @notice Initializer
      * @dev Fee-on-transfer currency tokens are not supported
+     * @param params ABI-encoded parameters
      */
-    function initialize(bytes memory params, address collateralLiquidator_) external {
+    function initialize(bytes memory params) external {
         require(!_initialized, "Already initialized");
 
         _initialized = true;
@@ -53,11 +59,11 @@ contract WeightedRateCollectionPool is Pool, WeightedInterestRateModel, Collecti
         (address collateralToken_, address currencyToken_, uint64[] memory durations_, uint64[] memory rates_) = abi
             .decode(params, (address, address, uint64[], uint64[]));
 
-        /* Initialize Pool */
-        Pool._initialize(currencyToken_, collateralLiquidator_, durations_, rates_);
-
         /* Initialize Collateral Filter */
         CollectionCollateralFilter._initialize(collateralToken_);
+
+        /* Initialize Pool */
+        Pool._initialize(currencyToken_, durations_, rates_);
     }
 
     /**************************************************************************/

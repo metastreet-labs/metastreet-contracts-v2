@@ -57,18 +57,6 @@ describe("Pool Gas", function () {
     loanReceiptLib = await testLoanReceiptFactory.deploy();
     await loanReceiptLib.deployed();
 
-    /* Deploy bundle collateral wrapper */
-    bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
-    await bundleCollateralWrapper.deployed();
-
-    /* Deploy pool implementation */
-    poolImpl = (await poolImplFactory.deploy(
-      ethers.constants.AddressZero,
-      [bundleCollateralWrapper.address],
-      [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
-    )) as Pool;
-    await poolImpl.deployed();
-
     /* Deploy external collateral liquidator implementation */
     const externalCollateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
     await externalCollateralLiquidatorImpl.deployed();
@@ -84,6 +72,19 @@ describe("Pool Gas", function () {
       proxy.address
     )) as ExternalCollateralLiquidator;
 
+    /* Deploy bundle collateral wrapper */
+    bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
+    await bundleCollateralWrapper.deployed();
+
+    /* Deploy pool implementation */
+    poolImpl = (await poolImplFactory.deploy(
+      externalCollateralLiquidator.address,
+      ethers.constants.AddressZero,
+      [bundleCollateralWrapper.address],
+      [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
+    )) as Pool;
+    await poolImpl.deployed();
+
     /* Deploy pool using external collateral liquidator */
     proxy = await testProxyFactory.deploy(
       poolImpl.address,
@@ -97,7 +98,6 @@ describe("Pool Gas", function () {
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
           ]
         ),
-        externalCollateralLiquidator.address,
       ])
     );
     await proxy.deployed();
@@ -726,6 +726,7 @@ describe("Pool Gas", function () {
     });
 
     describe("english auction collateral liquidator", async function () {
+      let poolEACLImpl: Pool;
       let poolEACL: Pool;
       let englishAuctionCollateralLiquidator: EnglishAuctionCollateralLiquidator;
       let singleLoanReceipt: string;
@@ -736,6 +737,7 @@ describe("Pool Gas", function () {
         const englishAuctionCollateralLiquidatorFactory = await ethers.getContractFactory(
           "EnglishAuctionCollateralLiquidator"
         );
+        const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
 
         /* Deploy english auction collateral liquidator implementation */
         const englishAuctionCollateralLiquidatorImpl = await englishAuctionCollateralLiquidatorFactory.deploy([
@@ -760,21 +762,28 @@ describe("Pool Gas", function () {
           proxy.address
         )) as EnglishAuctionCollateralLiquidator;
 
+        /* Deploy pool implementation */
+        poolEACLImpl = (await poolImplFactory.deploy(
+          englishAuctionCollateralLiquidator.address,
+          ethers.constants.AddressZero,
+          [bundleCollateralWrapper.address],
+          [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
+        )) as Pool;
+        await poolEACLImpl.deployed();
+
         /* Deploy poolEACL using english auction collateral liquidator */
         proxy = await testProxyFactory.deploy(
-          poolImpl.address,
-          poolImpl.interface.encodeFunctionData("initialize", [
+          poolEACLImpl.address,
+          poolEACLImpl.interface.encodeFunctionData("initialize", [
             ethers.utils.defaultAbiCoder.encode(
-              ["address", "address", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+              ["address", "address", "uint64[]", "uint64[]"],
               [
                 nft1.address,
                 tok1.address,
                 [7 * 86400, 14 * 86400, 30 * 86400],
                 [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
-                [FixedPoint.from("0.05"), FixedPoint.from("2.0")],
               ]
             ),
-            englishAuctionCollateralLiquidator.address,
           ])
         );
         await proxy.deployed();

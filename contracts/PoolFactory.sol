@@ -78,20 +78,13 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
     /*
      * @inheritdoc IPoolFactory
      */
-    function create(
-        address poolImplementation,
-        bytes calldata params,
-        address collateralLiquidator
-    ) external returns (address) {
+    function create(address poolImplementation, bytes calldata params) external returns (address) {
         /* Compute deployment hash */
-        bytes32 deploymentHash = keccak256(abi.encodePacked(block.chainid, poolImplementation, collateralLiquidator));
+        bytes32 deploymentHash = keccak256(abi.encodePacked(block.chainid, poolImplementation));
 
         /* Create pool instance */
         address poolInstance = Clones.clone(poolImplementation);
-        Address.functionCall(
-            poolInstance,
-            abi.encodeWithSignature("initialize(bytes,address)", params, collateralLiquidator)
-        );
+        Address.functionCall(poolInstance, abi.encodeWithSignature("initialize(bytes)", params));
 
         /* Add pool to registry */
         _pools.add(poolInstance);
@@ -105,20 +98,13 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
     /*
      * @inheritdoc IPoolFactory
      */
-    function createProxied(
-        address poolBeacon,
-        bytes calldata params,
-        address collateralLiquidator
-    ) external returns (address) {
+    function createProxied(address poolBeacon, bytes calldata params) external returns (address) {
         /* Compute deployment hash */
-        bytes32 deploymentHash = keccak256(abi.encodePacked(block.chainid, poolBeacon, collateralLiquidator));
+        bytes32 deploymentHash = keccak256(abi.encodePacked(block.chainid, poolBeacon));
 
         /* Create pool instance */
         address poolInstance = address(
-            new BeaconProxy(
-                poolBeacon,
-                abi.encodeWithSignature("initialize(bytes,address)", params, collateralLiquidator)
-            )
+            new BeaconProxy(poolBeacon, abi.encodeWithSignature("initialize(bytes)", params))
         );
 
         /* Add pool to registry */

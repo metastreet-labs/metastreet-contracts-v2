@@ -143,6 +143,11 @@ abstract contract Pool is
     address internal immutable _collateralWrapper3;
 
     /**
+     * @notice Collateral liquidator
+     */
+    ICollateralLiquidator internal immutable _collateralLiquidator;
+
+    /**
      * @notice Delegation registry contract
      */
     IDelegationRegistry internal immutable _delegationRegistry;
@@ -170,11 +175,6 @@ abstract contract Pool is
      * @notice Rates
      */
     uint64[] internal _rates;
-
-    /**
-     * @notice Collateral liquidator contract
-     */
-    ICollateralLiquidator internal _collateralLiquidator;
 
     /**
      * @notice Admin
@@ -207,10 +207,13 @@ abstract contract Pool is
 
     /**
      * @notice Pool constructor
+     * @param collateralLiquidator_ Collateral liquidator
      * @param delegationRegistry_ Delegation registry contract
      * @param collateralWrappers_ Collateral wrappers
      */
-    constructor(address delegationRegistry_, address[] memory collateralWrappers_) {
+    constructor(address collateralLiquidator_, address delegationRegistry_, address[] memory collateralWrappers_) {
+        _collateralLiquidator = ICollateralLiquidator(collateralLiquidator_);
+
         _delegationRegistry = IDelegationRegistry(delegationRegistry_);
 
         if (collateralWrappers_.length > 3) revert ParameterOutOfBounds();
@@ -227,20 +230,13 @@ abstract contract Pool is
      * @notice Pool initializer
      * @dev Fee-on-transfer currency tokens are not supported
      * @param currencyToken_ Currency token contract
-     * @param collateralLiquidator_ Collateral liquidator contract
      * @param durations_ Duration tiers
      * @param rates_ Interest rate tiers
      */
-    function _initialize(
-        address currencyToken_,
-        address collateralLiquidator_,
-        uint64[] memory durations_,
-        uint64[] memory rates_
-    ) internal {
+    function _initialize(address currencyToken_, uint64[] memory durations_, uint64[] memory rates_) internal {
         if (IERC20Metadata(currencyToken_).decimals() != 18) revert UnsupportedTokenDecimals();
 
         _currencyToken = IERC20(currencyToken_);
-        _collateralLiquidator = ICollateralLiquidator(collateralLiquidator_);
         _admin = msg.sender;
 
         /* Assign durations */

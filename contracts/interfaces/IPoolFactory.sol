@@ -24,27 +24,17 @@ interface IPoolFactory {
      * Create a pool (immutable)
      * @param poolImplementation Pool implementation contract
      * @param params Pool parameters
-     * @param collateralLiquidator Collateral liquidator
      * @return Pool address
      */
-    function create(
-        address poolImplementation,
-        bytes calldata params,
-        address collateralLiquidator
-    ) external returns (address);
+    function create(address poolImplementation, bytes calldata params) external returns (address);
 
     /**
      * Create a pool (proxied)
      * @param poolBeacon Pool beacon contract
      * @param params Pool parameters
-     * @param collateralLiquidator Collateral liquidator
      * @return Pool address
      */
-    function createProxied(
-        address poolBeacon,
-        bytes calldata params,
-        address collateralLiquidator
-    ) external returns (address);
+    function createProxied(address poolBeacon, bytes calldata params) external returns (address);
 
     /**
      * @notice Check if address is a pool

@@ -51,7 +51,12 @@ async function main() {
   console.log("");
 
   /* Deploy Pool implementation */
-  const poolImpl = await Pool.deploy(ethers.constants.AddressZero, [bundleCollateralWrapper.address]);
+  const poolImpl = await Pool.deploy(
+    externalCollateralLiquidatorProxy.address,
+    ethers.constants.AddressZero,
+    [bundleCollateralWrapper.address],
+    [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
+  );
   await poolImpl.deployed();
   console.log("Pool Implementation:        ", poolImpl.address);
 
@@ -76,20 +81,15 @@ async function main() {
 
   /* Create WETH Pool */
   const params = ethers.utils.defaultAbiCoder.encode(
-    ["address", "address", "uint64[]", "uint64[]", "tuple(uint64, uint64)"],
+    ["address", "address", "uint64[]", "uint64[]"],
     [
       baycTokenContract.address,
       wethTokenContract.address,
       [7 * 86400, 14 * 86400, 30 * 86400],
       [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
-      [FixedPoint.from("0.05"), FixedPoint.from("2.0")],
     ]
   );
-  const wethTestPoolCreationTx = await poolFactory.create(
-    poolImpl.address,
-    params,
-    externalCollateralLiquidatorProxy.address
-  );
+  const wethTestPoolCreationTx = await poolFactory.create(poolImpl.address, params);
   const wethTestPoolAddress = (await extractEvent(wethTestPoolCreationTx, poolFactory, "PoolCreated")).args.pool;
   console.log("WETH Test Pool:             ", wethTestPoolAddress);
 

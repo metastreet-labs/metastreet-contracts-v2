@@ -130,6 +130,7 @@ describe("Integration", function () {
 
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
+      collateralLiquidator.address,
       delegationRegistry.address,
       [bundleCollateralWrapper.address],
       [CONFIG.tickThreshold, CONFIG.tickExponential]
@@ -144,7 +145,6 @@ describe("Integration", function () {
           ["address", "address", "uint64[]", "uint64[]"],
           [nft1.address, tok1.address, CONFIG.tickDurations, CONFIG.tickRates]
         ),
-        collateralLiquidator.address,
       ])
     );
     await proxy.deployed();
