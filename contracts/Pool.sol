@@ -381,15 +381,6 @@ abstract contract Pool is
         return LoanReceipt.decode(loanReceipt);
     }
 
-    /**
-     * @notice Hash loan receipt
-     * @param loanReceipt Loan receipt
-     * @return Hashed loan receipt
-     */
-    function hashLoanReceipt(bytes calldata loanReceipt) external view returns (bytes32) {
-        return LoanReceipt.hash(loanReceipt);
-    }
-
     /**************************************************************************/
     /* ILiquidity Getters */
     /**************************************************************************/
