@@ -25,7 +25,7 @@ dataSources:
         - name: ERC721
           file: ../artifacts/@openzeppelin/contracts/token/ERC721/ERC721.sol/ERC721.json
       eventHandlers:
-        - event: PoolCreated(indexed address,indexed bytes32)
+        - event: PoolCreated(indexed address,indexed address)
           handler: handlePoolCreated
       file: src/poolFactory.ts
   - kind: ethereum

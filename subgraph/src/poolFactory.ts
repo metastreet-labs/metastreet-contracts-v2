@@ -33,7 +33,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   /**************************************************************************/
   const poolEntity = new PoolEntity(poolId);
   // Properties
-  poolEntity.deploymentHash = event.params.deploymentHash;
+  poolEntity.implementation = event.params.implementation;
   poolEntity.collateralToken = collateralTokenEntityId;
   poolEntity.collateralWrappers = poolContract.collateralWrappers().map<Bytes>((x) => x);
   poolEntity.currencyToken = poolContract.currencyToken();

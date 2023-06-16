@@ -5,7 +5,7 @@
 type Pool @entity {
   id: ID! # address
   # Properties
-  deploymentHash: Bytes!
+  implementation: Bytes! # address
   collateralToken: CollateralToken!
   collateralWrappers: [Bytes!]! # address[]
   currencyToken: Bytes! # address
@@ -230,7 +230,7 @@ type Auction @entity {
   id: Bytes!
   loan: Loan!
   liquidationSource: Bytes!
-  liquidationSourceDeploymentHash: Bytes
+  liquidationSourceImplementation: Bytes
   liquidationHash: Bytes!
   collateralToken: CollateralToken
   collateralTokenId: BigInt! # uint256

@@ -51,7 +51,7 @@ export function handleAuctionCreated(event: AuctionCreatedEvent): void {
     auctionEntity.bidIds = [];
 
     const pool = PoolEntity.load(liquidation.source.toHexString());
-    if (pool) auctionEntity.liquidationSourceDeploymentHash = pool.deploymentHash;
+    if (pool) auctionEntity.liquidationSourceImplementation = pool.implementation;
 
     auctionEntity.save();
 
