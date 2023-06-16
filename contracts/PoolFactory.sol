@@ -79,9 +79,6 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
      * @inheritdoc IPoolFactory
      */
     function create(address poolImplementation, bytes calldata params) external returns (address) {
-        /* Compute deployment hash */
-        bytes32 deploymentHash = keccak256(abi.encodePacked(block.chainid, poolImplementation));
-
         /* Create pool instance */
         address poolInstance = Clones.clone(poolImplementation);
         Address.functionCall(poolInstance, abi.encodeWithSignature("initialize(bytes)", params));
@@ -90,7 +87,7 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
         _pools.add(poolInstance);
 
         /* Emit Pool Created */
-        emit PoolCreated(poolInstance, deploymentHash);
+        emit PoolCreated(poolInstance, poolImplementation);
 
         return poolInstance;
     }
@@ -99,9 +96,6 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
      * @inheritdoc IPoolFactory
      */
     function createProxied(address poolBeacon, bytes calldata params) external returns (address) {
-        /* Compute deployment hash */
-        bytes32 deploymentHash = keccak256(abi.encodePacked(block.chainid, poolBeacon));
-
         /* Create pool instance */
         address poolInstance = address(
             new BeaconProxy(poolBeacon, abi.encodeWithSignature("initialize(bytes)", params))
@@ -111,7 +105,7 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
         _pools.add(poolInstance);
 
         /* Emit Pool Created */
-        emit PoolCreated(poolInstance, deploymentHash);
+        emit PoolCreated(poolInstance, poolBeacon);
 
         return poolInstance;
     }

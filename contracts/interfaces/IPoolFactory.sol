@@ -11,10 +11,10 @@ interface IPoolFactory {
 
     /**
      * @notice Emitted when a pool is created
-     * @param pool Pool address
-     * @param deploymentHash Deployment hash
+     * @param pool Pool instance
+     * @param implementation Implementation contract
      */
-    event PoolCreated(address indexed pool, bytes32 indexed deploymentHash);
+    event PoolCreated(address indexed pool, address indexed implementation);
 
     /**************************************************************************/
     /* API */

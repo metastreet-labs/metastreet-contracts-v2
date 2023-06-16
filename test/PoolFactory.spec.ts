@@ -133,10 +133,7 @@ describe("PoolFactory", function () {
 
       /* Validate events */
       await expectEvent(createTx, poolFactory, "PoolCreated", {
-        deploymentHash: ethers.utils.solidityKeccak256(
-          ["uint256", "address"],
-          [network.config.chainId, poolImpl.address]
-        ),
+        implementation: poolImpl.address,
       });
 
       /* Get pool instance */
@@ -183,10 +180,7 @@ describe("PoolFactory", function () {
 
       /* Validate events */
       await expectEvent(createTx, poolFactory, "PoolCreated", {
-        deploymentHash: ethers.utils.solidityKeccak256(
-          ["uint256", "address"],
-          [network.config.chainId, poolBeacon.address]
-        ),
+        implementation: poolBeacon.address,
       });
 
       /* Get pool instance */
