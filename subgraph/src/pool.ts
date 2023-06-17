@@ -1,5 +1,4 @@
 import { Address, BigInt, Bytes, dataSource, ethereum } from "@graphprotocol/graph-ts";
-import { AuctionCreated as AuctionCreatedEvent } from "../generated/EnglishAuctionCollateralLiquidator/EnglishAuctionCollateralLiquidator";
 import {
   Bundle as BundleEntity,
   CollateralLiquidated as CollateralLiquidatedEntity,
@@ -29,7 +28,12 @@ import {
   Redeemed as RedeemedEvent,
   Withdrawn as WithdrawnEvent,
 } from "../generated/templates/Pool/Pool";
-import { handleAuctionCreated } from "./englishAuctionCollateralLiquidator";
+import {
+  handleAuctionCreated,
+  handleLiquidationStarted,
+  manufactureAuctionCreatedEvent,
+  manufactureLiquidationStartedEvent,
+} from "./englishAuctionCollateralLiquidator";
 import { FixedPoint } from "./utils/FixedPoint";
 
 const poolContract = PoolContract.bind(dataSource.address());
@@ -478,44 +482,16 @@ export function handleLoanLiquidated(event: LoanLiquidatedEvent): void {
 
   const transactionReceipt = event.receipt;
   if (transactionReceipt) {
+    const LIQUIDATION_STARTED_TOPIC = "0xb147b2c3b3dced11f6425f7709a14fc2fdac9121a4bc63cde3bd3d6d4d8066b0";
     const AUCTION_CREATED_TOPIC = "0x15271099786b82529b8cdd3fb785da93c0460a55d76f84d4c6dbce07f11c70e8";
     for (let i = 0; i < transactionReceipt.logs.length; i++) {
-      const receiptLog = transactionReceipt.logs[i];
-      if (receiptLog.topics[0].toHexString() == AUCTION_CREATED_TOPIC) {
-        let encodedLogData = Bytes.fromHexString("0x");
-        for (let i = 1; i < receiptLog.topics.length; i++) encodedLogData = encodedLogData.concat(receiptLog.topics[i]);
-
-        const decodedLogData = ethereum.decode("(bytes32,address,uint256)", encodedLogData);
-
-        if (decodedLogData) {
-          const logParams = decodedLogData.toTuple();
-
-          const auctionCreatedEvent = new ethereum.Event(
-            event.address,
-            event.logIndex,
-            event.transactionLogIndex,
-            event.logType,
-            event.block,
-            event.transaction,
-            [
-              new ethereum.EventParam(
-                "liquidationHash",
-                new ethereum.Value(ethereum.ValueKind.BYTES, changetype<u32>(logParams.at(0).toBytes()))
-              ),
-              new ethereum.EventParam(
-                "collateralToken",
-                new ethereum.Value(ethereum.ValueKind.ADDRESS, changetype<u32>(logParams.at(1).toAddress()))
-              ),
-              new ethereum.EventParam(
-                "collateralTokenId",
-                new ethereum.Value(ethereum.ValueKind.UINT, changetype<u32>(logParams.at(2).toBigInt()))
-              ),
-            ],
-            event.receipt
-          );
-
-          handleAuctionCreated(changetype<AuctionCreatedEvent>(auctionCreatedEvent));
-        }
+      const firstTopic = transactionReceipt.logs[i].topics[0].toHexString();
+      if (firstTopic == LIQUIDATION_STARTED_TOPIC) {
+        const liquidationStartedEvent = manufactureLiquidationStartedEvent(event, i);
+        if (liquidationStartedEvent) handleLiquidationStarted(liquidationStartedEvent);
+      } else if (firstTopic == AUCTION_CREATED_TOPIC) {
+        const auctionCreatedEvent = manufactureAuctionCreatedEvent(event, i);
+        if (auctionCreatedEvent) handleAuctionCreated(auctionCreatedEvent);
       }
     }
   }

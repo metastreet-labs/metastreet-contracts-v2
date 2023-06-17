@@ -1,4 +1,4 @@
-import { BigInt, Bytes } from "@graphprotocol/graph-ts";
+import { BigInt, Bytes, ethereum } from "@graphprotocol/graph-ts";
 import {
   AuctionBid as AuctionBidEvent,
   AuctionCreated as AuctionCreatedEvent,
@@ -14,7 +14,93 @@ import {
   Liquidation as LiquidationEntity,
   Pool as PoolEntity,
 } from "../generated/schema";
+import { decodeLogData } from "./utils/decodeLogData";
 
+/**************************************************************************/
+/* External helpers
+/**************************************************************************/
+export function manufactureLiquidationStartedEvent(
+  event: ethereum.Event,
+  logIndex: u32
+): LiquidationStartedEvent | null {
+  const transactionReceipt = event.receipt;
+  if (!transactionReceipt) return null;
+
+  const logData = decodeLogData("(bytes32,address,bytes32,address,uint16)", transactionReceipt.logs[logIndex]);
+  if (!logData) return null;
+
+  const liquidationStartedEvent = new ethereum.Event(
+    event.address,
+    event.logIndex,
+    event.transactionLogIndex,
+    event.logType,
+    event.block,
+    event.transaction,
+    [
+      new ethereum.EventParam(
+        "liquidationHash",
+        new ethereum.Value(ethereum.ValueKind.BYTES, changetype<u32>(logData.at(0).toBytes()))
+      ),
+      new ethereum.EventParam(
+        "source",
+        new ethereum.Value(ethereum.ValueKind.ADDRESS, changetype<u32>(logData.at(1).toAddress()))
+      ),
+      new ethereum.EventParam(
+        "liquidationContextHash",
+        new ethereum.Value(ethereum.ValueKind.BYTES, changetype<u32>(logData.at(2).toBytes()))
+      ),
+      new ethereum.EventParam(
+        "currencyToken",
+        new ethereum.Value(ethereum.ValueKind.ADDRESS, changetype<u32>(logData.at(3).toAddress()))
+      ),
+      new ethereum.EventParam(
+        "auctionCount",
+        new ethereum.Value(ethereum.ValueKind.UINT, changetype<u32>(logData.at(4).toI32()))
+      ),
+    ],
+    event.receipt
+  );
+
+  return changetype<LiquidationStartedEvent>(liquidationStartedEvent);
+}
+
+export function manufactureAuctionCreatedEvent(event: ethereum.Event, logIndex: u32): AuctionCreatedEvent | null {
+  const transactionReceipt = event.receipt;
+  if (!transactionReceipt) return null;
+
+  const logData = decodeLogData("(bytes32,address,uint256)", transactionReceipt.logs[logIndex]);
+  if (!logData) return null;
+
+  const auctionCreatedEvent = new ethereum.Event(
+    event.address,
+    event.logIndex,
+    event.transactionLogIndex,
+    event.logType,
+    event.block,
+    event.transaction,
+    [
+      new ethereum.EventParam(
+        "liquidationHash",
+        new ethereum.Value(ethereum.ValueKind.BYTES, changetype<u32>(logData.at(0).toBytes()))
+      ),
+      new ethereum.EventParam(
+        "collateralToken",
+        new ethereum.Value(ethereum.ValueKind.ADDRESS, changetype<u32>(logData.at(1).toAddress()))
+      ),
+      new ethereum.EventParam(
+        "collateralTokenId",
+        new ethereum.Value(ethereum.ValueKind.UINT, changetype<u32>(logData.at(2).toBigInt()))
+      ),
+    ],
+    event.receipt
+  );
+
+  return changetype<AuctionCreatedEvent>(auctionCreatedEvent);
+}
+
+/**************************************************************************/
+/* Internal helpers
+/**************************************************************************/
 class AuctionStatus {
   static Created: string = "Created";
   static Started: string = "Started";
@@ -42,6 +128,9 @@ function updateCollateralTokenEntityAuctionsActiveCount(collateralToken: Bytes, 
   }
 }
 
+/**************************************************************************/
+/* Event handlers
+/**************************************************************************/
 export function handleLiquidationStarted(event: LiquidationStartedEvent): void {
   const liquidationEntity = new LiquidationEntity(event.params.liquidationHash);
   liquidationEntity.source = event.params.source;
