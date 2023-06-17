@@ -35,6 +35,7 @@ import {
   manufactureLiquidationStartedEvent,
 } from "./englishAuctionCollateralLiquidator";
 import { FixedPoint } from "./utils/FixedPoint";
+import { decodeLogData } from "./utils/decodeLogData";
 
 const poolContract = PoolContract.bind(dataSource.address());
 const poolAddress = dataSource.address().toHexString();
@@ -327,9 +328,9 @@ function createLoanEntity(
     const DELEGATE_FOR_TOKEN_TOPIC = "0xe89c6ba1e8957285aed22618f52aa1dcb9d5bb64e1533d8b55136c72fcf5aa5d";
     for (let i = 0; i < transactionReceipt.logs.length; i++) {
       const receiptLog = transactionReceipt.logs[i];
-      if (receiptLog.topics[0].toHexString() == DELEGATE_FOR_TOKEN_TOPIC) {
-        const decoded = ethereum.decode("(address,address,address,uint256,bool)", receiptLog.data);
-        if (decoded) loanEntity.delegate = decoded.toTuple().at(1).toAddress();
+      if (transactionReceipt.logs[i].topics[0].toHexString() == DELEGATE_FOR_TOKEN_TOPIC) {
+        const logData = decodeLogData("(address,address,address,uint256,bool)", receiptLog);
+        if (logData) loanEntity.delegate = logData.at(1).toAddress();
         break;
       }
     }
