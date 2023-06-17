@@ -15,6 +15,12 @@ import {
   Pool as PoolEntity,
 } from "../generated/schema";
 
+class AuctionStatus {
+  static Created: string = "Created";
+  static Started: string = "Started";
+  static Ended: string = "Ended";
+}
+
 function getAuctionEntityId(liquidationHash: Bytes, collateralToken: Bytes, collateralTokenId: BigInt): Bytes {
   return liquidationHash.concat(collateralToken).concat(Bytes.fromByteArray(Bytes.fromBigInt(collateralTokenId)));
 }
@@ -67,6 +73,7 @@ export function handleAuctionCreated(event: AuctionCreatedEvent): void {
   auctionEntity.collateralTokenId = event.params.collateralTokenId;
   auctionEntity.endTime = BigInt.fromI32(2).pow(64).minus(BigInt.fromI32(1)); // MAX_UINT64
   auctionEntity.bidsCount = 0;
+  auctionEntity.status = AuctionStatus.Created;
 
   auctionEntity.save();
 
@@ -81,6 +88,7 @@ export function handleAuctionStarted(event: AuctionStartedEvent): void {
   );
   if (!auctionEntity) return;
   auctionEntity.endTime = event.params.endTime;
+  auctionEntity.status = AuctionStatus.Started;
   auctionEntity.save();
 }
 
@@ -127,7 +135,8 @@ export function handleAuctionEnded(event: AuctionEndedEvent): void {
   );
   if (!auctionEntity) return;
 
-  // TODO: update auction status
+  auctionEntity.status = AuctionStatus.Ended;
+  auctionEntity.save();
 
   updateCollateralTokenEntityAuctionsActiveCount(event.params.collateralToken, -1);
 }

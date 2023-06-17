@@ -234,6 +234,12 @@ type Liquidation @entity {
   auctions: [Auction!]! @derivedFrom(field: "liquidation")
 }
 
+enum AuctionStatus {
+  Created
+  Started
+  Ended
+}
+
 type Auction @entity {
   id: Bytes!
   liquidation: Liquidation!
@@ -243,6 +249,7 @@ type Auction @entity {
   bidsCount: Int!
   endTime: BigInt! # uint64
   bids: [Bid!]! @derivedFrom(field: "auction")
+  status: AuctionStatus
 }
 
 type Bid @entity {
