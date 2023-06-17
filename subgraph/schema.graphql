@@ -3,7 +3,7 @@
 ################################################################################
 
 type Pool @entity {
-  id: ID! # address
+  id: Bytes! # address
   # Properties
   implementation: Bytes! # address
   collateralToken: CollateralToken!
@@ -51,7 +51,7 @@ type CollateralToken @entity {
   maxLoanDuration: BigInt! # uint64 (in seconds)
   auctionsActive: BigInt!
   pools: [Pool!]! @derivedFrom(field: "collateralToken")
-  poolIds: [String!]!
+  poolIds: [Bytes!]!
 }
 
 ################################################################################
@@ -59,7 +59,7 @@ type CollateralToken @entity {
 ################################################################################
 
 type Tick @entity {
-  id: ID! # <pool>-tick-<encoded-tick>
+  id: Bytes! # <pool><encoded-tick>
   pool: Pool!
   # encoded tick
   raw: BigInt!
@@ -87,7 +87,7 @@ type Tick @entity {
 ################################################################################
 
 type Deposit @entity {
-  id: ID! # <pool>-deposit-<account>-<tick>
+  id: Bytes! # <pool><account><tick>
   pool: Pool!
   tick: Tick!
   account: Bytes! # address
@@ -124,7 +124,7 @@ enum LoanStatus {
 }
 
 type Loan @entity {
-  id: ID! # loan receipt hash
+  id: Bytes! # loan receipt hash
   pool: Pool!
   status: LoanStatus!
   timestamp: BigInt! # uint64 (in seconds since epoch)
@@ -151,7 +151,7 @@ type Loan @entity {
 ################################################################################
 
 type PoolEvent @entity {
-  id: ID! # <pool>-<tx hash>
+  id: Bytes! # <pool><tx hash>
   transactionHash: Bytes!
   timestamp: BigInt! # uint64
   from: Bytes! # address
@@ -179,28 +179,28 @@ enum PoolEventType {
 }
 
 type LoanOriginated @entity {
-  id: ID! # <pool>-<tx hash>
+  id: Bytes! # <pool><tx hash>
   loan: Loan!
 }
 
 type LoanRepaid @entity {
-  id: ID! # <pool>-<tx hash>
+  id: Bytes! # <pool><tx hash>
   loan: Loan!
 }
 
 type LoanLiquidated @entity {
-  id: ID! # <pool>-<tx hash>
+  id: Bytes! # <pool><tx hash>
   loan: Loan!
 }
 
 type CollateralLiquidated @entity {
-  id: ID! # <pool>-<tx hash>
+  id: Bytes! # <pool><tx hash>
   loan: Loan!
   proceeds: BigInt!
 }
 
 type Deposited @entity {
-  id: ID! # <pool>-<tx hash>
+  id: Bytes! # <pool><tx hash>
   account: Bytes! # address
   tick: Tick!
   amount: BigInt! # uint256
@@ -208,7 +208,7 @@ type Deposited @entity {
 }
 
 type Redeemed @entity {
-  id: ID! # <pool>-<tx hash>
+  id: Bytes! # <pool><tx hash>
   account: Bytes! # address
   tick: Tick!
   shares: BigInt! # uint256
@@ -216,7 +216,7 @@ type Redeemed @entity {
 }
 
 type Withdrawn @entity {
-  id: ID! # <pool>-<tx hash>
+  id: Bytes! # <pool><tx hash>
   account: Bytes! # address
   tick: Tick!
   shares: BigInt! # uint256

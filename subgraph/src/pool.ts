@@ -38,7 +38,7 @@ import { FixedPoint } from "./utils/FixedPoint";
 import { decodeLogData } from "./utils/decodeLogData";
 
 const poolContract = PoolContract.bind(dataSource.address());
-const poolAddress = dataSource.address().toHexString();
+const poolAddress = dataSource.address();
 
 /**************************************************************************/
 /* constants */
@@ -93,8 +93,8 @@ function decodeTick(encodedTick: BigInt): DecodedTick {
   return new DecodedTick(limit, durationIndex, rateIndex);
 }
 
-function getTickId(encodedTick: BigInt): string {
-  return `${poolAddress}-tick-${encodedTick}`;
+function getTickId(encodedTick: BigInt): Bytes {
+  return poolAddress.concat(Bytes.fromByteArray(Bytes.fromBigInt(encodedTick)));
 }
 
 /**************************************************************************/
@@ -212,9 +212,9 @@ function createPoolEventEntity(
   event: ethereum.Event,
   type: string,
   account: Bytes,
-  depositEntityId: string | null
-): string {
-  const id = `${poolAddress}-${event.transaction.hash.toHexString()}`;
+  depositEntityId: Bytes | null
+): Bytes {
+  const id = poolAddress.concat(event.transaction.hash);
   const eventEntity = new PoolEventEntity(id);
   eventEntity.pool = poolAddress;
   eventEntity.deposit = depositEntityId;
@@ -239,8 +239,8 @@ function updateDepositEntity(
   encodedTick: BigInt,
   timestamp: BigInt,
   depositedAmountUpdate: BigInt
-): string {
-  const depositEntityId = `${poolAddress}-pool-${account.toHexString()}-${encodedTick}`;
+): Bytes {
+  const depositEntityId = poolAddress.concat(account).concat(Bytes.fromByteArray(Bytes.fromBigInt(encodedTick)));
 
   const deposit = poolContract.deposits(account, encodedTick);
 
@@ -277,7 +277,7 @@ function createLoanEntity(
   const nodeReceipts = loanReceipt.nodeReceipts;
 
   /* Create the Loan entity */
-  const loanEntity = new LoanEntity(receiptHash.toHexString());
+  const loanEntity = new LoanEntity(receiptHash);
 
   let ticks: BigInt[] = [];
   let useds: BigInt[] = [];
@@ -437,12 +437,12 @@ export function handleLoanOriginated(event: LoanOriginatedEvent): void {
   const poolEventId = createPoolEventEntity(event, PoolEventType.LoanOriginated, receipt.borrower, null);
 
   const loanOriginatedEntity = new LoanOriginatedEntity(poolEventId);
-  loanOriginatedEntity.loan = event.params.loanReceiptHash.toHexString();
+  loanOriginatedEntity.loan = event.params.loanReceiptHash;
   loanOriginatedEntity.save();
 }
 
 export function handleLoanRepaid(event: LoanRepaidEvent): void {
-  const loanEntity = LoanEntity.load(event.params.loanReceiptHash.toHexString());
+  const loanEntity = LoanEntity.load(event.params.loanReceiptHash);
   if (!loanEntity) throw new Error("Loan entity not found");
   loanEntity.status = LoanStatus.Repaid;
   loanEntity.save();
@@ -463,7 +463,7 @@ export function handleLoanRepaid(event: LoanRepaidEvent): void {
 }
 
 export function handleLoanLiquidated(event: LoanLiquidatedEvent): void {
-  const loanEntity = LoanEntity.load(event.params.loanReceiptHash.toHexString());
+  const loanEntity = LoanEntity.load(event.params.loanReceiptHash);
   if (!loanEntity) throw new Error("Loan entity not found");
   loanEntity.status = LoanStatus.Liquidated;
   loanEntity.save();
@@ -499,7 +499,7 @@ export function handleLoanLiquidated(event: LoanLiquidatedEvent): void {
 }
 
 export function handleCollateralLiquidated(event: CollateralLiquidatedEvent): void {
-  const loanEntity = LoanEntity.load(event.params.loanReceiptHash.toHexString());
+  const loanEntity = LoanEntity.load(event.params.loanReceiptHash);
   if (!loanEntity) throw new Error("Loan entity not found");
   loanEntity.status = LoanStatus.CollateralLiquidated;
   loanEntity.save();

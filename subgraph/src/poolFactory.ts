@@ -11,7 +11,6 @@ import { Pool as PoolTemplate } from "../generated/templates";
 
 export function handlePoolCreated(event: PoolCreatedEvent): void {
   const poolAddress = event.params.pool;
-  const poolId = poolAddress.toHexString();
   const poolContract = PoolContract.bind(poolAddress);
 
   const collateralFilterName = poolContract.COLLATERAL_FILTER_NAME();
@@ -31,7 +30,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   /**************************************************************************/
   /* Create Pool entity*/
   /**************************************************************************/
-  const poolEntity = new PoolEntity(poolId);
+  const poolEntity = new PoolEntity(poolAddress);
   // Properties
   poolEntity.implementation = event.params.implementation;
   poolEntity.collateralToken = collateralTokenEntityId;
@@ -66,7 +65,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   if (collateralTokenEntity) {
     /* Update collateral token entity if it exists */
     const poolIds = collateralTokenEntity.poolIds;
-    poolIds.push(poolId);
+    poolIds.push(poolAddress);
     collateralTokenEntity.poolIds = poolIds;
     if (collateralTokenEntity.maxLoanDuration < poolEntity.maxLoanDuration) {
       collateralTokenEntity.maxLoanDuration = poolEntity.maxLoanDuration;
@@ -79,7 +78,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
       collateralTokenEntity.startTokenId = range.value0;
       collateralTokenEntity.endTokenId = range.value1;
     }
-    collateralTokenEntity.poolIds = [poolId];
+    collateralTokenEntity.poolIds = [poolAddress];
     collateralTokenEntity.totalValueLocked = BigInt.zero();
     collateralTokenEntity.totalValueUsed = BigInt.zero();
     collateralTokenEntity.maxBorrow = BigInt.zero();
@@ -95,5 +94,5 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   /**************************************************************************/
   /* Create Pool data source*/
   /**************************************************************************/
-  PoolTemplate.create(event.params.pool);
+  PoolTemplate.create(poolAddress);
 }
