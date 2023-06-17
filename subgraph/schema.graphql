@@ -150,7 +150,7 @@ type Loan @entity {
 # Pool Events
 ################################################################################
 
-type PoolEvent @entity {
+type PoolEvent @entity(immutable: true) {
   id: Bytes! # <pool><tx hash>
   transactionHash: Bytes!
   timestamp: BigInt! # uint64
@@ -178,28 +178,28 @@ enum PoolEventType {
   Withdrawn
 }
 
-type LoanOriginated @entity {
+type LoanOriginated @entity(immutable: true) {
   id: Bytes! # <pool><tx hash>
   loan: Loan!
 }
 
-type LoanRepaid @entity {
+type LoanRepaid @entity(immutable: true) {
   id: Bytes! # <pool><tx hash>
   loan: Loan!
 }
 
-type LoanLiquidated @entity {
+type LoanLiquidated @entity(immutable: true) {
   id: Bytes! # <pool><tx hash>
   loan: Loan!
 }
 
-type CollateralLiquidated @entity {
+type CollateralLiquidated @entity(immutable: true) {
   id: Bytes! # <pool><tx hash>
   loan: Loan!
   proceeds: BigInt!
 }
 
-type Deposited @entity {
+type Deposited @entity(immutable: true) {
   id: Bytes! # <pool><tx hash>
   account: Bytes! # address
   tick: Tick!
@@ -207,7 +207,7 @@ type Deposited @entity {
   shares: BigInt! # uint256
 }
 
-type Redeemed @entity {
+type Redeemed @entity(immutable: true) {
   id: Bytes! # <pool><tx hash>
   account: Bytes! # address
   tick: Tick!
@@ -215,7 +215,7 @@ type Redeemed @entity {
   estimatedAmount: BigInt! # uint256
 }
 
-type Withdrawn @entity {
+type Withdrawn @entity(immutable: true) {
   id: Bytes! # <pool><tx hash>
   account: Bytes! # address
   tick: Tick!
@@ -226,7 +226,7 @@ type Withdrawn @entity {
 ################################################################################
 # Auction Entities
 ################################################################################
-type Liquidation @entity {
+type Liquidation @entity(immutable: true) {
   id: Bytes! # liquidation hash
   source: Bytes! # address
   sourceImplementation: Bytes # address
@@ -252,7 +252,7 @@ type Auction @entity {
   status: AuctionStatus
 }
 
-type Bid @entity {
+type Bid @entity(immutable: true) {
   id: Bytes!
   auction: Auction!
   bidder: Bytes!
