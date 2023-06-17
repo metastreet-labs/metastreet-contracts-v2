@@ -1,25 +1,30 @@
-import { BigInt, Bytes, dataSource, store } from "@graphprotocol/graph-ts";
+import { BigInt, Bytes } from "@graphprotocol/graph-ts";
 import {
   AuctionBid as AuctionBidEvent,
   AuctionCreated as AuctionCreatedEvent,
   AuctionEnded as AuctionEndedEvent,
   AuctionExtended as AuctionExtendedEvent,
   AuctionStarted as AuctionStartedEvent,
-  EnglishAuctionCollateralLiquidator,
+  LiquidationStarted as LiquidationStartedEvent,
 } from "../generated/EnglishAuctionCollateralLiquidator/EnglishAuctionCollateralLiquidator";
 import {
   Auction as AuctionEntity,
   Bid as BidEntity,
   CollateralToken as CollateralTokenEntity,
+  Liquidation as LiquidationEntity,
   Pool as PoolEntity,
 } from "../generated/schema";
 
-function getAuctionEntityId(collateralToken: Bytes, collateralTokenId: BigInt): Bytes {
-  return collateralToken.concat(Bytes.fromByteArray(Bytes.fromBigInt(collateralTokenId)));
+function getAuctionEntityId(liquidationHash: Bytes, collateralToken: Bytes, collateralTokenId: BigInt): Bytes {
+  return liquidationHash.concat(collateralToken).concat(Bytes.fromByteArray(Bytes.fromBigInt(collateralTokenId)));
 }
 
-function loadAuctionEntity(collateralToken: Bytes, collateralTokenId: BigInt): AuctionEntity | null {
-  const auctionEntityId = getAuctionEntityId(collateralToken, collateralTokenId);
+function loadAuctionEntity(
+  liquidationHash: Bytes,
+  collateralToken: Bytes,
+  collateralTokenId: BigInt
+): AuctionEntity | null {
+  const auctionEntityId = getAuctionEntityId(liquidationHash, collateralToken, collateralTokenId);
   return AuctionEntity.load(auctionEntityId);
 }
 
@@ -31,50 +36,71 @@ function updateCollateralTokenEntityAuctionsActiveCount(collateralToken: Bytes, 
   }
 }
 
+export function handleLiquidationStarted(event: LiquidationStartedEvent): void {
+  const liquidationEntity = new LiquidationEntity(event.params.liquidationHash);
+  liquidationEntity.source = event.params.source;
+  liquidationEntity.loan = event.params.liquidationContextHash;
+
+  const poolEntity = PoolEntity.load(event.params.source);
+  if (poolEntity) liquidationEntity.sourceImplementation = poolEntity.implementation;
+
+  liquidationEntity.save();
+}
+
 export function handleAuctionCreated(event: AuctionCreatedEvent): void {
-  const auctionEntityId = getAuctionEntityId(event.params.collateralToken, event.params.collateralTokenId);
+  const liquidationEntity = LiquidationEntity.load(event.params.liquidationHash);
+  // return if liquidation entity doesn't exist
+  if (!liquidationEntity) return;
+
+  const auctionEntityId = getAuctionEntityId(
+    event.params.liquidationHash,
+    event.params.collateralToken,
+    event.params.collateralTokenId
+  );
   let auctionEntity = AuctionEntity.load(auctionEntityId);
+  // return if auction entity already exists
+  if (auctionEntity) return;
 
-  if (!auctionEntity) {
-    auctionEntity = new AuctionEntity(auctionEntityId);
+  auctionEntity = new AuctionEntity(auctionEntityId);
+  auctionEntity.liquidation = liquidationEntity.id;
+  auctionEntity.collateralToken = event.params.collateralToken.toHexString();
+  auctionEntity.collateralTokenId = event.params.collateralTokenId;
+  auctionEntity.endTime = BigInt.fromI32(2).pow(64).minus(BigInt.fromI32(1)); // MAX_UINT64
+  auctionEntity.bidsCount = 0;
 
-    const englishAuctionCollateralLiquidator = EnglishAuctionCollateralLiquidator.bind(dataSource.address());
-    const liquidation = englishAuctionCollateralLiquidator.liquidations(event.params.liquidationHash);
+  auctionEntity.save();
 
-    auctionEntity.loan = liquidation.liquidationContextHash.toHexString();
-    auctionEntity.liquidationSource = liquidation.source;
-    auctionEntity.liquidationHash = event.params.liquidationHash;
-    auctionEntity.collateralToken = event.params.collateralToken.toHexString();
-    auctionEntity.collateralTokenId = event.params.collateralTokenId;
-    auctionEntity.endTime = BigInt.fromI32(2).pow(64).minus(BigInt.fromI32(1)); // MAX_UINT64
-    auctionEntity.bidsCount = 0;
-    auctionEntity.bidIds = [];
-
-    const pool = PoolEntity.load(liquidation.source.toHexString());
-    if (pool) auctionEntity.liquidationSourceImplementation = pool.implementation;
-
-    auctionEntity.save();
-
-    updateCollateralTokenEntityAuctionsActiveCount(event.params.collateralToken, 1);
-  }
+  updateCollateralTokenEntityAuctionsActiveCount(event.params.collateralToken, 1);
 }
 
 export function handleAuctionStarted(event: AuctionStartedEvent): void {
-  const auctionEntity = loadAuctionEntity(event.params.collateralToken, event.params.collateralTokenId);
+  const auctionEntity = loadAuctionEntity(
+    event.params.liquidationHash,
+    event.params.collateralToken,
+    event.params.collateralTokenId
+  );
   if (!auctionEntity) return;
   auctionEntity.endTime = event.params.endTime;
   auctionEntity.save();
 }
 
 export function handleAuctionExtended(event: AuctionExtendedEvent): void {
-  const auctionEntity = loadAuctionEntity(event.params.collateralToken, event.params.collateralTokenId);
+  const auctionEntity = loadAuctionEntity(
+    event.params.liquidationHash,
+    event.params.collateralToken,
+    event.params.collateralTokenId
+  );
   if (!auctionEntity) return;
   auctionEntity.endTime = event.params.endTime;
   auctionEntity.save();
 }
 
 export function handleAuctionBid(event: AuctionBidEvent): void {
-  const auctionEntity = loadAuctionEntity(event.params.collateralToken, event.params.collateralTokenId);
+  const auctionEntity = loadAuctionEntity(
+    event.params.liquidationHash,
+    event.params.collateralToken,
+    event.params.collateralTokenId
+  );
   if (!auctionEntity) return;
 
   const bidId = auctionEntity.id
@@ -88,22 +114,20 @@ export function handleAuctionBid(event: AuctionBidEvent): void {
   bid.transactionHash = event.transaction.hash;
   bid.save();
 
-  const bidIds = auctionEntity.bidIds;
-  bidIds.push(bidId);
-  auctionEntity.bidIds = bidIds;
   auctionEntity.highestBid = bidId;
   auctionEntity.bidsCount += 1;
   auctionEntity.save();
 }
 
 export function handleAuctionEnded(event: AuctionEndedEvent): void {
-  const auctionEntity = loadAuctionEntity(event.params.collateralToken, event.params.collateralTokenId);
+  const auctionEntity = loadAuctionEntity(
+    event.params.liquidationHash,
+    event.params.collateralToken,
+    event.params.collateralTokenId
+  );
   if (!auctionEntity) return;
 
-  for (let i = 0; i < auctionEntity.bidIds.length; i++) {
-    store.remove("Bid", auctionEntity.bidIds[i].toHexString());
-  }
-  store.remove("Auction", auctionEntity.id.toHexString());
+  // TODO: update auction status
 
   updateCollateralTokenEntityAuctionsActiveCount(event.params.collateralToken, -1);
 }

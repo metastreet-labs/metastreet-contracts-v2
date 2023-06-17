@@ -62,6 +62,7 @@ dataSources:
       apiVersion: 0.0.7
       language: wasm/assemblyscript
       entities:
+        - Liquidation
         - Auction
         - Bid
         - Pool
@@ -70,6 +71,8 @@ dataSources:
         - name: EnglishAuctionCollateralLiquidator
           file: ../artifacts/contracts/liquidators/EnglishAuctionCollateralLiquidator.sol/EnglishAuctionCollateralLiquidator.json
       eventHandlers:
+        - event: LiquidationStarted(indexed bytes32,indexed address,indexed bytes32,address,uint16)
+          handler: handleLiquidationStarted
         - event: AuctionBid(indexed bytes32,indexed address,indexed uint256,address,uint256)
           handler: handleAuctionBid
         - event: AuctionCreated(indexed bytes32,indexed address,indexed uint256)
