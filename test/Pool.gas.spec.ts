@@ -365,8 +365,9 @@ describe("Pool Gas", function () {
       });
 
       it(`borrow (single, existing, ${numTicks} ticks)`, async function () {
-        /* Mint NFT to pool */
-        await nft1.mint(pool.address, 150);
+        /* Mint and transfer NFT to pool */
+        await nft1.mint(accountBorrower.address, 150);
+        await nft1.connect(accountBorrower).transferFrom(accountBorrower.address, pool.address, 150);
 
         /* Source liquidity */
         const ticks = await sourceLiquidity(pool, principal);
@@ -440,7 +441,7 @@ describe("Pool Gas", function () {
         /* Transfer bundle to pool */
         await bundleCollateralWrapper
           .connect(accountBorrower)
-          ["safeTransferFrom(address,address,uint256)"](accountBorrower.address, pool.address, bundleTokenId1);
+          .transferFrom(accountBorrower.address, pool.address, bundleTokenId1);
 
         /* Mint bundle of 10 */
         const mintTx = await bundleCollateralWrapper

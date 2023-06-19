@@ -3132,9 +3132,6 @@ describe("Pool Basic", function () {
     it("returns true on supported interfaces", async function () {
       /* ERC165 */
       expect(await pool.supportsInterface(pool.interface.getSighash("supportsInterface"))).to.equal(true);
-
-      /* ERC721 */
-      expect(await pool.supportsInterface(pool.interface.getSighash("onERC721Received"))).to.equal(true);
     });
 
     it("returns false on unsupported interfaces", async function () {

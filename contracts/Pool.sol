@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/utils/Multicall.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
@@ -30,7 +29,6 @@ import "./integrations/DelegateCash/IDelegationRegistry.sol";
  */
 abstract contract Pool is
     ERC165,
-    ERC721Holder,
     ReentrancyGuard,
     Multicall,
     CollateralFilter,
@@ -1217,9 +1215,6 @@ abstract contract Pool is
      * @inheritdoc IERC165
      */
     function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
-        return
-            interfaceId == type(IERC721Receiver).interfaceId ||
-            interfaceId == type(ICollateralLiquidationReceiver).interfaceId ||
-            super.supportsInterface(interfaceId);
+        return interfaceId == type(ICollateralLiquidationReceiver).interfaceId || super.supportsInterface(interfaceId);
     }
 }
