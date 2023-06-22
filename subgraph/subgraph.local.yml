@@ -78,6 +78,8 @@ dataSources:
           handler: handleAuctionEnded
         - event: AuctionStarted(indexed bytes32,indexed address,indexed uint256,uint64)
           handler: handleAuctionStarted
+        - event: AuctionExtended(indexed bytes32,indexed address,indexed uint256,uint64)
+          handler: handleAuctionExtended
       file: ./src/englishAuctionCollateralLiquidator.ts
 templates:
   - kind: ethereum
