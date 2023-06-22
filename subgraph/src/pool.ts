@@ -108,15 +108,22 @@ function updatePoolEntity(): PoolEntity {
 
   let locked = ZERO;
   let available = ZERO;
+  let maxBorrow = ZERO;
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
     locked = locked.plus(node.value);
     available = available.plus(node.available);
+
+    const nodeTickLimit = decodeTick(node.tick).limit;
+    const borrowAmountNeeded = nodeTickLimit.minus(maxBorrow);
+    if (borrowAmountNeeded.gt(node.available)) maxBorrow = maxBorrow.plus(node.available);
+    else maxBorrow = maxBorrow.plus(borrowAmountNeeded);
   }
 
   poolEntity.totalValueLocked = locked;
   poolEntity.totalValueAvailable = available;
   poolEntity.totalValueUsed = locked.minus(available);
+  poolEntity.maxBorrow = maxBorrow;
   poolEntity.adminFeeBalance = poolContract.adminFeeBalance();
 
   poolEntity.save();
