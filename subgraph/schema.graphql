@@ -252,11 +252,12 @@ type Auction @entity {
   status: AuctionStatus
 }
 
-type Bid @entity(immutable: true) {
+type Bid @entity {
   id: Bytes!
   auction: Auction!
   bidder: Bytes!
   amount: BigInt! # uint256
+  isHighest: Boolean!
   timestamp: BigInt! # uint64
   transactionHash: Bytes!
 }

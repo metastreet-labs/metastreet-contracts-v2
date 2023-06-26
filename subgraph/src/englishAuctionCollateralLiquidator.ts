@@ -9,6 +9,7 @@ import {
 } from "../generated/EnglishAuctionCollateralLiquidator/EnglishAuctionCollateralLiquidator";
 import {
   Auction as AuctionEntity,
+  Bid,
   Bid as BidEntity,
   CollateralToken as CollateralTokenEntity,
   Liquidation as LiquidationEntity,
@@ -203,13 +204,22 @@ export function handleAuctionBid(event: AuctionBidEvent): void {
   const bidId = auctionEntity.id
     .concat(event.params.bidder)
     .concat(Bytes.fromByteArray(Bytes.fromBigInt(event.params.amount)));
-  const bid = new BidEntity(bidId);
-  bid.auction = auctionEntity.id;
-  bid.bidder = event.params.bidder;
-  bid.amount = event.params.amount;
-  bid.timestamp = event.block.timestamp;
-  bid.transactionHash = event.transaction.hash;
-  bid.save();
+  const bidEntity = new BidEntity(bidId);
+  bidEntity.auction = auctionEntity.id;
+  bidEntity.bidder = event.params.bidder;
+  bidEntity.amount = event.params.amount;
+  bidEntity.isHighest = true;
+  bidEntity.timestamp = event.block.timestamp;
+  bidEntity.transactionHash = event.transaction.hash;
+  bidEntity.save();
+
+  const oldHighestBidId = auctionEntity.highestBid;
+  if (oldHighestBidId) {
+    const oldBidEntity = Bid.load(oldHighestBidId);
+    if (!oldBidEntity) throw new Error("Old Bid entity not found");
+    oldBidEntity.isHighest = false;
+    oldBidEntity.save();
+  }
 
   auctionEntity.highestBid = bidId;
   auctionEntity.bidsCount += 1;
