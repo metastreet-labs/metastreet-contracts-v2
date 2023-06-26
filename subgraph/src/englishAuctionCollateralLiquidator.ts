@@ -133,12 +133,14 @@ function updateCollateralTokenEntityAuctionsActiveCount(collateralToken: Bytes, 
 /* Event handlers
 /**************************************************************************/
 export function handleLiquidationStarted(event: LiquidationStartedEvent): void {
+  const poolEntity = PoolEntity.load(event.params.source);
+  if (!poolEntity) return;
+
   const liquidationEntity = new LiquidationEntity(event.params.liquidationHash);
   liquidationEntity.source = event.params.source;
   liquidationEntity.loan = event.params.liquidationContextHash;
-
-  const poolEntity = PoolEntity.load(event.params.source);
-  if (poolEntity) liquidationEntity.sourceImplementation = poolEntity.implementation;
+  liquidationEntity.sourceImplementation = poolEntity.implementation;
+  liquidationEntity.collateralToken = poolEntity.collateralToken;
 
   liquidationEntity.save();
 }
@@ -159,7 +161,7 @@ export function handleAuctionCreated(event: AuctionCreatedEvent): void {
 
   auctionEntity = new AuctionEntity(auctionEntityId);
   auctionEntity.liquidation = liquidationEntity.id;
-  auctionEntity.collateralToken = event.params.collateralToken.toHexString();
+  auctionEntity.collateralToken = liquidationEntity.collateralToken;
   auctionEntity.collateralTokenId = event.params.collateralTokenId;
   auctionEntity.endTime = BigInt.fromI32(2).pow(64).minus(BigInt.fromI32(1)); // MAX_UINT64
   auctionEntity.bidsCount = 0;
