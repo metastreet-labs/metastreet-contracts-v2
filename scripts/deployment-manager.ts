@@ -110,12 +110,9 @@ async function getBeaconImplementation(address: string): Promise<string> {
 }
 
 async function getTransparentProxyImplementation(address: string): Promise<string> {
-  const transparentProxy = (await ethers.getContractAt(
-    "ITransparentUpgradeableProxy",
-    address,
-    signer
-  )) as ITransparentUpgradeableProxy;
-  return await transparentProxy.callStatic.implementation();
+  const implementationSlot = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
+  const implementationSlotData = await ethers.provider.getStorageAt(address, implementationSlot);
+  return ethers.utils.getAddress(ethers.utils.hexDataSlice(implementationSlotData, 12));
 }
 
 function decodeArgs(args: string[]): (string | string[])[] {
