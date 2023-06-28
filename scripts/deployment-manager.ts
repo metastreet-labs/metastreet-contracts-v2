@@ -130,7 +130,7 @@ async function deploymentShow(deployment: Deployment) {
   console.log("Pool Factory");
   console.log(`  Address: ${deployment.poolFactory || "Not Deployed"}`);
   if (deployment.poolFactory) {
-    const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
+    const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory)) as PoolFactory;
     const impl = await poolFactory.getImplementation();
     const version = await getImplementationVersion(impl);
     console.log(`     Impl: ${impl}`);
@@ -239,7 +239,7 @@ async function poolFactoryList(deployment: Deployment) {
     return;
   }
 
-  const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
+  const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory)) as PoolFactory;
 
   const pools = await poolFactory.getPools();
 
@@ -490,6 +490,7 @@ function parseBigNumber(value: string, _: string): BigNumber {
 async function main() {
   /* Load deployment */
   const network = await ethers.provider.getNetwork();
+
   const deploymentPath = `deployments/${network.name}-${network.chainId}.json`;
   const deployment: Deployment = fs.existsSync(deploymentPath)
     ? Deployment.fromFile(deploymentPath)
