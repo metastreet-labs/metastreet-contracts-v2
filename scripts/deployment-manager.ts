@@ -14,6 +14,20 @@ import {
   ITransparentUpgradeableProxy,
 } from "../typechain";
 
+interface LoanReceipt {
+  version: number;
+  principal: BigNumber;
+  repayment: BigNumber;
+  borrower: string;
+  maturity: BigNumber;
+  duration: BigNumber;
+  collateralToken: string;
+  collateralTokenId: BigNumber;
+  collateralWrapperContextLen: number;
+  collateralWrapperContext: string;
+  nodeReceipts: any[];
+}
+
 /******************************************************************************/
 /* Global Signer */
 /******************************************************************************/
@@ -420,6 +434,22 @@ async function poolImplementationUpgrade(deployment: Deployment, contractName: s
 }
 
 /******************************************************************************/
+/* Decode LoanReceipt */
+/******************************************************************************/
+
+async function decodeLoanReceipt(deployment: Deployment, loanReceipt: string) {
+  const poolImplementation = deployment.poolBeacons.WeightedRateCollectionPool;
+  const address = await getBeaconImplementation(poolImplementation);
+
+  const contract = await ethers.getContractAt("Pool", address);
+
+  const result: LoanReceipt = await contract.decodeLoanReceipt(loanReceipt);
+
+  console.log(`Decoded loanReceipt:`);
+  console.log(result);
+}
+
+/******************************************************************************/
 /* Parsers for Arguments */
 /******************************************************************************/
 
@@ -549,6 +579,13 @@ async function main() {
     .argument("contract", "Pool contract name")
     .argument("[args...]", "Arguments")
     .action((contract, args) => poolImplementationUpgrade(deployment, contract, args));
+
+  /* Loan Receipt */
+  program
+    .command("decode-loan-receipt")
+    .description("Decode Loan Receipt")
+    .argument("receipt", "Loan Receipt")
+    .action((receipt) => decodeLoanReceipt(deployment, receipt));
 
   /* Parse command */
   await program.parseAsync(process.argv);
