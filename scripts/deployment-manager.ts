@@ -89,9 +89,9 @@ class Deployment {
     console.log(`Network:                   ${this.name}`);
     console.log(`Chain ID:                  ${this.chainId}`);
     console.log(`Pool Factory:              ${this.poolFactory || "Not deployed"}`);
-    console.log(`Collateral Liquidators:    ${this.collateralLiquidators}`);
-    console.log(`Collateral Wrappers:       ${this.collateralWrappers}`);
-    console.log(`Pool Beacons:              ${this.poolBeacons}`);
+    console.log(`Collateral Liquidators:    ${JSON.stringify(this.collateralLiquidators, null, 2)}`);
+    console.log(`Collateral Wrappers:       ${JSON.stringify(this.collateralWrappers, null, 2)}`);
+    console.log(`Pool Beacons:              ${JSON.stringify(this.poolBeacons, null, 2)}`);
   }
 }
 
