@@ -282,7 +282,7 @@ to the ticks used.
 
 The primary interest rate model is the [`WeightedInterestRateModel`](../contracts/rates/WeightedInterestRateModel.sol). It
 determines the interest rate of a loan in [`_rate()`](../contracts/rates/WeightedInterestRateModel.sol#L120) by computing the average of all tick
-rates, weighted by the amount used for each tick. For example, if a `20 ETH`
+rates, weighted by the amount used for each tick. For example, if a `25 ETH`
 loan used `5 ETH at 10%`, `10 ETH at 10%`, and `10 ETH at 30%`, the weighted
 average interest rate would be `(5 * 10% + 10 * 10% + 10 * 30%)/20` or `22.5%`.
 
