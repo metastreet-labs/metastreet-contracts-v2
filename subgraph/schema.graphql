@@ -22,6 +22,7 @@ type Pool @entity {
   ticks: [Tick!]! @derivedFrom(field: "pool")
   deposits: [Deposit!]! @derivedFrom(field: "pool")
   loans: [Loan!]! @derivedFrom(field: "pool")
+  events: [PoolEvent!]! @derivedFrom(field: "pool")
 
   # Statistics
   totalValueLocked: BigInt! # uint256
