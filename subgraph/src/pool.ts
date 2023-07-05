@@ -302,6 +302,7 @@ function createLoanEntity(
 
   loanEntity.pool = poolAddress;
   loanEntity.status = LoanStatus.Active;
+  loanEntity.transactionHash = event.transaction.hash;
   loanEntity.timestamp = event.block.timestamp;
   loanEntity.borrower = loanReceipt.borrower;
   loanEntity.maturity = loanReceipt.maturity;
