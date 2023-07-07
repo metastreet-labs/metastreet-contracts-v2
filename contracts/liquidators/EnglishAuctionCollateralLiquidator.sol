@@ -601,7 +601,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         /* If not first bidder */
         if (auction_.highestBidder != address(0)) {
             /* Transfer previous bid back from collateral liquidator to previous bidder */
-            IERC20(liquidation_.currencyToken).transfer(auction_.highestBidder, auction_.highestBid);
+            IERC20(liquidation_.currencyToken).safeTransfer(auction_.highestBidder, auction_.highestBid);
         }
 
         /* Transfer bid amount from bidder to collateral liquidator */
