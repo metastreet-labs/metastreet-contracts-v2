@@ -1083,7 +1083,7 @@ abstract contract Pool is
         _loans[loanReceiptHash] = LoanStatus.CollateralLiquidated;
 
         /* Transfer surplus to borrower */
-        if (borrowerSurplus != 0) IERC20(_currencyToken).transfer(loanReceipt.borrower, borrowerSurplus);
+        if (borrowerSurplus != 0) IERC20(_currencyToken).safeTransfer(loanReceipt.borrower, borrowerSurplus);
 
         /* Emit Collateral Liquidated */
         emit CollateralLiquidated(loanReceiptHash, proceeds, borrowerSurplus);
