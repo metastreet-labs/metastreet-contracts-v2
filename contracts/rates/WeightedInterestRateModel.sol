@@ -131,10 +131,8 @@ contract WeightedInterestRateModel is InterestRateModel {
             weightedRate += (uint256(nodes[i].used) * rates[rateIndex]) / FIXED_POINT_SCALE;
         }
 
-        /* Normalize weighted rate */
-        weightedRate = Math.mulDiv(weightedRate, FIXED_POINT_SCALE, amount);
-
-        return weightedRate;
+        /* Return normalized weighted rate */
+        return Math.mulDiv(weightedRate, FIXED_POINT_SCALE, amount);
     }
 
     /**
