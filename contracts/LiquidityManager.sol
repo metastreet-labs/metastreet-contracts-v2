@@ -560,6 +560,6 @@ library LiquidityManager {
         /* If unable to source required liquidity amount from provided ticks */
         if (taken < amount) revert InsufficientLiquidity();
 
-        return (sources, uint16(count));
+        return (sources, count.toUint16());
     }
 }
