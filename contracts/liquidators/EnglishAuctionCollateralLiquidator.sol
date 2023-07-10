@@ -287,6 +287,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
     ) external {
         require(!_initialized, "Already initialized");
         if (auctionDuration_ <= timeExtensionWindow_) revert InvalidParameters();
+        if (timeExtension_ <= timeExtensionWindow_) revert InvalidParameters();
         if (auctionDuration_ == 0) revert InvalidParameters();
 
         _initialized = true;
