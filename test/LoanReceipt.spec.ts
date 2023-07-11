@@ -203,7 +203,7 @@ describe("LoanReceipt", function () {
       encodedLoanReceipt[0] = 2;
       await expect(loanReceiptLibrary.decode(encodedLoanReceipt)).to.be.revertedWithCustomError(
         loanReceiptLibrary,
-        "UnsupportedReceiptVersion"
+        "InvalidReceiptEncoding"
       );
     });
   });
