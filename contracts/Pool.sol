@@ -480,8 +480,7 @@ abstract contract Pool is
         bytes calldata delegateData = _getOptionsData(options, uint16(BorrowOptions.DelegateCash));
 
         if (delegateData.length != 0) {
-            if (address(_delegationRegistry) == address(0)) revert InvalidBorrowOptions();
-            if (delegateData.length != 20) revert InvalidBorrowOptions();
+            if (address(_delegationRegistry) == address(0) || delegateData.length != 20) revert InvalidBorrowOptions();
 
             /* Delegate token */
             _delegationRegistry.delegateForToken(
