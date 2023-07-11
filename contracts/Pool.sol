@@ -81,11 +81,6 @@ abstract contract Pool is
     error InvalidAddress();
 
     /**
-     * @notice Unsupported token decimals
-     */
-    error UnsupportedTokenDecimals();
-
-    /**
      * @notice Parameter out of bounds
      */
     error ParameterOutOfBounds();
@@ -232,7 +227,7 @@ abstract contract Pool is
      * @param rates_ Interest rate tiers
      */
     function _initialize(address currencyToken_, uint64[] memory durations_, uint64[] memory rates_) internal {
-        if (IERC20Metadata(currencyToken_).decimals() != 18) revert UnsupportedTokenDecimals();
+        if (IERC20Metadata(currencyToken_).decimals() != 18) revert ParameterOutOfBounds();
 
         _currencyToken = IERC20(currencyToken_);
         _admin = msg.sender;
