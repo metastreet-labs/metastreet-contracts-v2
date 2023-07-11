@@ -17,11 +17,6 @@ library LoanReceipt {
      */
     error InvalidReceiptEncoding();
 
-    /**
-     * @notice Unsupported receipt version
-     */
-    error UnsupportedReceiptVersion();
-
     /**************************************************************************/
     /* Constants */
     /**************************************************************************/
@@ -182,7 +177,7 @@ library LoanReceipt {
         ) revert InvalidReceiptEncoding();
 
         /* Validate encoded receipt version */
-        if (uint8(encodedReceipt[0]) != LOAN_RECEIPT_V1_VERSION) revert UnsupportedReceiptVersion();
+        if (uint8(encodedReceipt[0]) != LOAN_RECEIPT_V1_VERSION) revert InvalidReceiptEncoding();
 
         LoanReceiptV1 memory receipt;
 
