@@ -6,6 +6,15 @@ pragma solidity ^0.8.0;
  */
 interface IPoolFactory {
     /**************************************************************************/
+    /* Errors */
+    /**************************************************************************/
+
+    /**
+     * @notice Invalid pool implementation
+     */
+    error InvalidImplementation();
+
+    /**************************************************************************/
     /* Events */
     /**************************************************************************/
 
@@ -15,6 +24,18 @@ interface IPoolFactory {
      * @param implementation Implementation contract
      */
     event PoolCreated(address indexed pool, address indexed implementation);
+
+    /**
+     * @notice Emitted when a pool implementation is added to allowlist
+     * @param implementation Implementation contract
+     */
+    event PoolImplementationAdded(address indexed implementation);
+
+    /**
+     * @notice Emitted when a pool implementation is removed from allowlist
+     * @param implementation Implementation contract
+     */
+    event PoolImplementationRemoved(address indexed implementation);
 
     /**************************************************************************/
     /* API */

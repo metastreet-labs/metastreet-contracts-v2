@@ -26,7 +26,7 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
     /**
      * @notice Implementation version
      */
-    string public constant IMPLEMENTATION_VERSION = "1.0";
+    string public constant IMPLEMENTATION_VERSION = "1.1";
 
     /**************************************************************************/
     /* State */
@@ -41,6 +41,11 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
      * @notice Set of deployed pools
      */
     EnumerableSet.AddressSet private _pools;
+
+    /**
+     * @notice Set of allowed pool implementations
+     */
+    EnumerableSet.AddressSet private _allowedImplementations;
 
     /**************************************************************************/
     /* Constructor */
@@ -79,6 +84,9 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
      * @inheritdoc IPoolFactory
      */
     function create(address poolImplementation, bytes calldata params) external returns (address) {
+        /* Validate pool implementation */
+        if (!_allowedImplementations.contains(poolImplementation)) revert InvalidImplementation();
+
         /* Create pool instance */
         address poolInstance = Clones.clone(poolImplementation);
         Address.functionCall(poolInstance, abi.encodeWithSignature("initialize(bytes)", params));
@@ -96,6 +104,9 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
      * @inheritdoc IPoolFactory
      */
     function createProxied(address poolBeacon, bytes calldata params) external returns (address) {
+        /* Validate pool implementation */
+        if (!_allowedImplementations.contains(poolBeacon)) revert InvalidImplementation();
+
         /* Create pool instance */
         address poolInstance = address(
             new BeaconProxy(poolBeacon, abi.encodeWithSignature("initialize(bytes)", params))
@@ -141,6 +152,24 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
     /**************************************************************************/
     /* Admin API */
     /**************************************************************************/
+
+    /**
+     * @notice Add pool implementation to allowlist
+     */
+    function addPoolImplementation(address poolImplementation) external onlyOwner {
+        _allowedImplementations.add(poolImplementation);
+
+        emit PoolImplementationAdded(poolImplementation);
+    }
+
+    /**
+     * @notice Remove pool implementation from allowlist
+     */
+    function removePoolImplementation(address poolImplementation) external onlyOwner {
+        _allowedImplementations.remove(poolImplementation);
+
+        emit PoolImplementationRemoved(poolImplementation);
+    }
 
     /**
      * @notice Get Proxy Implementation
