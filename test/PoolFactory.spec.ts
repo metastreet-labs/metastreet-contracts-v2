@@ -119,6 +119,9 @@ describe("PoolFactory", function () {
 
   describe("#create", async function () {
     it("creates a pool", async function () {
+      /* Add pool implementation to allowlist */
+      await poolFactory.addPoolImplementation(poolImpl.address);
+
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
         ["address", "address", "uint64[]", "uint64[]"],
@@ -144,7 +147,30 @@ describe("PoolFactory", function () {
       expect(await pool.admin()).to.equal(poolFactory.address);
     });
 
+    it("fails on invalid pool implementation", async function () {
+      /* Remove pool implementation from allowlist */
+      await poolFactory.removePoolImplementation(poolImpl.address);
+
+      /* Create a pool */
+      const params = ethers.utils.defaultAbiCoder.encode(
+        ["address", "address", "uint64[]", "uint64[]"],
+        [
+          nft1.address,
+          tok1.address,
+          [7 * 86400, 14 * 86400, 30 * 86400],
+          [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
+        ]
+      );
+      await expect(poolFactory.connect(accounts[5]).create(poolImpl.address, params)).to.be.revertedWithCustomError(
+        poolFactory,
+        "UnsupportedImplementation"
+      );
+    });
+
     it("fails on invalid params", async function () {
+      /* Add pool implementation to allowlist */
+      await poolFactory.addPoolImplementation(poolImpl.address);
+
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
         ["address", "address"],
@@ -187,6 +213,9 @@ describe("PoolFactory", function () {
     });
 
     it("creates a proxied pool", async function () {
+      /* Add pool beacon to allowlist */
+      await poolFactory.addPoolImplementation(poolBeacon.address);
+
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
         ["address", "address", "uint64[]", "uint64[]"],
@@ -212,7 +241,29 @@ describe("PoolFactory", function () {
       expect(await pool.admin()).to.equal(poolFactory.address);
     });
 
+    it("fails on invalid pool beacon", async function () {
+      /* Remove pool beacon from allowlist */
+      await poolFactory.removePoolImplementation(poolBeacon.address);
+
+      /* Create a pool */
+      const params = ethers.utils.defaultAbiCoder.encode(
+        ["address", "address", "uint64[]", "uint64[]"],
+        [
+          nft1.address,
+          tok1.address,
+          [7 * 86400, 14 * 86400, 30 * 86400],
+          [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
+        ]
+      );
+      await expect(
+        poolFactory.connect(accounts[5]).createProxied(poolBeacon.address, params)
+      ).to.be.revertedWithCustomError(poolFactory, "UnsupportedImplementation");
+    });
+
     it("fails on invalid params", async function () {
+      /* Add pool beacon to allowlist */
+      await poolFactory.addPoolImplementation(poolBeacon.address);
+
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
         ["address", "address", "uint64"],
@@ -247,6 +298,11 @@ describe("PoolFactory", function () {
   }
 
   describe("#isPool", async function () {
+    beforeEach("add pool implementation to allowlist", async function () {
+      /* Add pool implementation to allowlist */
+      await poolFactory.addPoolImplementation(poolImpl.address);
+    });
+
     it("returns true for created pools", async function () {
       const pool1 = await createPool();
       const pool2 = await createPool();
@@ -258,6 +314,11 @@ describe("PoolFactory", function () {
   });
 
   describe("#getPools,getPoolCount,getPoolAt", async function () {
+    beforeEach("add pool implementation to allowlist", async function () {
+      /* Add pool implementation to allowlist */
+      await poolFactory.addPoolImplementation(poolImpl.address);
+    });
+
     it("returns created pools", async function () {
       expect(await poolFactory.getPools()).to.deep.equal([]);
       expect(await poolFactory.getPoolCount()).to.equal(0);
@@ -275,6 +336,29 @@ describe("PoolFactory", function () {
       const pool2 = await createPool();
 
       await expect(poolFactory.getPoolAt(2)).to.be.reverted;
+    });
+  });
+
+  describe("#getPoolImplementations", async function () {
+    let poolBeacon: ethers.Contract;
+
+    beforeEach("sets up pool beacon", async function () {
+      const upgradeableBeaconFactory = await ethers.getContractFactory("UpgradeableBeacon");
+      poolBeacon = await upgradeableBeaconFactory.deploy(poolImpl.address);
+      await poolBeacon.deployed();
+    });
+
+    it("returns current implementations", async function () {
+      expect(await poolFactory.getPoolImplementations()).to.deep.equal([]);
+
+      await poolFactory.addPoolImplementation(poolImpl.address);
+      await poolFactory.addPoolImplementation(poolBeacon.address);
+
+      expect(await poolFactory.getPoolImplementations()).to.deep.equal([poolImpl.address, poolBeacon.address]);
+
+      await poolFactory.removePoolImplementation(poolBeacon.address);
+
+      expect(await poolFactory.getPoolImplementations()).to.deep.equal([poolImpl.address]);
     });
   });
 
@@ -306,6 +390,63 @@ describe("PoolFactory", function () {
     });
     it("fails on invalid owner", async function () {
       await expect(poolFactory.connect(accounts[1]).upgradeToAndCall(tok1.address, "0x")).to.be.revertedWith(
+        "Ownable: caller is not the owner"
+      );
+    });
+  });
+
+  describe("#addPoolImplementation", async function () {
+    it("adds pool implementation", async function () {
+      /* Add pool implementation */
+      const addPoolImplTx = await poolFactory.addPoolImplementation(poolImpl.address);
+
+      /* Validate events */
+      await expectEvent(addPoolImplTx, poolFactory, "PoolImplementationAdded", {
+        implementation: poolImpl.address,
+      });
+
+      /* Validate state */
+      expect(await poolFactory.getPoolImplementations()).to.deep.equal([poolImpl.address]);
+
+      /* Subsequent add does nothing */
+      const addPoolImplTx2 = await poolFactory.addPoolImplementation(poolImpl.address);
+      expect((await addPoolImplTx2.wait()).logs.length).to.equal(0);
+
+      /* Validate state */
+      expect(await poolFactory.getPoolImplementations()).to.deep.equal([poolImpl.address]);
+    });
+    it("fails on invalid owner", async function () {
+      await expect(poolFactory.connect(accounts[1]).addPoolImplementation(poolImpl.address)).to.be.revertedWith(
+        "Ownable: caller is not the owner"
+      );
+    });
+  });
+
+  describe("#removePoolImplementation", async function () {
+    it("removes pool implementation", async function () {
+      /* Add pool implementation */
+      await poolFactory.addPoolImplementation(poolImpl.address);
+
+      /* Remove pool implementation */
+      const removePoolImplTx = await poolFactory.removePoolImplementation(poolImpl.address);
+
+      /* Validate events */
+      await expectEvent(removePoolImplTx, poolFactory, "PoolImplementationRemoved", {
+        implementation: poolImpl.address,
+      });
+
+      /* Validate state */
+      expect(await poolFactory.getPoolImplementations()).to.deep.equal([]);
+
+      /* Subsequent remove does nothing */
+      const removePoolImplTx2 = await poolFactory.removePoolImplementation(poolImpl.address);
+      expect((await removePoolImplTx2.wait()).logs.length).to.equal(0);
+
+      /* Validate state */
+      expect(await poolFactory.getPoolImplementations()).to.deep.equal([]);
+    });
+    it("fails on invalid owner", async function () {
+      await expect(poolFactory.connect(accounts[1]).removePoolImplementation(poolImpl.address)).to.be.revertedWith(
         "Ownable: caller is not the owner"
       );
     });
