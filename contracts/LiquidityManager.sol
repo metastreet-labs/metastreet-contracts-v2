@@ -38,6 +38,11 @@ library LiquidityManager {
      */
     uint256 internal constant IMPAIRED_PRICE_THRESHOLD = 0.05 * 1e18;
 
+    /**
+     * @notice Max of uint128
+     */
+    uint128 internal constant UINT128_MAX = type(uint128).max;
+
     /**************************************************************************/
     /* Errors */
     /**************************************************************************/
@@ -156,12 +161,12 @@ library LiquidityManager {
         if (liquidity.nodes[startTick].next == 0) revert InactiveLiquidity();
 
         /* Count nodes first to figure out how to size liquidity nodes array */
-        uint256 i = 0;
+        uint256 i;
         uint128 t = startTick;
-        while (t != type(uint128).max && t <= endTick) {
+        while (t != UINT128_MAX && t <= endTick) {
             Node storage node = liquidity.nodes[t];
-            i++;
             t = node.next;
+            i++;
         }
 
         ILiquidity.NodeInfo[] memory nodes = new ILiquidity.NodeInfo[](i);
@@ -169,18 +174,9 @@ library LiquidityManager {
         /* Populate nodes */
         i = 0;
         t = startTick;
-        while (t != type(uint128).max && t <= endTick) {
-            Node storage node = liquidity.nodes[t];
-            nodes[i++] = ILiquidity.NodeInfo({
-                tick: t,
-                value: node.value,
-                shares: node.shares,
-                available: node.available,
-                pending: node.pending,
-                redemptions: node.redemptions.pending,
-                prev: node.prev,
-                next: node.next
-            });
+        while (t != UINT128_MAX && t <= endTick) {
+            ILiquidity.NodeInfo memory node = liquidityNode(liquidity, t);
+            nodes[i++] = node;
             t = node.next;
         }
 
@@ -205,9 +201,9 @@ library LiquidityManager {
     ) internal view returns (uint128, uint128) {
         Node storage node = liquidity.nodes[tick];
 
-        uint128 processedShares = 0;
-        uint128 totalRedeemedShares = 0;
-        uint128 totalRedeemedAmount = 0;
+        uint128 processedShares;
+        uint128 totalRedeemedShares;
+        uint128 totalRedeemedAmount;
 
         for (; processedShares < target + pending; index++) {
             /* Look up the next fulfilled redemption */
@@ -248,7 +244,7 @@ library LiquidityManager {
      * @return True if reserved, otherwise false
      */
     function _isReserved(uint128 tick) internal pure returns (bool) {
-        return tick == 0 || tick == type(uint128).max;
+        return tick == 0 || tick == UINT128_MAX;
     }
 
     /**
@@ -291,7 +287,7 @@ library LiquidityManager {
         if (!_isEmpty(node)) revert InactiveLiquidity();
 
         /* Find prior node to new tick */
-        uint128 prevTick = 0;
+        uint128 prevTick;
         Node storage prevNode = liquidity.nodes[prevTick];
         while (prevNode.next < tick) {
             prevTick = prevNode.next;
@@ -409,8 +405,8 @@ library LiquidityManager {
      */
     function initialize(Liquidity storage liquidity) internal {
         /* Liquidity state defaults to zero, but need to make head and tail nodes */
-        liquidity.nodes[0].next = type(uint128).max;
-        /* By default, liquidity.nodes[type(uint128).max].prev is 0 */
+        liquidity.nodes[0].next = UINT128_MAX;
+        /* By default, liquidity.nodes[UINT128_MAX].prev is 0 */
     }
 
     /**
@@ -508,8 +504,8 @@ library LiquidityManager {
         node.redemptions.pending += shares;
 
         /* Initialize redemption record to save gas in loan callbacks */
-        if (node.redemptions.fulfilled[redemptionIndex].shares != type(uint128).max) {
-            node.redemptions.fulfilled[redemptionIndex] = FulfilledRedemption({shares: type(uint128).max, amount: 0});
+        if (node.redemptions.fulfilled[redemptionIndex].shares != UINT128_MAX) {
+            node.redemptions.fulfilled[redemptionIndex] = FulfilledRedemption({shares: UINT128_MAX, amount: 0});
         }
 
         /* Process any pending redemptions from available cash */
