@@ -437,7 +437,7 @@ describe("Pool Basic", function () {
       /* Redeem 0.5 shares */
       await expect(
         pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("0.5"))
-      ).to.be.revertedWithCustomError(pool, "RedemptionInProgress");
+      ).to.be.revertedWithCustomError(pool, "InvalidRedemptionStatus");
     });
   });
 
@@ -623,21 +623,6 @@ describe("Pool Basic", function () {
   });
 
   describe("#withdraw", async function () {
-    it("withdraws nothing on no pending redemption", async function () {
-      /* Deposit 1 ETH */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
-
-      /* Simulate withdrawal should return 0 */
-      expect(await pool.connect(accountDepositors[0]).callStatic.withdraw(Tick.encode("10"))).to.equal(
-        ethers.constants.Zero
-      );
-
-      /* Withdraw */
-      const withdrawTx = await pool.connect(accountDepositors[0]).withdraw(Tick.encode("10"));
-      /* Withdraw tx should have no events */
-      expect((await withdrawTx.wait()).logs.length).to.equal(0);
-    });
-
     it("withdraws fully available redemption from cash", async function () {
       /* Deposit 1 ETH */
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
@@ -911,6 +896,17 @@ describe("Pool Basic", function () {
       expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
       expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
     });
+
+    it("fails on no pending redemption", async function () {
+      /* Deposit 1 ETH */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+
+      /* Revert on withdraw */
+      await expect(pool.connect(accountDepositors[0]).withdraw(Tick.encode("10"))).to.be.revertedWithCustomError(
+        pool,
+        "InvalidRedemptionStatus"
+      );
+    });
   });
 
   describe("#rebalance", async function () {
@@ -1013,39 +1009,14 @@ describe("Pool Basic", function () {
       expect(node.redemptions).to.equal(ethers.constants.Zero);
     });
 
-    it("rebalances nothing on no pending redemption", async function () {
+    it("fails on no pending redemption", async function () {
       /* Deposit */
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
 
-      /* Rebalance with no pending redemption */
-      const rebalanceTx = await pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15"), 0);
-
-      /* Validate no events */
-      expect((await rebalanceTx.wait()).logs.length).to.equal(0);
-
-      /* Validate deposit state */
-      let deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(deposit.shares).to.equal(FixedPoint.from("10"));
-      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
-      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
-      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
-
-      deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("15"));
-      expect(deposit.shares).to.equal(ethers.constants.Zero);
-      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
-      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
-      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
-
-      /* Validate tick state */
-      let node = await pool.liquidityNode(Tick.encode("10"));
-      expect(node.value).to.equal(FixedPoint.from("10"));
-      expect(node.available).to.equal(FixedPoint.from("10"));
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-
-      node = await pool.liquidityNode(Tick.encode("15"));
-      expect(node.value).to.equal(ethers.constants.Zero);
-      expect(node.available).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
+      /* Revert on rebalance */
+      await expect(
+        pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15"), 0)
+      ).to.be.revertedWithCustomError(pool, "InvalidRedemptionStatus");
     });
 
     it("fails on invalid tick spacing", async function () {

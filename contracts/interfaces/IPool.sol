@@ -20,6 +20,11 @@ interface IPool {
     error InsufficientShares();
 
     /**
+     * @notice Invalid redemption status
+     */
+    error InvalidRedemptionStatus();
+
+    /**
      * @notice Invalid loan receipt
      */
     error InvalidLoanReceipt();
@@ -49,11 +54,6 @@ interface IPool {
      * @notice Loan not expired
      */
     error LoanNotExpired();
-
-    /**
-     * @notice Redemption in progress
-     */
-    error RedemptionInProgress();
 
     /**************************************************************************/
     /* Events */
