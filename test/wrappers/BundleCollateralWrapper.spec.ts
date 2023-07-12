@@ -384,6 +384,7 @@ describe("BundleCollateralWrapper", function () {
               .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("unwrap")))
               .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("enumerate")))
               .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("count")))
+              .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("validate")))
           )
         )
       ).to.equal(true);

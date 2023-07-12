@@ -136,6 +136,17 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard 
         return (context.length - 20) / 32;
     }
 
+    /**
+     * @inheritdoc ICollateralWrapper
+     */
+    function validate(
+        uint256 principal,
+        uint256 repayment,
+        uint64 duration,
+        uint256 tokenId,
+        bytes memory context
+    ) external view {}
+
     /**************************************************************************/
     /* Internal Helpers */
     /**************************************************************************/
