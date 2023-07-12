@@ -749,6 +749,63 @@ abstract contract Pool is
         return (repayment, loanReceipt, loanReceiptHash);
     }
 
+    /**
+     * @dev Helper function to handle repay accounting
+     * @param tick Tick
+     * @return Deposit shares
+     */
+    function _deposit(uint128 tick, uint128 amount, uint256 minShares) internal returns (uint128) {
+        /* Validate tick */
+        Tick.validate(tick, 0, 0, _durations.length - 1, 0, _rates.length - 1);
+
+        /* Deposit into liquidity node */
+        uint128 shares = _liquidity.deposit(tick, amount);
+
+        /* Validate shares received is sufficient */
+        if (shares == 0 || shares < minShares) revert InsufficientShares();
+
+        /* Add to deposit */
+        _deposits[msg.sender][tick].shares += shares;
+
+        return shares;
+    }
+
+    /**
+     * @dev Helper function to handle withdraw
+     * @param tick Tick
+     * @return Deposit shares and deposit amount
+     */
+    function _withdraw(uint128 tick) internal returns (uint128, uint128) {
+        /* Look up Deposit */
+        Deposit storage dep = _deposits[msg.sender][tick];
+
+        /* If no redemption is pending */
+        if (dep.redemptionPending == 0) return (0, 0);
+
+        /* Look up redemption available */
+        (uint128 shares, uint128 amount) = _liquidity.redemptionAvailable(
+            tick,
+            dep.redemptionPending,
+            dep.redemptionIndex,
+            dep.redemptionTarget
+        );
+
+        /* If the entire redemption is ready */
+        if (shares == dep.redemptionPending) {
+            dep.redemptionPending = 0;
+            dep.redemptionIndex = 0;
+            dep.redemptionTarget = 0;
+        } else {
+            dep.redemptionPending -= shares;
+            dep.redemptionTarget += shares;
+        }
+
+        /* Decrement deposit shares */
+        dep.shares -= shares;
+
+        return (shares, amount);
+    }
+
     /**************************************************************************/
     /* Lend API */
     /**************************************************************************/
@@ -1025,20 +1082,11 @@ abstract contract Pool is
      * @inheritdoc IPool
      */
     function deposit(uint128 tick, uint256 amount_, uint256 minShares) external nonReentrant returns (uint256) {
-        /* Validate tick */
-        Tick.validate(tick, 0, 0, _durations.length - 1, 0, _rates.length - 1);
-
         /* Cast amount */
         uint128 amount = amount_.toUint128();
 
-        /* Deposit into liquidity node */
-        uint128 shares = _liquidity.deposit(tick, amount);
-
-        /* Validate shares received is sufficient */
-        if (shares == 0 || shares < minShares) revert InsufficientShares();
-
-        /* Add to deposit */
-        _deposits[msg.sender][tick].shares += shares;
+        /* Handle deposit accounting and compute shares */
+        uint128 shares = _deposit(tick, amount, minShares);
 
         /* Transfer deposit amount */
         _currencyToken.safeTransferFrom(msg.sender, address(this), amount);
@@ -1094,31 +1142,11 @@ abstract contract Pool is
      * @inheritdoc IPool
      */
     function withdraw(uint128 tick) external nonReentrant returns (uint256, uint256) {
-        /* Look up Deposit */
-        Deposit storage dep = _deposits[msg.sender][tick];
+        /* Handle withdraw accounting and compute both shares and amount */
+        (uint128 shares, uint128 amount) = _withdraw(tick);
 
-        /* If no redemption is pending */
-        if (dep.redemptionPending == 0) return (0, 0);
-
-        /* Look up redemption available */
-        (uint128 shares, uint128 amount) = _liquidity.redemptionAvailable(
-            tick,
-            dep.redemptionPending,
-            dep.redemptionIndex,
-            dep.redemptionTarget
-        );
-
-        /* If the entire redemption is ready */
-        if (shares == dep.redemptionPending) {
-            dep.shares -= shares;
-            dep.redemptionPending = 0;
-            dep.redemptionIndex = 0;
-            dep.redemptionTarget = 0;
-        } else {
-            dep.shares -= shares;
-            dep.redemptionPending -= shares;
-            dep.redemptionTarget += shares;
-        }
+        /* Return if shares and amount are both 0 */
+        if (shares == 0 && amount == 0) return (0, 0);
 
         /* Transfer withdrawal amount */
         _currencyToken.safeTransfer(msg.sender, amount);
@@ -1137,43 +1165,14 @@ abstract contract Pool is
         uint128 dstTick,
         uint256 minShares
     ) external nonReentrant returns (uint256, uint256, uint256) {
-        /* Look up Deposit */
-        Deposit storage dep = _deposits[msg.sender][srcTick];
+        /* Handle withdraw accounting and compute both shares and amount */
+        (uint128 oldShares, uint128 amount) = _withdraw(srcTick);
 
-        /* If no redemption is pending */
-        if (dep.redemptionPending == 0) return (0, 0, 0);
+        /* Return if old shares and amount are both 0 */
+        if (oldShares == 0 && amount == 0) return (0, 0, 0);
 
-        /* Look up redemption available */
-        (uint128 oldShares, uint128 amount) = _liquidity.redemptionAvailable(
-            srcTick,
-            dep.redemptionPending,
-            dep.redemptionIndex,
-            dep.redemptionTarget
-        );
-
-        /* If the entire redemption is ready */
-        if (oldShares == dep.redemptionPending) {
-            dep.shares -= oldShares;
-            dep.redemptionPending = 0;
-            dep.redemptionIndex = 0;
-            dep.redemptionTarget = 0;
-        } else {
-            dep.shares -= oldShares;
-            dep.redemptionPending -= oldShares;
-            dep.redemptionTarget += oldShares;
-        }
-
-        /* Validate destination tick */
-        Tick.validate(dstTick, 0, 0, _durations.length - 1, 0, _rates.length - 1);
-
-        /* Deposit into liquidity node */
-        uint128 newShares = _liquidity.deposit(dstTick, amount);
-
-        /* Validate new shares received is sufficient */
-        if (newShares == 0 || newShares < minShares) revert InsufficientShares();
-
-        /* Add to deposit */
-        _deposits[msg.sender][dstTick].shares += newShares;
+        /* Handle deposit accounting and compute shares */
+        uint128 newShares = _deposit(dstTick, amount, minShares);
 
         /* Emit Withdrawn */
         emit Withdrawn(msg.sender, srcTick, oldShares, amount);
