@@ -104,6 +104,7 @@ templates:
         - LoanPurchased
         - LoanRepaid
         - LoanLiquidated
+        - PoolDayData
       abis:
         - name: Pool
           file: ../artifacts/contracts/Pool.sol/Pool.json

@@ -9,6 +9,7 @@ import {
   LoanLiquidated as LoanLiquidatedEntity,
   LoanOriginated as LoanOriginatedEntity,
   LoanRepaid as LoanRepaidEntity,
+  PoolDayData as PoolDayDataEntity,
   Pool as PoolEntity,
   PoolEvent as PoolEventEntity,
   Redeemed as RedeemedEntity,
@@ -98,9 +99,28 @@ function getTickId(encodedTick: BigInt): Bytes {
 }
 
 /**************************************************************************/
+/* Historical */
+/**************************************************************************/
+function updatePoolDayData(poolEntity: PoolEntity, event: ethereum.Event): void {
+  const oneDayInSeconds = BigInt.fromU32(86400);
+  const dayTimestamp = event.block.timestamp.div(oneDayInSeconds).times(oneDayInSeconds);
+  const dayDataId = poolEntity.id.concat(Bytes.fromByteArray(Bytes.fromBigInt(dayTimestamp)));
+  let dayDataEntity = PoolDayDataEntity.load(dayDataId);
+  if (!dayDataEntity) {
+    dayDataEntity = new PoolDayDataEntity(dayDataId);
+    dayDataEntity.timestamp = dayTimestamp;
+    dayDataEntity.pool = poolEntity.id;
+    dayDataEntity.totalValueLocked = poolEntity.totalValueLocked;
+    dayDataEntity.totalValueUsed = poolEntity.totalValueUsed;
+    dayDataEntity.totalValueAvailable = poolEntity.totalValueAvailable;
+    dayDataEntity.save();
+  }
+}
+
+/**************************************************************************/
 /* Liquidity updaters */
 /**************************************************************************/
-function updatePoolEntity(): PoolEntity {
+function updatePoolEntity(event: ethereum.Event): PoolEntity {
   const poolEntity = PoolEntity.load(poolAddress);
   if (!poolEntity) throw new Error("No Pool entity");
 
@@ -127,6 +147,9 @@ function updatePoolEntity(): PoolEntity {
   poolEntity.adminFeeBalance = poolContract.adminFeeBalance();
 
   poolEntity.save();
+
+  updatePoolDayData(poolEntity, event);
+
   return poolEntity;
 }
 
@@ -355,7 +378,7 @@ function createLoanEntity(
 /* mappings */
 /**************************************************************************/
 export function handleDeposited(event: DepositedEvent): void {
-  const poolEntity = updatePoolEntity();
+  const poolEntity = updatePoolEntity(event);
   updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.tick, ZERO, ZERO);
 
@@ -381,7 +404,7 @@ export function handleRedeemed(event: RedeemedEvent): void {
   const oldTickEntity = TickEntity.load(tickId);
   if (!oldTickEntity) throw new Error("Tick entity doesn't exist");
 
-  const poolEntity = updatePoolEntity();
+  const poolEntity = updatePoolEntity(event);
   updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.tick, ZERO, ZERO);
 
@@ -404,7 +427,7 @@ export function handleRedeemed(event: RedeemedEvent): void {
 }
 
 export function handleWithdrawn(event: WithdrawnEvent): void {
-  const poolEntity = updatePoolEntity();
+  const poolEntity = updatePoolEntity(event);
   updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntity(event.params.tick, ZERO, ZERO);
 
@@ -428,7 +451,7 @@ export function handleWithdrawn(event: WithdrawnEvent): void {
 export function handleLoanOriginated(event: LoanOriginatedEvent): void {
   const receipt = poolContract.decodeLoanReceipt(event.params.loanReceipt);
 
-  const poolEntity = updatePoolEntity();
+  const poolEntity = updatePoolEntity(event);
   updateCollateralTokenEntity(poolEntity.collateralToken);
 
   poolEntity.loansOriginated = poolEntity.loansOriginated.plus(ONE);
@@ -458,7 +481,7 @@ export function handleLoanRepaid(event: LoanRepaidEvent): void {
   loanEntity.status = LoanStatus.Repaid;
   loanEntity.save();
 
-  const poolEntity = updatePoolEntity();
+  const poolEntity = updatePoolEntity(event);
   updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntitiesFromLoanEntity(loanEntity, -1);
 
@@ -515,7 +538,7 @@ export function handleCollateralLiquidated(event: CollateralLiquidatedEvent): vo
   loanEntity.status = LoanStatus.CollateralLiquidated;
   loanEntity.save();
 
-  const poolEntity = updatePoolEntity();
+  const poolEntity = updatePoolEntity(event);
   updateCollateralTokenEntity(poolEntity.collateralToken);
   updateTickEntitiesFromLoanEntity(loanEntity, -1);
 

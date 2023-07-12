@@ -35,6 +35,15 @@ type Pool @entity {
   loansCollateralLiquidated: BigInt!
 }
 
+type PoolDayData @entity(immutable: true) {
+  id: Bytes!
+  timestamp: BigInt!
+  pool: Pool!
+  totalValueLocked: BigInt!
+  totalValueAvailable: BigInt!
+  totalValueUsed: BigInt!
+}
+
 ################################################################################
 # CollateralToken Entity
 ################################################################################
