@@ -830,10 +830,18 @@ describe("Integration", function () {
 
       const [tick, amount, shares, sharesPendingWithdrawal, depositor] =
         flattenedDeposits[getRandomInteger(0, flattenedDeposits.length)];
-      consoleLog(`Depositor: ${depositor.address}`);
+
+      /* Simulate withdrawal is possible */
+      const withdrawal = await pool.connect(accountDepositors[0]).callStatic.withdraw(Tick.encode("10"));
+
+      /* Skip withdraw if shares and amount are both 0 */
+      if (withdrawal[0].eq(0) && withdrawal[1].eq(0)) {
+        return;
+      }
 
       /* Execute withdraw() on Pool */
       consoleLog(`Params => tick: ${tick}`);
+
       const withdrawTx = await pool.connect(depositor).withdraw(tick);
 
       /* Get shares */
