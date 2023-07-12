@@ -156,12 +156,12 @@ library LiquidityManager {
         if (liquidity.nodes[startTick].next == 0) revert InactiveLiquidity();
 
         /* Count nodes first to figure out how to size liquidity nodes array */
-        uint256 i = 0;
+        uint256 i;
         uint128 t = startTick;
         while (t != type(uint128).max && t <= endTick) {
             Node storage node = liquidity.nodes[t];
-            i++;
             t = node.next;
+            i++;
         }
 
         ILiquidity.NodeInfo[] memory nodes = new ILiquidity.NodeInfo[](i);
@@ -205,11 +205,10 @@ library LiquidityManager {
     ) internal view returns (uint128, uint128) {
         Node storage node = liquidity.nodes[tick];
 
-        uint128 processedShares = 0;
-        uint128 totalRedeemedShares = 0;
-        uint128 totalRedeemedAmount = 0;
+        uint128 totalRedeemedShares;
+        uint128 totalRedeemedAmount;
 
-        for (; processedShares < target + pending; index++) {
+        for (uint128 processedShares; processedShares < target + pending; index++) {
             /* Look up the next fulfilled redemption */
             FulfilledRedemption storage redemption = node.redemptions.fulfilled[index];
             if (index == node.redemptions.index) {
@@ -291,7 +290,7 @@ library LiquidityManager {
         if (!_isEmpty(node)) revert InactiveLiquidity();
 
         /* Find prior node to new tick */
-        uint128 prevTick = 0;
+        uint128 prevTick;
         Node storage prevNode = liquidity.nodes[prevTick];
         while (prevNode.next < tick) {
             prevTick = prevNode.next;
