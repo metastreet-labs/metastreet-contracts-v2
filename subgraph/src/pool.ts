@@ -337,12 +337,12 @@ function createLoanEntity(
   loanEntity.principal = principal;
   loanEntity.repayment = repayment;
   loanEntity.loanReceipt = encodedReceipt;
+  loanEntity.collateralToken = poolEntity.collateralToken;
 
   const collateralTokenEntity = CollateralTokenEntity.load(poolEntity.collateralToken);
   if (!collateralTokenEntity) throw new Error("CollateralToken entity not found");
 
   if (loanReceipt.collateralToken.equals(collateralTokenEntity.address)) {
-    loanEntity.collateralToken = collateralTokenEntity.id;
     loanEntity.collateralTokenIds = [loanReceipt.collateralTokenId];
   } else {
     const bundleId = loanReceipt.collateralTokenId.toString();
@@ -353,7 +353,6 @@ function createLoanEntity(
       loanReceipt.collateralTokenId,
       loanReceipt.collateralWrapperContext
     );
-    loanEntity.collateralToken = result.value0.toHexString();
     loanEntity.collateralTokenIds = result.value1;
   }
 
