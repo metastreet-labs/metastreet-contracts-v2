@@ -20,6 +20,7 @@ import { FixedPoint } from "./helpers/FixedPoint.ts";
 describe("PoolFactory", function () {
   let accounts: SignerWithAddress[];
   let tok1: TestERC20;
+  let tok2: TestERC20;
   let nft1: TestERC721;
   let collateralLiquidator: ExternalCollateralLiquidator;
   let poolImpl: Pool;
@@ -45,6 +46,9 @@ describe("PoolFactory", function () {
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;
     await tok1.deployed();
+
+    tok2 = (await testERC20Factory.deploy("Token 2", "TOK2", 6, ethers.utils.parseEther("10000"))) as TestERC20;
+    await tok2.deployed();
 
     /* Deploy test NFT */
     nft1 = (await testERC721Factory.deploy("NFT 1", "NFT1", "https://nft1.com/token/")) as TestERC721;
@@ -143,6 +147,7 @@ describe("PoolFactory", function () {
       /* Check pool factory is admin */
       expect(await pool.admin()).to.equal(poolFactory.address);
     });
+
     it("fails on invalid params", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
@@ -151,6 +156,20 @@ describe("PoolFactory", function () {
           nft1.address,
           tok1.address,
           /* Missing duration and rate params */
+        ]
+      );
+      await expect(poolFactory.create(poolImpl.address, params)).to.be.reverted;
+    });
+
+    it("fails on invalid token decimal", async function () {
+      /* Create a pool */
+      const params = ethers.utils.defaultAbiCoder.encode(
+        ["address", "address", "uint64[]", "uint64[]"],
+        [
+          nft1.address,
+          tok2.address,
+          [7 * 86400, 14 * 86400, 30 * 86400],
+          [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
         ]
       );
       await expect(poolFactory.create(poolImpl.address, params)).to.be.reverted;
@@ -165,6 +184,7 @@ describe("PoolFactory", function () {
       poolBeacon = await upgradeableBeaconFactory.deploy(poolImpl.address);
       await poolBeacon.deployed();
     });
+
     it("creates a proxied pool", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
@@ -190,6 +210,7 @@ describe("PoolFactory", function () {
       /* Check pool factory is admin */
       expect(await pool.admin()).to.equal(poolFactory.address);
     });
+
     it("fails on invalid params", async function () {
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
