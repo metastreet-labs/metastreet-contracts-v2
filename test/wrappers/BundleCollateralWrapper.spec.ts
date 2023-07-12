@@ -346,6 +346,7 @@ describe("BundleCollateralWrapper", function () {
             ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("name"))
               .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("unwrap")))
               .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("enumerate")))
+              .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("validate")))
           )
         )
       ).to.equal(true);
