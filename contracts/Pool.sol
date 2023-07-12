@@ -1024,7 +1024,7 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function deposit(uint128 tick, uint256 amount_, uint256 minShares) external nonReentrant {
+    function deposit(uint128 tick, uint256 amount_, uint256 minShares) external nonReentrant returns (uint256) {
         /* Validate tick */
         Tick.validate(tick, 0, 0, _durations.length - 1, 0, _rates.length - 1);
 
@@ -1045,6 +1045,8 @@ abstract contract Pool is
 
         /* Emit Deposited */
         emit Deposited(msg.sender, tick, amount, shares);
+
+        return shares;
     }
 
     /**
@@ -1091,12 +1093,12 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function withdraw(uint128 tick) external nonReentrant returns (uint256) {
+    function withdraw(uint128 tick) external nonReentrant returns (uint256, uint256) {
         /* Look up Deposit */
         Deposit storage dep = _deposits[msg.sender][tick];
 
         /* If no redemption is pending */
-        if (dep.redemptionPending == 0) return 0;
+        if (dep.redemptionPending == 0) return (0, 0);
 
         /* Look up redemption available */
         (uint128 shares, uint128 amount) = _liquidity.redemptionAvailable(
@@ -1124,18 +1126,22 @@ abstract contract Pool is
         /* Emit Withdrawn */
         emit Withdrawn(msg.sender, tick, shares, amount);
 
-        return amount;
+        return (shares, amount);
     }
 
     /**
      * @inheritdoc IPool
      */
-    function rebalance(uint128 srcTick, uint128 dstTick, uint256 minShares) external nonReentrant returns (uint256) {
+    function rebalance(
+        uint128 srcTick,
+        uint128 dstTick,
+        uint256 minShares
+    ) external nonReentrant returns (uint256, uint256, uint256) {
         /* Look up Deposit */
         Deposit storage dep = _deposits[msg.sender][srcTick];
 
         /* If no redemption is pending */
-        if (dep.redemptionPending == 0) return 0;
+        if (dep.redemptionPending == 0) return (0, 0, 0);
 
         /* Look up redemption available */
         (uint128 oldShares, uint128 amount) = _liquidity.redemptionAvailable(
@@ -1174,7 +1180,7 @@ abstract contract Pool is
         /* Emit Deposited */
         emit Deposited(msg.sender, dstTick, amount, newShares);
 
-        return amount;
+        return (oldShares, newShares, amount);
     }
 
     /**************************************************************************/
