@@ -17,7 +17,7 @@ interface ICollateralWrapper {
 
     /**
      * @notice Enumerate wrapped collateral
-     * @param tokenId Collateral wrapper token ID
+     * @param tokenId Wrapped collateral token id
      * @param context Implementation-specific context
      * @return token Token address
      * @return tokenIds List of token ids
@@ -27,10 +27,26 @@ interface ICollateralWrapper {
         bytes calldata context
     ) external view returns (address token, uint256[] memory tokenIds);
 
-    /*
-     * Unwrap collateral
+    /**
+     * @notice Unwrap collateral
      * @param tokenId Collateral wrapper token ID
      * @param context Implementation-specific context
      */
     function unwrap(uint256 tokenId, bytes calldata context) external;
+
+    /**
+     * @notice Validate loan terms for wrapped collateral
+     * @param principal Loan principal
+     * @param repayment Loan repayment
+     * @param duration Loan duration
+     * @param tokenId Wrapped collateral token id
+     * @param context Implementation-specific context
+     */
+    function validate(
+        uint256 principal,
+        uint256 repayment,
+        uint64 duration,
+        uint256 tokenId,
+        bytes calldata context
+    ) external;
 }
