@@ -678,6 +678,17 @@ abstract contract Pool is
             isRefinance
         );
 
+        /* Validate loan terms for collateral wrapper */
+        if (underlyingCollateralToken != collateralToken) {
+            ICollateralWrapper(collateralToken).validate(
+                principal,
+                repayment,
+                duration,
+                collateralTokenId,
+                collateralWrapperContext
+            );
+        }
+
         /* Validate repayment */
         if (repayment > maxRepayment) revert RepaymentTooHigh();
 
