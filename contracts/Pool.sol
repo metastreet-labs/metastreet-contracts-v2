@@ -477,8 +477,13 @@ abstract contract Pool is
         if (delegateData.length != 0) {
             if (address(_delegationRegistry) == address(0) || delegateData.length != 20) revert InvalidBorrowOptions();
 
-            address delegate = address(uint160(bytes20(delegateData)));
-            _delegationRegistry.delegateForToken(delegate, collateralToken, collateralTokenId, true);
+            /* Delegate token */
+            _delegationRegistry.delegateForToken(
+                address(uint160(bytes20(delegateData))),
+                collateralToken,
+                collateralTokenId,
+                true
+            );
         }
     }
 
