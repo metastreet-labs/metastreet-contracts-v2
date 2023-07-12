@@ -121,7 +121,7 @@ type Bundle @entity {
   id: ID! # bundle token id
   owner: Bytes! # address
   collateralWrapperContext: Bytes!
-  underlyingCollateralToken: CollateralToken
+  underlyingCollateralTokenAddress: Bytes!
   underlyingCollateralTokenIds: [BigInt!]! # uint256[]
 }
 

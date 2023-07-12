@@ -13,7 +13,7 @@ export function handleBundleMinted(event: BundleMintedEvent): void {
 
   const bundleCollateralWrapperContract = BundleCollateralWrapperContract.bind(dataSource.address());
   const result = bundleCollateralWrapperContract.enumerate(event.params.tokenId, event.params.encodedBundle);
-  bundleEntity.underlyingCollateralToken = result.value0.toHexString();
+  bundleEntity.underlyingCollateralTokenAddress = result.value0;
   bundleEntity.underlyingCollateralTokenIds = result.value1;
 
   bundleEntity.save();
