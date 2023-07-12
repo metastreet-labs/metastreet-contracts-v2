@@ -191,8 +191,9 @@ interface IPool {
      * @param tick Tick
      * @param amount Amount of currency tokens
      * @param minShares Minimum amount of shares to receive
+     * @return shares Amount of shares minted
      */
-    function deposit(uint128 tick, uint256 amount, uint256 minShares) external;
+    function deposit(uint128 tick, uint256 amount, uint256 minShares) external returns (uint256 shares);
 
     /**
      * @notice Redeem deposit shares for currency tokens. Currency tokens can
@@ -211,7 +212,7 @@ interface IPool {
      *
      * @param account Account
      * @param tick Tick
-     * @return shares Amount of deposit shares redeemed
+     * @return shares Amount of deposit shares available for redemption
      * @return amount Amount of currency tokens available for withdrawal
      */
     function redemptionAvailable(address account, uint128 tick) external view returns (uint256 shares, uint256 amount);
@@ -222,9 +223,10 @@ interface IPool {
      * Emits a {Withdrawn} event.
      *
      * @param tick Tick
+     * @return shares Amount of deposit shares burned
      * @return amount Amount of currency tokens withdrawn
      */
-    function withdraw(uint128 tick) external returns (uint256 amount);
+    function withdraw(uint128 tick) external returns (uint256 shares, uint256 amount);
 
     /**
      * @notice Rebalance a redemption that is available to a new tick
@@ -233,10 +235,16 @@ interface IPool {
      *
      * @param srcTick Source tick
      * @param dstTick Destination Tick
+     * @param minShares Minimum amount of destination shares to receive
+     * @return oldShares Amount of source deposit shares burned
+     * @return newShares Amount of destination deposit shares minted
      * @return amount Amount of currency tokens redeposited
-     * @param minShares Minimum amount of shares to receive
      */
-    function rebalance(uint128 srcTick, uint128 dstTick, uint256 minShares) external returns (uint256 amount);
+    function rebalance(
+        uint128 srcTick,
+        uint128 dstTick,
+        uint256 minShares
+    ) external returns (uint256 oldShares, uint256 newShares, uint256 amount);
 
     /**************************************************************************/
     /* Lend API */

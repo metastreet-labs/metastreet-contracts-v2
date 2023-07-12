@@ -630,10 +630,11 @@ describe("Pool Basic", function () {
       /* Redeem 0.5 shares */
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("0.5"));
 
-      /* Simulated withdrawal should return 0.5 ETH */
-      expect(await pool.connect(accountDepositors[0]).callStatic.withdraw(Tick.encode("10"))).to.equal(
-        FixedPoint.from("0.5")
-      );
+      /* Simulated withdrawal should return 0.5 ETH and 500000000000000000 shares */
+      const redeemableShares = (await pool.deposits(accountDepositors[0].address, Tick.encode("10"))).shares.div("2");
+      const withdrawal = await pool.connect(accountDepositors[0]).callStatic.withdraw(Tick.encode("10"));
+      expect(withdrawal[0]).to.equal(redeemableShares);
+      expect(withdrawal[1]).to.equal(FixedPoint.from("0.5"));
 
       /* Withdraw */
       const withdrawTx = await pool.connect(accountDepositors[0]).withdraw(Tick.encode("10"));

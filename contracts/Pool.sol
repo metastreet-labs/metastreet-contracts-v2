@@ -1096,7 +1096,7 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function deposit(uint128 tick, uint256 amount, uint256 minShares) external nonReentrant {
+    function deposit(uint128 tick, uint256 amount, uint256 minShares) external nonReentrant returns (uint256) {
         /* Handle deposit accounting and compute shares */
         uint128 shares = _deposit(tick, amount.toUint128(), minShares.toUint128());
 
@@ -1105,6 +1105,8 @@ abstract contract Pool is
 
         /* Emit Deposited */
         emit Deposited(msg.sender, tick, amount, shares);
+
+        return shares;
     }
 
     /**
@@ -1134,7 +1136,7 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function withdraw(uint128 tick) external nonReentrant returns (uint256) {
+    function withdraw(uint128 tick) external nonReentrant returns (uint256, uint256) {
         /* Handle withdraw accounting and compute both shares and amount */
         (uint128 shares, uint128 amount) = _withdraw(tick);
 
@@ -1144,13 +1146,17 @@ abstract contract Pool is
         /* Emit Withdrawn */
         emit Withdrawn(msg.sender, tick, shares, amount);
 
-        return amount;
+        return (shares, amount);
     }
 
     /**
      * @inheritdoc IPool
      */
-    function rebalance(uint128 srcTick, uint128 dstTick, uint256 minShares) external nonReentrant returns (uint256) {
+    function rebalance(
+        uint128 srcTick,
+        uint128 dstTick,
+        uint256 minShares
+    ) external nonReentrant returns (uint256, uint256, uint256) {
         /* Handle withdraw accounting and compute both shares and amount */
         (uint128 oldShares, uint128 amount) = _withdraw(srcTick);
 
@@ -1162,7 +1168,7 @@ abstract contract Pool is
         /* Emit Deposited */
         emit Deposited(msg.sender, dstTick, amount, newShares);
 
-        return amount;
+        return (oldShares, newShares, amount);
     }
 
     /**************************************************************************/
