@@ -535,6 +535,7 @@ export function handleCollateralLiquidated(event: CollateralLiquidatedEvent): vo
   const loanEntity = LoanEntity.load(event.params.loanReceiptHash);
   if (!loanEntity) throw new Error("Loan entity not found");
   loanEntity.status = LoanStatus.CollateralLiquidated;
+  loanEntity.proceeds = event.params.proceeds;
   loanEntity.save();
 
   const poolEntity = updatePoolEntity(event);
