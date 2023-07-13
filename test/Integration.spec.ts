@@ -832,10 +832,10 @@ describe("Integration", function () {
         flattenedDeposits[getRandomInteger(0, flattenedDeposits.length)];
 
       /* Simulate withdrawal is possible */
-      const withdrawal = await pool.connect(accountDepositors[0]).callStatic.withdraw(Tick.encode("10"));
+      const redemptionAvailable = await pool.redemptionAvailable(depositor.address, tick);
 
       /* Skip withdraw if shares and amount are both 0 */
-      if (withdrawal[0].eq(0) && withdrawal[1].eq(0)) {
+      if (redemptionAvailable[0].eq(0) && redemptionAvailable[1].eq(0)) {
         return;
       }
 
