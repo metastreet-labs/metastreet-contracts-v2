@@ -33,6 +33,9 @@ type Pool @entity {
   loansRepaid: BigInt!
   loansLiquidated: BigInt!
   loansCollateralLiquidated: BigInt!
+
+  # Historical Statistics
+  dayData: [PoolDayData!]! @derivedFrom(field: "pool")
 }
 
 type PoolDayData @entity(immutable: true) {
