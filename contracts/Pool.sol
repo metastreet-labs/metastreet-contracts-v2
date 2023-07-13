@@ -780,7 +780,7 @@ abstract contract Pool is
         Deposit storage dep = _deposits[msg.sender][tick];
 
         /* If no redemption is pending */
-        if (dep.redemptionPending == 0) return (0, 0);
+        if (dep.redemptionPending == 0) revert InvalidRedemptionStatus();
 
         /* Look up redemption available */
         (uint128 shares, uint128 amount) = _liquidity.redemptionAvailable(
@@ -1111,7 +1111,7 @@ abstract contract Pool is
         if (shares > dep.shares) revert InsufficientShares();
 
         /* Validate redemption isn't pending */
-        if (dep.redemptionPending != 0) revert RedemptionInProgress();
+        if (dep.redemptionPending != 0) revert InvalidRedemptionStatus();
 
         /* Redeem shares in tick with liquidity manager */
         (uint128 redemptionIndex, uint128 redemptionTarget) = _liquidity.redeem(tick, shares);
