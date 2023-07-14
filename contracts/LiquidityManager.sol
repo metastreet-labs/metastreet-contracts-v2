@@ -159,8 +159,7 @@ library LiquidityManager {
         uint256 i;
         uint128 t = startTick;
         while (t != type(uint128).max && t <= endTick) {
-            Node storage node = liquidity.nodes[t];
-            t = node.next;
+            t = liquidity.nodes[t].next;
             i++;
         }
 
