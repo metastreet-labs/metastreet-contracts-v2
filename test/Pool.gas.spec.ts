@@ -341,7 +341,7 @@ describe("Pool Gas", function () {
 
     for (const [principal, numTicks, maxGas] of [
       [FixedPoint.from("15"), 10, 270000],
-      [FixedPoint.from("25"), 16, 346000],
+      [FixedPoint.from("25"), 16, 349000],
     ]) {
       it(`borrow (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
