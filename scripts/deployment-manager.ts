@@ -7,12 +7,7 @@ import { Network } from "@ethersproject/networks";
 import { Signer } from "@ethersproject/abstract-signer";
 import { LedgerSigner } from "@anders-t/ethers-ledger";
 
-import {
-  PoolFactory,
-  UpgradeableBeacon,
-  TransparentUpgradeableProxy,
-  ITransparentUpgradeableProxy,
-} from "../typechain";
+import { PoolFactory, UpgradeableBeacon, ITransparentUpgradeableProxy } from "../typechain";
 
 interface LoanReceipt {
   version: number;
@@ -48,6 +43,8 @@ class Deployment {
   collateralWrappers: { [name: string]: string };
   /* Contract Name to Beacon Address */
   poolBeacons: { [name: string]: string };
+  /* Noop Pool Implementation Address */
+  noopPoolImpl?: string;
 
   constructor(
     name?: string,
@@ -55,7 +52,8 @@ class Deployment {
     poolFactory?: string,
     collateralLiquidators?: { [name: string]: { address: string; beacon: string } },
     collateralWrappers?: { [name: string]: string },
-    poolBeacons?: { [name: string]: string }
+    poolBeacons?: { [name: string]: string },
+    noopPoolImpl?: string
   ) {
     this.name = name;
     this.chainId = chainId;
@@ -63,6 +61,7 @@ class Deployment {
     this.collateralLiquidators = collateralLiquidators || {};
     this.collateralWrappers = collateralWrappers || {};
     this.poolBeacons = poolBeacons || {};
+    this.noopPoolImpl = noopPoolImpl;
   }
 
   static fromFile(path: string): Deployment {
@@ -73,7 +72,8 @@ class Deployment {
       obj.poolFactory,
       obj.collateralLiquidators,
       obj.collateralWrappers,
-      obj.poolBeacons
+      obj.poolBeacons,
+      obj.noopPoolImpl
     );
   }
 
@@ -92,6 +92,7 @@ class Deployment {
     console.log(`Collateral Liquidators:    ${JSON.stringify(this.collateralLiquidators, null, 2)}`);
     console.log(`Collateral Wrappers:       ${JSON.stringify(this.collateralWrappers, null, 2)}`);
     console.log(`Pool Beacons:              ${JSON.stringify(this.poolBeacons, null, 2)}`);
+    console.log(`Noop Pool Implementation:  ${this.noopPoolImpl || "Not deployed"}`);
   }
 }
 
@@ -173,6 +174,14 @@ async function deploymentShow(deployment: Deployment) {
     console.log(`      Impl:    ${impl}`);
     console.log(`      Version: ${version}`);
     console.log("");
+  }
+
+  console.log("\nNoop Pool Implementation");
+  console.log(`  Address: ${deployment.noopPoolImpl || "Not Deployed"}`);
+  if (deployment.noopPoolImpl) {
+    console.log(`  Version: ${await getImplementationVersion(deployment.noopPoolImpl)}`);
+  } else {
+    console.log(`  Version: N/A`);
   }
 }
 
@@ -468,6 +477,33 @@ async function poolImplementationUpgrade(deployment: Deployment, contractName: s
   console.log(`New Pool Version:        ${await getImplementationVersion(await upgradeableBeacon.implementation())}`);
 }
 
+async function poolImplementationPause(deployment: Deployment, contractName: string) {
+  if (!deployment.poolBeacons[contractName]) {
+    console.error(`Pool implementation ${contractName} not deployed.`);
+    return;
+  }
+
+  if (!deployment.noopPoolImpl) {
+    console.error(`Noop pool implementation not deployed.`);
+    return;
+  }
+
+  const upgradeableBeacon = (await ethers.getContractAt(
+    "UpgradeableBeacon",
+    deployment.poolBeacons[contractName],
+    signer
+  )) as UpgradeableBeacon;
+
+  console.log(`Old Pool Implementation: ${await upgradeableBeacon.implementation()}`);
+  console.log(`Old Pool Version:        ${await getImplementationVersion(await upgradeableBeacon.implementation())}`);
+
+  /* Upgrade beacon to noop pool */
+  await upgradeableBeacon.upgradeTo(deployment.noopPoolImpl);
+
+  console.log(`New Pool Implementation: ${await upgradeableBeacon.implementation()}`);
+  console.log(`New Pool Version:        ${await getImplementationVersion(await upgradeableBeacon.implementation())}`);
+}
+
 /******************************************************************************/
 /* Decode LoanReceipt */
 /******************************************************************************/
@@ -482,6 +518,26 @@ async function decodeLoanReceipt(deployment: Deployment, loanReceipt: string) {
 
   console.log(`Decoded loanReceipt:`);
   console.log(result);
+}
+
+/******************************************************************************/
+/* Noop Pool Commands */
+/******************************************************************************/
+
+async function noopPoolImplementationDeploy(deployment: Deployment) {
+  if (deployment.noopPoolImpl) {
+    console.error(`Noop Pool Implementation already deployed.`);
+    return;
+  }
+
+  const noopPoolFactory = await ethers.getContractFactory("NoopPool", signer);
+
+  /* Deploy noop pool implementation */
+  const noopPoolImpl = await noopPoolFactory.deploy();
+  await noopPoolImpl.deployed();
+  console.log(`Noop Pool Implementation: ${noopPoolImpl.address}`);
+
+  deployment.noopPoolImpl = noopPoolImpl.address;
 }
 
 /******************************************************************************/
@@ -629,6 +685,17 @@ async function main() {
     .argument("contract", "Pool contract name")
     .argument("[args...]", "Arguments")
     .action((contract, args) => poolImplementationUpgrade(deployment, contract, args));
+  program
+    .command("pool-implementation-pause")
+    .description("Upgrade Pool Implementation to Noop Pool")
+    .argument("contract", "Pool contract name")
+    .action((contract) => poolImplementationPause(deployment, contract));
+
+  /* Noop Pool */
+  program
+    .command("noop-pool-deploy")
+    .description("Deploy Noop Pool")
+    .action(() => noopPoolImplementationDeploy(deployment));
 
   /* Loan Receipt */
   program
