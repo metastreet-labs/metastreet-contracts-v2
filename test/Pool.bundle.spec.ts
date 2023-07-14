@@ -171,7 +171,7 @@ describe("Pool Bundle", function () {
       expect(await pool.IMPLEMENTATION_NAME()).to.equal("WeightedRateCollectionPool");
     });
     it("matches expected implementation version", async function () {
-      expect(await pool.IMPLEMENTATION_VERSION()).to.equal("1.0");
+      expect(await pool.IMPLEMENTATION_VERSION()).to.equal("1.1");
     });
   });
 
