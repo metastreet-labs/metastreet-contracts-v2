@@ -325,7 +325,8 @@ liquidity and paying interest to themselves.
 
 Admin fees are collected from loan repayments, as a fixed percentage of the
 total interest of the loan. Only successfully repaid loans contribute admin
-fees, while liquidations do not.
+fees. In the case of a defaulted loan, the admin fee is remitted to the ticks
+to offset the liquidation losses.
 
 The Pool administrator — the `PoolFactory` contract — can set the admin fee
 rate on a Pool and withdraw admin fees from a Pool.
