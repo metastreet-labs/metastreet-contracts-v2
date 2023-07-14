@@ -741,6 +741,8 @@ abstract contract Pool is
     /**
      * @dev Helper function to handle deposit accounting
      * @param tick Tick
+     * @param amount Amount
+     * @param minShares Minimum shares
      * @return Deposit shares
      */
     function _deposit(uint128 tick, uint128 amount, uint256 minShares) internal returns (uint128) {
