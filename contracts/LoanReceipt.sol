@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.19;
 
-import "./interfaces/ILiquidity.sol";
-
 /**
  * @title LoanReceipt
  * @author MetaStreet Labs
