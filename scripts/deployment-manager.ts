@@ -247,6 +247,44 @@ async function poolFactoryList(deployment: Deployment) {
   }
 }
 
+async function poolFactoryListImplementations(deployment: Deployment) {
+  if (!deployment.poolFactory) {
+    console.log("Pool factory not deployed.");
+    return;
+  }
+
+  const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory)) as PoolFactory;
+
+  const impls = await poolFactory.getPoolImplementations();
+
+  console.log("Pool Implementations");
+  for (const impl of impls) {
+    console.log(`    ${impl}`);
+  }
+}
+
+async function poolFactoryAddImplementation(deployment: Deployment, implementation: string) {
+  if (!deployment.poolFactory) {
+    console.log("Pool factory not deployed.");
+    return;
+  }
+
+  const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
+
+  await poolFactory.addPoolImplementation(implementation);
+}
+
+async function poolFactoryRemoveImplementation(deployment: Deployment, implementation: string) {
+  if (!deployment.poolFactory) {
+    console.log("Pool factory not deployed.");
+    return;
+  }
+
+  const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
+
+  await poolFactory.removePoolImplementation(implementation);
+}
+
 /******************************************************************************/
 /* Collateral Liquidator Commands */
 /******************************************************************************/
@@ -534,6 +572,20 @@ async function main() {
     .command("pool-factory-list")
     .description("List Pools")
     .action(() => poolFactoryList(deployment));
+  program
+    .command("pool-factory-list-implementations")
+    .description("List Pool Implementations")
+    .action(() => poolFactoryListImplementations(deployment));
+  program
+    .command("pool-factory-add-implementation")
+    .description("Add Pool Implementation")
+    .argument("implementation", "Pool Implementation Address")
+    .action((implementation) => poolFactoryAddImplementation(deployment, implementation));
+  program
+    .command("pool-factory-remove-implementation")
+    .description("Remove Pool Implementation")
+    .argument("implementation", "Pool Implementation Address")
+    .action((implementation) => poolFactoryRemoveImplementation(deployment, implementation));
 
   /* Collateral Liquidator */
   program
