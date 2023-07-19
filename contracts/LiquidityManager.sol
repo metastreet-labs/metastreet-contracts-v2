@@ -255,7 +255,7 @@ library LiquidityManager {
      * @return True if empty, otherwise false
      */
     function _isEmpty(Node storage node) internal view returns (bool) {
-        return node.value == 0 && node.shares == 0 && node.available == 0 && node.pending == 0;
+        return node.shares == 0 && node.pending == 0;
     }
 
     /**
