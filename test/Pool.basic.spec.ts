@@ -417,6 +417,56 @@ describe("Pool Basic", function () {
       expect(node.redemptions).to.equal(FixedPoint.from("5"));
     });
 
+    it("redeemed node with redemption dust is garbage collected", async function () {
+      /* Deposits at 1 ETH and 2 ETH ticks */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("1"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("2"), FixedPoint.from("2"), 0);
+
+      /* Get shares for 2 ETH tick */
+      let shares = (await pool.deposits(accountDepositors[0].address, Tick.encode("2"))).shares;
+
+      /* Borrow using both ticks */
+      const borrowTx = await pool
+        .connect(accountBorrower)
+        .borrow(
+          FixedPoint.from("1.999999999999999999"),
+          3 * 86400,
+          nft1.address,
+          123,
+          FixedPoint.from("2.1"),
+          await sourceLiquidity(FixedPoint.from("1.999999999999999999")),
+          "0x"
+        );
+
+      /* Get decoded loan receipt */
+      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      /* Redeem all shares from 2 ETH tick */
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("2"), shares);
+
+      /* Fast forward timestamp to loan maturity */
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber());
+
+      /* Repay loan */
+      await pool.connect(accountBorrower).repay(loanReceipt);
+
+      /* Validate 2 ETH node has dust */
+      let node = await pool.liquidityNode(Tick.encode("2"));
+      expect(node.available).to.equal(1);
+      expect(node.shares).to.equal(ethers.constants.Zero);
+      expect(node.value).to.equal(1);
+
+      /* Validate 2 ETH node unlinked */
+      let nodes = await pool.liquidityNodes(0, MaxUint128);
+      expect(nodes[nodes.length - 1].tick).to.equal(Tick.encode("1"));
+
+      /* Validate shares redeemed */
+      const withdrawTx = await pool.connect(accountDepositors[0]).withdraw(Tick.encode("2"));
+      const redeemedShares = (await extractEvent(withdrawTx, pool, "Withdrawn")).args.shares;
+      expect(redeemedShares).to.equal(shares);
+    });
+
     it("fails on insufficient shares", async function () {
       /* Deposit 1 ETH */
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
