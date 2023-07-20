@@ -1,3 +1,6 @@
+* Pool v1.2 - 07/20/2023
+    * Fix unlinking of empty nodes with leftover dust from redemption.
+
 * Pool v1.1 - 07/14/2023
     * Optimize contract size.
     * Use `safeTransfer()` for ERC20 transfers.
