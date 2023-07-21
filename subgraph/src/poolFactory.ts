@@ -59,18 +59,10 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   poolEntity.save();
 
   /**************************************************************************/
-  /* Create or update CollateralToken entity*/
+  /* Create CollateralToken entity */
   /**************************************************************************/
   let collateralTokenEntity = CollateralTokenEntity.load(collateralTokenEntityId);
-  if (collateralTokenEntity) {
-    /* Update collateral token entity if it exists */
-    const poolIds = collateralTokenEntity.poolIds;
-    poolIds.push(poolAddress);
-    collateralTokenEntity.poolIds = poolIds;
-    if (collateralTokenEntity.maxLoanDuration < poolEntity.maxLoanDuration) {
-      collateralTokenEntity.maxLoanDuration = poolEntity.maxLoanDuration;
-    }
-  } else {
+  if (!collateralTokenEntity) {
     /* Create collateral token entity if it doesn't exists */
     collateralTokenEntity = new CollateralTokenEntity(collateralTokenEntityId);
     collateralTokenEntity.address = collateralTokenAddress;
@@ -78,19 +70,16 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
       collateralTokenEntity.startTokenId = range.value0;
       collateralTokenEntity.endTokenId = range.value1;
     }
-    collateralTokenEntity.poolIds = [poolAddress];
-    collateralTokenEntity.totalValueLocked = BigInt.zero();
-    collateralTokenEntity.totalValueUsed = BigInt.zero();
-    collateralTokenEntity.maxBorrow = BigInt.zero();
-    collateralTokenEntity.maxLoanDuration = poolEntity.maxLoanDuration;
     collateralTokenEntity.auctionsActive = BigInt.zero();
-    const erc721Contract = ERC721.bind(collateralTokenAddress);
-    const tokenName = erc721Contract.try_name();
-    if (tokenName.reverted) collateralTokenEntity.name = "Unnamed Token";
-    else collateralTokenEntity.name = tokenName.value;
-  }
-  collateralTokenEntity.save();
 
+    const erc721Contract = ERC721.bind(collateralTokenAddress);
+
+    const tokenName = erc721Contract.try_name();
+    if (tokenName.reverted) collateralTokenEntity.name = "Unknown Token";
+    else collateralTokenEntity.name = tokenName.value;
+
+    collateralTokenEntity.save();
+  }
   /**************************************************************************/
   /* Create Pool data source*/
   /**************************************************************************/

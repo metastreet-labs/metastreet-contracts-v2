@@ -57,14 +57,8 @@ type CollateralToken @entity {
   startTokenId: BigInt # uint256
   endTokenId: BigInt # uint256
   name: String!
-  totalValueLocked: BigInt! # uint256
-  totalValueAvailable: BigInt # uint256
-  totalValueUsed: BigInt! # uint256
-  maxBorrow: BigInt! # uint256
-  maxLoanDuration: BigInt! # uint64 (in seconds)
   auctionsActive: BigInt!
   pools: [Pool!]! @derivedFrom(field: "collateralToken")
-  poolIds: [Bytes!]!
 }
 
 ################################################################################
