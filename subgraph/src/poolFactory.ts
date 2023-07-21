@@ -1,4 +1,5 @@
-import { BigInt, Bytes } from "@graphprotocol/graph-ts";
+import { Address, BigInt, Bytes } from "@graphprotocol/graph-ts";
+import { ERC20 } from "../generated/PoolFactory/ERC20";
 import { ERC721 } from "../generated/PoolFactory/ERC721";
 import { Pool as PoolContract } from "../generated/PoolFactory/Pool";
 import { PoolCreated as PoolCreatedEvent } from "../generated/PoolFactory/PoolFactory";
@@ -6,7 +7,11 @@ import {
   RangedCollectionCollateralFilter as RangedCollectionCollateralFilterContract,
   RangedCollectionCollateralFilter__collateralTokenIdRangeResult,
 } from "../generated/PoolFactory/RangedCollectionCollateralFilter";
-import { CollateralToken as CollateralTokenEntity, Pool as PoolEntity } from "../generated/schema";
+import {
+  CollateralToken as CollateralTokenEntity,
+  CurrencyToken as CurrencyTokenEntity,
+  Pool as PoolEntity,
+} from "../generated/schema";
 import { Pool as PoolTemplate } from "../generated/templates";
 
 export function handlePoolCreated(event: PoolCreatedEvent): void {
@@ -79,6 +84,25 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
     else collateralTokenEntity.name = tokenName.value;
 
     collateralTokenEntity.save();
+  }
+  /**************************************************************************/
+  /* Create CurrencyToken entity */
+  /**************************************************************************/
+  let currencyTokenEntity = CurrencyTokenEntity.load(poolEntity.currencyToken);
+  if (!currencyTokenEntity) {
+    currencyTokenEntity = new CurrencyTokenEntity(poolEntity.currencyToken);
+
+    const erc20Contract = ERC20.bind(Address.fromBytes(currencyTokenEntity.id));
+
+    const tokenName = erc20Contract.try_name();
+    if (tokenName.reverted) currencyTokenEntity.name = "Unknown Token";
+    else currencyTokenEntity.name = tokenName.value;
+
+    const tokenSymbol = erc20Contract.try_symbol();
+    if (tokenSymbol.reverted) currencyTokenEntity.symbol = "UNK";
+    else currencyTokenEntity.symbol = tokenSymbol.value;
+
+    currencyTokenEntity.save();
   }
   /**************************************************************************/
   /* Create Pool data source*/

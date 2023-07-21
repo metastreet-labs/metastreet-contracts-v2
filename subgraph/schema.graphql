@@ -7,8 +7,8 @@ type Pool @entity {
   # Properties
   implementation: Bytes! # address
   collateralToken: CollateralToken!
+  currencyToken: CurrencyToken!
   collateralWrappers: [Bytes!]! # address[]
-  currencyToken: Bytes! # address
   durations: [BigInt!]! # uint64[] (in seconds)
   rates: [BigInt!]! # uint64[]
   adminFeeRate: BigInt! # uint64
@@ -59,6 +59,17 @@ type CollateralToken @entity {
   name: String!
   auctionsActive: BigInt!
   pools: [Pool!]! @derivedFrom(field: "collateralToken")
+}
+
+################################################################################
+# CurrencyToken Entity
+################################################################################
+
+type CurrencyToken @entity {
+  id: Bytes!
+  name: String!
+  symbol: String!
+  pools: [Pool!]! @derivedFrom(field: "currencyToken")
 }
 
 ################################################################################
