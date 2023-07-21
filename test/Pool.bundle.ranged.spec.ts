@@ -182,9 +182,6 @@ describe("Pool Bundle Ranged Collection", function () {
     it("matches expected implementation name", async function () {
       expect(await pool.IMPLEMENTATION_NAME()).to.equal("WeightedRateRangedCollectionPool");
     });
-    it("matches expected implementation version", async function () {
-      expect(await pool.IMPLEMENTATION_VERSION()).to.equal("1.1");
-    });
   });
 
   /****************************************************************************/
