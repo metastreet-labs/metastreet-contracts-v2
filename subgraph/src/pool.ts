@@ -217,7 +217,7 @@ function createPoolEventEntity(
   account: Bytes,
   depositEntityId: Bytes | null
 ): Bytes {
-  const id = poolAddress.concat(event.transaction.hash);
+  const id = poolAddress.concat(event.transaction.hash).concat(bytesFromBigInt(event.logIndex));
   const eventEntity = new PoolEventEntity(id);
   eventEntity.pool = poolAddress;
   eventEntity.deposit = depositEntityId;
