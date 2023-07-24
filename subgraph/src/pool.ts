@@ -37,6 +37,7 @@ import {
 } from "./englishAuctionCollateralLiquidator";
 import { FixedPoint } from "./utils/FixedPoint";
 import { decodeLogData } from "./utils/decodeLogData";
+import { bytesFromBigInt } from "./utils/misc";
 
 const poolContract = PoolContract.bind(dataSource.address());
 const poolAddress = dataSource.address();
@@ -95,7 +96,7 @@ function decodeTick(encodedTick: BigInt): DecodedTick {
 }
 
 function getTickId(encodedTick: BigInt): Bytes {
-  return poolAddress.concat(Bytes.fromByteArray(Bytes.fromBigInt(encodedTick)));
+  return poolAddress.concat(bytesFromBigInt(encodedTick));
 }
 
 /**************************************************************************/
@@ -104,7 +105,7 @@ function getTickId(encodedTick: BigInt): Bytes {
 function updatePoolDayData(poolEntity: PoolEntity, event: ethereum.Event): void {
   const oneDayInSeconds = BigInt.fromU32(86400);
   const dayTimestamp = event.block.timestamp.div(oneDayInSeconds).times(oneDayInSeconds);
-  const dayDataId = poolEntity.id.concat(Bytes.fromByteArray(Bytes.fromBigInt(dayTimestamp)));
+  const dayDataId = poolEntity.id.concat(bytesFromBigInt(dayTimestamp));
   let dayDataEntity = PoolDayDataEntity.load(dayDataId);
   if (!dayDataEntity) {
     dayDataEntity = new PoolDayDataEntity(dayDataId);
@@ -242,7 +243,7 @@ function updateDepositEntity(
   timestamp: BigInt,
   depositedAmountUpdate: BigInt
 ): Bytes {
-  const depositEntityId = poolAddress.concat(account).concat(Bytes.fromByteArray(Bytes.fromBigInt(encodedTick)));
+  const depositEntityId = poolAddress.concat(account).concat(bytesFromBigInt(encodedTick));
 
   const deposit = poolContract.deposits(account, encodedTick);
 

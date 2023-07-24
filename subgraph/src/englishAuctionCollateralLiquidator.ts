@@ -16,6 +16,7 @@ import {
   Pool as PoolEntity,
 } from "../generated/schema";
 import { decodeLogData } from "./utils/decodeLogData";
+import { bytesFromBigInt } from "./utils/misc";
 
 /**************************************************************************/
 /* External helpers
@@ -109,7 +110,7 @@ class AuctionStatus {
 }
 
 function getAuctionEntityId(liquidationHash: Bytes, collateralToken: Bytes, collateralTokenId: BigInt): Bytes {
-  return liquidationHash.concat(collateralToken).concat(Bytes.fromByteArray(Bytes.fromBigInt(collateralTokenId)));
+  return liquidationHash.concat(collateralToken).concat(bytesFromBigInt(collateralTokenId));
 }
 
 function loadAuctionEntity(
@@ -203,9 +204,7 @@ export function handleAuctionBid(event: AuctionBidEvent): void {
   );
   if (!auctionEntity) return;
 
-  const bidId = auctionEntity.id
-    .concat(event.params.bidder)
-    .concat(Bytes.fromByteArray(Bytes.fromBigInt(event.params.amount)));
+  const bidId = auctionEntity.id.concat(event.params.bidder).concat(bytesFromBigInt(event.params.amount));
   const bidEntity = new BidEntity(bidId);
   bidEntity.auction = auctionEntity.id;
   bidEntity.bidder = event.params.bidder;
