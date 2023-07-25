@@ -72,18 +72,26 @@ interface IPool {
      * @notice Emitted when deposit shares are redeemed
      * @param account Account
      * @param tick Tick
+     * @param redemptionId Redemption ID
      * @param shares Amount of shares to be redeemed
      */
-    event Redeemed(address indexed account, uint128 indexed tick, uint256 shares);
+    event Redeemed(address indexed account, uint128 indexed tick, uint128 indexed redemptionId, uint256 shares);
 
     /**
      * @notice Emitted when redeemed currency tokens are withdrawn
      * @param account Account
      * @param tick Tick
+     * @param redemptionId Redemption ID
      * @param shares Amount of shares redeemed
      * @param amount Amount of currency tokens withdrawn
      */
-    event Withdrawn(address indexed account, uint128 indexed tick, uint256 shares, uint256 amount);
+    event Withdrawn(
+        address indexed account,
+        uint128 indexed tick,
+        uint128 indexed redemptionId,
+        uint256 shares,
+        uint256 amount
+    );
 
     /**
      * @notice Emitted when a loan is originated
@@ -210,18 +218,24 @@ interface IPool {
      *
      * @param tick Tick
      * @param shares Amount of deposit shares to redeem
+     * @return redemptionId Redemption ID
      */
-    function redeem(uint128 tick, uint256 shares) external;
+    function redeem(uint128 tick, uint256 shares) external returns (uint128 redemptionId);
 
     /**
      * @notice Get redemption available
      *
      * @param account Account
      * @param tick Tick
+     * @param redemptionId Redemption ID
      * @return shares Amount of deposit shares available for redemption
      * @return amount Amount of currency tokens available for withdrawal
      */
-    function redemptionAvailable(address account, uint128 tick) external view returns (uint256 shares, uint256 amount);
+    function redemptionAvailable(
+        address account,
+        uint128 tick,
+        uint128 redemptionId
+    ) external view returns (uint256 shares, uint256 amount);
 
     /**
      * @notice Withdraw a redemption that is available
@@ -229,10 +243,11 @@ interface IPool {
      * Emits a {Withdrawn} event.
      *
      * @param tick Tick
+     * @param redemptionId Redemption ID
      * @return shares Amount of deposit shares burned
      * @return amount Amount of currency tokens withdrawn
      */
-    function withdraw(uint128 tick) external returns (uint256 shares, uint256 amount);
+    function withdraw(uint128 tick, uint128 redemptionId) external returns (uint256 shares, uint256 amount);
 
     /**
      * @notice Rebalance a redemption that is available to a new tick
@@ -241,6 +256,7 @@ interface IPool {
      *
      * @param srcTick Source tick
      * @param dstTick Destination Tick
+     * @param redemptionId Redemption ID
      * @param minShares Minimum amount of destination shares to receive
      * @return oldShares Amount of source deposit shares burned
      * @return newShares Amount of destination deposit shares minted
@@ -249,6 +265,7 @@ interface IPool {
     function rebalance(
         uint128 srcTick,
         uint128 dstTick,
+        uint128 redemptionId,
         uint256 minShares
     ) external returns (uint256 oldShares, uint256 newShares, uint256 amount);
 
