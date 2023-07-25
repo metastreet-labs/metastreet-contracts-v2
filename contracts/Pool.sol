@@ -90,17 +90,27 @@ abstract contract Pool is
     /**************************************************************************/
 
     /**
+     * @notice Redemption
+     * @param pending Redemption shares pending
+     * @param index Redemption queue index
+     * @param target Redemption queue target
+     */
+    struct Redemption {
+        uint128 pending;
+        uint128 index;
+        uint128 target;
+    }
+
+    /**
      * @notice Deposit
      * @param shares Shares
-     * @param redemptionPending Redemption shares pending
-     * @param redemptionIndex Redemption queue index
-     * @param redemptionTarget Redemption queue target
+     * @param redemptionId Next Redemption ID
+     * @param redemptions Mapping of redemption ID to redemption
      */
     struct Deposit {
         uint128 shares;
-        uint128 redemptionPending;
-        uint128 redemptionIndex;
-        uint128 redemptionTarget;
+        uint128 redemptionId;
+        mapping(uint128 => Redemption) redemptions;
     }
 
     /**
@@ -281,7 +291,7 @@ abstract contract Pool is
      * @return Implementation version
      */
     function IMPLEMENTATION_VERSION() external pure returns (string memory) {
-        return "1.4";
+        return "2.0";
     }
 
     /**
@@ -355,10 +365,27 @@ abstract contract Pool is
      * @notice Get deposit
      * @param account Account
      * @param tick Tick
-     * @return Deposit information
+     * @return shares Shares
+     * @return redemptionId Redemption ID
      */
-    function deposits(address account, uint128 tick) external view returns (Deposit memory) {
-        return _deposits[account][tick];
+    function deposits(address account, uint128 tick) external view returns (uint128 shares, uint128 redemptionId) {
+        shares = _deposits[account][tick].shares;
+        redemptionId = _deposits[account][tick].redemptionId;
+    }
+
+    /**
+     * @notice Get redemption
+     * @param account Account
+     * @param tick Tick
+     * @param redemptionId Redemption ID
+     * @return Redemption
+     */
+    function redemptions(
+        address account,
+        uint128 tick,
+        uint128 redemptionId
+    ) external view returns (Redemption memory) {
+        return _deposits[account][tick].redemptions[redemptionId];
     }
 
     /**
@@ -786,57 +813,58 @@ abstract contract Pool is
      * @dev Helper function to handle redeem accounting
      * @param tick Tick
      * @param shares Shares
+     * @return redemptionId Redemption ID
      */
-    function _redeem(uint128 tick, uint128 shares) internal {
-        /* Look up Deposit */
+    function _redeem(uint128 tick, uint128 shares) internal returns (uint128 redemptionId) {
+        /* Look up deposit */
         Deposit storage dep = _deposits[msg.sender][tick];
+
+        /* Assign redemption ID */
+        redemptionId = dep.redemptionId++;
+
+        /* Look up redemption */
+        Redemption storage redemption = dep.redemptions[redemptionId];
 
         /* Validate shares */
         if (shares == 0 || shares > dep.shares) revert InsufficientShares();
 
-        /* Validate redemption isn't pending */
-        if (dep.redemptionPending != 0) revert InvalidRedemptionStatus();
-
         /* Redeem shares in tick with liquidity manager */
-        (uint128 redemptionIndex, uint128 redemptionTarget) = _liquidity.redeem(tick, shares);
+        (uint128 index, uint128 target) = _liquidity.redeem(tick, shares);
 
         /* Update deposit state */
-        dep.redemptionPending = shares;
-        dep.redemptionIndex = redemptionIndex;
-        dep.redemptionTarget = redemptionTarget;
+        redemption.pending = shares;
+        redemption.index = index;
+        redemption.target = target;
+
+        /* Decrement deposit shares */
+        dep.shares -= shares;
     }
 
     /**
      * @dev Helper function to handle withdraw accounting
      * @param tick Tick
+     * @param redemptionId Redemption ID
      * @return Withdrawn shares and withdrawn amount
      */
-    function _withdraw(uint128 tick) internal returns (uint128, uint128) {
-        /* Look up Deposit */
-        Deposit storage dep = _deposits[msg.sender][tick];
+    function _withdraw(uint128 tick, uint128 redemptionId) internal returns (uint128, uint128) {
+        /* Look up redemption */
+        Redemption storage redemption = _deposits[msg.sender][tick].redemptions[redemptionId];
 
         /* If no redemption is pending */
-        if (dep.redemptionPending == 0) revert InvalidRedemptionStatus();
+        if (redemption.pending == 0) revert InvalidRedemptionStatus();
 
         /* Look up redemption available */
         (uint128 shares, uint128 amount, uint128 processedIndices, uint128 processedShares) = _liquidity
-            .redemptionAvailable(tick, dep.redemptionPending, dep.redemptionIndex, dep.redemptionTarget);
+            .redemptionAvailable(tick, redemption.pending, redemption.index, redemption.target);
 
         /* If the entire redemption is ready */
-        if (shares == dep.redemptionPending) {
-            dep.redemptionPending = 0;
-            dep.redemptionIndex = 0;
-            dep.redemptionTarget = 0;
+        if (shares == redemption.pending) {
+            delete _deposits[msg.sender][tick].redemptions[redemptionId];
         } else {
-            dep.redemptionPending -= shares;
-            dep.redemptionIndex += processedIndices;
-            dep.redemptionTarget = (processedShares < dep.redemptionTarget)
-                ? dep.redemptionTarget - processedShares
-                : 0;
+            redemption.pending -= shares;
+            redemption.index += processedIndices;
+            redemption.target = (processedShares < redemption.target) ? redemption.target - processedShares : 0;
         }
-
-        /* Decrement deposit shares */
-        dep.shares -= shares;
 
         return (shares, amount);
     }
@@ -1132,44 +1160,50 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function redeem(uint128 tick, uint256 shares) external nonReentrant {
+    function redeem(uint128 tick, uint256 shares) external nonReentrant returns (uint128) {
         /* Handle redeem accounting */
-        _redeem(tick, shares.toUint128());
+        uint128 redemptionId = _redeem(tick, shares.toUint128());
 
         /* Emit Redeemed event */
-        emit Redeemed(msg.sender, tick, shares);
+        emit Redeemed(msg.sender, tick, redemptionId, shares);
+
+        return redemptionId;
     }
 
     /**
      * @inheritdoc IPool
      */
-    function redemptionAvailable(address account, uint128 tick) external view returns (uint256 shares, uint256 amount) {
-        /* Look up Deposit */
-        Deposit storage dep = _deposits[account][tick];
+    function redemptionAvailable(
+        address account,
+        uint128 tick,
+        uint128 redemptionId
+    ) external view returns (uint256 shares, uint256 amount) {
+        /* Look up redemption */
+        Redemption storage redemption = _deposits[account][tick].redemptions[redemptionId];
 
         /* If no redemption is pending */
-        if (dep.redemptionPending == 0) return (0, 0);
+        if (redemption.pending == 0) return (0, 0);
 
         (shares, amount, , ) = _liquidity.redemptionAvailable(
             tick,
-            dep.redemptionPending,
-            dep.redemptionIndex,
-            dep.redemptionTarget
+            redemption.pending,
+            redemption.index,
+            redemption.target
         );
     }
 
     /**
      * @inheritdoc IPool
      */
-    function withdraw(uint128 tick) external nonReentrant returns (uint256, uint256) {
+    function withdraw(uint128 tick, uint128 redemptionId) external nonReentrant returns (uint256, uint256) {
         /* Handle withdraw accounting and compute both shares and amount */
-        (uint128 shares, uint128 amount) = _withdraw(tick);
+        (uint128 shares, uint128 amount) = _withdraw(tick, redemptionId);
 
         /* Transfer withdrawal amount */
         _currencyToken.safeTransfer(msg.sender, amount);
 
         /* Emit Withdrawn */
-        emit Withdrawn(msg.sender, tick, shares, amount);
+        emit Withdrawn(msg.sender, tick, redemptionId, shares, amount);
 
         return (shares, amount);
     }
@@ -1180,16 +1214,17 @@ abstract contract Pool is
     function rebalance(
         uint128 srcTick,
         uint128 dstTick,
+        uint128 redemptionId,
         uint256 minShares
     ) external nonReentrant returns (uint256, uint256, uint256) {
         /* Handle withdraw accounting and compute both shares and amount */
-        (uint128 oldShares, uint128 amount) = _withdraw(srcTick);
+        (uint128 oldShares, uint128 amount) = _withdraw(srcTick, redemptionId);
 
         /* Handle deposit accounting and compute new shares */
         uint128 newShares = _deposit(dstTick, amount, minShares.toUint128());
 
         /* Emit Withdrawn */
-        emit Withdrawn(msg.sender, srcTick, oldShares, amount);
+        emit Withdrawn(msg.sender, srcTick, redemptionId, oldShares, amount);
         /* Emit Deposited */
         emit Deposited(msg.sender, dstTick, amount, newShares);
 

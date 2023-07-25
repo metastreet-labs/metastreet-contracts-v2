@@ -287,7 +287,7 @@ describe("Pool Gas", function () {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1.0"));
 
-      const withdrawTx = await pool.connect(accountDepositors[0]).withdraw(Tick.encode("10"));
+      const withdrawTx = await pool.connect(accountDepositors[0]).withdraw(Tick.encode("10"), 0);
 
       const gasUsed = (await withdrawTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
@@ -304,7 +304,7 @@ describe("Pool Gas", function () {
         .connect(accountDepositors[0])
         .multicall([
           pool.interface.encodeFunctionData("redeem", [Tick.encode("10"), FixedPoint.from("1.0")]),
-          pool.interface.encodeFunctionData("rebalance", [Tick.encode("10"), Tick.encode("15"), 0]),
+          pool.interface.encodeFunctionData("rebalance", [Tick.encode("10"), Tick.encode("15"), 0, 0]),
         ]);
 
       const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
@@ -321,7 +321,7 @@ describe("Pool Gas", function () {
         .connect(accountDepositors[0])
         .multicall([
           pool.interface.encodeFunctionData("redeem", [Tick.encode("10"), FixedPoint.from("1.0")]),
-          pool.interface.encodeFunctionData("rebalance", [Tick.encode("10"), Tick.encode("15"), 0]),
+          pool.interface.encodeFunctionData("rebalance", [Tick.encode("10"), Tick.encode("15"), 0, 0]),
         ]);
 
       const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
