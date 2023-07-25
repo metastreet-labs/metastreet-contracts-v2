@@ -251,6 +251,7 @@ type Liquidation @entity(immutable: true) {
   source: Bytes! # address
   sourceImplementation: Bytes! # address
   collateralToken: CollateralToken!
+  currencyToken: CurrencyToken!
   loan: Loan!
   auctions: [Auction!]! @derivedFrom(field: "liquidation")
 }
@@ -265,6 +266,7 @@ type Auction @entity {
   id: Bytes!
   liquidation: Liquidation!
   collateralToken: CollateralToken
+  currencyToken: CurrencyToken!
   collateralTokenId: BigInt! # uint256
   highestBid: Bid
   bidsCount: Int!
