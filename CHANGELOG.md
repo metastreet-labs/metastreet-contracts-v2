@@ -1,3 +1,6 @@
+* Pool v1.3 - 07/25/2023
+    * Validate shares are non-zero in `redeem()`.
+
 * Pool v1.2 - 07/20/2023
     * Fix unlinking of empty nodes with leftover dust from redemption.
 
