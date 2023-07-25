@@ -477,6 +477,16 @@ describe("Pool Basic", function () {
       ).to.be.revertedWithCustomError(pool, "InsufficientShares");
     });
 
+    it("fails on zero shares", async function () {
+      /* Deposit 1 ETH */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+
+      /* Redeem 1.25 shares */
+      await expect(
+        pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), ethers.constants.Zero)
+      ).to.be.revertedWithCustomError(pool, "InsufficientShares");
+    });
+
     it("fails on redemption in progress", async function () {
       /* Deposit 1 ETH */
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
