@@ -64,6 +64,8 @@ describe("Integration", function () {
   /* Test Suite Internal Storage */
   /* address -> (tick -> [amount, shares, shares pending withdrawals, depositor]) */
   let deposits: Map<string, Map<string, [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress]>>;
+  /* address -> (tick -> redemption nonce) */
+  let redemptionNonces: Map<string, Map<string, ethers.BigNumber[]>>;
   /* list of (borrower address, token id, encoded loan receipt) */
   let loans: [SignerWithAddress, ethers.BigNumber, string][];
   /* address -> list of token ids - removed when used as collateral */
@@ -203,6 +205,7 @@ describe("Integration", function () {
       string,
       Map<string, [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress]>
     >();
+    redemptionNonces = new Map<string, Map<string, ethers.BigNumber[]>>();
     collateralTokenId = ethers.constants.Zero;
     callStatistics = {
       deposit: 0,
@@ -785,6 +788,7 @@ describe("Integration", function () {
 
       /* Execute redeem() on Pool */
       consoleLog(`Params => tick: ${tick}, shares: ${sharesRedeemAmount}`);
+      const redemptionNonce = await pool.connect(depositor).callStatic.redeem(tick, sharesRedeemAmount);
       await pool.connect(depositor).redeem(tick, sharesRedeemAmount);
 
       const [value, available, pending] = await liquidityNodes();
@@ -809,6 +813,13 @@ describe("Integration", function () {
       depositorsDeposits.set(tick.toString(), newTickDeposit);
       deposits.set(depositor.address, depositorsDeposits);
 
+      /* Add redemption nonce */
+      const depositorTickRedemption = redemptionNonces.get(depositor.address) ?? new Map<string, ethers.BigNumber[]>();
+      const depositorTickRedemptionNonces = depositorTickRedemption.get(tick) ?? [];
+      depositorTickRedemptionNonces.push(redemptionNonce);
+      depositorTickRedemption.set(tick, depositorTickRedemptionNonces);
+      redemptionNonces.set(depositor.address, depositorTickRedemption);
+
       callStatistics["redeem"] += 1;
       consoleLog(`${depositor.address}: Redeemed ${sharesRedeemAmount} shares at tick ${tick}`);
     } catch (e) {
@@ -832,7 +843,20 @@ describe("Integration", function () {
         flattenedDeposits[getRandomInteger(0, flattenedDeposits.length)];
 
       /* Simulate withdrawal is possible */
-      const redemptionAvailable = await pool.redemptionAvailable(depositor.address, tick);
+      const depositorTickRedemption = redemptionNonces.get(depositor.address) ?? new Map<string, ethers.BigNumber>();
+      const depositorTickRedemptionNonces = depositorTickRedemption.get(tick) ?? [];
+      if (depositorTickRedemptionNonces.length === 0) {
+        throw new Error("depositorTickRedemptionNonces should exists");
+      }
+      const redemptionNonce = depositorTickRedemptionNonces[0];
+      const redemptionAvailable = await pool.redemptionAvailable(depositor.address, tick, redemptionNonce);
+
+      /* Delete redemption nonce if entire redemption is available */
+      const redemption = await pool.redemptions(depositor.address, tick, redemptionNonce);
+      if (redemption.pending.eq(redemptionAvailable[0])) {
+        depositorTickRedemption.set(tick, depositorTickRedemptionNonces.slice(1));
+        redemptionNonces.set(depositor.address, depositorTickRedemption);
+      }
 
       /* Skip withdraw if shares and amount are both 0 */
       if (redemptionAvailable[0].eq(0) && redemptionAvailable[1].eq(0)) {
@@ -842,7 +866,7 @@ describe("Integration", function () {
       /* Execute withdraw() on Pool */
       consoleLog(`Params => tick: ${tick}`);
 
-      const withdrawTx = await pool.connect(depositor).withdraw(tick);
+      const withdrawTx = await pool.connect(depositor).withdraw(tick, redemptionNonce);
 
       /* Get shares */
       const _shares = (await extractEvent(withdrawTx, pool, "Withdrawn")).args.shares;
