@@ -169,17 +169,8 @@ library LiquidityManager {
         i = 0;
         t = startTick;
         while (t != type(uint128).max && t <= endTick) {
-            Node storage node = liquidity.nodes[t];
-            nodes[i++] = ILiquidity.NodeInfo({
-                tick: t,
-                value: node.value,
-                shares: node.shares,
-                available: node.available,
-                pending: node.pending,
-                redemptions: node.redemptions.pending,
-                prev: node.prev,
-                next: node.next
-            });
+            ILiquidity.NodeInfo memory node = liquidityNode(liquidity, t);
+            nodes[i++] = node;
             t = node.next;
         }
 
