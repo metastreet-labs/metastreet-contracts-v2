@@ -19,7 +19,7 @@ describe("Tick", function () {
     await tickLibrary.deployed();
 
     tickLibrary.validate = tickLibrary["validate(uint128,uint256,uint256,uint256,uint256,uint256)"];
-    tickLibrary.validateFast = tickLibrary["validate(uint128,uint256,uint256)"];
+    tickLibrary.validateFast = tickLibrary["validate(uint128,uint128,uint256)"];
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -93,11 +93,30 @@ describe("Tick", function () {
       expect(await tickLibrary.validateFast(TEST_TICK, Tick.encode(FixedPoint.from("123.2"), 3, 4), 0)).to.equal(
         FixedPoint.from("123.3")
       );
+      expect(await tickLibrary.validateFast(TEST_TICK, Tick.encode(FixedPoint.from("123.2"), 4, 4), 0)).to.equal(
+        FixedPoint.from("123.3")
+      );
+      expect(await tickLibrary.validateFast(TEST_TICK, Tick.encode(FixedPoint.from("123.2"), 4, 5), 0)).to.equal(
+        FixedPoint.from("123.3")
+      );
     });
-    it("reverts on non-strictly increasing ticks", async function () {
+    it("reverts on duplicated tick", async function () {
+      await expect(tickLibrary.validateFast(TEST_TICK, TEST_TICK, 0)).to.be.revertedWithCustomError(
+        tickLibrary,
+        "InvalidTick"
+      );
+    });
+    it("reverts on non-strictly increasing ticks with distinct price limits", async function () {
       await expect(
         tickLibrary.validateFast(TEST_TICK, Tick.encode(FixedPoint.from("123.4"), 3, 5), 0)
       ).to.be.revertedWithCustomError(tickLibrary, "InvalidTick");
+    });
+    it("reverts on same price limits with increasing duration", async function () {
+      await expect(
+        tickLibrary.validateFast(TEST_TICK, Tick.encode(FixedPoint.from("123.3"), 2, 5), 0)
+      ).to.be.revertedWithCustomError(tickLibrary, "InvalidTick");
+    });
+    it("reverts on same price limits with decreasing rates", async function () {
       await expect(
         tickLibrary.validateFast(TEST_TICK, Tick.encode(FixedPoint.from("123.3"), 3, 6), 0)
       ).to.be.revertedWithCustomError(tickLibrary, "InvalidTick");
