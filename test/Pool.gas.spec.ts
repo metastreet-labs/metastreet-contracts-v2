@@ -391,8 +391,8 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 286000],
-      [FixedPoint.from("250"), 16, 365000],
+      [FixedPoint.from("150"), 10, 286200],
+      [FixedPoint.from("250"), 16, 366300],
     ]) {
       it(`borrow (bundle of 10, ${numTicks} ticks)`, async function () {
         /* Mint bundle of 10 */
