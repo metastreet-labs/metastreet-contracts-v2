@@ -20,7 +20,7 @@ contract TestTick {
     /**
      * @dev External wrapper function for Tick.validate()
      */
-    function validate(uint128 tick, uint256 minLimit, uint256 minDurationIndex) external pure returns (uint256) {
+    function validate(uint128 tick, uint128 minLimit, uint256 minDurationIndex) external pure returns (uint256) {
         return Tick.validate(tick, minLimit, minDurationIndex);
     }
 
