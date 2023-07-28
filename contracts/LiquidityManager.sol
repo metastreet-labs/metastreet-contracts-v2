@@ -525,7 +525,7 @@ library LiquidityManager {
     ) internal view returns (ILiquidity.NodeSource[] memory, uint16) {
         ILiquidity.NodeSource[] memory sources = new ILiquidity.NodeSource[](ticks.length);
 
-        uint256 prevTick;
+        uint128 prevTick;
         uint256 taken;
         uint256 count;
         for (; count < ticks.length && taken != amount; count++) {
