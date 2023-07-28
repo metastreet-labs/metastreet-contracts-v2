@@ -118,10 +118,16 @@ library Tick {
      * @param minDurationIndex Minimum Duration Index (inclusive)
      * @return Limit field
      */
-    function validate(uint128 tick, uint256 prevTick, uint256 minDurationIndex) internal pure returns (uint256) {
-        (uint256 limit, uint256 duration, , ) = decode(tick);
-        if (tick <= prevTick) revert InvalidTick();
+    function validate(uint128 tick, uint128 prevTick, uint256 minDurationIndex) internal pure returns (uint256) {
+        (uint256 limit, uint256 duration, uint256 rate, ) = decode(tick);
+        (uint256 prevLimit, uint256 prevDuration, uint256 prevRate, ) = decode(prevTick);
+
         if (duration < minDurationIndex) revert InvalidTick();
+
+        if (limit == prevLimit) {
+            if (duration > prevDuration || rate < prevRate || tick == prevTick) revert InvalidTick();
+        } else if (tick < prevTick) revert InvalidTick();
+
         return limit;
     }
 
