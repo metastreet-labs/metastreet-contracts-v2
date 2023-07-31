@@ -95,7 +95,7 @@ describe("Pool Ranged Collection", function () {
             ethers.BigNumber.from(123),
             ethers.BigNumber.from(125),
             tok1.address,
-            [7 * 86400, 14 * 86400, 30 * 86400],
+            [30 * 86400, 14 * 86400, 7 * 86400],
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
           ]
         ),
