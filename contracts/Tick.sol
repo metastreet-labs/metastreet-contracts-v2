@@ -20,8 +20,8 @@ library Tick {
      * |                 Limit                | Dur. Idx | Rate Idx | Reserved |
      * +-----------------------------------------------------------------------+
      *
-     * Duration Index is ordered from shortest duration to longest, e.g. 7
-     * days, 14 days, 30 days.
+     * Duration Index is ordered from longest duration to shortest, e.g. 30
+     * days, 14 days, 7 days.
      *
      * Rate Index is ordered from lowest rate to highest rate, e.g. 10%, 30%,
      * 50%.
@@ -115,13 +115,13 @@ library Tick {
      * @dev Validate a Tick (fast)
      * @param tick Tick
      * @param prevTick Previous tick
-     * @param minDurationIndex Minimum Duration Index (inclusive)
+     * @param maxDurationIndex Maximum Duration Index (exclusive)
      * @return Limit field
      */
-    function validate(uint128 tick, uint256 prevTick, uint256 minDurationIndex) internal pure returns (uint256) {
+    function validate(uint128 tick, uint256 prevTick, uint256 maxDurationIndex) internal pure returns (uint256) {
         (uint256 limit, uint256 duration, , ) = decode(tick);
         if (tick <= prevTick) revert InvalidTick();
-        if (duration < minDurationIndex) revert InvalidTick();
+        if (duration >= maxDurationIndex) revert InvalidTick();
         return limit;
     }
 

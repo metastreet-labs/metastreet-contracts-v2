@@ -236,7 +236,7 @@ abstract contract Pool is
         if (durations_.length > Tick.MAX_NUM_DURATIONS) revert ParameterOutOfBounds();
         for (uint256 i; i < durations_.length; i++) {
             /* Check duration is monotonic */
-            if (i != 0 && durations_[i] <= durations_[i - 1]) revert ParameterOutOfBounds();
+            if (i != 0 && durations_[i] >= durations_[i - 1]) revert ParameterOutOfBounds();
             _durations.push(durations_[i]);
         }
 
@@ -540,11 +540,11 @@ abstract contract Pool is
         /* Lookup duration index */
         uint256 durationIndex;
         for (; durationIndex < durations_.length; durationIndex++) {
-            if (duration <= durations_[durationIndex]) break;
+            if (duration > durations_[durationIndex]) break;
         }
 
         /* Validate duration index */
-        if (durationIndex == durations_.length) revert UnsupportedLoanDuration();
+        if (durationIndex == 0) revert UnsupportedLoanDuration();
 
         /* Source liquidity nodes */
         (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(

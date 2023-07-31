@@ -85,7 +85,7 @@ async function main() {
     [
       baycTokenContract.address,
       wethTokenContract.address,
-      [7 * 86400, 14 * 86400, 30 * 86400],
+      [30 * 86400, 14 * 86400, 7 * 86400],
       [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
     ]
   );
