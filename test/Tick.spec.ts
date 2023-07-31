@@ -86,24 +86,24 @@ describe("Tick", function () {
 
   describe("#validate (fast)", async function () {
     it("suceeds on a valid tick", async function () {
-      expect(await tickLibrary.validateFast(TEST_TICK, 0, 0)).to.equal(FixedPoint.from("123.3"));
-      expect(await tickLibrary.validateFast(TEST_TICK, Tick.encode(FixedPoint.from("123.2"), 3, 5), 0)).to.equal(
+      expect(await tickLibrary.validateFast(TEST_TICK, 0, 4)).to.equal(FixedPoint.from("123.3"));
+      expect(await tickLibrary.validateFast(TEST_TICK, Tick.encode(FixedPoint.from("123.2"), 3, 5), 4)).to.equal(
         FixedPoint.from("123.3")
       );
-      expect(await tickLibrary.validateFast(TEST_TICK, Tick.encode(FixedPoint.from("123.2"), 3, 4), 0)).to.equal(
+      expect(await tickLibrary.validateFast(TEST_TICK, Tick.encode(FixedPoint.from("123.2"), 3, 4), 4)).to.equal(
         FixedPoint.from("123.3")
       );
     });
     it("reverts on non-strictly increasing ticks", async function () {
       await expect(
-        tickLibrary.validateFast(TEST_TICK, Tick.encode(FixedPoint.from("123.4"), 3, 5), 0)
+        tickLibrary.validateFast(TEST_TICK, Tick.encode(FixedPoint.from("123.4"), 3, 5), 4)
       ).to.be.revertedWithCustomError(tickLibrary, "InvalidTick");
       await expect(
-        tickLibrary.validateFast(TEST_TICK, Tick.encode(FixedPoint.from("123.3"), 3, 6), 0)
+        tickLibrary.validateFast(TEST_TICK, Tick.encode(FixedPoint.from("123.3"), 3, 6), 4)
       ).to.be.revertedWithCustomError(tickLibrary, "InvalidTick");
     });
     it("reverts on out of bounds duration index", async function () {
-      await expect(tickLibrary.validateFast(TEST_TICK, 0, 4)).to.be.revertedWithCustomError(tickLibrary, "InvalidTick");
+      await expect(tickLibrary.validateFast(TEST_TICK, 0, 3)).to.be.revertedWithCustomError(tickLibrary, "InvalidTick");
     });
   });
 });
