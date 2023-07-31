@@ -49,7 +49,7 @@ describe("Integration", function () {
     principals: [1, 2] /* min: 1 ethers, max: 2 ethers */,
     ticks: ["1", "2"] /* min and max needs to be within the bounds of principals */,
     borrowDurations: [1, 30 * 86400] /* min: 1 second, max: 30 days */,
-    tickDurations: [7 * 86400, 14 * 86400, 30 * 86400] /* 7 days, 14 days, 30 days */,
+    tickDurations: [30 * 86400, 14 * 86400, 7 * 86400] /* 7 days, 14 days, 30 days */,
     tickRates: [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
     depositAmounts: [25, 50] /* min: 25 ethers, max: 50 ethers */,
     numberOfBorrowers: 8 /* max allowed is 8!! */,
