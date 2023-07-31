@@ -156,7 +156,7 @@ function updatePoolEntity(event: ethereum.Event): PoolEntity {
 
 function updateTickEntity(
   encodedTick: BigInt,
-  interestWeightedDurationUpdate: BigInt,
+  principalWeightedDurationUpdate: BigInt,
   interestWeightedMaturityUpdate: BigInt
 ): TickEntity {
   const node = poolContract.liquidityNode(encodedTick);
@@ -169,7 +169,7 @@ function updateTickEntity(
   let tickEntity = TickEntity.load(tickId);
   if (!tickEntity) {
     tickEntity = new TickEntity(tickId);
-    tickEntity.interestWeightedDuration = ZERO;
+    tickEntity.principalWeightedDuration = ZERO;
     tickEntity.interestWeightedMaturity = ZERO;
   }
 
@@ -187,7 +187,7 @@ function updateTickEntity(
   tickEntity.prev = node.prev;
   tickEntity.next = node.next;
   tickEntity.redemptionPending = node.redemptions;
-  tickEntity.interestWeightedDuration = tickEntity.interestWeightedDuration.plus(interestWeightedDurationUpdate);
+  tickEntity.principalWeightedDuration = tickEntity.principalWeightedDuration.plus(principalWeightedDurationUpdate);
   tickEntity.interestWeightedMaturity = tickEntity.interestWeightedMaturity.plus(interestWeightedMaturityUpdate);
 
   tickEntity.save();
@@ -196,15 +196,15 @@ function updateTickEntity(
 
 function updateTickEntitiesFromLoanEntity(loanEntity: LoanEntity, factor: i8): void {
   for (let i = 0; i < loanEntity.ticks.length; i++) {
-    const interestWeightedDurationUpdate = loanEntity.duration
-      .times(loanEntity.interests[i])
+    const principalWeightedDurationUpdated = loanEntity.duration
+      .times(loanEntity.useds[i])
       .times(BigInt.fromI32(factor));
 
     const interestWeightedMaturityUpdate = loanEntity.maturity
       .times(loanEntity.interests[i])
       .times(BigInt.fromI32(factor));
 
-    updateTickEntity(loanEntity.ticks[i], interestWeightedDurationUpdate, interestWeightedMaturityUpdate);
+    updateTickEntity(loanEntity.ticks[i], principalWeightedDurationUpdated, interestWeightedMaturityUpdate);
   }
 }
 

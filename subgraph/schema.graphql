@@ -96,7 +96,7 @@ type Tick @entity {
   prev: BigInt! # uint128
   next: BigInt! # uint128
   # for calculating apr and net earnings
-  interestWeightedDuration: BigInt! # uint128
+  principalWeightedDuration: BigInt! # uint128
   interestWeightedMaturity: BigInt! # uint128
 }
 
