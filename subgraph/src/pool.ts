@@ -125,26 +125,39 @@ function updatePoolEntity(event: ethereum.Event): PoolEntity {
   const poolEntity = PoolEntity.load(poolAddress);
   if (!poolEntity) throw new Error("No Pool entity");
 
+  const durationsCount = poolEntity.durations.length;
+
   const nodes = poolContract.liquidityNodes(ZERO, MAX_UINT128);
 
   let locked = ZERO;
   let available = ZERO;
-  let maxBorrow = ZERO;
+  const maxBorrows: BigInt[] = [];
+  for (let i = 0; i < durationsCount; i++) maxBorrows.push(ZERO);
+
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
+    const tick = decodeTick(node.tick);
+
     locked = locked.plus(node.value);
     available = available.plus(node.available);
 
-    const nodeTickLimit = decodeTick(node.tick).limit;
-    const borrowAmountNeeded = nodeTickLimit.minus(maxBorrow);
-    if (borrowAmountNeeded.gt(node.available)) maxBorrow = maxBorrow.plus(node.available);
-    else maxBorrow = maxBorrow.plus(borrowAmountNeeded);
+    for (let durationIndex = 0; durationIndex < durationsCount; durationIndex++) {
+      if (durationIndex > tick.durationIndex) continue;
+
+      const borrowAmountNeeded = tick.limit.minus(maxBorrows[durationIndex]);
+
+      if (borrowAmountNeeded.gt(node.available)) {
+        maxBorrows[durationIndex] = maxBorrows[durationIndex].plus(node.available);
+      } else {
+        maxBorrows[durationIndex] = maxBorrows[durationIndex].plus(borrowAmountNeeded);
+      }
+    }
   }
 
   poolEntity.totalValueLocked = locked;
   poolEntity.totalValueAvailable = available;
   poolEntity.totalValueUsed = locked.minus(available);
-  poolEntity.maxBorrow = maxBorrow;
+  poolEntity.maxBorrows = maxBorrows;
   poolEntity.adminFeeBalance = poolContract.adminFeeBalance();
 
   poolEntity.save();

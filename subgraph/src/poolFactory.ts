@@ -47,7 +47,9 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   poolEntity.collateralLiquidator = poolContract.collateralLiquidator();
   poolEntity.delegationRegistry = poolContract.delegationRegistry();
   // Derived properties
-  poolEntity.maxBorrow = BigInt.zero();
+  const maxBorrows: BigInt[] = [];
+  for (let i = 0; i < poolEntity.durations.length; i++) maxBorrows.push(BigInt.fromI32(0));
+  poolEntity.maxBorrows = maxBorrows;
   poolEntity.maxLoanDuration = poolEntity.durations[poolEntity.durations.length - 1];
   // State
   poolEntity.adminFeeBalance = BigInt.zero();

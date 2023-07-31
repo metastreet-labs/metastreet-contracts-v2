@@ -15,7 +15,7 @@ type Pool @entity {
   collateralLiquidator: Bytes! # address
   delegationRegistry: Bytes! # address
   # Derived Properties
-  maxBorrow: BigInt! # uint256
+  maxBorrows: [BigInt!]! # uint256[]
   maxLoanDuration: BigInt! # uint64 (in seconds)
   # State
   adminFeeBalance: BigInt! # uint256
