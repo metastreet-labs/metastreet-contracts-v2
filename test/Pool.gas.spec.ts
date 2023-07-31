@@ -94,7 +94,7 @@ describe("Pool Gas", function () {
           [
             nft1.address,
             tok1.address,
-            [7 * 86400, 14 * 86400, 30 * 86400],
+            [30 * 86400, 14 * 86400, 7 * 86400],
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
           ]
         ),
@@ -781,7 +781,7 @@ describe("Pool Gas", function () {
               [
                 nft1.address,
                 tok1.address,
-                [7 * 86400, 14 * 86400, 30 * 86400],
+                [30 * 86400, 14 * 86400, 7 * 86400],
                 [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
               ]
             ),
