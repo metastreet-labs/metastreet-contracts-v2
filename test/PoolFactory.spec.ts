@@ -40,7 +40,7 @@ describe("PoolFactory", function () {
     const poolFactoryImplFactory = await ethers.getContractFactory("PoolFactory");
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
-    const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
+    const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPoolV2");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;

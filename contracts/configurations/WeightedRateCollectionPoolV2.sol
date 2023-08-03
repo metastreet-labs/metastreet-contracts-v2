@@ -3,14 +3,14 @@ pragma solidity 0.8.20;
 
 import "../Pool.sol";
 import "../rates/WeightedInterestRateModel.sol";
-import "../filters/RangedCollectionCollateralFilter.sol";
+import "../filters/CollectionCollateralFilter.sol";
 
 /**
- * @title Pool Configuration with a Weighted Interest Rate Model and Ranged Collection
+ * @title Pool Configuration with a Weighted Interest Rate Model and Collection
  * Collateral Filter
  * @author MetaStreet Labs
  */
-contract WeightedRateRangedCollectionPool is Pool, WeightedInterestRateModel, RangedCollectionCollateralFilter {
+contract WeightedRateCollectionPoolV2 is Pool, WeightedInterestRateModel, CollectionCollateralFilter {
     /**************************************************************************/
     /* State */
     /**************************************************************************/
@@ -56,17 +56,11 @@ contract WeightedRateRangedCollectionPool is Pool, WeightedInterestRateModel, Ra
         _initialized = true;
 
         /* Decode parameters */
-        (
-            address collateralToken_,
-            uint256 startTokenId_,
-            uint256 endTokenId_,
-            address currencyToken_,
-            uint64[] memory durations_,
-            uint64[] memory rates_
-        ) = abi.decode(params, (address, uint256, uint256, address, uint64[], uint64[]));
+        (address collateralToken_, address currencyToken_, uint64[] memory durations_, uint64[] memory rates_) = abi
+            .decode(params, (address, address, uint64[], uint64[]));
 
         /* Initialize Collateral Filter */
-        RangedCollectionCollateralFilter._initialize(collateralToken_, startTokenId_, endTokenId_);
+        CollectionCollateralFilter._initialize(collateralToken_);
 
         /* Initialize Pool */
         Pool._initialize(currencyToken_, durations_, rates_);
@@ -80,6 +74,6 @@ contract WeightedRateRangedCollectionPool is Pool, WeightedInterestRateModel, Ra
      * @inheritdoc Pool
      */
     function IMPLEMENTATION_NAME() external pure override returns (string memory) {
-        return "WeightedRateRangedCollectionPool";
+        return "WeightedRateCollectionPoolV2";
     }
 }

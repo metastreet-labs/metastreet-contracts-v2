@@ -88,7 +88,7 @@ describe("Integration", function () {
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
-    const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
+    const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPoolV2");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy(

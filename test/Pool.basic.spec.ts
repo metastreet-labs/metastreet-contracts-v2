@@ -42,7 +42,7 @@ describe("Pool Basic", function () {
     const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
-    const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
+    const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPoolV2");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;
@@ -155,7 +155,7 @@ describe("Pool Basic", function () {
 
   describe("constants", async function () {
     it("matches expected implementation name", async function () {
-      expect(await pool.IMPLEMENTATION_NAME()).to.equal("WeightedRateCollectionPool");
+      expect(await pool.IMPLEMENTATION_NAME()).to.equal("WeightedRateCollectionPoolV2");
     });
     it("matches expected implementation version", async function () {
       expect(await pool.IMPLEMENTATION_VERSION()).to.equal("2.0");

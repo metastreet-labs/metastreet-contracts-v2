@@ -43,7 +43,7 @@ describe("Pool Gas", function () {
     const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
-    const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
+    const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPoolV2");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("20000"))) as TestERC20;
@@ -738,7 +738,7 @@ describe("Pool Gas", function () {
         const englishAuctionCollateralLiquidatorFactory = await ethers.getContractFactory(
           "EnglishAuctionCollateralLiquidator"
         );
-        const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
+        const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPoolV2");
 
         /* Deploy english auction collateral liquidator implementation */
         const englishAuctionCollateralLiquidatorImpl = await englishAuctionCollateralLiquidatorFactory.deploy([
