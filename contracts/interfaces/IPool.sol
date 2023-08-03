@@ -275,7 +275,7 @@ interface IPool {
      * @param collateralTokenIds List of collateral token IDs
      * @param ticks Liquidity ticks
      * @param options Encoded options
-     * @return Repayment amount in currency tokens
+     * @return repayment Repayment amount in currency tokens
      */
     function quote(
         uint256 principal,
@@ -284,7 +284,7 @@ interface IPool {
         uint256[] calldata collateralTokenIds,
         uint128[] calldata ticks,
         bytes calldata options
-    ) external view returns (uint256);
+    ) external view returns (uint256 repayment);
 
     /**
      * @notice Quote refinancing for a loan
@@ -315,7 +315,7 @@ interface IPool {
      * @param maxRepayment Maximum repayment amount in currency tokens
      * @param ticks Liquidity ticks
      * @param options Encoded options
-     * @return Repayment amount in currency tokens
+     * @return repayment Repayment amount in currency tokens
      */
     function borrow(
         uint256 principal,
@@ -325,7 +325,7 @@ interface IPool {
         uint256 maxRepayment,
         uint128[] calldata ticks,
         bytes calldata options
-    ) external returns (uint256);
+    ) external returns (uint256 repayment);
 
     /**
      * @notice Repay a loan
@@ -333,9 +333,9 @@ interface IPool {
      * Emits a {LoanRepaid} event.
      *
      * @param encodedLoanReceipt Encoded loan receipt
-     * @return Repayment amount in currency tokens
+     * @return repayment Repayment amount in currency tokens
      */
-    function repay(bytes calldata encodedLoanReceipt) external returns (uint256);
+    function repay(bytes calldata encodedLoanReceipt) external returns (uint256 repayment);
 
     /**
      * @notice Refinance a loan
@@ -347,7 +347,7 @@ interface IPool {
      * @param duration Duration in seconds
      * @param maxRepayment Maximum repayment amount in currency tokens
      * @param ticks Liquidity ticks
-     * @return Repayment amount in currency tokens
+     * @return repayment Repayment amount in currency tokens
      */
     function refinance(
         bytes calldata encodedLoanReceipt,
@@ -355,7 +355,7 @@ interface IPool {
         uint64 duration,
         uint256 maxRepayment,
         uint128[] calldata ticks
-    ) external returns (uint256);
+    ) external returns (uint256 repayment);
 
     /**
      * @notice Liquidate an expired loan
