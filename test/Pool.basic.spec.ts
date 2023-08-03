@@ -210,9 +210,9 @@ describe("Pool Basic", function () {
       });
 
       /* Validate deposit state */
-      const [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("1"));
-      expect(nonce).to.equal(ethers.constants.Zero);
+      expect(redemptionId).to.equal(ethers.constants.Zero);
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -232,9 +232,9 @@ describe("Pool Basic", function () {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
 
       /* Validate deposit state */
-      const [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("3"));
-      expect(nonce).to.equal(ethers.constants.Zero);
+      expect(redemptionId).to.equal(ethers.constants.Zero);
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -367,14 +367,14 @@ describe("Pool Basic", function () {
       await expectEvent(redeemTx, pool, "Redeemed", {
         account: accountDepositors[0].address,
         tick: Tick.encode("10"),
-        nonce: 0,
+        redemptionId: 0,
         shares: FixedPoint.from("1"),
       });
 
       /* Validate deposit state */
-      const [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(ethers.constants.Zero);
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -394,14 +394,14 @@ describe("Pool Basic", function () {
       await expectEvent(redeemTx, pool, "Redeemed", {
         account: accountDepositors[0].address,
         tick: Tick.encode("10"),
-        nonce: 0,
+        redemptionId: 0,
         shares: FixedPoint.from("0.5"),
       });
 
       /* Validate deposit state */
-      const [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("0.5"));
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -422,9 +422,9 @@ describe("Pool Basic", function () {
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("5"));
 
       /* Validate deposit state */
-      const [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("5"));
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -529,10 +529,10 @@ describe("Pool Basic", function () {
       expect(amount).to.equal(FixedPoint.from("0.5"));
 
       /* Validate deposit state */
-      let nonce;
-      [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      let redemptionId;
+      [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("0.5"));
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -566,10 +566,10 @@ describe("Pool Basic", function () {
       expect(amount.sub(FixedPoint.from("5")).abs()).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
-      let nonce;
-      [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      let redemptionId;
+      [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("5"));
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -614,10 +614,10 @@ describe("Pool Basic", function () {
       expect(amount.sub(FixedPoint.from("8")).abs()).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
-      let nonce;
-      [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      let redemptionId;
+      [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("2"));
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -665,10 +665,10 @@ describe("Pool Basic", function () {
       expect(amount).to.equal(ethers.constants.Zero);
 
       /* Validate deposit state */
-      let nonce;
-      [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      let redemptionId;
+      [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("5"));
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -702,10 +702,10 @@ describe("Pool Basic", function () {
       expect(amount.sub(FixedPoint.from("3")).abs()).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
-      let nonce;
-      [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      let redemptionId;
+      [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("5"));
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -730,10 +730,10 @@ describe("Pool Basic", function () {
       expect(amount).to.equal(ethers.constants.Zero);
 
       /* Validate deposit state */
-      let nonce;
-      [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      let redemptionId;
+      [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(ethers.constants.Zero);
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       let redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -762,9 +762,9 @@ describe("Pool Basic", function () {
       expect(amount).to.equal(ethers.constants.Zero);
 
       /* Validate deposit state */
-      [shares, nonce] = await pool.deposits(accountDepositors[1].address, Tick.encode("10"));
+      [shares, redemptionId] = await pool.deposits(accountDepositors[1].address, Tick.encode("10"));
       expect(shares).to.be.closeTo(FixedPoint.from("0.05"), FixedPoint.from("0.01"));
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       redemption = await pool.redemptions(accountDepositors[1].address, Tick.encode("10"), 0);
@@ -794,7 +794,7 @@ describe("Pool Basic", function () {
       await expectEvent(withdrawTx, pool, "Withdrawn", {
         account: accountDepositors[0].address,
         tick: Tick.encode("10"),
-        nonce: 0,
+        redemptionId: 0,
         shares: FixedPoint.from("0.5"),
         amount: FixedPoint.from("0.5"),
       });
@@ -805,9 +805,9 @@ describe("Pool Basic", function () {
       });
 
       /* Validate deposit state */
-      let [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("0.5"));
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -840,7 +840,7 @@ describe("Pool Basic", function () {
       await expectEvent(withdrawTx, pool, "Withdrawn", {
         account: accountDepositors[0].address,
         tick: Tick.encode("10"),
-        nonce: 0,
+        redemptionId: 0,
         shares: FixedPoint.from("5"),
       });
       await expectEvent(withdrawTx, tok1, "Transfer", {
@@ -853,9 +853,9 @@ describe("Pool Basic", function () {
       expect(amount.sub(FixedPoint.from("5")).abs()).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
-      const [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("5"));
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -888,7 +888,7 @@ describe("Pool Basic", function () {
       await expectEvent(withdrawTx1, pool, "Withdrawn", {
         account: accountDepositors[0].address,
         tick: Tick.encode("10"),
-        nonce: 0,
+        redemptionId: 0,
       });
       await expectEvent(withdrawTx1, tok1, "Transfer", {
         from: pool.address,
@@ -902,9 +902,9 @@ describe("Pool Basic", function () {
       expect(amount1.sub(FixedPoint.from("3")).abs()).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
-      let [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("2"));
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       let redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -922,7 +922,7 @@ describe("Pool Basic", function () {
       await expectEvent(withdrawTx2, pool, "Withdrawn", {
         account: accountDepositors[0].address,
         tick: Tick.encode("10"),
-        nonce: 0,
+        redemptionId: 0,
       });
       await expectEvent(withdrawTx2, tok1, "Transfer", {
         from: pool.address,
@@ -936,9 +936,9 @@ describe("Pool Basic", function () {
       expect(amount2.sub(FixedPoint.from("5")).abs()).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
-      [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("2"));
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -982,7 +982,7 @@ describe("Pool Basic", function () {
       await expectEvent(withdrawTx, pool, "Withdrawn", {
         account: accountDepositors[0].address,
         tick: Tick.encode("10"),
-        nonce: 0,
+        redemptionId: 0,
         shares: FixedPoint.from("5"),
         amount: ethers.constants.Zero,
       });
@@ -993,9 +993,9 @@ describe("Pool Basic", function () {
       });
 
       /* Validate deposit state */
-      let [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("5"));
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       let redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -1025,7 +1025,7 @@ describe("Pool Basic", function () {
       await expectEvent(withdrawTx1, pool, "Withdrawn", {
         account: accountDepositors[0].address,
         tick: Tick.encode("10"),
-        nonce: 0,
+        redemptionId: 0,
       });
       await expectEvent(withdrawTx1, tok1, "Transfer", {
         from: pool.address,
@@ -1039,9 +1039,9 @@ describe("Pool Basic", function () {
       expect(amount1.sub(FixedPoint.from("3")).abs()).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
-      let [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("5"));
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       let redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -1059,7 +1059,7 @@ describe("Pool Basic", function () {
       await expectEvent(withdrawTx2, pool, "Withdrawn", {
         account: accountDepositors[0].address,
         tick: Tick.encode("10"),
-        nonce: 0,
+        redemptionId: 0,
       });
       await expectEvent(withdrawTx2, tok1, "Transfer", {
         from: pool.address,
@@ -1073,9 +1073,9 @@ describe("Pool Basic", function () {
       expect(amount2.sub(FixedPoint.from("2")).abs()).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
-      [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("5"));
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
       redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -1113,7 +1113,7 @@ describe("Pool Basic", function () {
       await expectEvent(rebalanceTx, pool, "Withdrawn", {
         account: accountDepositors[0].address,
         tick: Tick.encode("10"),
-        nonce: 0,
+        redemptionId: 0,
         shares: FixedPoint.from("1.0"),
         amount: FixedPoint.from("1.0"),
       });
@@ -1125,13 +1125,13 @@ describe("Pool Basic", function () {
       });
 
       /* Validate deposit state */
-      let [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(ethers.constants.Zero);
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
-      [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("15"));
+      [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("15"));
       expect(shares).to.equal(FixedPoint.from("1.0"));
-      expect(nonce).to.equal(ethers.constants.Zero);
+      expect(redemptionId).to.equal(ethers.constants.Zero);
 
       /* Validate redemption state */
       let redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
@@ -1181,7 +1181,7 @@ describe("Pool Basic", function () {
       await expectEvent(rebalanceTx, pool, "Withdrawn", {
         account: accountDepositors[0].address,
         tick: Tick.encode("10"),
-        nonce: 0,
+        redemptionId: 0,
       });
       await expectEvent(rebalanceTx, pool, "Deposited", {
         account: accountDepositors[0].address,
@@ -1189,13 +1189,13 @@ describe("Pool Basic", function () {
       });
 
       /* Validate deposit state */
-      let [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(ethers.constants.Zero);
-      expect(nonce).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
-      [shares, nonce] = await pool.deposits(accountDepositors[0].address, Tick.encode("15"));
+      [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("15"));
       expect(shares).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
-      expect(nonce).to.equal(ethers.constants.Zero);
+      expect(redemptionId).to.equal(ethers.constants.Zero);
 
       /* Validate redemption state */
       let redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
