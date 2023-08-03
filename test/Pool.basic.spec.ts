@@ -439,6 +439,43 @@ describe("Pool Basic", function () {
       expect(node.redemptions).to.equal(FixedPoint.from("5"));
     });
 
+    it("successfully schedules multiple redemptions", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("10"), 0);
+
+      /* Create loan */
+      await createActiveLoan(FixedPoint.from("15"));
+
+      /* Redeem 5 shares */
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("5"));
+      /* Redeem another 5 shares */
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("5"));
+
+      /* Validate deposit state */
+      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      expect(shares).to.equal(FixedPoint.from("0"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("2"));
+
+      /* Validate redemption state */
+      const redemption1 = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
+      expect(redemption1.pending).to.equal(FixedPoint.from("5"));
+      expect(redemption1.index).to.equal(ethers.constants.Zero);
+      expect(redemption1.target).to.equal(ethers.constants.Zero);
+
+      /* Validate redemption state */
+      const redemption2 = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 1);
+      expect(redemption2.pending).to.equal(FixedPoint.from("5"));
+      expect(redemption2.index).to.equal(ethers.constants.Zero);
+      expect(redemption2.target).to.equal(FixedPoint.from("5"));
+
+      /* Validate tick state */
+      const node = await pool.liquidityNode(Tick.encode("10"));
+      expect(node.value).to.equal(FixedPoint.from("10"));
+      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.redemptions).to.equal(FixedPoint.from("10"));
+    });
+
     it("redeemed node with redemption dust is garbage collected", async function () {
       /* Deposits at 1 ETH and 2 ETH ticks */
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("1"), FixedPoint.from("1"), 0);
@@ -862,6 +899,78 @@ describe("Pool Basic", function () {
       expect(redemption.pending).to.equal(ethers.constants.Zero);
       expect(redemption.index).to.equal(ethers.constants.Zero);
       expect(redemption.target).to.equal(ethers.constants.Zero);
+    });
+
+    it("withdraws multiple fully available redemptions from repaid loan", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
+
+      /* Create loan */
+      const [loanReceipt] = await createActiveLoan(FixedPoint.from("14"));
+
+      /* Redeem 5 shares */
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("5"));
+      /* Redeem another 5 shares */
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("5"));
+
+      /* Repay loan */
+      await pool.connect(accountBorrower).repay(loanReceipt);
+
+      /* Withdraw first redemption */
+      const withdrawTx1 = await pool.connect(accountDepositors[0]).withdraw(Tick.encode("10"), 0);
+
+      /* Validate events */
+      await expectEvent(withdrawTx1, pool, "Withdrawn", {
+        account: accountDepositors[0].address,
+        tick: Tick.encode("10"),
+        redemptionId: 0,
+        shares: FixedPoint.from("5"),
+      });
+      await expectEvent(withdrawTx1, tok1, "Transfer", {
+        from: pool.address,
+        to: accountDepositors[0].address,
+      });
+
+      /* Validate amount approximately */
+      const amount1 = (await extractEvent(withdrawTx1, pool, "Withdrawn")).args.amount;
+      expect(amount1.sub(FixedPoint.from("5")).abs()).to.be.lt(FixedPoint.from("0.1"));
+
+      /* Withdraw second redemption */
+      const withdrawTx2 = await pool.connect(accountDepositors[0]).withdraw(Tick.encode("10"), 1);
+
+      /* Validate events */
+      await expectEvent(withdrawTx2, pool, "Withdrawn", {
+        account: accountDepositors[0].address,
+        tick: Tick.encode("10"),
+        redemptionId: 1,
+        shares: FixedPoint.from("5"),
+      });
+      await expectEvent(withdrawTx2, tok1, "Transfer", {
+        from: pool.address,
+        to: accountDepositors[0].address,
+      });
+
+      /* Validate amount approximately */
+      const amount2 = (await extractEvent(withdrawTx2, pool, "Withdrawn")).args.amount;
+      expect(amount2.sub(FixedPoint.from("5")).abs()).to.be.lt(FixedPoint.from("0.1"));
+
+      /* Validate deposit state */
+      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      expect(shares).to.equal(FixedPoint.from("0"));
+      expect(redemptionId).to.equal(ethers.BigNumber.from("2"));
+
+      /* Validate redemption state */
+      const redemption1 = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
+      expect(redemption1.pending).to.equal(ethers.constants.Zero);
+      expect(redemption1.index).to.equal(ethers.constants.Zero);
+      expect(redemption1.target).to.equal(ethers.constants.Zero);
+
+      /* Validate redemption state */
+      const redemption2 = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 1);
+      expect(redemption2.pending).to.equal(ethers.constants.Zero);
+      expect(redemption2.index).to.equal(ethers.constants.Zero);
+      expect(redemption2.target).to.equal(ethers.constants.Zero);
     });
 
     it("withdraws partially available redemption from repaid loan", async function () {
