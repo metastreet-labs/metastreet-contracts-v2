@@ -1,3 +1,9 @@
+* Pool v2.0 - 08/03/2023
+    * Reverse duration ordering in ticks to source from longer duration ticks
+      before shorter duration ones.
+    * Add support for multiple concurrent redemptions in the `redeem()`,
+      `withdraw()`, `rebalance()` APIs.
+
 * Pool v1.3 - 07/25/2023
     * Validate shares are non-zero in `redeem()`.
 
