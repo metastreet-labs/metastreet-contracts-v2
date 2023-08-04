@@ -1,3 +1,12 @@
+* Pool v2.0 - 08/15/2023
+    * Reverse duration ordering in ticks to source from longer duration ticks
+      before shorter duration ones.
+    * Improve liquidation surplus distribution to ticks by allocating it
+      proportionally to interest earned.
+    * Add deposit premium rate parameter to constructor.
+    * Add support for multiple concurrent redemptions in the `redeem()`,
+      `withdraw()`, `rebalance()` APIs.
+    * Add return of shares ahead to `redemptionAvailable()` API.
 * SetCollectionCollateralFilter v1.0 - 08/15/2023
     * Initial release.
 * ERC1155CollateralWrapper v1.0 - 08/15/2023
