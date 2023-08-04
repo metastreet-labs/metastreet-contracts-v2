@@ -1,3 +1,15 @@
+* Pool v2.0 - 08/31/2023
+    * Reverse duration ordering in ticks to source from longer duration ticks
+      before shorter duration ones.
+    * Improve liquidation surplus distribution to ticks by allocating it
+      proportionally to interest earned.
+    * Add `adminFee` to loan receipt.
+    * Add deposit premium rate parameter to constructor.
+    * Add support for multiple concurrent redemptions with the `redeem()`,
+      `withdraw()`, `rebalance()` APIs in IPool.
+    * Add return of shares ahead to `redemptionAvailable()` API in IPool.
+    * Add `adminFeeBalance()` API to IPool.
+    * Add `count()` API to ICollateralWrapper.
 * BundleCollateralWrapper v2.0 - 08/31/2023
     * Add implementation of `count()` in new ICollateralWrapper API.
 * ERC1155CollateralWrapper v1.0 - 08/31/2023
