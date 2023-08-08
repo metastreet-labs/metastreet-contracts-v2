@@ -139,6 +139,11 @@ abstract contract Pool is
     /**************************************************************************/
 
     /**
+     * @notice Deposit premium rate in basis points
+     */
+    uint256 internal immutable _depositPremiumRate;
+
+    /**
      * @notice Collateral wrappers (max 3)
      */
     address internal immutable _collateralWrapper1;
@@ -210,11 +215,20 @@ abstract contract Pool is
 
     /**
      * @notice Pool constructor
+     * @param depositPremiumRate_ Deposit premium rate in basis points
      * @param collateralLiquidator_ Collateral liquidator
      * @param delegationRegistry_ Delegation registry contract
      * @param collateralWrappers_ Collateral wrappers
      */
-    constructor(address collateralLiquidator_, address delegationRegistry_, address[] memory collateralWrappers_) {
+    constructor(
+        uint256 depositPremiumRate_,
+        address collateralLiquidator_,
+        address delegationRegistry_,
+        address[] memory collateralWrappers_
+    ) {
+        if (depositPremiumRate_ > LiquidityManager.BASIS_POINTS_SCALE) revert ParameterOutOfBounds();
+        _depositPremiumRate = depositPremiumRate_;
+
         _collateralLiquidator = ICollateralLiquidator(collateralLiquidator_);
 
         _delegationRegistry = IDelegationRegistry(delegationRegistry_);
@@ -313,6 +327,13 @@ abstract contract Pool is
      */
     function adminFeeRate() external view returns (uint32) {
         return _adminFeeRate;
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
+    function depositPremiumRate() external view returns (uint256) {
+        return _depositPremiumRate;
     }
 
     /**
@@ -777,7 +798,7 @@ abstract contract Pool is
         Tick.validate(tick, 0, 0, _durations.length - 1, 0, _rates.length - 1);
 
         /* Deposit into liquidity node */
-        uint128 shares = _liquidity.deposit(tick, amount);
+        uint128 shares = _liquidity.deposit(tick, amount, _depositPremiumRate);
 
         /* Validate shares received is sufficient */
         if (shares == 0 || shares < minShares) revert InsufficientShares();
