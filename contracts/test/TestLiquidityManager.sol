@@ -89,8 +89,8 @@ contract TestLiquidityManager is ILiquidity {
     /**
      * @dev External wrapper function for LiquidityManager.deposit()
      */
-    function deposit(uint128 tick, uint128 amount) external returns (uint256) {
-        uint128 shares = _liquidity.deposit(tick, amount);
+    function deposit(uint128 tick, uint128 amount, uint256 depositPremiumRate) external returns (uint256) {
+        uint128 shares = _liquidity.deposit(tick, amount, depositPremiumRate);
         emit Deposited(shares);
         return shares;
     }
