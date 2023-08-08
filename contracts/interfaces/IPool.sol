@@ -170,6 +170,12 @@ interface IPool {
     function adminFeeRate() external view returns (uint32);
 
     /**
+     * @notice Get deposit premium rate
+     * @return Deposit premium rate in fixed point scale
+     */
+    function depositPremiumRate() external view returns (uint256);
+
+    /**
      * @notice Get list of supported collateral wrappers
      * @return Collateral wrappers
      */

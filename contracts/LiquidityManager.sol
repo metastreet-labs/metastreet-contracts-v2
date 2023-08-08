@@ -407,9 +407,15 @@ library LiquidityManager {
      * @param liquidity Liquidity state
      * @param tick Tick
      * @param amount Amount
+     * @param depositPremiumRate Deposit premium rate
      * @return Number of shares
      */
-    function deposit(Liquidity storage liquidity, uint128 tick, uint128 amount) internal returns (uint128) {
+    function deposit(
+        Liquidity storage liquidity,
+        uint128 tick,
+        uint128 amount,
+        uint256 depositPremiumRate
+    ) internal returns (uint128) {
         Node storage node = liquidity.nodes[tick];
 
         /* If tick is reserved */
@@ -418,10 +424,12 @@ library LiquidityManager {
         /* Instantiate node, if necessary */
         _instantiate(liquidity, node, tick);
 
-        /* Compute deposit price as current value + 50% of pending returns */
+        /* Compute deposit price as current value + the premium rate on pending returns */
         uint256 price = node.shares == 0
             ? FIXED_POINT_SCALE
-            : ((node.value + (node.available + node.pending - node.value) / 2) * FIXED_POINT_SCALE) / node.shares;
+            : ((node.value +
+                (((node.available + node.pending - node.value) * depositPremiumRate) / BASIS_POINTS_SCALE)) *
+                FIXED_POINT_SCALE) / node.shares;
         uint128 shares = ((amount * FIXED_POINT_SCALE) / price).toUint128();
 
         node.value += amount;
