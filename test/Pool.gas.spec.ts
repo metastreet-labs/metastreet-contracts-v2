@@ -78,6 +78,7 @@ describe("Pool Gas", function () {
 
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
+      5000,
       externalCollateralLiquidator.address,
       ethers.constants.AddressZero,
       [bundleCollateralWrapper.address],
@@ -765,6 +766,7 @@ describe("Pool Gas", function () {
 
         /* Deploy pool implementation */
         poolEACLImpl = (await poolImplFactory.deploy(
+          5000,
           englishAuctionCollateralLiquidator.address,
           ethers.constants.AddressZero,
           [bundleCollateralWrapper.address],
