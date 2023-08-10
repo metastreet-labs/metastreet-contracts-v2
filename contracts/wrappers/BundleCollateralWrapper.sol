@@ -9,6 +9,7 @@ import "../interfaces/ICollateralWrapper.sol";
 
 /**
  * @title Bundle Collateral Wrapper
+ * @author MetaStreet Labs
  */
 contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard {
     /**************************************************************************/
