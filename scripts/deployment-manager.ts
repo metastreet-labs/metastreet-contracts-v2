@@ -41,7 +41,7 @@ class Deployment {
   collateralLiquidators: { [name: string]: { address: string; beacon: string } };
   /* Contract Name to Proxy Address */
   collateralWrappers: { [name: string]: string };
-  /* Contract Name to Beacon Address */
+  /* Deployment Name to Beacon Address */
   poolBeacons: { [name: string]: string };
   /* Noop Pool Implementation Address */
   noopPoolImpl?: string;
@@ -164,12 +164,12 @@ async function deploymentShow(deployment: Deployment) {
   }
 
   console.log("\nPool Implementations");
-  for (const contractName in deployment.poolBeacons) {
-    const poolImplementation = deployment.poolBeacons[contractName];
+  for (const name in deployment.poolBeacons) {
+    const poolImplementation = deployment.poolBeacons[name];
     const impl = await getBeaconImplementation(poolImplementation);
     const version = await getImplementationVersion(impl);
 
-    console.log(`  ${contractName}`);
+    console.log(`  ${name}`);
     console.log(`      Beacon:  ${poolImplementation}`);
     console.log(`      Impl:    ${impl}`);
     console.log(`      Version: ${version}`);
@@ -428,9 +428,9 @@ async function collateralWrapperUpgrade(deployment: Deployment, contractName: st
 /* Pool Implementation Commands */
 /******************************************************************************/
 
-async function poolImplementationDeploy(deployment: Deployment, contractName: string, args: string[]) {
-  if (deployment.poolBeacons[contractName]) {
-    console.error(`Pool implementation ${contractName} already deployed.`);
+async function poolImplementationDeploy(deployment: Deployment, name: string, contractName: string, args: string[]) {
+  if (deployment.poolBeacons[name]) {
+    console.error(`Pool implementation ${name} already deployed.`);
     return;
   }
 
@@ -447,18 +447,18 @@ async function poolImplementationDeploy(deployment: Deployment, contractName: st
   await upgradeableBeacon.deployed();
   console.log(`Pool Beacon:         ${upgradeableBeacon.address}`);
 
-  deployment.poolBeacons[contractName] = upgradeableBeacon.address;
+  deployment.poolBeacons[name] = upgradeableBeacon.address;
 }
 
-async function poolImplementationUpgrade(deployment: Deployment, contractName: string, args: string[]) {
-  if (!deployment.poolBeacons[contractName]) {
-    console.error(`Pool implementation ${contractName} not deployed.`);
+async function poolImplementationUpgrade(deployment: Deployment, name: string, contractName: string, args: string[]) {
+  if (!deployment.poolBeacons[name]) {
+    console.error(`Pool implementation ${name} not deployed.`);
     return;
   }
 
   const upgradeableBeacon = (await ethers.getContractAt(
     "UpgradeableBeacon",
-    deployment.poolBeacons[contractName],
+    deployment.poolBeacons[name],
     signer
   )) as UpgradeableBeacon;
   const poolFactory = await ethers.getContractFactory(contractName, signer);
@@ -470,6 +470,17 @@ async function poolImplementationUpgrade(deployment: Deployment, contractName: s
   const poolImpl = await poolFactory.deploy(...decodeArgs(args));
   await poolImpl.deployed();
 
+  /* Validate major version number of upgrade */
+  const oldPoolVersion = await getImplementationVersion(await upgradeableBeacon.implementation());
+  const newPoolVersion = await getImplementationVersion(poolImpl.address);
+  const [oldPoolVersionMajor, newPoolVersionMajor] = [oldPoolVersion.split(".")[0], newPoolVersion.split(".")[0]];
+  if (oldPoolVersionMajor !== "0" && oldPoolVersionMajor !== newPoolVersionMajor) {
+    console.error(
+      `Incompatible upgrade from version ${oldPoolVersion} to version ${newPoolVersion} (major number mismatch).`
+    );
+    return;
+  }
+
   /* Upgrade beacon */
   await upgradeableBeacon.upgradeTo(poolImpl.address);
 
@@ -477,9 +488,9 @@ async function poolImplementationUpgrade(deployment: Deployment, contractName: s
   console.log(`New Pool Version:        ${await getImplementationVersion(await upgradeableBeacon.implementation())}`);
 }
 
-async function poolImplementationPause(deployment: Deployment, contractName: string) {
-  if (!deployment.poolBeacons[contractName]) {
-    console.error(`Pool implementation ${contractName} not deployed.`);
+async function poolImplementationPause(deployment: Deployment, name: string) {
+  if (!deployment.poolBeacons[name]) {
+    console.error(`Pool implementation ${name} not deployed.`);
     return;
   }
 
@@ -490,7 +501,7 @@ async function poolImplementationPause(deployment: Deployment, contractName: str
 
   const upgradeableBeacon = (await ethers.getContractAt(
     "UpgradeableBeacon",
-    deployment.poolBeacons[contractName],
+    deployment.poolBeacons[name],
     signer
   )) as UpgradeableBeacon;
 
@@ -676,25 +687,27 @@ async function main() {
   program
     .command("pool-implementation-deploy")
     .description("Deploy Pool Implementation")
+    .argument("name", "Pool deployment name")
     .argument("contract", "Pool contract name")
     .argument("[args...]", "Arguments")
-    .action((contract, args) => poolImplementationDeploy(deployment, contract, args));
+    .action((name, contract, args) => poolImplementationDeploy(deployment, name, contract, args));
   program
     .command("pool-implementation-upgrade")
     .description("Upgrade Pool Implementation")
+    .argument("name", "Pool deployment name")
     .argument("contract", "Pool contract name")
     .argument("[args...]", "Arguments")
-    .action((contract, args) => poolImplementationUpgrade(deployment, contract, args));
+    .action((name, contract, args) => poolImplementationUpgrade(deployment, name, contract, args));
   program
     .command("pool-implementation-pause")
     .description("Upgrade Pool Implementation to Noop Pool")
-    .argument("contract", "Pool contract name")
-    .action((contract) => poolImplementationPause(deployment, contract));
+    .argument("name", "Pool deployment name")
+    .action((name) => poolImplementationPause(deployment, name));
 
   /* Noop Pool */
   program
     .command("noop-pool-deploy")
-    .description("Deploy Noop Pool")
+    .description("Deploy Noop Pool Implementation")
     .action(() => noopPoolImplementationDeploy(deployment));
 
   /* Loan Receipt */
