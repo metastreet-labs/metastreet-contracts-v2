@@ -1,3 +1,6 @@
+* ERC1155CollateralWrapper v1.0 - 08/11/2023
+    * Initial release.
+
 * Pool v1.3 - 07/25/2023
     * Validate shares are non-zero in `redeem()`.
 
