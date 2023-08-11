@@ -1,3 +1,5 @@
+* ERC1155CollateralWrapper v1.0 - 08/31/2023
+    * Initial release.
 * SetCollectionCollateralFilter v1.0 - 08/31/2023
     * Initial release.
 * MerkleCollectionCollateralFilter v1.0 - 08/31/2023
