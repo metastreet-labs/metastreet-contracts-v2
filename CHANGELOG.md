@@ -1,3 +1,6 @@
+* ERC1155CollateralWrapper v1.0 - 08/15/2023
+    * Initial release.
+
 * Pool v1.4 - 08/14/2023
     * Add redemption queue target advancement to `withdraw()`/`rebalance()` in
       Pool and redemption queue scanning limit to LiquidityManager.
