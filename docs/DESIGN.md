@@ -441,9 +441,6 @@ function quote(
 The [`quote()`](../contracts/Pool.sol#L831) function quotes a loan repayment with the specified loan
 terms and liquidity ticks.
 
-The [`quoteRefinance()`](../contracts/Pool.sol#L855) variant quotes downpayment and repayment
-required for refinancing a loan.
-
 #### Borrow
 
 ```solidity

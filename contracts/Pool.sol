@@ -900,41 +900,6 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function quoteRefinance(
-        bytes calldata encodedLoanReceipt,
-        uint256 principal,
-        uint64 duration,
-        uint128[] calldata ticks
-    ) external view returns (int256, uint256) {
-        /* Decode loan receipt */
-        LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
-
-        /* Get underlying collateral */
-        (address underlyingCollateralToken, uint256[] memory underlyingCollateralTokenIds) = _getUnderlyingCollateral(
-            loanReceipt.collateralToken,
-            loanReceipt.collateralTokenId,
-            loanReceipt.collateralWrapperContext
-        );
-
-        /* Quote repayment */
-        (uint256 newRepayment, , ) = _quote(
-            principal,
-            duration,
-            underlyingCollateralToken,
-            underlyingCollateralTokenIds,
-            ticks,
-            encodedLoanReceipt[0:0]
-        );
-
-        /* Compute repayment using prorated interest */
-        (uint256 proratedRepayment, ) = _prorateRepayment(loanReceipt);
-
-        return (int256(proratedRepayment) - int256(principal), newRepayment);
-    }
-
-    /**
-     * @inheritdoc IPool
-     */
     function borrow(
         uint256 principal,
         uint64 duration,
