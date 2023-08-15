@@ -38,6 +38,11 @@ library LiquidityManager {
      */
     uint256 internal constant IMPAIRED_PRICE_THRESHOLD = 0.05 * 1e18;
 
+    /**
+     * @notice Max redemption queue scan count
+     */
+    uint256 private constant MAX_REDEMPTION_QUEUE_SCAN_COUNT = 150;
+
     /**************************************************************************/
     /* Errors */
     /**************************************************************************/
@@ -184,7 +189,10 @@ library LiquidityManager {
      * @param pending Redemption pending
      * @param index Redemption index
      * @param target Redemption target
-     * @return Redeemed shares, redeemed amount
+     * @return redeemedShares Redeemed shares
+     * @return redeemedAmount Redeemed amount
+     * @return processedIndices Processed indices
+     * @return processedShares Processed shares
      */
     function redemptionAvailable(
         Liquidity storage liquidity,
@@ -192,21 +200,28 @@ library LiquidityManager {
         uint128 pending,
         uint128 index,
         uint128 target
-    ) internal view returns (uint128, uint128) {
+    )
+        internal
+        view
+        returns (uint128 redeemedShares, uint128 redeemedAmount, uint128 processedIndices, uint128 processedShares)
+    {
         Node storage node = liquidity.nodes[tick];
 
-        uint128 totalRedeemedShares;
-        uint128 totalRedeemedAmount;
+        uint256 stopIndex = index + MAX_REDEMPTION_QUEUE_SCAN_COUNT;
 
-        for (uint128 processedShares; processedShares < target + pending; index++) {
-            /* Look up the next fulfilled redemption */
-            FulfilledRedemption storage redemption = node.redemptions.fulfilled[index];
+        for (; processedShares < target + pending && index < stopIndex; index++) {
             if (index == node.redemptions.index) {
                 /* Reached pending unfulfilled redemption */
                 break;
             }
 
+            /* Look up the next fulfilled redemption */
+            FulfilledRedemption storage redemption = node.redemptions.fulfilled[index];
+
+            /* Update processed count */
+            processedIndices += 1;
             processedShares += redemption.shares;
+
             if (processedShares <= target) {
                 /* Have not reached the redemption queue position yet */
                 continue;
@@ -214,17 +229,15 @@ library LiquidityManager {
                 /* Compute number of shares to redeem in range of this
                  * redemption batch */
                 uint128 shares = (((processedShares > target + pending) ? pending : (processedShares - target))) -
-                    totalRedeemedShares;
+                    redeemedShares;
                 /* Compute price of shares in this redemption batch */
                 uint256 price = (redemption.amount * FIXED_POINT_SCALE) / redemption.shares;
 
                 /* Accumulate redeemed shares and corresponding amount */
-                totalRedeemedShares += shares;
-                totalRedeemedAmount += Math.mulDiv(shares, price, FIXED_POINT_SCALE).toUint128();
+                redeemedShares += shares;
+                redeemedAmount += Math.mulDiv(shares, price, FIXED_POINT_SCALE).toUint128();
             }
         }
-
-        return (totalRedeemedShares, totalRedeemedAmount);
     }
 
     /**************************************************************************/

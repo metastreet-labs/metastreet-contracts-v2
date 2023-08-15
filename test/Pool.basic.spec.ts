@@ -803,8 +803,8 @@ describe("Pool Basic", function () {
       let deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(deposit.shares).to.equal(FixedPoint.from("10").sub(shares1));
       expect(deposit.redemptionPending).to.equal(FixedPoint.from("8").sub(shares1));
-      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
-      expect(deposit.redemptionTarget).to.equal(shares1);
+      expect(deposit.redemptionIndex).to.equal(1);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
 
       /* Repay loan 2 */
       await pool.connect(accountBorrower).repay(loanReceipt2);
@@ -925,8 +925,8 @@ describe("Pool Basic", function () {
       let deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(deposit.shares).to.equal(FixedPoint.from("10").sub(shares1));
       expect(deposit.redemptionPending).to.equal(FixedPoint.from("5").sub(shares1));
-      expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
-      expect(deposit.redemptionTarget).to.equal(shares1);
+      expect(deposit.redemptionIndex).to.equal(1);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
 
       /* Repay loan */
       await pool.connect(accountBorrower).repay(loanReceipt);
@@ -955,6 +955,126 @@ describe("Pool Basic", function () {
       expect(deposit.shares).to.equal(FixedPoint.from("5"));
       expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
       expect(deposit.redemptionIndex).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+    });
+
+    it("advances redemption queue on withdraw", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("5"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[1]).deposit(Tick.encode("5"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[2]).deposit(Tick.encode("5"), FixedPoint.from("1"), 0);
+
+      /* Create loan */
+      const [loanReceipt] = await createActiveLoan(FixedPoint.from("3"));
+
+      /* Redeem shares */
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("5"), FixedPoint.from("0.5"));
+      await pool.connect(accountDepositors[1]).redeem(Tick.encode("5"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[2]).redeem(Tick.encode("5"), FixedPoint.from("0.25"));
+
+      /* Validate redemption queue */
+      let deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("5"));
+      expect(deposit.redemptionIndex).to.equal(0);
+      expect(deposit.redemptionTarget).to.equal(FixedPoint.from("0"));
+      deposit = await pool.deposits(accountDepositors[1].address, Tick.encode("5"));
+      expect(deposit.redemptionIndex).to.equal(0);
+      expect(deposit.redemptionTarget).to.equal(FixedPoint.from("0.5"));
+      deposit = await pool.deposits(accountDepositors[2].address, Tick.encode("5"));
+      expect(deposit.redemptionIndex).to.equal(0);
+      expect(deposit.redemptionTarget).to.equal(FixedPoint.from("1.5"));
+
+      /* Deposit cash */
+      await pool.connect(accountBorrower).deposit(Tick.encode("5"), FixedPoint.from("0.25"), 0);
+
+      /* Withdraw shares */
+      let withdrawTx = await pool.connect(accountDepositors[0]).withdraw(Tick.encode("5"));
+      expect((await extractEvent(withdrawTx, pool, "Withdrawn")).args.shares).to.be.closeTo(
+        FixedPoint.from("0.25"),
+        FixedPoint.from("0.01")
+      );
+      withdrawTx = await pool.connect(accountDepositors[1]).withdraw(Tick.encode("5"));
+      expect((await extractEvent(withdrawTx, pool, "Withdrawn")).args.shares).to.equal(FixedPoint.from("0"));
+      withdrawTx = await pool.connect(accountDepositors[2]).withdraw(Tick.encode("5"));
+      expect((await extractEvent(withdrawTx, pool, "Withdrawn")).args.shares).to.equal(FixedPoint.from("0"));
+
+      /* Validate redemption queue */
+      deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("5"));
+      expect(deposit.redemptionIndex).to.equal(1);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+      deposit = await pool.deposits(accountDepositors[1].address, Tick.encode("5"));
+      expect(deposit.redemptionIndex).to.equal(1);
+      expect(deposit.redemptionTarget).to.be.closeTo(FixedPoint.from("0.25"), FixedPoint.from("0.01"));
+      deposit = await pool.deposits(accountDepositors[2].address, Tick.encode("5"));
+      expect(deposit.redemptionIndex).to.equal(1);
+      expect(deposit.redemptionTarget).to.be.closeTo(FixedPoint.from("1.25"), FixedPoint.from("0.01"));
+
+      /* Deposit cash */
+      await pool.connect(accountBorrower).deposit(Tick.encode("5"), FixedPoint.from("0.5"), 0);
+
+      /* Withdraw shares */
+      withdrawTx = await pool.connect(accountDepositors[0]).withdraw(Tick.encode("5"));
+      expect((await extractEvent(withdrawTx, pool, "Withdrawn")).args.shares).to.be.closeTo(
+        FixedPoint.from("0.25"),
+        FixedPoint.from("0.01")
+      );
+      withdrawTx = await pool.connect(accountDepositors[1]).withdraw(Tick.encode("5"));
+      expect((await extractEvent(withdrawTx, pool, "Withdrawn")).args.shares).to.be.closeTo(
+        FixedPoint.from("0.25"),
+        FixedPoint.from("0.01")
+      );
+      withdrawTx = await pool.connect(accountDepositors[2]).withdraw(Tick.encode("5"));
+      expect((await extractEvent(withdrawTx, pool, "Withdrawn")).args.shares).to.equal(FixedPoint.from("0"));
+
+      /* Validate redemption queue */
+      deposit = await pool.deposits(accountDepositors[0].address, Tick.encode("5"));
+      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionIndex).to.equal(0);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+      deposit = await pool.deposits(accountDepositors[1].address, Tick.encode("5"));
+      expect(deposit.redemptionIndex).to.equal(2);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+      deposit = await pool.deposits(accountDepositors[2].address, Tick.encode("5"));
+      expect(deposit.redemptionIndex).to.equal(2);
+      expect(deposit.redemptionTarget).to.be.closeTo(FixedPoint.from("0.75"), FixedPoint.from("0.01"));
+
+      /* Deposit cash */
+      await pool.connect(accountBorrower).deposit(Tick.encode("5"), FixedPoint.from("0.85"), 0);
+
+      /* Withdraw shares */
+      withdrawTx = await pool.connect(accountDepositors[1]).withdraw(Tick.encode("5"));
+      expect((await extractEvent(withdrawTx, pool, "Withdrawn")).args.shares).to.be.closeTo(
+        FixedPoint.from("0.75"),
+        FixedPoint.from("0.01")
+      );
+      withdrawTx = await pool.connect(accountDepositors[2]).withdraw(Tick.encode("5"));
+      expect((await extractEvent(withdrawTx, pool, "Withdrawn")).args.shares).to.be.closeTo(
+        FixedPoint.from("0.10"),
+        FixedPoint.from("0.01")
+      );
+
+      /* Validate redemption queue */
+      deposit = await pool.deposits(accountDepositors[1].address, Tick.encode("5"));
+      expect(deposit.redemptionPending).to.equal(ethers.constants.Zero);
+      expect(deposit.redemptionIndex).to.equal(0);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+      deposit = await pool.deposits(accountDepositors[2].address, Tick.encode("5"));
+      expect(deposit.redemptionIndex).to.equal(3);
+      expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
+
+      /* Deposit cash */
+      await pool.connect(accountBorrower).deposit(Tick.encode("5"), FixedPoint.from("0.10"), 0);
+
+      /* Withdraw shares */
+      withdrawTx = await pool.connect(accountDepositors[2]).withdraw(Tick.encode("5"));
+      expect((await extractEvent(withdrawTx, pool, "Withdrawn")).args.shares).to.be.closeTo(
+        FixedPoint.from("0.10"),
+        FixedPoint.from("0.01")
+      );
+
+      /* Validate redemption queue */
+      deposit = await pool.deposits(accountDepositors[2].address, Tick.encode("5"));
+      expect(deposit.redemptionPending).to.be.closeTo(FixedPoint.from("0.05"), FixedPoint.from("0.01"));
+      expect(deposit.redemptionIndex).to.equal(4);
       expect(deposit.redemptionTarget).to.equal(ethers.constants.Zero);
     });
 

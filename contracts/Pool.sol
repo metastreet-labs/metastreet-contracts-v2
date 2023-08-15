@@ -798,12 +798,8 @@ abstract contract Pool is
         if (dep.redemptionPending == 0) revert InvalidRedemptionStatus();
 
         /* Look up redemption available */
-        (uint128 shares, uint128 amount) = _liquidity.redemptionAvailable(
-            tick,
-            dep.redemptionPending,
-            dep.redemptionIndex,
-            dep.redemptionTarget
-        );
+        (uint128 shares, uint128 amount, uint128 processedIndices, uint128 processedShares) = _liquidity
+            .redemptionAvailable(tick, dep.redemptionPending, dep.redemptionIndex, dep.redemptionTarget);
 
         /* If the entire redemption is ready */
         if (shares == dep.redemptionPending) {
@@ -812,7 +808,10 @@ abstract contract Pool is
             dep.redemptionTarget = 0;
         } else {
             dep.redemptionPending -= shares;
-            dep.redemptionTarget += shares;
+            dep.redemptionIndex += processedIndices;
+            dep.redemptionTarget = (processedShares < dep.redemptionTarget)
+                ? dep.redemptionTarget - processedShares
+                : 0;
         }
 
         /* Decrement deposit shares */
@@ -1130,7 +1129,12 @@ abstract contract Pool is
         /* If no redemption is pending */
         if (dep.redemptionPending == 0) return (0, 0);
 
-        return _liquidity.redemptionAvailable(tick, dep.redemptionPending, dep.redemptionIndex, dep.redemptionTarget);
+        (shares, amount, , ) = _liquidity.redemptionAvailable(
+            tick,
+            dep.redemptionPending,
+            dep.redemptionIndex,
+            dep.redemptionTarget
+        );
     }
 
     /**

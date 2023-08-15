@@ -75,8 +75,8 @@ contract TestLiquidityManager is ILiquidity {
         uint128 pending,
         uint128 index,
         uint128 target
-    ) external view returns (uint128, uint128) {
-        return _liquidity.redemptionAvailable(tick, pending, index, target);
+    ) external view returns (uint128 shares, uint128 amount) {
+        (shares, amount, , ) = _liquidity.redemptionAvailable(tick, pending, index, target);
     }
 
     /**
