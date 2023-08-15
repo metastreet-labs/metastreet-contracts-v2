@@ -1,3 +1,7 @@
+* Pool v1.4 - 08/14/2023
+    * Add redemption queue target advancement to `withdraw()`/`rebalance()` in
+      Pool and redemption queue scanning limit to LiquidityManager.
+
 * Pool v1.3 - 07/25/2023
     * Validate shares are non-zero in `redeem()`.
 
