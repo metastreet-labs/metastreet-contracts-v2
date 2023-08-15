@@ -24,7 +24,7 @@ contract NoopPool is ERC165 {
      * @return Implementation version
      */
     function IMPLEMENTATION_VERSION() external pure returns (string memory) {
-        return "0.0";
+        return "0.1";
     }
 
     /******************************************************/
