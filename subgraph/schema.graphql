@@ -113,6 +113,14 @@ type Deposit @entity {
   depositedAmount: BigInt! # increases on Deposited events and decreases on Withdrawn ones
   updatedAt: BigInt! # uint64 (seconds since epoch)
   createdAt: BigInt! # uint64 (seconds since epoch)
+  redemptions: [Redemption!]! @derivedFrom(field: "deposit")
+}
+
+type Redemption @entity {
+  id: Bytes! # <deposit it><redemption id>
+  redemptionId: BigInt! # uint128
+  deposit: Deposit!
+  shares: BigInt! # uint256
 }
 
 ################################################################################

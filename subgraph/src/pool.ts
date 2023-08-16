@@ -1,4 +1,4 @@
-import { Address, BigInt, Bytes, dataSource, ethereum } from "@graphprotocol/graph-ts";
+import { Address, BigInt, Bytes, dataSource, ethereum, store } from "@graphprotocol/graph-ts";
 import {
   Bundle as BundleEntity,
   CollateralLiquidated as CollateralLiquidatedEntity,
@@ -13,6 +13,7 @@ import {
   Pool as PoolEntity,
   PoolEvent as PoolEventEntity,
   Redeemed as RedeemedEntity,
+  Redemption as RedemptionEntity,
   Tick as TickEntity,
   Withdrawn as WithdrawnEntity,
 } from "../generated/schema";
@@ -439,6 +440,14 @@ function _handleRedeemed(
 
   const depositEntityId = updateDepositEntity(account, tick, event.block.timestamp, BigInt.zero());
 
+  const redemptionEntityId = depositEntityId.concat(bytesFromBigInt(redemptionId));
+  const redemptionEntity = new RedemptionEntity(redemptionEntityId);
+  redemptionEntity.redemptionId = redemptionId;
+  redemptionEntity.deposit = depositEntityId;
+  redemptionEntity.redemptionId = redemptionId;
+  redemptionEntity.shares = shares;
+  redemptionEntity.save();
+
   const poolEventId = createPoolEventEntity(event, PoolEventType.Redeemed, account, depositEntityId);
 
   const redeemedEntity = new RedeemedEntity(poolEventId);
@@ -470,6 +479,13 @@ function _handleWithdrawn(
   updateTickEntity(tick, ZERO, ZERO);
 
   const depositEntityId = updateDepositEntity(account, tick, event.block.timestamp, amount.times(BigInt.fromI32(-1)));
+
+  const redemptionEntityId = depositEntityId.concat(bytesFromBigInt(redemptionId));
+  const redemptionEntity = RedemptionEntity.load(redemptionEntityId);
+  if (!redemptionEntity) throw new Error("Redemption entity not found");
+  redemptionEntity.shares = redemptionEntity.shares.minus(shares);
+  if (redemptionEntity.shares.equals(ZERO)) store.remove("Redemption", redemptionEntityId.toHexString());
+  else redemptionEntity.save();
 
   const poolEventId = createPoolEventEntity(event, PoolEventType.Withdrawn, account, depositEntityId);
 
