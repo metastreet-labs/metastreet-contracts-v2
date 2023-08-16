@@ -12,7 +12,7 @@ import {
   CurrencyToken as CurrencyTokenEntity,
   Pool as PoolEntity,
 } from "../generated/schema";
-import { Pool as PoolTemplate } from "../generated/templates";
+import { Pool as PoolTemplate, PoolV1 as PoolTemplateV1 } from "../generated/templates";
 
 export function handlePoolCreated(event: PoolCreatedEvent): void {
   const poolAddress = event.params.pool;
@@ -107,7 +107,11 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
     currencyTokenEntity.save();
   }
   /**************************************************************************/
-  /* Create Pool data source*/
+  /* Create Pool data source */
   /**************************************************************************/
-  PoolTemplate.create(poolAddress);
+  if (poolContract.IMPLEMENTATION_VERSION().startsWith("1.")) {
+    PoolTemplateV1.create(poolAddress);
+  } else {
+    PoolTemplate.create(poolAddress);
+  }
 }

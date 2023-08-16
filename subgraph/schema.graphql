@@ -111,9 +111,6 @@ type Deposit @entity {
   account: Bytes! # address
   shares: BigInt! # uint128
   depositedAmount: BigInt! # increases on Deposited events and decreases on Withdrawn ones
-  redemptionPending: BigInt! # uint128
-  redemptionIndex: BigInt! # uint128
-  redemptionTarget: BigInt! # uint128
   updatedAt: BigInt! # uint64 (seconds since epoch)
   createdAt: BigInt! # uint64 (seconds since epoch)
 }

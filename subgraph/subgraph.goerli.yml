@@ -88,6 +88,56 @@ dataSources:
       file: ./src/englishAuctionCollateralLiquidator.ts
 templates:
   - kind: ethereum
+    name: PoolV1
+    network: goerli
+    source:
+      abi: PoolV1
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Pool
+        - Tick
+        - Loan
+        - Bundle
+        - PoolEvent
+        - Deposited
+        - Redeemed
+        - Withdrawn
+        - LoanOriginated
+        - LoanPurchased
+        - LoanRepaid
+        - LoanLiquidated
+        - PoolDayData
+      abis:
+        - name: PoolV1
+          file: ./abis/PoolV1.json
+        - name: Pool
+          file: ../artifacts/contracts/Pool.sol/Pool.json
+        - name: ICollateralWrapper
+          file: ../artifacts/contracts/interfaces/ICollateralWrapper.sol/ICollateralWrapper.json
+      eventHandlers:
+        - event: Deposited(indexed address,indexed uint128,uint256,uint256)
+          handler: handleDeposited
+        - event: Redeemed(indexed address,indexed uint128,uint256)
+          handler: handleRedeemedV1
+        - event: Withdrawn(indexed address,indexed uint128,uint256,uint256)
+          handler: handleWithdrawnV1
+        - event: LoanOriginated(indexed bytes32,bytes)
+          handler: handleLoanOriginated
+          receipt: true
+        - event: LoanRepaid(indexed bytes32,uint256)
+          handler: handleLoanRepaid
+        - event: LoanLiquidated(indexed bytes32)
+          handler: handleLoanLiquidated
+          receipt: true
+        - event: CollateralLiquidated(indexed bytes32,uint256,uint256)
+          handler: handleCollateralLiquidated
+        - event: AdminFeeRateUpdated(uint256)
+          handler: handleAdminFeeRateUpdated
+      file: src/pool.ts
+  - kind: ethereum
     name: Pool
     network: goerli
     source:
@@ -111,6 +161,8 @@ templates:
         - LoanLiquidated
         - PoolDayData
       abis:
+        - name: PoolV1
+          file: ./abis/PoolV1.json
         - name: Pool
           file: ../artifacts/contracts/Pool.sol/Pool.json
         - name: ICollateralWrapper
@@ -118,9 +170,9 @@ templates:
       eventHandlers:
         - event: Deposited(indexed address,indexed uint128,uint256,uint256)
           handler: handleDeposited
-        - event: Redeemed(indexed address,indexed uint128,uint256)
+        - event: Redeemed(indexed address,indexed uint128,indexed uint128,uint256)
           handler: handleRedeemed
-        - event: Withdrawn(indexed address,indexed uint128,uint256,uint256)
+        - event: Withdrawn(indexed address,indexed uint128,indexed uint128,uint256,uint256)
           handler: handleWithdrawn
         - event: LoanOriginated(indexed bytes32,bytes)
           handler: handleLoanOriginated
