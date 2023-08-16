@@ -50,7 +50,7 @@ async function main() {
     poolFactoryImpl.interface.encodeFunctionData("initialize")
   );
   await poolFactoryProxy.deployed();
-  const poolFactory = await ethers.getContractAt("PoolFactory", poolFactoryProxy.address);
+  const poolFactory = await ethers.getContractAt("PoolFactory", poolFactoryProxy.address, accounts[9]);
   console.log("PoolFactory: ", poolFactory.address);
   /**************************************************************************/
   /* Pool implementations */
@@ -63,6 +63,7 @@ async function main() {
   /* Deploy WeightedRateCollectionPool Implementation */
   const WeightedRateCollectionPool = await ethers.getContractFactory("WeightedRateCollectionPool", accounts[9]);
   const weightedRateCollectionPoolImpl = await WeightedRateCollectionPool.deploy(
+    5000,
     englishAuctionCollateralLiquidatorProxy.address,
     testDelegationRegistry.address,
     [bundleCollateralWrapper.address],
@@ -72,13 +73,14 @@ async function main() {
     }
   );
   await weightedRateCollectionPoolImpl.deployed();
-  console.log("WeightedRateCollectionPool Implementation: ", weightedRateCollectionPoolImpl.address);
+  await poolFactory.addPoolImplementation(weightedRateCollectionPoolImpl.address);
   /* Deploy WeightedRateRangedCollectionPool Implementation */
   const WeightedRateRangedCollectionPool = await ethers.getContractFactory(
     "WeightedRateRangedCollectionPool",
     accounts[9]
   );
   const weightedRateRangedCollectionPoolImpl = await WeightedRateRangedCollectionPool.deploy(
+    5000,
     englishAuctionCollateralLiquidatorProxy.address,
     testDelegationRegistry.address,
     [bundleCollateralWrapper.address],
@@ -97,12 +99,14 @@ async function main() {
   const weightedRateCollectionPoolBeacon = await UpgradeableBeacon.deploy(weightedRateCollectionPoolImpl.address);
   await weightedRateCollectionPoolBeacon.deployed();
   console.log("WeightedRateCollectionPool Beacon: ", weightedRateCollectionPoolBeacon.address);
+  await poolFactory.addPoolImplementation(weightedRateCollectionPoolBeacon.address);
 
   const weightedRateRangedCollectionPoolBeacon = await UpgradeableBeacon.deploy(
     weightedRateRangedCollectionPoolImpl.address
   );
   await weightedRateRangedCollectionPoolBeacon.deployed();
   console.log("WeightedRateRangedCollectionPool Beacon: ", weightedRateRangedCollectionPoolBeacon.address);
+  await poolFactory.addPoolImplementation(weightedRateRangedCollectionPoolBeacon.address);
   /**************************************************************************/
   /* Currency token */
   /**************************************************************************/
