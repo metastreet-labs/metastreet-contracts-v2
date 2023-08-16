@@ -274,11 +274,11 @@ function updateDepositEntity(
     depositEntity.depositedAmount = BigInt.zero();
   }
 
-  if (poolContract.IMPLEMENTATION_VERSION().startsWith("1.")) {
-    const deposit = poolContract.deposits(account, encodedTick);
+  if (poolEntity.implementationVersionMajor == "1") {
+    const deposit = PoolV1Contract.bind(poolAddress).deposits(account, encodedTick);
     depositEntity.shares = deposit.shares;
   } else {
-    const deposit = PoolV2Contract.bind(poolAddress).deposits(account, encodedTick);
+    const deposit = poolContract.deposits(account, encodedTick);
     depositEntity.shares = deposit.getShares();
   }
 

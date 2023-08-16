@@ -37,6 +37,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   /**************************************************************************/
   const poolEntity = new PoolEntity(poolAddress);
   // Properties
+  poolEntity.implementationVersionMajor = poolContract.IMPLEMENTATION_VERSION().split(".")[0];
   poolEntity.implementation = event.params.implementation;
   poolEntity.collateralToken = collateralTokenEntityId;
   poolEntity.collateralWrappers = poolContract.collateralWrappers().map<Bytes>((x) => x);
@@ -109,7 +110,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   /**************************************************************************/
   /* Create Pool data source */
   /**************************************************************************/
-  if (poolContract.IMPLEMENTATION_VERSION().startsWith("1.")) {
+  if (poolEntity.implementationVersionMajor == "1") {
     PoolTemplateV1.create(poolAddress);
   } else {
     PoolTemplate.create(poolAddress);

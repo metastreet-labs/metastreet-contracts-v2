@@ -5,6 +5,7 @@
 type Pool @entity {
   id: Bytes! # address
   # Properties
+  implementationVersionMajor: String!
   implementation: Bytes! # address
   collateralToken: CollateralToken!
   currencyToken: CurrencyToken!
