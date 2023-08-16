@@ -274,25 +274,6 @@ interface IPool {
     /**************************************************************************/
 
     /**
-     * @notice Quote repayment for a loan
-     * @param principal Principal amount in currency tokens
-     * @param duration Duration in seconds
-     * @param collateralToken Collateral token
-     * @param collateralTokenIds List of collateral token IDs
-     * @param ticks Liquidity ticks
-     * @param options Encoded options
-     * @return repayment Repayment amount in currency tokens
-     */
-    function quote(
-        uint256 principal,
-        uint64 duration,
-        address collateralToken,
-        uint256[] calldata collateralTokenIds,
-        uint128[] calldata ticks,
-        bytes calldata options
-    ) external view returns (uint256 repayment);
-
-    /**
      * @notice Originate a loan
      *
      * Emits a {LoanOriginated} event.

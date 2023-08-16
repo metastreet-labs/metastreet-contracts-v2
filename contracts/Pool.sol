@@ -876,30 +876,6 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function quote(
-        uint256 principal,
-        uint64 duration,
-        address collateralToken,
-        uint256[] calldata collateralTokenIds,
-        uint128[] calldata ticks,
-        bytes calldata options
-    ) external view returns (uint256) {
-        /* Quote repayment */
-        (uint256 repayment, , ) = _quote(
-            principal,
-            duration,
-            collateralToken,
-            collateralTokenIds,
-            ticks,
-            _getOptionsData(options, uint16(BorrowOptions.CollateralFilterContext))
-        );
-
-        return repayment;
-    }
-
-    /**
-     * @inheritdoc IPool
-     */
     function borrow(
         uint256 principal,
         uint64 duration,

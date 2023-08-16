@@ -34,6 +34,7 @@ describe("Pool Bundle", function () {
   let accountLiquidator: SignerWithAddress;
   let delegationRegistry: TestDelegationRegistry;
   let bundleCollateralWrapper: BundleCollateralWrapper;
+  let rates: ethers.BigNumber[];
 
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
@@ -92,18 +93,16 @@ describe("Pool Bundle", function () {
     )) as Pool;
     await poolImpl.deployed();
 
+    /* Assign rates */
+    rates = [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")];
+
     /* Deploy pool */
     proxy = await testProxyFactory.deploy(
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
           ["address", "address", "uint64[]", "uint64[]"],
-          [
-            nft1.address,
-            tok1.address,
-            [30 * 86400, 14 * 86400, 7 * 86400],
-            [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
-          ]
+          [nft1.address, tok1.address, [30 * 86400, 14 * 86400, 7 * 86400], rates]
         ),
       ])
     );
@@ -202,6 +201,7 @@ describe("Pool Bundle", function () {
   /* Liquidity and Loan Helper functions */
   /****************************************************************************/
 
+  const FixedPointScale = ethers.utils.parseEther("1");
   const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
   const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
   const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
@@ -222,9 +222,10 @@ describe("Pool Bundle", function () {
     multiplier?: number = 1,
     duration?: number = 2,
     rate?: number = 0
-  ): Promise<ethers.BigNumber[]> {
+  ): Promise<[ethers.BigNumber[], ethers.BigNumber[]]> {
     const nodes = await pool.liquidityNodes(0, MaxUint128);
     const ticks = [];
+    const used = [];
 
     let taken = ethers.constants.Zero;
     for (const node of nodes) {
@@ -235,35 +236,38 @@ describe("Pool Bundle", function () {
       if (take.isZero()) break;
 
       ticks.push(node.tick);
+      used.push(take);
       taken = taken.add(take);
     }
 
     if (!taken.eq(amount)) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
 
-    return ticks;
+    return [ticks, used];
   }
 
-  async function createActiveLoan(
-    principal: ethers.BigNumber,
-    duration?: number = 30 * 86400
-  ): Promise<[string, string]> {
-    const tokenId =
-      (await nft1.ownerOf(123)) === accountBorrower.address
-        ? 123
-        : (await nft1.ownerOf(124)) === accountBorrower.address
-        ? 124
-        : 125;
+  function quote(
+    amount: ethers.BigNumber,
+    duration: number,
+    ticks: ethers.BigNumber[],
+    used: ethers.BigNumber[],
+    rates: ethers.BigNumber[]
+  ): ethers.BigNumber {
+    /* Accumulate weighted rate */
+    let weightedRate = ethers.constants.Zero;
+    for (let i = 0; i < ticks.length; i++) {
+      const rateIndex = Tick.decode(ticks[i]).rateIndex;
+      weightedRate = weightedRate.add(used[i].mul(rates[rateIndex]).div(FixedPointScale));
+    }
 
-    const ticks = await sourceLiquidity(principal);
+    /* Normalize weighted rate by amount */
+    weightedRate = weightedRate.mul(FixedPointScale).div(amount);
 
-    const repayment = await pool.quote(principal, duration, nft1.address, [tokenId], ticks, "0x");
+    /* Calculate repayment */
+    const repayment = amount
+      .mul(FixedPointScale.add(weightedRate.mul(ethers.BigNumber.from(duration))))
+      .div(FixedPointScale);
 
-    const borrowTx = await pool
-      .connect(accountBorrower)
-      .borrow(principal, duration, nft1.address, tokenId, repayment, ticks, "0x");
-    const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-    const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
-    return [loanReceipt, loanReceiptHash];
+    return repayment;
   }
 
   async function createActiveBundleLoan(
@@ -275,6 +279,9 @@ describe("Pool Bundle", function () {
     const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
     const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
+    /* Source liquidity */
+    const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 3);
+
     /* Borrow */
     const borrowTx = await pool
       .connect(accountBorrower)
@@ -284,7 +291,7 @@ describe("Pool Bundle", function () {
         bundleCollateralWrapper.address,
         bundleTokenId,
         FixedPoint.from("26"),
-        await sourceLiquidity(FixedPoint.from("25"), 3),
+        ticks,
         ethers.utils.solidityPack(
           ["uint16", "uint16", "bytes"],
           [1, ethers.utils.hexDataLength(bundleData), bundleData]
@@ -302,49 +309,6 @@ describe("Pool Bundle", function () {
   /* Lend API */
   /****************************************************************************/
 
-  describe("#quote", async function () {
-    beforeEach("setup liquidity", async function () {
-      await setupLiquidity();
-    });
-
-    it("correctly quotes repayment for bundle", async function () {
-      expect(
-        await pool.quote(
-          FixedPoint.from("10"),
-          30 * 86400,
-          nft1.address,
-          [123, 124, 125],
-          await sourceLiquidity(FixedPoint.from("10")),
-          "0x"
-        )
-      ).to.equal(FixedPoint.from("10.082191780812160000"));
-
-      expect(
-        await pool.quote(
-          FixedPoint.from("25"),
-          30 * 86400,
-          nft1.address,
-          [123, 124, 125],
-          await sourceLiquidity(FixedPoint.from("25")),
-          "0x"
-        )
-      ).to.equal(FixedPoint.from("25.205479451965600000"));
-    });
-
-    it("fails on insufficient liquidity for bundle", async function () {
-      await expect(
-        pool.quote(
-          FixedPoint.from("1000"),
-          30 * 86400,
-          nft1.address,
-          [123, 124, 125],
-          await sourceLiquidity(FixedPoint.from("25")),
-          "0x"
-        )
-      ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
-    });
-  });
-
   describe("#borrow", async function () {
     beforeEach("setup liquidity", async function () {
       await setupLiquidity();
@@ -356,15 +320,11 @@ describe("Pool Bundle", function () {
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 3);
+
       /* Quote repayment */
-      const repayment = await pool.quote(
-        FixedPoint.from("25"),
-        30 * 86400,
-        nft1.address,
-        [123, 124, 125],
-        await sourceLiquidity(FixedPoint.from("25")),
-        "0x"
-      );
+      const repayment = quote(FixedPoint.from("25"), 30 * 86400, ticks, used, rates);
 
       /* Simulate borrow */
       const simulatedRepayment = await pool
@@ -375,7 +335,7 @@ describe("Pool Bundle", function () {
           bundleCollateralWrapper.address,
           bundleTokenId,
           FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"), 3),
+          ticks,
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
             [1, ethers.utils.hexDataLength(bundleData), bundleData]
@@ -391,7 +351,7 @@ describe("Pool Bundle", function () {
           bundleCollateralWrapper.address,
           bundleTokenId,
           FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"), 3),
+          ticks,
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
             [1, ethers.utils.hexDataLength(bundleData), bundleData]
@@ -465,15 +425,11 @@ describe("Pool Bundle", function () {
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 3);
+
       /* Quote repayment */
-      const repayment = await pool.quote(
-        FixedPoint.from("25"),
-        30 * 86400,
-        nft1.address,
-        [123, 124, 125],
-        await sourceLiquidity(FixedPoint.from("25")),
-        "0x"
-      );
+      const repayment = quote(FixedPoint.from("25"), 30 * 86400, ticks, used, rates);
 
       /* Simulate borrow */
       const simulatedRepayment = await pool
@@ -484,7 +440,7 @@ describe("Pool Bundle", function () {
           bundleCollateralWrapper.address,
           bundleTokenId,
           FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"), 3),
+          ticks,
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes20"],
             [1, ethers.utils.hexDataLength(bundleData), bundleData, 3, 20, accountBorrower.address]
@@ -500,7 +456,7 @@ describe("Pool Bundle", function () {
           bundleCollateralWrapper.address,
           bundleTokenId,
           FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"), 3),
+          ticks,
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes20"],
             [1, ethers.utils.hexDataLength(bundleData), bundleData, 3, 20, accountBorrower.address]
@@ -582,15 +538,11 @@ describe("Pool Bundle", function () {
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("85"), 3);
+
       /* Quote repayment */
-      const repayment = await pool.quote(
-        FixedPoint.from("85"),
-        30 * 86400,
-        nft1.address,
-        [123, 124, 125],
-        await sourceLiquidity(FixedPoint.from("85"), 3),
-        "0x"
-      );
+      const repayment = quote(FixedPoint.from("85"), 30 * 86400, ticks, used, rates);
 
       /* Simulate borrow */
       const simulatedRepayment = await pool
@@ -601,7 +553,7 @@ describe("Pool Bundle", function () {
           bundleCollateralWrapper.address,
           bundleTokenId,
           FixedPoint.from("88"),
-          await sourceLiquidity(FixedPoint.from("85"), 3),
+          ticks,
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
             [1, ethers.utils.hexDataLength(bundleData), bundleData]
@@ -620,7 +572,7 @@ describe("Pool Bundle", function () {
           bundleCollateralWrapper.address,
           bundleTokenId,
           FixedPoint.from("88"),
-          await sourceLiquidity(FixedPoint.from("85"), 3),
+          ticks,
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
             [1, ethers.utils.hexDataLength(bundleData), bundleData]
@@ -691,6 +643,9 @@ describe("Pool Bundle", function () {
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 3);
+
       /* Set length of tokenId to 31 instead of 32 */
       await expect(
         pool
@@ -701,7 +656,7 @@ describe("Pool Bundle", function () {
             bundleCollateralWrapper.address,
             bundleTokenId,
             FixedPoint.from("26"),
-            await sourceLiquidity(FixedPoint.from("25"), 3),
+            ticks,
             ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, 20 + 31 * 3, bundleData])
           )
       ).to.be.reverted;
@@ -712,6 +667,9 @@ describe("Pool Bundle", function () {
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("85"), 3);
+
       await expect(
         pool
           .connect(accountBorrower)
@@ -721,7 +679,7 @@ describe("Pool Bundle", function () {
             bundleCollateralWrapper.address,
             bundleTokenId,
             FixedPoint.from("122"),
-            await sourceLiquidity(FixedPoint.from("85"), 3),
+            ticks,
             ethers.utils.solidityPack(
               ["uint16", "uint16", "bytes"],
               [1, ethers.utils.hexDataLength(bundleData), bundleData]
@@ -743,15 +701,11 @@ describe("Pool Bundle", function () {
 
       expect(await bundleCollateralWrapper.ownerOf(bundleTokenId)).to.equal(accountBorrower.address);
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 2);
+
       /* Quote repayment */
-      const repayment = await pool.quote(
-        FixedPoint.from("25"),
-        30 * 86400,
-        nft1.address,
-        [124, 125],
-        await sourceLiquidity(FixedPoint.from("25")),
-        "0x"
-      );
+      const repayment = quote(FixedPoint.from("25"), 30 * 86400, ticks, used, rates);
 
       const borrowTx = await pool
         .connect(accountBorrower)
@@ -761,7 +715,7 @@ describe("Pool Bundle", function () {
           bundleCollateralWrapper.address,
           bundleTokenId,
           repayment,
-          await sourceLiquidity(FixedPoint.from("25"), 2),
+          ticks,
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
             [1, ethers.utils.hexDataLength(bundleData), bundleData]
@@ -836,17 +790,14 @@ describe("Pool Bundle", function () {
       /* Get decoded receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 3);
+
       /* Refinance */
       await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
       const refinanceTx = await pool
         .connect(accountBorrower)
-        .refinance(
-          loanReceipt,
-          decodedLoanReceipt.principal,
-          15 * 86400,
-          FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"))
-        );
+        .refinance(loanReceipt, decodedLoanReceipt.principal, 15 * 86400, FixedPoint.from("26"), ticks);
       const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
 
@@ -899,6 +850,9 @@ describe("Pool Bundle", function () {
       /* Create Loan */
       [loanReceipt, loanReceiptHash, bundleTokenId] = await createActiveBundleLoan(FixedPoint.from("25"));
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 3);
+
       /* Validate inability to do both refinance() and refinance() with the same loan receipt fields */
       await expect(
         pool
@@ -909,14 +863,14 @@ describe("Pool Bundle", function () {
               FixedPoint.from("25"),
               1,
               FixedPoint.from("26"),
-              await sourceLiquidity(FixedPoint.from("25")),
+              ticks,
             ]),
             pool.interface.encodeFunctionData("refinance", [
               loanReceipt,
               FixedPoint.from("25"),
               1,
               FixedPoint.from("26"),
-              await sourceLiquidity(FixedPoint.from("25")),
+              ticks,
             ]),
           ])
       ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
@@ -931,6 +885,9 @@ describe("Pool Bundle", function () {
       /* Workaround to skip borrow() in beforeEach */
       await pool.connect(accountBorrower).repay(loanReceipt);
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("1"), 3);
+
       /* Borrow to get loan receipt object */
       const borrowTx = await pool
         .connect(accountBorrower)
@@ -940,7 +897,7 @@ describe("Pool Bundle", function () {
           bundleCollateralWrapper.address,
           bundleTokenId,
           FixedPoint.from("2"),
-          await sourceLiquidity(FixedPoint.from("1"), 3),
+          ticks,
           ethers.utils.solidityPack(
             ["uint16", "uint16", "bytes"],
             [1, ethers.utils.hexDataLength(bundleData), bundleData]
@@ -974,7 +931,7 @@ describe("Pool Bundle", function () {
               bundleCollateralWrapper.address,
               bundleTokenId,
               FixedPoint.from("2"),
-              await sourceLiquidity(FixedPoint.from("1"), 3),
+              ticks,
               ethers.utils.solidityPack(
                 ["uint16", "uint16", "bytes"],
                 [1, ethers.utils.hexDataLength(bundleData), bundleData]
@@ -985,7 +942,7 @@ describe("Pool Bundle", function () {
               nodeReceipt.principal,
               1,
               FixedPoint.from("2"),
-              await sourceLiquidity(FixedPoint.from("1"), 3),
+              ticks,
             ]),
           ])
       ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
@@ -997,16 +954,13 @@ describe("Pool Bundle", function () {
       pool.setAdminFeeRate(500);
       [loanReceipt, loanReceiptHash] = await createActiveBundleLoan(FixedPoint.from("25"));
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("1"), 3);
+
       await expect(
         pool
           .connect(accountLender)
-          .refinance(
-            loanReceipt,
-            FixedPoint.from("25"),
-            15 * 86400,
-            FixedPoint.from("26"),
-            await sourceLiquidity(FixedPoint.from("1"))
-          )
+          .refinance(loanReceipt, FixedPoint.from("25"), 15 * 86400, FixedPoint.from("26"), ticks)
       ).to.be.revertedWithCustomError(pool, "InvalidCaller");
     });
 
@@ -1016,6 +970,9 @@ describe("Pool Bundle", function () {
       pool.setAdminFeeRate(500);
       [loanReceipt, loanReceiptHash] = await createActiveBundleLoan(FixedPoint.from("25"));
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 3);
+
       await expect(
         pool
           .connect(accountBorrower)
@@ -1024,7 +981,7 @@ describe("Pool Bundle", function () {
             FixedPoint.from("25"),
             15 * 86400,
             FixedPoint.from("26"),
-            await sourceLiquidity(FixedPoint.from("25"))
+            ticks
           )
       ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
     });
@@ -1036,18 +993,15 @@ describe("Pool Bundle", function () {
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveBundleLoan(FixedPoint.from("25"));
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 3);
+
       /* Repay */
       await pool.connect(accountBorrower).repay(loanReceipt);
       await expect(
         pool
           .connect(accountBorrower)
-          .refinance(
-            loanReceipt,
-            FixedPoint.from("25"),
-            15 * 86400,
-            FixedPoint.from("26"),
-            await sourceLiquidity(FixedPoint.from("25"))
-          )
+          .refinance(loanReceipt, FixedPoint.from("25"), 15 * 86400, FixedPoint.from("26"), ticks)
       ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
     });
 
@@ -1065,17 +1019,14 @@ describe("Pool Bundle", function () {
       /* Process expiration */
       await pool.liquidate(loanReceipt);
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 3);
+
       /* Refinance */
       await expect(
         pool
           .connect(accountBorrower)
-          .refinance(
-            loanReceipt,
-            FixedPoint.from("25"),
-            15 * 86400,
-            FixedPoint.from("26"),
-            await sourceLiquidity(FixedPoint.from("25"))
-          )
+          .refinance(loanReceipt, FixedPoint.from("25"), 15 * 86400, FixedPoint.from("26"), ticks)
       ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
     });
   });

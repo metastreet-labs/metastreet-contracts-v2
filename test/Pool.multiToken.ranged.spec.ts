@@ -35,6 +35,7 @@ describe("Pool Batch Ranged Collection", function () {
   let ERC1155CollateralWrapper: ERC1155CollateralWrapper;
   let ERC1155WrapperData: any;
   let ERC1155WrapperTokenId: ethers.BigNumber;
+  let rates: ethers.BigNumber[];
 
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
@@ -93,6 +94,9 @@ describe("Pool Batch Ranged Collection", function () {
     )) as Pool;
     await poolImpl.deployed();
 
+    /* Assign rates */
+    rates = [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")];
+
     /* Deploy pool */
     proxy = await testProxyFactory.deploy(
       poolImpl.address,
@@ -105,7 +109,7 @@ describe("Pool Batch Ranged Collection", function () {
             ethers.BigNumber.from(125),
             tok1.address,
             [30 * 86400, 14 * 86400, 7 * 86400],
-            [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
+            rates,
           ]
         ),
       ])
@@ -215,6 +219,7 @@ describe("Pool Batch Ranged Collection", function () {
   /* Liquidity and Loan Helper functions */
   /****************************************************************************/
 
+  const FixedPointScale = ethers.utils.parseEther("1");
   const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
   const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
   const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
@@ -235,9 +240,10 @@ describe("Pool Batch Ranged Collection", function () {
     multiplier?: number = 1,
     duration?: number = 2,
     rate?: number = 0
-  ): Promise<ethers.BigNumber[]> {
+  ): Promise<[ethers.BigNumber[], ethers.BigNumber[]]> {
     const nodes = await pool.liquidityNodes(0, MaxUint128);
     const ticks = [];
+    const used = [];
 
     let taken = ethers.constants.Zero;
     for (const node of nodes) {
@@ -248,12 +254,38 @@ describe("Pool Batch Ranged Collection", function () {
       if (take.isZero()) break;
 
       ticks.push(node.tick);
+      used.push(take);
       taken = taken.add(take);
     }
 
     if (!taken.eq(amount)) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
 
-    return ticks;
+    return [ticks, used];
+  }
+
+  function quote(
+    amount: ethers.BigNumber,
+    duration: number,
+    ticks: ethers.BigNumber[],
+    used: ethers.BigNumber[],
+    rates: ethers.BigNumber[]
+  ): ethers.BigNumber {
+    /* Accumulate weighted rate */
+    let weightedRate = ethers.constants.Zero;
+    for (let i = 0; i < ticks.length; i++) {
+      const rateIndex = Tick.decode(ticks[i]).rateIndex;
+      weightedRate = weightedRate.add(used[i].mul(rates[rateIndex]).div(FixedPointScale));
+    }
+
+    /* Normalize weighted rate by amount */
+    weightedRate = weightedRate.mul(FixedPointScale).div(amount);
+
+    /* Calculate repayment */
+    const repayment = amount
+      .mul(FixedPointScale.add(weightedRate.mul(ethers.BigNumber.from(duration))))
+      .div(FixedPointScale);
+
+    return repayment;
   }
 
   /****************************************************************************/
@@ -272,15 +304,11 @@ describe("Pool Batch Ranged Collection", function () {
         [1, ethers.utils.hexDataLength(ERC1155WrapperData), ERC1155WrapperData]
       );
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 6);
+
       /* Quote repayment */
-      const repayment = await pool.quote(
-        FixedPoint.from("25"),
-        30 * 86400,
-        nft1.address,
-        [123, 124, 124, 125, 125, 125],
-        await sourceLiquidity(FixedPoint.from("25"), 6),
-        borrowOptions
-      );
+      const repayment = quote(FixedPoint.from("25"), 30 * 86400, ticks, used, rates);
 
       /* Simulate borrow */
       const simulatedRepayment = await pool
@@ -291,7 +319,7 @@ describe("Pool Batch Ranged Collection", function () {
           ERC1155CollateralWrapper.address,
           ERC1155WrapperTokenId,
           FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"), 6),
+          ticks,
           borrowOptions
         );
 
@@ -304,7 +332,7 @@ describe("Pool Batch Ranged Collection", function () {
           ERC1155CollateralWrapper.address,
           ERC1155WrapperTokenId,
           FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"), 6),
+          ticks,
           borrowOptions
         );
 
@@ -370,15 +398,11 @@ describe("Pool Batch Ranged Collection", function () {
         [1, ethers.utils.hexDataLength(ERC1155WrapperData), ERC1155WrapperData, 3, 20, accountBorrower.address]
       );
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 6);
+
       /* Quote repayment */
-      const repayment = await pool.quote(
-        FixedPoint.from("25"),
-        30 * 86400,
-        nft1.address,
-        [123, 124, 124, 125, 125, 125],
-        await sourceLiquidity(FixedPoint.from("25"), 6),
-        borrowOptions
-      );
+      const repayment = quote(FixedPoint.from("25"), 30 * 86400, ticks, used, rates);
 
       /* Simulate borrow */
       const simulatedRepayment = await pool
@@ -389,7 +413,7 @@ describe("Pool Batch Ranged Collection", function () {
           ERC1155CollateralWrapper.address,
           ERC1155WrapperTokenId,
           FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"), 6),
+          ticks,
           borrowOptions
         );
 
@@ -402,7 +426,7 @@ describe("Pool Batch Ranged Collection", function () {
           ERC1155CollateralWrapper.address,
           ERC1155WrapperTokenId,
           FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"), 3),
+          ticks,
           borrowOptions
         );
 
@@ -482,6 +506,9 @@ describe("Pool Batch Ranged Collection", function () {
         [1, ethers.utils.hexDataLength(ERC1155WrapperData), ERC1155WrapperData]
       );
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 6);
+
       /* Borrow */
       const borrowTx = await pool
         .connect(accountBorrower)
@@ -491,7 +518,7 @@ describe("Pool Batch Ranged Collection", function () {
           ERC1155CollateralWrapper.address,
           ERC1155WrapperTokenId,
           FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"), 6),
+          ticks,
           borrowOptions
         );
 
@@ -506,13 +533,7 @@ describe("Pool Batch Ranged Collection", function () {
       await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
       const refinanceTx = await pool
         .connect(accountBorrower)
-        .refinance(
-          loanReceipt,
-          decodedLoanReceipt.principal,
-          15 * 86400,
-          FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"), 6)
-        );
+        .refinance(loanReceipt, decodedLoanReceipt.principal, 15 * 86400, FixedPoint.from("26"), ticks);
       const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
 

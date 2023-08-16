@@ -32,6 +32,7 @@ describe("Pool Ranged Collection", function () {
   let accountLender: SignerWithAddress;
   let accountLiquidator: SignerWithAddress;
   let delegationRegistry: TestDelegationRegistry;
+  let rates: ethers.BigNumber[];
 
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
@@ -85,6 +86,9 @@ describe("Pool Ranged Collection", function () {
     )) as Pool;
     await poolImpl.deployed();
 
+    /* Assign rates */
+    rates = [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")];
+
     /* Deploy pool */
     proxy = await testProxyFactory.deploy(
       poolImpl.address,
@@ -97,7 +101,7 @@ describe("Pool Ranged Collection", function () {
             ethers.BigNumber.from(125),
             tok1.address,
             [30 * 86400, 14 * 86400, 7 * 86400],
-            [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
+            rates,
           ]
         ),
       ])
@@ -192,6 +196,7 @@ describe("Pool Ranged Collection", function () {
   /* Liquidity and Loan Helper functions */
   /****************************************************************************/
 
+  const FixedPointScale = ethers.utils.parseEther("1");
   const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
   const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
   const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
@@ -212,9 +217,10 @@ describe("Pool Ranged Collection", function () {
     multiplier?: number = 1,
     duration?: number = 2,
     rate?: number = 0
-  ): Promise<ethers.BigNumber[]> {
+  ): Promise<[ethers.BigNumber[], ethers.BigNumber[]]> {
     const nodes = await pool.liquidityNodes(0, MaxUint128);
     const ticks = [];
+    const used = [];
 
     let taken = ethers.constants.Zero;
     for (const node of nodes) {
@@ -225,60 +231,43 @@ describe("Pool Ranged Collection", function () {
       if (take.isZero()) break;
 
       ticks.push(node.tick);
+      used.push(take);
       taken = taken.add(take);
     }
 
     if (!taken.eq(amount)) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
 
-    return ticks;
+    return [ticks, used];
+  }
+
+  function quote(
+    amount: ethers.BigNumber,
+    duration: number,
+    ticks: ethers.BigNumber[],
+    used: ethers.BigNumber[],
+    rates: ethers.BigNumber[]
+  ): ethers.BigNumber {
+    /* Accumulate weighted rate */
+    let weightedRate = ethers.constants.Zero;
+    for (let i = 0; i < ticks.length; i++) {
+      const rateIndex = Tick.decode(ticks[i]).rateIndex;
+      weightedRate = weightedRate.add(used[i].mul(rates[rateIndex]).div(FixedPointScale));
+    }
+
+    /* Normalize weighted rate by amount */
+    weightedRate = weightedRate.mul(FixedPointScale).div(amount);
+
+    /* Calculate repayment */
+    const repayment = amount
+      .mul(FixedPointScale.add(weightedRate.mul(ethers.BigNumber.from(duration))))
+      .div(FixedPointScale);
+
+    return repayment;
   }
 
   /****************************************************************************/
   /* Lend API */
   /****************************************************************************/
-
-  describe("#quote", async function () {
-    beforeEach("setup liquidity", async function () {
-      await setupLiquidity();
-    });
-
-    it("correctly quotes repayment with ranged collection filter", async function () {
-      expect(
-        await pool.quote(
-          FixedPoint.from("10"),
-          30 * 86400,
-          nft1.address,
-          [123],
-          await sourceLiquidity(FixedPoint.from("10")),
-          "0x"
-        )
-      ).to.equal(FixedPoint.from("10.082191780786240000"));
-
-      expect(
-        await pool.quote(
-          FixedPoint.from("25"),
-          30 * 86400,
-          nft1.address,
-          [123],
-          await sourceLiquidity(FixedPoint.from("25")),
-          "0x"
-        )
-      ).to.equal(FixedPoint.from("25.205479451965600000"));
-    });
-
-    it("fails on unsupported collateral with ranged collection filter", async function () {
-      await expect(
-        pool.quote(
-          FixedPoint.from("10"),
-          30 * 86400,
-          nft1.address,
-          [126],
-          await sourceLiquidity(FixedPoint.from("10")),
-          "0x"
-        )
-      ).to.be.revertedWithCustomError(pool, "UnsupportedCollateral", 0);
-    });
-  });
 
   describe("#borrow", async function () {
     beforeEach("setup liquidity", async function () {
@@ -286,41 +275,21 @@ describe("Pool Ranged Collection", function () {
     });
 
     it("originates loan with ranged collection filter", async function () {
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"));
+
       /* Quote repayment */
-      const repayment = await pool.quote(
-        FixedPoint.from("25"),
-        30 * 86400,
-        nft1.address,
-        [123],
-        await sourceLiquidity(FixedPoint.from("25")),
-        "0x"
-      );
+      const repayment = quote(FixedPoint.from("25"), 30 * 86400, ticks, used, rates);
 
       /* Simulate borrow */
       const simulatedRepayment = await pool
         .connect(accountBorrower)
-        .callStatic.borrow(
-          FixedPoint.from("25"),
-          30 * 86400,
-          nft1.address,
-          123,
-          FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25")),
-          "0x"
-        );
+        .callStatic.borrow(FixedPoint.from("25"), 30 * 86400, nft1.address, 123, FixedPoint.from("26"), ticks, "0x");
 
       /* Borrow */
       const borrowTx = await pool
         .connect(accountBorrower)
-        .borrow(
-          FixedPoint.from("25"),
-          30 * 86400,
-          nft1.address,
-          123,
-          FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25")),
-          "0x"
-        );
+        .borrow(FixedPoint.from("25"), 30 * 86400, nft1.address, 123, FixedPoint.from("26"), ticks, "0x");
 
       /* Validate return value from borrow() */
       expect(simulatedRepayment).to.equal(repayment);
@@ -382,15 +351,11 @@ describe("Pool Ranged Collection", function () {
         [3, 20, accountBorrower.address]
       );
 
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"));
+
       /* Quote repayment */
-      const repayment = await pool.quote(
-        FixedPoint.from("25"),
-        30 * 86400,
-        nft1.address,
-        [123],
-        await sourceLiquidity(FixedPoint.from("25")),
-        borrowOptions
-      );
+      const repayment = quote(FixedPoint.from("25"), 30 * 86400, ticks, used, rates);
 
       /* Simulate borrow */
       const simulatedRepayment = await pool
@@ -401,22 +366,14 @@ describe("Pool Ranged Collection", function () {
           nft1.address,
           123,
           FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25")),
+          ticks,
           borrowOptions
         );
 
       /* Borrow */
       const borrowTx = await pool
         .connect(accountBorrower)
-        .borrow(
-          FixedPoint.from("25"),
-          30 * 86400,
-          nft1.address,
-          123,
-          FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25")),
-          borrowOptions
-        );
+        .borrow(FixedPoint.from("25"), 30 * 86400, nft1.address, 123, FixedPoint.from("26"), ticks, borrowOptions);
 
       /* Validate return value from borrow() */
       expect(simulatedRepayment).to.equal(repayment);
@@ -491,17 +448,12 @@ describe("Pool Ranged Collection", function () {
     });
 
     it("refinance loan at maturity with same principal and ranged collection filter", async function () {
+      /* Source liquidity */
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"));
+
       const borrowTx = await pool
         .connect(accountBorrower)
-        .borrow(
-          FixedPoint.from("25"),
-          30 * 86400,
-          nft1.address,
-          123,
-          FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25")),
-          "0x"
-        );
+        .borrow(FixedPoint.from("25"), 30 * 86400, nft1.address, 123, FixedPoint.from("26"), ticks, "0x");
 
       /* Extract loan receipt */
       const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
@@ -514,13 +466,7 @@ describe("Pool Ranged Collection", function () {
       await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
       const refinanceTx = await pool
         .connect(accountBorrower)
-        .refinance(
-          loanReceipt,
-          decodedLoanReceipt.principal,
-          15 * 86400,
-          FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"))
-        );
+        .refinance(loanReceipt, decodedLoanReceipt.principal, 15 * 86400, FixedPoint.from("26"), ticks);
       const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
 
