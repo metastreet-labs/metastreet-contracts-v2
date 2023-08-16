@@ -51,7 +51,6 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   const maxBorrows: BigInt[] = [];
   for (let i = 0; i < poolEntity.durations.length; i++) maxBorrows.push(BigInt.fromI32(0));
   poolEntity.maxBorrows = maxBorrows;
-  poolEntity.maxLoanDuration = poolEntity.durations[poolEntity.durations.length - 1];
   // State
   poolEntity.adminFeeBalance = BigInt.zero();
   // Statistics

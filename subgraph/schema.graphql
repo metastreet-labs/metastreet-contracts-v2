@@ -17,7 +17,6 @@ type Pool @entity {
   delegationRegistry: Bytes! # address
   # Derived Properties
   maxBorrows: [BigInt!]! # uint256[]
-  maxLoanDuration: BigInt! # uint64 (in seconds)
   # State
   adminFeeBalance: BigInt! # uint256
   ticks: [Tick!]! @derivedFrom(field: "pool")
