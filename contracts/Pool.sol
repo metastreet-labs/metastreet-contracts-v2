@@ -1064,25 +1064,35 @@ abstract contract Pool is
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
+        /* Check if the proceeds have a surplus */
+        bool hasSurplus = proceeds > loanReceipt.repayment;
+
         /* Compute borrower's share of liquidation surplus */
-        uint256 borrowerSurplus = proceeds > loanReceipt.repayment
+        uint256 borrowerSurplus = hasSurplus
             ? Math.mulDiv(proceeds - loanReceipt.repayment, BORROWER_SURPLUS_SPLIT_BASIS_POINTS, BASIS_POINTS_SCALE)
             : 0;
 
-        /* Compute remaining proceeds */
-        uint128 proceedsRemaining = (proceeds - borrowerSurplus).toUint128();
+        /* Compute lenders' proceeds */
+        uint256 lendersProceeds = proceeds - borrowerSurplus;
+
+        /* Compute total pending */
+        uint256 totalPending = loanReceipt.repayment - loanReceipt.adminFee;
 
         /* Restore liquidity nodes */
+        uint256 proceedsRemaining = lendersProceeds;
+        uint256 lastIndex = loanReceipt.nodeReceipts.length - 1;
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
+            /* Compute amount to restore depending on whether there is a surplus */
+            uint256 restored = (i == lastIndex) ? proceedsRemaining : hasSurplus
+                ? Math.mulDiv(lendersProceeds, loanReceipt.nodeReceipts[i].pending, totalPending)
+                : Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining);
+
             /* Restore node */
-            uint128 restored = (i == loanReceipt.nodeReceipts.length - 1)
-                ? proceedsRemaining
-                : uint128(Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining));
             _liquidity.restore(
                 loanReceipt.nodeReceipts[i].tick,
                 loanReceipt.nodeReceipts[i].used,
                 loanReceipt.nodeReceipts[i].pending,
-                restored
+                restored.toUint128()
             );
 
             /* Update proceeds remaining */
