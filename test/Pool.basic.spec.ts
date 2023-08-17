@@ -3081,6 +3081,7 @@ describe("Pool Basic", function () {
       /* Compute liquidation surplus */
       const surplus = FixedPoint.from("30").sub(decodedLoanReceipt.repayment);
       const borrowerSurplus = surplus.mul(9500).div(10000);
+      const lendersProceeds = FixedPoint.from("30").sub(borrowerSurplus);
 
       /* Validate events */
       await expectEvent(
@@ -3114,13 +3115,24 @@ describe("Pool Basic", function () {
       /* Validate state */
       expect(await pool.loans(loanReceiptHash)).to.equal(4);
 
+      let totalPending = ethers.constants.Zero;
+
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+        totalPending = totalPending.add(nodeReceipt.pending);
+      }
+
       /* Validate ticks */
       let i = 0;
-      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts.slice(0, decodedLoanReceipt.nodeReceipts.length)) {
+      let proceedsRemaining = lendersProceeds;
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
         const node = await pool.liquidityNode(nodeReceipt.tick);
-        let value = FixedPoint.from("25").add(nodeReceipt.pending).sub(nodeReceipt.used);
-        if (i == decodedLoanReceipt.nodeReceipts.length - 1) {
-          value = value.add(surplus).sub(borrowerSurplus);
+        let value = FixedPoint.from("25").sub(nodeReceipt.used);
+        if (i != decodedLoanReceipt.nodeReceipts.length - 1) {
+          const proceeds = lendersProceeds.mul(nodeReceipt.pending).div(totalPending);
+          value = value.add(proceeds);
+          proceedsRemaining = proceedsRemaining.sub(proceeds);
+        } else {
+          value = value.add(proceedsRemaining);
         }
         expect(node.value).to.equal(value);
         expect(node.available).to.equal(value);

@@ -1067,20 +1067,37 @@ abstract contract Pool is
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
+        /* Check if the proceeds have a surplus */
+        bool hasSurplus = proceeds > loanReceipt.repayment;
+
         /* Compute borrower's share of liquidation surplus */
-        uint256 borrowerSurplus = proceeds > loanReceipt.repayment
+        uint256 borrowerSurplus = hasSurplus
             ? Math.mulDiv(proceeds - loanReceipt.repayment, BORROWER_SURPLUS_SPLIT_BASIS_POINTS, BASIS_POINTS_SCALE)
             : 0;
 
-        /* Compute remaining proceeds */
-        uint128 proceedsRemaining = (proceeds - borrowerSurplus).toUint128();
+        /* Compute lenders' proceeds */
+        uint128 lendersProceeds = (proceeds - borrowerSurplus).toUint128();
+
+        /* Compute total pending */
+        uint128 totalPending;
+        for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
+            totalPending += loanReceipt.nodeReceipts[i].pending;
+        }
 
         /* Restore liquidity nodes */
+        uint128 remainingProceeds = lendersProceeds;
+        uint256 lastIndex = loanReceipt.nodeReceipts.length - 1;
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
+            /* Compute amount to restore depending on whether there is a surplus */
+            uint128 restored = (i == lastIndex)
+                ? remainingProceeds
+                : uint128(
+                    hasSurplus
+                        ? Math.mulDiv(lendersProceeds, loanReceipt.nodeReceipts[i].pending, totalPending)
+                        : Math.min(loanReceipt.nodeReceipts[i].pending, remainingProceeds)
+                );
+
             /* Restore node */
-            uint128 restored = (i == loanReceipt.nodeReceipts.length - 1)
-                ? proceedsRemaining
-                : uint128(Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining));
             _liquidity.restore(
                 loanReceipt.nodeReceipts[i].tick,
                 loanReceipt.nodeReceipts[i].used,
@@ -1089,7 +1106,7 @@ abstract contract Pool is
             );
 
             /* Update proceeds remaining */
-            proceedsRemaining -= restored;
+            remainingProceeds -= restored;
         }
 
         /* Mark loan status collateral liquidated */
