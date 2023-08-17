@@ -39,7 +39,7 @@ abstract contract Pool is
 {
     using SafeCast for uint256;
     using SafeERC20 for IERC20;
-    using LoanReceipt for LoanReceipt.LoanReceiptV1;
+    using LoanReceipt for LoanReceipt.LoanReceiptV2;
     using LiquidityManager for LiquidityManager.Liquidity;
 
     /**************************************************************************/
@@ -414,7 +414,7 @@ abstract contract Pool is
      * @param loanReceipt Loan receipt
      * @return Decoded loan receipt
      */
-    function decodeLoanReceipt(bytes calldata loanReceipt) external pure returns (LoanReceipt.LoanReceiptV1 memory) {
+    function decodeLoanReceipt(bytes calldata loanReceipt) external pure returns (LoanReceipt.LoanReceiptV2 memory) {
         return LoanReceipt.decode(loanReceipt);
     }
 
@@ -617,7 +617,7 @@ abstract contract Pool is
      * @return proration based on elapsed duration
      */
     function _prorateRepayment(
-        LoanReceipt.LoanReceiptV1 memory loanReceipt
+        LoanReceipt.LoanReceiptV2 memory loanReceipt
     ) internal view returns (uint256 repayment, uint256 proration) {
         /* Minimum of proration and 1.0 */
         proration = Math.min(
@@ -688,10 +688,11 @@ abstract contract Pool is
         uint128[] memory interest = _distribute(principal, totalFee - adminFee, nodes, count);
 
         /* Build the loan receipt */
-        LoanReceipt.LoanReceiptV1 memory receipt = LoanReceipt.LoanReceiptV1({
-            version: 1,
+        LoanReceipt.LoanReceiptV2 memory receipt = LoanReceipt.LoanReceiptV2({
+            version: 2,
             principal: principal,
             repayment: repayment,
+            adminFee: adminFee,
             borrower: msg.sender,
             maturity: uint64(block.timestamp + duration),
             duration: duration,
@@ -739,7 +740,7 @@ abstract contract Pool is
      */
     function _repay(
         bytes calldata encodedLoanReceipt
-    ) internal returns (uint256, LoanReceipt.LoanReceiptV1 memory, bytes32) {
+    ) internal returns (uint256, LoanReceipt.LoanReceiptV2 memory, bytes32) {
         /* Compute loan receipt hash */
         bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
 
@@ -747,7 +748,7 @@ abstract contract Pool is
         if (_loans[loanReceiptHash] != LoanStatus.Active) revert InvalidLoanReceipt();
 
         /* Decode loan receipt */
-        LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
+        LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
         /* Validate borrow and repay is not in same block */
         if (loanReceipt.maturity - loanReceipt.duration == block.timestamp) revert InvalidLoanReceipt();
@@ -759,7 +760,6 @@ abstract contract Pool is
         (uint256 repayment, uint256 proration) = _prorateRepayment(loanReceipt);
 
         /* Restore liquidity nodes */
-        uint128 totalPending;
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
             /* Restore node */
             _liquidity.restore(
@@ -772,13 +772,10 @@ abstract contract Pool is
                             LiquidityManager.FIXED_POINT_SCALE
                     )
             );
-
-            /* Accumulate pending */
-            totalPending += loanReceipt.nodeReceipts[i].pending;
         }
 
         /* Update admin fee total balance with prorated admin fee */
-        _adminFeeBalance += ((loanReceipt.repayment - totalPending) * proration) / LiquidityManager.FIXED_POINT_SCALE;
+        _adminFeeBalance += (loanReceipt.adminFee * proration) / LiquidityManager.FIXED_POINT_SCALE;
 
         /* Mark loan status repaid */
         _loans[loanReceiptHash] = LoanStatus.Repaid;
@@ -941,7 +938,7 @@ abstract contract Pool is
      */
     function repay(bytes calldata encodedLoanReceipt) external nonReentrant returns (uint256) {
         /* Handle repay accounting */
-        (uint256 repayment, LoanReceipt.LoanReceiptV1 memory loanReceipt, bytes32 loanReceiptHash) = _repay(
+        (uint256 repayment, LoanReceipt.LoanReceiptV2 memory loanReceipt, bytes32 loanReceiptHash) = _repay(
             encodedLoanReceipt
         );
 
@@ -975,7 +972,7 @@ abstract contract Pool is
         uint128[] calldata ticks
     ) external nonReentrant returns (uint256) {
         /* Handle repay accounting */
-        (uint256 repayment, LoanReceipt.LoanReceiptV1 memory loanReceipt, bytes32 loanReceiptHash) = _repay(
+        (uint256 repayment, LoanReceipt.LoanReceiptV2 memory loanReceipt, bytes32 loanReceiptHash) = _repay(
             encodedLoanReceipt
         );
 
@@ -1020,7 +1017,7 @@ abstract contract Pool is
         if (_loans[loanReceiptHash] != LoanStatus.Active) revert InvalidLoanReceipt();
 
         /* Decode loan receipt */
-        LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
+        LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
         /* Validate loan is expired */
         if (block.timestamp <= loanReceipt.maturity) revert LoanNotExpired();
@@ -1065,7 +1062,7 @@ abstract contract Pool is
         if (_loans[loanReceiptHash] != LoanStatus.Liquidated) revert InvalidLoanReceipt();
 
         /* Decode loan receipt */
-        LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
+        LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
         /* Compute borrower's share of liquidation surplus */
         uint256 borrowerSurplus = proceeds > loanReceipt.repayment

@@ -196,9 +196,10 @@ describe("EnglishAuctionCollateralLiquidator", function () {
   /****************************************************************************/
 
   const loanReceiptTemplate = {
-    version: 1,
+    version: 2,
     principal: ethers.BigNumber.from("3000000000000000000"),
     repayment: ethers.BigNumber.from("3040000000000000000"),
+    adminFee: ethers.BigNumber.from("2000000000000000"),
     borrower: "0x0CD36Fa7D9634994231Bc76Fb36938D56C6FE70E",
     maturity: 1685595600,
     duration: 2592000,
