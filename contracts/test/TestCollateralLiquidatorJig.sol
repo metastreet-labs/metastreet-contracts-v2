@@ -94,7 +94,7 @@ contract TestCollateralLiquidatorJig is ERC165, ERC721Holder, ICollateralLiquida
      * @param encodedLoanReceipt Encoded loan receipt
      */
     function liquidate(bytes calldata encodedLoanReceipt) external {
-        LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
+        LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
         IERC721(loanReceipt.collateralToken).approve(_collateralLiquidator, loanReceipt.collateralTokenId);
 
@@ -114,7 +114,7 @@ contract TestCollateralLiquidatorJig is ERC165, ERC721Holder, ICollateralLiquida
      * @param proceeds Liquidation proceeds in currency tokens
      */
     function onCollateralLiquidated(bytes calldata loanReceipt, uint256 proceeds) external {
-        LoanReceipt.LoanReceiptV1 memory decodedLoanReceipt = LoanReceipt.decode(loanReceipt);
+        LoanReceipt.LoanReceiptV2 memory decodedLoanReceipt = LoanReceipt.decode(loanReceipt);
 
         /* Force a revert to test try...catch in English Auction */
         if (decodedLoanReceipt.collateralTokenId == 130) {
@@ -208,7 +208,7 @@ contract TestCollateralLiquidatorJigTruncated is ERC721Holder {
      * @param encodedLoanReceipt Encoded loan receipt
      */
     function liquidate(bytes calldata encodedLoanReceipt) external {
-        LoanReceipt.LoanReceiptV1 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
+        LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
         IERC721(loanReceipt.collateralToken).approve(_collateralLiquidator, loanReceipt.collateralTokenId);
 
