@@ -585,14 +585,14 @@ abstract contract Pool is
         /* Cache durations */
         uint64[] memory durations_ = _durations;
 
-        /* Lookup duration index */
-        uint256 durationIndex;
-        for (; durationIndex < durations_.length; durationIndex++) {
-            if (duration > durations_[durationIndex]) break;
-        }
+        /* Validate duration */
+        if (duration > durations_[0]) revert UnsupportedLoanDuration();
 
-        /* Validate duration index */
-        if (durationIndex == 0) revert UnsupportedLoanDuration();
+        /* Lookup duration index */
+        uint256 durationIndex = durations_.length - 1;
+        for (; durationIndex > 0; durationIndex--) {
+            if (duration <= durations_[durationIndex]) break;
+        }
 
         /* Source liquidity nodes */
         (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(

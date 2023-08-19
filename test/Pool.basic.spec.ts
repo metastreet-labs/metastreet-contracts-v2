@@ -1605,7 +1605,7 @@ describe("Pool Basic", function () {
   async function sourceLiquidity(
     amount: ethers.BigNumber,
     multiplier?: number = 1,
-    duration?: number = 2,
+    duration?: number = 0,
     rate?: number = 0
   ): Promise<ethers.BigNumber[]> {
     const nodes = await pool.liquidityNodes(0, MaxUint128);

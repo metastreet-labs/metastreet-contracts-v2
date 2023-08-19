@@ -357,14 +357,14 @@ describe("Integration", function () {
 
     /* Lookup duration index */
     const durations = await pool.durations();
-    let durationIndex = 0;
-    while (durationIndex < durations.length) {
-      if (duration.lte(durations[durationIndex])) break;
-      durationIndex++;
+
+    if (duration.gt(durations[0])) {
+      throw new Error("Invalid duration");
     }
 
-    if (durationIndex == durations.length) {
-      throw new Error("Invalid duration");
+    let durationIndex = durations.length - 1;
+    for (; durationIndex > 0; durationIndex--) {
+      if (duration.lte(durations[durationIndex])) break;
     }
 
     /* Filter nodes based on duration index */

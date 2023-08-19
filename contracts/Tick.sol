@@ -115,13 +115,13 @@ library Tick {
      * @dev Validate a Tick (fast)
      * @param tick Tick
      * @param prevTick Previous tick
-     * @param maxDurationIndex Maximum Duration Index (exclusive)
+     * @param maxDurationIndex Maximum Duration Index (inclusive)
      * @return Limit field
      */
     function validate(uint128 tick, uint256 prevTick, uint256 maxDurationIndex) internal pure returns (uint256) {
         (uint256 limit, uint256 duration, , ) = decode(tick);
         if (tick <= prevTick) revert InvalidTick();
-        if (duration >= maxDurationIndex) revert InvalidTick();
+        if (duration > maxDurationIndex) revert InvalidTick();
         return limit;
     }
 
