@@ -563,6 +563,7 @@ export function handleLoanRepaid(event: LoanRepaidEvent): void {
   const loanEntity = LoanEntity.load(event.params.loanReceiptHash);
   if (!loanEntity) throw new Error("Loan entity not found");
   loanEntity.status = LoanStatus.Repaid;
+  loanEntity.proceeds = event.params.repayment;
   loanEntity.save();
 
   const poolEntity = updatePoolEntity(event);
