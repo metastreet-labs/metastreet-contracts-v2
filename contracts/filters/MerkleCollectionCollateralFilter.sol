@@ -149,12 +149,16 @@ contract MerkleCollectionCollateralFilter is CollateralFilter {
         /* Validate token supported */
         if (token != _token) return false;
 
+        /* Compute proof offset */
+        uint32 proofLength = _proofLength;
+        uint256 proofOffset = index * proofLength;
+
         /* Validate context length */
-        if (context.length < (index + 1) * _proofLength) revert InvalidContext();
+        if (context.length < proofOffset + proofLength) revert InvalidContext();
 
         /* Compute leaf hash */
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(tokenId))));
 
-        return MerkleProof.verify(_extractProof(context[index * _proofLength:(index + 1) * _proofLength]), _root, leaf);
+        return MerkleProof.verify(_extractProof(context[proofOffset:proofOffset + proofLength]), _root, leaf);
     }
 }
