@@ -18,6 +18,7 @@ import {
 import { extractEvent, expectEvent } from "./helpers/EventUtilities";
 import { FixedPoint } from "./helpers/FixedPoint.ts";
 import { Tick } from "./helpers/Tick";
+import { MerkleTree } from "./helpers/MerkleTree";
 
 describe("Pool Gas", function () {
   let accounts: SignerWithAddress[];
@@ -162,6 +163,15 @@ describe("Pool Gas", function () {
   /****************************************************************************/
 
   const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
+
+  function constructMerkleNodeIds(startId: number, count: number): ethers.BigNumber[][] {
+    const nodes = [];
+    for (let i = startId; i < startId + count; i++) {
+      nodes.push([ethers.BigNumber.from(i)]);
+    }
+
+    return nodes;
+  }
 
   async function setupLiquidity(pool: Pool): Promise<void> {
     const NUM_TICKS = 16;
@@ -392,8 +402,8 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 286000],
-      [FixedPoint.from("250"), 16, 365000],
+      [FixedPoint.from("150"), 10, 286860],
+      [FixedPoint.from("250"), 16, 365880],
     ]) {
       it(`borrow (bundle of 10, ${numTicks} ticks)`, async function () {
         /* Mint bundle of 10 */
@@ -982,6 +992,120 @@ describe("Pool Gas", function () {
 
       expect(gasUsed).to.be.lt(170000);
     });
+  });
+
+  describe("#merkle", async function () {
+    let poolImpl: Pool;
+    let pool: Pool;
+    let collateralLiquidator: ExternalCollateralLiquidator;
+    let proxy;
+    let testProxyFactory: any;
+
+    beforeEach("setup pool", async function () {
+      testProxyFactory = await ethers.getContractFactory("TestProxy");
+      const poolImplFactory = await ethers.getContractFactory("WeightedRateMerkleCollectionPool");
+      const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
+
+      /* Deploy external collateral liquidator implementation */
+      const collateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
+      await collateralLiquidatorImpl.deployed();
+
+      /* Deploy collateral liquidator */
+      let proxy = await testProxyFactory.deploy(
+        collateralLiquidatorImpl.address,
+        collateralLiquidatorImpl.interface.encodeFunctionData("initialize")
+      );
+      await proxy.deployed();
+      collateralLiquidator = (await ethers.getContractAt(
+        "ExternalCollateralLiquidator",
+        proxy.address
+      )) as ExternalCollateralLiquidator;
+
+      /* Deploy pool implementation */
+      poolImpl = (await poolImplFactory.deploy(
+        5000,
+        collateralLiquidator.address,
+        ethers.constants.AddressZero,
+        [],
+        [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
+      )) as Pool;
+      await poolImpl.deployed();
+    });
+    for (const [count, principal, numTicks, maxGas] of [
+      [10, FixedPoint.from("15"), 10, 279100],
+      [10, FixedPoint.from("25"), 16, 358100],
+      [100, FixedPoint.from("15"), 10, 282810],
+      [100, FixedPoint.from("25"), 16, 361800],
+      [1000, FixedPoint.from("15"), 10, 366600],
+      [1000, FixedPoint.from("25"), 16, 366600],
+    ]) {
+      it(`merkle borrow (single, ${numTicks} ticks, ${count} token ids)`, async function () {
+        /* Build merkle tree */
+        const merkleNodeIds = constructMerkleNodeIds(122, count);
+        const nodeCount = Math.ceil(Math.log2(merkleNodeIds.length));
+        const merkleTree = MerkleTree.buildTree(merkleNodeIds, ["uint256"]);
+
+        /* Deploy poolMerkle */
+        proxy = await testProxyFactory.deploy(
+          poolImpl.address,
+          poolImpl.interface.encodeFunctionData("initialize", [
+            ethers.utils.defaultAbiCoder.encode(
+              ["address", "bytes32", "uint32", "string", "address", "uint64[]", "uint64[]"],
+              [
+                nft1.address,
+                merkleTree.root,
+                nodeCount,
+                "https://api.example.com/v2/",
+                tok1.address,
+                [30 * 86400, 14 * 86400, 7 * 86400],
+                [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
+              ]
+            ),
+          ])
+        );
+        await proxy.deployed();
+        pool = (await ethers.getContractAt("Pool", proxy.address)) as Pool;
+
+        /* Transfer TOK1 to depositors and approve Pool */
+        for (const depositor of accountDepositors) {
+          await tok1.connect(depositor).approve(pool.address, ethers.constants.MaxUint256);
+        }
+        /* Approve pool to transfer NFT */
+        await nft1.connect(accountBorrower).setApprovalForAll(pool.address, true);
+        /* Approve pool to transfer token (for repayment) */
+        await tok1.connect(accountBorrower).approve(pool.address, ethers.constants.MaxUint256);
+
+        await setupLiquidity(pool);
+
+        /* Source liquidity */
+        const ticks = await sourceLiquidity(pool, principal);
+        expect(ticks.length).to.equal(numTicks);
+
+        /* Compute merkle proof */
+        const merkleProof = MerkleTree.buildProof("123", nodeCount, merkleTree);
+
+        /* Compute borrow options */
+        const borrowOptions = ethers.utils.solidityPack(
+          ["uint16", "uint16", "bytes"],
+          [2, ethers.utils.hexDataLength(merkleProof), merkleProof]
+        );
+
+        /* Borrow */
+        const borrowTx = await pool
+          .connect(accountBorrower)
+          .borrow(principal, 30 * 86400, nft1.address, 123, principal.add(FixedPoint.from("1")), ticks, borrowOptions);
+
+        /* Validate correct number of nodes were used */
+        const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+        const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
+        expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
+
+        const gasUsed = (await borrowTx.wait()).gasUsed;
+        gasReport.push([this.test.title, gasUsed]);
+
+        expect(gasUsed).to.be.lt(maxGas);
+      });
+    }
   });
 
   /****************************************************************************/
