@@ -1172,7 +1172,7 @@ abstract contract Pool is
         (uint128 shares, uint128 amount) = _withdraw(tick, redemptionId);
 
         /* Transfer withdrawal amount */
-        _currencyToken.safeTransfer(msg.sender, amount);
+        if (amount != 0) _currencyToken.safeTransfer(msg.sender, amount);
 
         /* Emit Withdrawn */
         emit Withdrawn(msg.sender, tick, redemptionId, shares, amount);
