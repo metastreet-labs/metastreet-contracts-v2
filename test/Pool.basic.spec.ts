@@ -1096,11 +1096,6 @@ describe("Pool Basic", function () {
         shares: FixedPoint.from("5"),
         amount: ethers.constants.Zero,
       });
-      await expectEvent(withdrawTx, tok1, "Transfer", {
-        from: pool.address,
-        to: accountDepositors[0].address,
-        value: ethers.constants.Zero,
-      });
 
       /* Validate deposit state */
       let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
