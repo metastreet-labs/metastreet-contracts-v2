@@ -565,6 +565,7 @@ abstract contract Pool is
      * @param collateralTokenIds List of collateral token ids
      * @param ticks Liquidity node ticks
      * @param collateralFilterContext Collateral filter context
+     * @param isRefinance True if called by refinance()
      * @return Repayment amount in currency tokens, liquidity nodes, liquidity
      * node count
      */
@@ -574,12 +575,15 @@ abstract contract Pool is
         address collateralToken,
         uint256[] memory collateralTokenIds,
         uint128[] calldata ticks,
-        bytes calldata collateralFilterContext
+        bytes calldata collateralFilterContext,
+        bool isRefinance
     ) internal view returns (uint256, ILiquidity.NodeSource[] memory, uint16) {
         /* Verify collateral is supported */
-        for (uint256 i; i < collateralTokenIds.length; i++) {
-            if (!_collateralSupported(collateralToken, collateralTokenIds[i], i, collateralFilterContext))
-                revert UnsupportedCollateral(i);
+        if (!isRefinance) {
+            for (uint256 i; i < collateralTokenIds.length; i++) {
+                if (!_collateralSupported(collateralToken, collateralTokenIds[i], i, collateralFilterContext))
+                    revert UnsupportedCollateral(i);
+            }
         }
 
         /* Cache durations */
@@ -642,6 +646,7 @@ abstract contract Pool is
      * @param ticks Liquidity node ticks
      * @param collateralWrapperContext Collateral wrapper context data
      * @param collateralFilterContext Collateral filter context data
+     * @param isRefinance True if called by refinance()
      * @return Repayment amount in currency tokens, encoded loan receipt, loan
      * receipt hash
      */
@@ -653,7 +658,8 @@ abstract contract Pool is
         uint256 maxRepayment,
         uint128[] calldata ticks,
         bytes memory collateralWrapperContext,
-        bytes calldata collateralFilterContext
+        bytes calldata collateralFilterContext,
+        bool isRefinance
     ) internal returns (uint256, bytes memory, bytes32) {
         /* Validate duration is non-zero */
         if (duration == 0) revert UnsupportedLoanDuration();
@@ -672,7 +678,8 @@ abstract contract Pool is
             underlyingCollateralToken,
             underlyingCollateralTokenIds,
             ticks,
-            collateralFilterContext
+            collateralFilterContext,
+            isRefinance
         );
 
         /* Validate repayment */
@@ -888,7 +895,8 @@ abstract contract Pool is
             collateralToken,
             collateralTokenIds,
             ticks,
-            _getOptionsData(options, uint16(BorrowOptions.CollateralFilterContext))
+            _getOptionsData(options, uint16(BorrowOptions.CollateralFilterContext)),
+            false
         );
 
         return repayment;
@@ -915,7 +923,8 @@ abstract contract Pool is
             maxRepayment,
             ticks,
             _getOptionsData(options, uint16(BorrowOptions.CollateralWrapperContext)),
-            _getOptionsData(options, uint16(BorrowOptions.CollateralFilterContext))
+            _getOptionsData(options, uint16(BorrowOptions.CollateralFilterContext)),
+            false
         );
 
         /* Handle delegate.cash option */
@@ -985,7 +994,8 @@ abstract contract Pool is
             maxRepayment,
             ticks,
             loanReceipt.collateralWrapperContext,
-            encodedLoanReceipt[0:0]
+            encodedLoanReceipt[0:0],
+            true
         );
 
         /* Determine transfer direction */
