@@ -3052,7 +3052,7 @@ describe("Pool Basic", function () {
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
 
-      await expect(pool.liquidate(loanReceipt)).to.be.revertedWithCustomError(pool, "LoanNotExpired");
+      await expect(pool.liquidate(loanReceipt)).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
     });
 
     it("fails on repaid loan", async function () {
@@ -3418,8 +3418,8 @@ describe("Pool Basic", function () {
       await createRepaidLoan(FixedPoint.from("25"));
 
       await expect(
-        pool.withdrawAdminFees(ethers.constants.AddressZero, FixedPoint.from("0.00001"))
-      ).to.be.revertedWithCustomError(pool, "InvalidAddress");
+        pool.withdrawAdminFees(ethers.constants.AddressZero, await pool.adminFeeBalance())
+      ).to.be.revertedWith("ERC20: transfer to the zero address");
     });
 
     it("fails on parameter out of bounds", async function () {

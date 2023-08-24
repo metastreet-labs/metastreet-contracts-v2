@@ -57,11 +57,6 @@ abstract contract Pool is
     uint256 public constant BORROWER_SURPLUS_SPLIT_BASIS_POINTS = 9_500;
 
     /**
-     * @notice Basis points scale
-     */
-    uint256 internal constant BASIS_POINTS_SCALE = 10_000;
-
-    /**
      * @notice Borrow options tag size in bytes
      */
     uint256 internal constant BORROW_OPTIONS_TAG_SIZE = 2;
@@ -74,11 +69,6 @@ abstract contract Pool is
     /**************************************************************************/
     /* Errors */
     /**************************************************************************/
-
-    /**
-     * @notice Invalid address
-     */
-    error InvalidAddress();
 
     /**
      * @notice Parameter out of bounds
@@ -192,7 +182,7 @@ abstract contract Pool is
     /**
      * @notice Total admin fee balance
      */
-    uint256 internal _adminFeeBalance;
+    uint256 public adminFeeBalance;
 
     /**
      * @notice Liquidity
@@ -397,14 +387,6 @@ abstract contract Pool is
         return _loans[receiptHash];
     }
 
-    /**
-     * @notice Get total admin fee balance
-     * @return Total admin fee balance
-     */
-    function adminFeeBalance() external view returns (uint256) {
-        return _adminFeeBalance;
-    }
-
     /**************************************************************************/
     /* Loan Receipt External Helpers */
     /**************************************************************************/
@@ -455,7 +437,7 @@ abstract contract Pool is
      * @return Options data
      */
     function _getOptionsData(bytes calldata options, uint16 tag) internal pure returns (bytes calldata) {
-        uint256 offsetTag = 0;
+        uint256 offsetTag;
 
         /* Scan the options for the tag */
         while (offsetTag < options.length) {
@@ -523,7 +505,8 @@ abstract contract Pool is
         bytes calldata delegateData = _getOptionsData(options, uint16(BorrowOptions.DelegateCash));
 
         if (delegateData.length != 0) {
-            if (address(_delegationRegistry) == address(0) || delegateData.length != 20) revert InvalidBorrowOptions();
+            if (address(_delegationRegistry) == address(0)) revert InvalidBorrowOptions();
+            if (delegateData.length != 20) revert InvalidBorrowOptions();
 
             /* Delegate token */
             _delegationRegistry.delegateForToken(
@@ -682,7 +665,7 @@ abstract contract Pool is
         uint256 totalFee = repayment - principal;
 
         /* Compute admin fee */
-        uint256 adminFee = (_adminFeeRate * totalFee) / BASIS_POINTS_SCALE;
+        uint256 adminFee = (_adminFeeRate * totalFee) / LiquidityManager.BASIS_POINTS_SCALE;
 
         /* Distribute interest */
         uint128[] memory interest = _distribute(principal, totalFee - adminFee, nodes, count);
@@ -775,7 +758,7 @@ abstract contract Pool is
         }
 
         /* Update admin fee total balance with prorated admin fee */
-        _adminFeeBalance += (loanReceipt.adminFee * proration) / LiquidityManager.FIXED_POINT_SCALE;
+        adminFeeBalance += (loanReceipt.adminFee * proration) / LiquidityManager.FIXED_POINT_SCALE;
 
         /* Mark loan status repaid */
         _loans[loanReceiptHash] = LoanStatus.Repaid;
@@ -1013,14 +996,12 @@ abstract contract Pool is
         /* Compute loan receipt hash */
         bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
 
-        /* Validate loan status is active */
-        if (_loans[loanReceiptHash] != LoanStatus.Active) revert InvalidLoanReceipt();
-
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
-        /* Validate loan is expired */
-        if (block.timestamp <= loanReceipt.maturity) revert LoanNotExpired();
+        /* Validate loan is active and expired */
+        if (_loans[loanReceiptHash] != LoanStatus.Active || block.timestamp <= loanReceipt.maturity)
+            revert InvalidLoanReceipt();
 
         /* Approve collateral for transfer to _collateralLiquidator */
         IERC721(loanReceipt.collateralToken).approve(address(_collateralLiquidator), loanReceipt.collateralTokenId);
@@ -1069,7 +1050,11 @@ abstract contract Pool is
 
         /* Compute borrower's share of liquidation surplus */
         uint256 borrowerSurplus = hasSurplus
-            ? Math.mulDiv(proceeds - loanReceipt.repayment, BORROWER_SURPLUS_SPLIT_BASIS_POINTS, BASIS_POINTS_SCALE)
+            ? Math.mulDiv(
+                proceeds - loanReceipt.repayment,
+                BORROWER_SURPLUS_SPLIT_BASIS_POINTS,
+                LiquidityManager.BASIS_POINTS_SCALE
+            )
             : 0;
 
         /* Compute lenders' proceeds */
@@ -1220,7 +1205,8 @@ abstract contract Pool is
      */
     function setAdminFeeRate(uint32 rate) external {
         if (msg.sender != _admin) revert InvalidCaller();
-        if (rate == 0 || rate >= BASIS_POINTS_SCALE) revert ParameterOutOfBounds();
+        if (rate == 0) revert ParameterOutOfBounds();
+        if (rate >= LiquidityManager.BASIS_POINTS_SCALE) revert ParameterOutOfBounds();
         _adminFeeRate = rate;
         emit AdminFeeRateUpdated(rate);
     }
@@ -1235,11 +1221,10 @@ abstract contract Pool is
      */
     function withdrawAdminFees(address recipient, uint256 amount) external nonReentrant {
         if (msg.sender != _admin) revert InvalidCaller();
-        if (recipient == address(0)) revert InvalidAddress();
-        if (amount > _adminFeeBalance) revert ParameterOutOfBounds();
+        if (amount > adminFeeBalance) revert ParameterOutOfBounds();
 
         /* Update admin fees balance */
-        _adminFeeBalance -= amount;
+        adminFeeBalance -= amount;
 
         /* Transfer cash from Pool to recipient */
         _currencyToken.safeTransfer(recipient, amount);
