@@ -564,6 +564,7 @@ export function handleLoanRepaid(event: LoanRepaidEvent): void {
   if (!loanEntity) throw new Error("Loan entity not found");
   loanEntity.status = LoanStatus.Repaid;
   loanEntity.proceeds = event.params.repayment;
+  loanEntity.completion = event.block.timestamp;
   loanEntity.save();
 
   const poolEntity = updatePoolEntity(event);
@@ -621,6 +622,7 @@ export function handleCollateralLiquidated(event: CollateralLiquidatedEvent): vo
   if (!loanEntity) throw new Error("Loan entity not found");
   loanEntity.status = LoanStatus.CollateralLiquidated;
   loanEntity.proceeds = event.params.proceeds;
+  loanEntity.completion = event.block.timestamp;
   loanEntity.save();
 
   const poolEntity = updatePoolEntity(event);
