@@ -230,12 +230,13 @@ interface IPool {
      * @param redemptionId Redemption ID
      * @return shares Amount of deposit shares available for redemption
      * @return amount Amount of currency tokens available for withdrawal
+     * @return sharesAhead Amount of pending shares ahead in queue
      */
     function redemptionAvailable(
         address account,
         uint128 tick,
         uint128 redemptionId
-    ) external view returns (uint256 shares, uint256 amount);
+    ) external view returns (uint256 shares, uint256 amount, uint256 sharesAhead);
 
     /**
      * @notice Withdraw a redemption that is available
