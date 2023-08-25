@@ -1149,19 +1149,23 @@ abstract contract Pool is
         address account,
         uint128 tick,
         uint128 redemptionId
-    ) external view returns (uint256 shares, uint256 amount) {
+    ) external view returns (uint256 shares, uint256 amount, uint256 sharesAhead) {
         /* Look up redemption */
         Redemption storage redemption = _deposits[account][tick].redemptions[redemptionId];
 
         /* If no redemption is pending */
-        if (redemption.pending == 0) return (0, 0);
+        if (redemption.pending == 0) return (0, 0, 0);
 
-        (shares, amount, , ) = _liquidity.redemptionAvailable(
+        uint128 processedShares;
+        (shares, amount, , processedShares) = _liquidity.redemptionAvailable(
             tick,
             redemption.pending,
             redemption.index,
             redemption.target
         );
+
+        /* Compute pending shares ahead in queue */
+        sharesAhead = redemption.target > processedShares ? redemption.target - processedShares : 0;
     }
 
     /**

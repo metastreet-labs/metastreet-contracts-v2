@@ -810,6 +810,46 @@ describe("Pool Basic", function () {
       expect(redemption.index).to.equal(ethers.BigNumber.from("1"));
       expect(redemption.target).to.be.closeTo(FixedPoint.from("10"), FixedPoint.from("0.1"));
     });
+
+    it("correctly returns sharesAhead", async function () {
+      /* Depositor 1 deposits 5 ETH */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("5"), 0);
+      let [shares1, redemptionId1] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+
+      /* Depositor 2 deposits 5 ETH */
+      await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("5"), 0);
+      let [shares2, redemptionId2] = await pool.deposits(accountDepositors[1].address, Tick.encode("10"));
+
+      /* Borrow 8 ETH */
+      await pool
+        .connect(accountBorrower)
+        .borrow(FixedPoint.from("8"), 30 * 86400, nft1.address, 123, FixedPoint.from("9"), [Tick.encode("10")], "0x");
+
+      /* Depositor 1 redeems all shares */
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), shares1);
+
+      /* Depositor 2 redeems all shares */
+      await pool.connect(accountDepositors[1]).redeem(Tick.encode("10"), shares2);
+
+      /* Get redemption available */
+      let redemptionAvailable1 = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"), 0);
+      let redemptionAvailable2 = await pool.redemptionAvailable(accountDepositors[1].address, Tick.encode("10"), 0);
+
+      /* Validate sharesAhead */
+      expect(redemptionAvailable1.sharesAhead).to.equal(0);
+      expect(redemptionAvailable2.sharesAhead).to.equal(FixedPoint.from("3"));
+
+      /* Depositor 2 deposits another 4 ETH */
+      await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("4"), 0);
+
+      /* Get redemption available */
+      redemptionAvailable1 = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"), 0);
+      redemptionAvailable2 = await pool.redemptionAvailable(accountDepositors[1].address, Tick.encode("10"), 0);
+
+      /* Validate sharesAhead */
+      expect(redemptionAvailable1.sharesAhead).to.equal(0);
+      expect(redemptionAvailable2.sharesAhead).to.equal(0);
+    });
   });
 
   describe("#withdraw", async function () {
