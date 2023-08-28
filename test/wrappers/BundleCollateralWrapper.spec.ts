@@ -93,13 +93,14 @@ describe("BundleCollateralWrapper", function () {
       const context = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 456, 768]]);
 
       /* Enumerate */
-      const [token, tokenIds] = await bundleCollateralWrapper.enumerate(tokenId1, context);
+      const [token, tokenIds, count] = await bundleCollateralWrapper.enumerate(tokenId1, context);
 
       /* Validate return */
       expect(token).to.equal(nft1.address);
       expect(tokenIds[0]).to.equal(123);
       expect(tokenIds[1]).to.equal(456);
       expect(tokenIds[2]).to.equal(768);
+      expect(count).to.equal(3);
     });
 
     it("fails on incorrect tokenId", async function () {
