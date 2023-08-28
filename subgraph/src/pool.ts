@@ -177,7 +177,7 @@ function updateTickEntity(
   encodedTick: BigInt,
   principalWeightedDurationUpdate: BigInt,
   interestWeightedMaturityUpdate: BigInt
-): TickEntity {
+): void {
   const node = poolContract.liquidityNode(encodedTick);
   const decodedTick = decodeTick(encodedTick);
   const tickId = getTickId(encodedTick);
@@ -199,6 +199,7 @@ function updateTickEntity(
   tickEntity.rate = poolEntity.rates[decodedTick.rateIndex];
   tickEntity.durationIndex = decodedTick.durationIndex;
   tickEntity.rateIndex = decodedTick.rateIndex;
+  tickEntity.active = node.prev.notEqual(ZERO) || node.next.notEqual(ZERO);
   tickEntity.value = node.value;
   tickEntity.shares = node.shares;
   tickEntity.available = node.available;
@@ -210,7 +211,6 @@ function updateTickEntity(
   tickEntity.interestWeightedMaturity = tickEntity.interestWeightedMaturity.plus(interestWeightedMaturityUpdate);
 
   tickEntity.save();
-  return tickEntity;
 }
 
 function updateTickEntitiesFromLoanEntity(loanEntity: LoanEntity, factor: i8): void {
