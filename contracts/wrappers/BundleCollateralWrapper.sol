@@ -106,14 +106,14 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard 
     function enumerate(
         uint256 tokenId,
         bytes calldata context
-    ) external view returns (address token, uint256[] memory tokenIds) {
+    ) external view returns (address token, uint256[] memory tokenIds, uint256 count) {
         if (tokenId != uint256(_hash(context))) revert InvalidContext();
 
         /* Get token address from context */
         token = address(uint160(bytes20(context[0:20])));
 
         /* Compute number of tokens in context */
-        uint256 count = (context.length - 20) / 32;
+        count = (context.length - 20) / 32;
 
         /* Instantiate asset info array */
         tokenIds = new uint256[](count);

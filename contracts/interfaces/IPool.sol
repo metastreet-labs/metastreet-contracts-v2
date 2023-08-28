@@ -280,6 +280,7 @@ interface IPool {
      * @param duration Duration in seconds
      * @param collateralToken Collateral token
      * @param collateralTokenIds List of collateral token IDs
+     * @param collateralTokenCount Total tokens
      * @param ticks Liquidity ticks
      * @param options Encoded options
      * @return repayment Repayment amount in currency tokens
@@ -289,6 +290,7 @@ interface IPool {
         uint64 duration,
         address collateralToken,
         uint256[] calldata collateralTokenIds,
+        uint256 collateralTokenCount,
         uint128[] calldata ticks,
         bytes calldata options
     ) external view returns (uint256 repayment);

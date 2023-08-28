@@ -293,6 +293,7 @@ describe("Pool ERC1155", function () {
           30 * 86400,
           nft1.address,
           [123, 124, 124, 125, 125, 125],
+          6,
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
         )
@@ -304,6 +305,7 @@ describe("Pool ERC1155", function () {
           30 * 86400,
           nft1.address,
           [123, 124, 124, 125, 125, 125],
+          6,
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         )
@@ -317,6 +319,7 @@ describe("Pool ERC1155", function () {
           30 * 86400,
           nft1.address,
           [123, 124, 124, 125, 125, 125],
+          6,
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         )
@@ -346,6 +349,7 @@ describe("Pool ERC1155", function () {
         30 * 86400,
         nft1.address,
         [123, 124, 124, 125, 125, 125],
+        6,
         await sourceLiquidity(FixedPoint.from("25"), 6),
         "0x"
       );
@@ -460,6 +464,7 @@ describe("Pool ERC1155", function () {
         30 * 86400,
         nft1.address,
         [123, 124, 124, 125, 125, 125],
+        6,
         await sourceLiquidity(FixedPoint.from("25")),
         "0x"
       );
@@ -582,6 +587,7 @@ describe("Pool ERC1155", function () {
         30 * 86400,
         nft1.address,
         [123, 124, 124, 125, 125, 125],
+        6,
         await sourceLiquidity(FixedPoint.from("85"), 6),
         "0x"
       );
@@ -754,6 +760,7 @@ describe("Pool ERC1155", function () {
         30 * 86400,
         nft1.address,
         [124, 125, 125],
+        3,
         await sourceLiquidity(FixedPoint.from("25"), 3),
         "0x"
       );
