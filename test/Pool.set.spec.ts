@@ -247,6 +247,7 @@ describe("Pool Set Collection", function () {
           30 * 86400,
           nft1.address,
           [123],
+          1,
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
         )
@@ -258,6 +259,7 @@ describe("Pool Set Collection", function () {
           30 * 86400,
           nft1.address,
           [123],
+          1,
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         )
@@ -271,6 +273,7 @@ describe("Pool Set Collection", function () {
           30 * 86400,
           nft1.address,
           [126],
+          1,
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
         )
@@ -290,6 +293,7 @@ describe("Pool Set Collection", function () {
         30 * 86400,
         nft1.address,
         [123],
+        1,
         await sourceLiquidity(FixedPoint.from("25")),
         "0x"
       );
@@ -386,6 +390,7 @@ describe("Pool Set Collection", function () {
         30 * 86400,
         nft1.address,
         [123],
+        1,
         await sourceLiquidity(FixedPoint.from("25")),
         borrowOptions
       );
