@@ -278,6 +278,7 @@ describe("Pool ERC1155 Ranged Collection", function () {
         30 * 86400,
         nft1.address,
         [123, 124, 124, 125, 125, 125],
+        6,
         await sourceLiquidity(FixedPoint.from("25"), 6),
         borrowOptions
       );
@@ -376,6 +377,7 @@ describe("Pool ERC1155 Ranged Collection", function () {
         30 * 86400,
         nft1.address,
         [123, 124, 124, 125, 125, 125],
+        6,
         await sourceLiquidity(FixedPoint.from("25"), 6),
         borrowOptions
       );

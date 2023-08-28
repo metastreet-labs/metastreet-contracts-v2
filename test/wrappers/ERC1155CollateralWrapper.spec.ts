@@ -94,16 +94,15 @@ describe("ERC1155CollateralWrapper", function () {
       );
 
       /* Enumerate */
-      const [token, tokenIds] = await ERC1155CollateralWrapper.enumerate(tokenId1, context);
+      const [token, tokenIds, count] = await ERC1155CollateralWrapper.enumerate(tokenId1, context);
+      console.log(" tokenIds:", tokenIds);
 
       /* Validate return */
       expect(token).to.equal(nft1.address);
       expect(tokenIds[0]).to.equal(123);
       expect(tokenIds[1]).to.equal(124);
-      expect(tokenIds[2]).to.equal(124);
-      expect(tokenIds[3]).to.equal(125);
-      expect(tokenIds[4]).to.equal(125);
-      expect(tokenIds[5]).to.equal(125);
+      expect(tokenIds[2]).to.equal(125);
+      expect(count).to.equal(6);
     });
 
     it("fails on incorrect tokenId", async function () {

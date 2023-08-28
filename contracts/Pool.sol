@@ -488,13 +488,13 @@ abstract contract Pool is
      * @param collateralToken Collateral token, either underlying token or collateral wrapper
      * @param collateralTokenId Collateral token ID
      * @param collateralWrapperContext Collateral wrapper context
-     * @return Underlying collateral token and token IDs
+     * @return Underlying collateral token, unique token IDs, total tokens
      */
     function _getUnderlyingCollateral(
         address collateralToken,
         uint256 collateralTokenId,
         bytes memory collateralWrapperContext
-    ) internal view returns (address, uint256[] memory) {
+    ) internal view returns (address, uint256[] memory, uint256) {
         /* Enumerate bundle if collateral token is a collateral wrapper */
         if (
             collateralToken == _collateralWrapper1 ||
@@ -508,7 +508,7 @@ abstract contract Pool is
         uint256[] memory underlyingCollateralTokenIds = new uint256[](1);
         underlyingCollateralTokenIds[0] = collateralTokenId;
 
-        return (collateralToken, underlyingCollateralTokenIds);
+        return (collateralToken, underlyingCollateralTokenIds, 1);
     }
 
     /**
@@ -563,7 +563,8 @@ abstract contract Pool is
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
      * @param collateralToken Collateral token address
-     * @param collateralTokenIds List of collateral token ids
+     * @param collateralTokenIds List of unique collateral token ids
+     * @param collateralTokenCount Total collateral token count
      * @param ticks Liquidity node ticks
      * @param collateralFilterContext Collateral filter context
      * @param isRefinance True if called by refinance()
@@ -575,6 +576,7 @@ abstract contract Pool is
         uint64 duration,
         address collateralToken,
         uint256[] memory collateralTokenIds,
+        uint256 collateralTokenCount,
         uint128[] calldata ticks,
         bytes calldata collateralFilterContext,
         bool isRefinance
@@ -603,7 +605,7 @@ abstract contract Pool is
         (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
             principal,
             ticks,
-            collateralTokenIds.length,
+            collateralTokenCount,
             durationIndex
         );
 
@@ -666,11 +668,11 @@ abstract contract Pool is
         if (duration == 0) revert UnsupportedLoanDuration();
 
         /* Get underlying collateral */
-        (address underlyingCollateralToken, uint256[] memory underlyingCollateralTokenIds) = _getUnderlyingCollateral(
-            collateralToken,
-            collateralTokenId,
-            collateralWrapperContext
-        );
+        (
+            address underlyingCollateralToken,
+            uint256[] memory underlyingCollateralTokenIds,
+            uint256 underlyingCollateralTokenCount
+        ) = _getUnderlyingCollateral(collateralToken, collateralTokenId, collateralWrapperContext);
 
         /* Quote repayment and liquidity nodes */
         (uint256 repayment, ILiquidity.NodeSource[] memory nodes, uint16 count) = _quote(
@@ -678,6 +680,7 @@ abstract contract Pool is
             duration,
             underlyingCollateralToken,
             underlyingCollateralTokenIds,
+            underlyingCollateralTokenCount,
             ticks,
             collateralFilterContext,
             isRefinance
@@ -886,6 +889,7 @@ abstract contract Pool is
         uint64 duration,
         address collateralToken,
         uint256[] calldata collateralTokenIds,
+        uint256 collateralTokenCount,
         uint128[] calldata ticks,
         bytes calldata options
     ) external view returns (uint256) {
@@ -895,6 +899,7 @@ abstract contract Pool is
             duration,
             collateralToken,
             collateralTokenIds,
+            collateralTokenCount,
             ticks,
             _getOptionsData(options, uint16(BorrowOptions.CollateralFilterContext)),
             false

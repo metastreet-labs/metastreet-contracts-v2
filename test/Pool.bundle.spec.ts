@@ -256,7 +256,7 @@ describe("Pool Bundle", function () {
 
     const ticks = await sourceLiquidity(principal);
 
-    const repayment = await pool.quote(principal, duration, nft1.address, [tokenId], ticks, "0x");
+    const repayment = await pool.quote(principal, duration, nft1.address, [tokenId], 1, ticks, "0x");
 
     const borrowTx = await pool
       .connect(accountBorrower)
@@ -314,6 +314,7 @@ describe("Pool Bundle", function () {
           30 * 86400,
           nft1.address,
           [123, 124, 125],
+          3,
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
         )
@@ -325,6 +326,7 @@ describe("Pool Bundle", function () {
           30 * 86400,
           nft1.address,
           [123, 124, 125],
+          3,
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         )
@@ -338,6 +340,7 @@ describe("Pool Bundle", function () {
           30 * 86400,
           nft1.address,
           [123, 124, 125],
+          3,
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         )
@@ -362,6 +365,7 @@ describe("Pool Bundle", function () {
         30 * 86400,
         nft1.address,
         [123, 124, 125],
+        3,
         await sourceLiquidity(FixedPoint.from("25")),
         "0x"
       );
@@ -471,6 +475,7 @@ describe("Pool Bundle", function () {
         30 * 86400,
         nft1.address,
         [123, 124, 125],
+        3,
         await sourceLiquidity(FixedPoint.from("25")),
         "0x"
       );
@@ -588,6 +593,7 @@ describe("Pool Bundle", function () {
         30 * 86400,
         nft1.address,
         [123, 124, 125],
+        3,
         await sourceLiquidity(FixedPoint.from("85"), 3),
         "0x"
       );
@@ -749,6 +755,7 @@ describe("Pool Bundle", function () {
         30 * 86400,
         nft1.address,
         [124, 125],
+        2,
         await sourceLiquidity(FixedPoint.from("25")),
         "0x"
       );
