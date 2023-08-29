@@ -23,9 +23,9 @@ contract ERC1155CollateralWrapper is ICollateralWrapper, ERC721, ERC1155Holder, 
     string public constant IMPLEMENTATION_VERSION = "1.0";
 
     /**
-     * @notice Maximum batch size
+     * @notice Maximum token IDs
      */
-    uint256 internal constant MAX_BATCH_SIZE = 32;
+    uint256 internal constant MAX_TOKEN_IDS = 32;
 
     /**************************************************************************/
     /* Errors */
@@ -42,7 +42,7 @@ contract ERC1155CollateralWrapper is ICollateralWrapper, ERC721, ERC1155Holder, 
     error InvalidContext();
 
     /**
-     * @notice Invalid batch size
+     * @notice Invalid token IDs size
      */
     error InvalidSize();
 
@@ -176,8 +176,9 @@ contract ERC1155CollateralWrapper is ICollateralWrapper, ERC721, ERC1155Holder, 
         uint256[] calldata tokenIds,
         uint256[] calldata quantities
     ) external nonReentrant returns (uint256) {
-        /* Validate token ids and quantities count */
-        if (tokenIds.length == 0 || tokenIds.length != quantities.length) revert InvalidSize();
+        /* Validate token IDs and quantities */
+        if (tokenIds.length == 0 || tokenIds.length > MAX_TOKEN_IDS || tokenIds.length != quantities.length)
+            revert InvalidSize();
 
         /* Validate token ID and quantity */
         uint256 batchSize;
@@ -191,9 +192,6 @@ contract ERC1155CollateralWrapper is ICollateralWrapper, ERC721, ERC1155Holder, 
             /* Compute batch size */
             batchSize += quantities[i];
         }
-
-        /* Validate batch size */
-        if (batchSize > MAX_BATCH_SIZE) revert InvalidSize();
 
         /* Create encoded batch and increment nonce */
         bytes memory encodedBatch = abi.encode(token, _nonce++, batchSize, tokenIds, quantities);
