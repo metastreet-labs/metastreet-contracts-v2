@@ -220,13 +220,14 @@ contract ERC1155CollateralWrapper is ICollateralWrapper, ERC721, ERC1155Holder, 
         if (tokenId != uint256(_hash(context))) revert InvalidContext();
         if (msg.sender != ownerOf(tokenId)) revert InvalidCaller();
 
-        _burn(tokenId);
-
         /* Decode context */
         (address token, , , uint256[] memory tokenIds, uint256[] memory multipliers) = abi.decode(
             context,
             (address, uint256, uint256, uint256[], uint256[])
         );
+
+        /* Burn ERC1155CollateralWrapper token */
+        _burn(tokenId);
 
         /* Batch transfer tokens back to token owner */
         IERC1155(token).safeBatchTransferFrom(address(this), msg.sender, tokenIds, multipliers, "");
