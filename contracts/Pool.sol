@@ -455,7 +455,7 @@ abstract contract Pool is
      * @return Options data
      */
     function _getOptionsData(bytes calldata options, uint16 tag) internal pure returns (bytes calldata) {
-        uint256 offsetTag = 0;
+        uint256 offsetTag;
 
         /* Scan the options for the tag */
         while (offsetTag < options.length) {
@@ -523,7 +523,8 @@ abstract contract Pool is
         bytes calldata delegateData = _getOptionsData(options, uint16(BorrowOptions.DelegateCash));
 
         if (delegateData.length != 0) {
-            if (address(_delegationRegistry) == address(0) || delegateData.length != 20) revert InvalidBorrowOptions();
+            if (address(_delegationRegistry) == address(0)) revert InvalidBorrowOptions();
+            if (delegateData.length != 20) revert InvalidBorrowOptions();
 
             /* Delegate token */
             _delegationRegistry.delegateForToken(
