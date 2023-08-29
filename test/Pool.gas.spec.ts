@@ -7,12 +7,14 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import {
   TestERC20,
   TestERC721,
+  TestERC1155,
   TestProxy,
   TestLoanReceipt,
   EnglishAuctionCollateralLiquidator,
   ExternalCollateralLiquidator,
   Pool,
   BundleCollateralWrapper,
+  ERC1155CollateralWrapper,
 } from "../typechain";
 
 import { extractEvent, expectEvent } from "./helpers/EventUtilities";
@@ -1099,6 +1101,143 @@ describe("Pool Gas", function () {
         const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
         const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
         expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
+
+        const gasUsed = (await borrowTx.wait()).gasUsed;
+        gasReport.push([this.test.title, gasUsed]);
+
+        expect(gasUsed).to.be.lt(maxGas);
+      });
+    }
+  });
+
+  describe("#erc1155 (with set collection collateral filter)", async function () {
+    let poolImpl: Pool;
+    let pool: Pool;
+    let collateralLiquidator: ExternalCollateralLiquidator;
+    let proxy;
+    let testProxyFactory: any;
+    let ERC1155CollateralWrapper: ERC1155CollateralWrapper;
+    let tokenIds: ethers.BigNumber[];
+    let ERC1155WrapperTokenId: ethers.BigNumber;
+    let ERC1155WrapperData: any;
+    let nft2: TestERC1155;
+
+    beforeEach("setup pool", async function () {
+      testProxyFactory = await ethers.getContractFactory("TestProxy");
+      const poolImplFactory = await ethers.getContractFactory("WeightedRateSetCollectionPool");
+      const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
+      const ERC1155CollateralWrapperFactory = await ethers.getContractFactory("ERC1155CollateralWrapper");
+      const testERC1155Factory = await ethers.getContractFactory("TestERC1155");
+
+      /* Deploy external collateral liquidator implementation */
+      const collateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
+      await collateralLiquidatorImpl.deployed();
+
+      /* Deploy collateral liquidator */
+      let proxy = await testProxyFactory.deploy(
+        collateralLiquidatorImpl.address,
+        collateralLiquidatorImpl.interface.encodeFunctionData("initialize")
+      );
+      await proxy.deployed();
+      collateralLiquidator = (await ethers.getContractAt(
+        "ExternalCollateralLiquidator",
+        proxy.address
+      )) as ExternalCollateralLiquidator;
+
+      /* Deploy test NFT */
+      nft2 = (await testERC1155Factory.deploy("https://nft1.com/token/")) as TestERC1155;
+      await nft2.deployed();
+
+      /* Deploy ERC1155 collateral wrapper */
+      ERC1155CollateralWrapper = await ERC1155CollateralWrapperFactory.deploy();
+      await ERC1155CollateralWrapper.deployed();
+
+      /* Deploy pool implementation */
+      poolImpl = (await poolImplFactory.deploy(
+        5000,
+        collateralLiquidator.address,
+        ethers.constants.AddressZero,
+        [ERC1155CollateralWrapper.address],
+        [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
+      )) as Pool;
+      await poolImpl.deployed();
+
+      /* Approve ERC1155Wrapper to transfer NFT */
+      await nft2.connect(accountBorrower).setApprovalForAll(ERC1155CollateralWrapper.address, true);
+    });
+    for (const [principal, numTicks, totalTokenIds, maxGas] of [
+      [FixedPoint.from("25"), 1, 16, 229800],
+      [FixedPoint.from("25"), 1, 24, 266000],
+      [FixedPoint.from("25"), 1, 32, 302200],
+    ]) {
+      it(`erc1155 borrow (total token IDs ${totalTokenIds}, ${numTicks} tick)`, async function () {
+        /* Mint NFT to borrower */
+        tokenIds = Array.from(Array(totalTokenIds), (_, index) => index + 1); /* Token ids from 1 to totalTokenIds */
+        const tokenCounts = Array.from(Array(totalTokenIds), (_, index) => 1); /* 1 per token id */
+        await nft2.mintBatch(accountBorrower.address, tokenIds, tokenCounts, "0x");
+
+        /* Mint ERC1155Wrapper */
+        const mintTx = await ERC1155CollateralWrapper.connect(accountBorrower).mint(
+          nft2.address,
+          tokenIds,
+          tokenCounts
+        );
+        ERC1155WrapperTokenId = (await extractEvent(mintTx, ERC1155CollateralWrapper, "BatchMinted")).args.tokenId;
+        ERC1155WrapperData = (await extractEvent(mintTx, ERC1155CollateralWrapper, "BatchMinted")).args.encodedBatch;
+
+        /* Deploy poolMerkle */
+        proxy = await testProxyFactory.deploy(
+          poolImpl.address,
+          poolImpl.interface.encodeFunctionData("initialize", [
+            ethers.utils.defaultAbiCoder.encode(
+              ["address", "uint256[]", "address", "uint64[]", "uint64[]"],
+              [
+                nft2.address,
+                tokenIds,
+                tok1.address,
+                [30 * 86400, 14 * 86400, 7 * 86400],
+                [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
+              ]
+            ),
+          ])
+        );
+        await proxy.deployed();
+        pool = (await ethers.getContractAt("Pool", proxy.address)) as Pool;
+
+        /* Transfer TOK1 to depositors and approve Pool */
+        for (const depositor of accountDepositors) {
+          await tok1.connect(depositor).approve(pool.address, ethers.constants.MaxUint256);
+        }
+        /* Approve pool to transfer NFT */
+        await nft2.connect(accountBorrower).setApprovalForAll(pool.address, true);
+
+        /* Approve pool to transfer ERC1155Wrapper NFT */
+        await ERC1155CollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
+
+        await setupLiquidity(pool);
+
+        /* Source liquidity */
+        const ticks = await sourceLiquidity(pool, principal, totalTokenIds);
+        expect(ticks.length).to.equal(numTicks);
+
+        /* Compute borrow options */
+        const borrowOptions = ethers.utils.solidityPack(
+          ["uint16", "uint16", "bytes"],
+          [1, ethers.utils.hexDataLength(ERC1155WrapperData), ERC1155WrapperData]
+        );
+
+        /* Borrow */
+        const borrowTx = await pool
+          .connect(accountBorrower)
+          .borrow(
+            principal,
+            30 * 86400,
+            ERC1155CollateralWrapper.address,
+            ERC1155WrapperTokenId,
+            principal.add(FixedPoint.from("1")),
+            ticks,
+            borrowOptions
+          );
 
         const gasUsed = (await borrowTx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
