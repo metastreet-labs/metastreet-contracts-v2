@@ -454,23 +454,21 @@ abstract contract Pool is
      * @param tag Tag to find
      * @return Options data
      */
-    function _getOptionsData(bytes calldata options, uint16 tag) internal pure returns (bytes calldata) {
-        uint256 offsetTag = 0;
-
+    function _getOptionsData(bytes calldata options, BorrowOptions tag) internal pure returns (bytes calldata) {
         /* Scan the options for the tag */
-        while (offsetTag < options.length) {
+        for (uint256 offsetTag; offsetTag < options.length; ) {
             /* Compute offsets with for tag length and data */
             uint256 offsetLength = offsetTag + BORROW_OPTIONS_TAG_SIZE;
             uint256 offsetData = offsetTag + BORROW_OPTIONS_TAG_SIZE + BORROW_OPTIONS_LENGTH_SIZE;
 
             /* The tag is in the first 2 bytes of each options item */
-            uint16 currentTag = uint16(bytes2(options[offsetTag:offsetLength]));
+            uint256 currentTag = uint16(bytes2(options[offsetTag:offsetLength]));
 
             /* The length of the options data is in the second 2 bytes of each options item, after the tag */
             uint256 dataLength = uint16(bytes2(options[offsetLength:offsetData]));
 
             /* Return the offset and length if the tag is found */
-            if (currentTag == tag) {
+            if (currentTag == uint256(tag)) {
                 return options[offsetData:offsetData + dataLength];
             }
 
@@ -520,10 +518,11 @@ abstract contract Pool is
      */
     function _optionDelegateCash(address collateralToken, uint256 collateralTokenId, bytes calldata options) internal {
         /* Find delegate.cash tagged data in options */
-        bytes calldata delegateData = _getOptionsData(options, uint16(BorrowOptions.DelegateCash));
+        bytes calldata delegateData = _getOptionsData(options, BorrowOptions.DelegateCash);
 
         if (delegateData.length != 0) {
-            if (address(_delegationRegistry) == address(0) || delegateData.length != 20) revert InvalidBorrowOptions();
+            if (address(_delegationRegistry) == address(0)) revert InvalidBorrowOptions();
+            if (delegateData.length != 20) revert InvalidBorrowOptions();
 
             /* Delegate token */
             _delegationRegistry.delegateForToken(
@@ -895,7 +894,7 @@ abstract contract Pool is
             collateralToken,
             collateralTokenIds,
             ticks,
-            _getOptionsData(options, uint16(BorrowOptions.CollateralFilterContext)),
+            _getOptionsData(options, BorrowOptions.CollateralFilterContext),
             false
         );
 
@@ -922,8 +921,8 @@ abstract contract Pool is
             collateralTokenId,
             maxRepayment,
             ticks,
-            _getOptionsData(options, uint16(BorrowOptions.CollateralWrapperContext)),
-            _getOptionsData(options, uint16(BorrowOptions.CollateralFilterContext)),
+            _getOptionsData(options, BorrowOptions.CollateralWrapperContext),
+            _getOptionsData(options, BorrowOptions.CollateralFilterContext),
             false
         );
 
