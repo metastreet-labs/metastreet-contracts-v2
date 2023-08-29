@@ -95,7 +95,6 @@ describe("ERC1155CollateralWrapper", function () {
 
       /* Enumerate */
       const [token, tokenIds, count] = await ERC1155CollateralWrapper.enumerate(tokenId1, context);
-      console.log(" tokenIds:", tokenIds);
 
       /* Validate return */
       expect(token).to.equal(nft1.address);
