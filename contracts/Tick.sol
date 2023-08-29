@@ -144,8 +144,10 @@ library Tick {
     ) internal pure {
         (uint256 limit, uint256 duration, uint256 rate, uint256 reserved) = decode(tick);
         if (limit <= minLimit) revert InvalidTick();
-        if (duration < minDurationIndex || duration > maxDurationIndex) revert InvalidTick();
-        if (rate < minRateIndex || rate > maxRateIndex) revert InvalidTick();
+        if (duration < minDurationIndex) revert InvalidTick();
+        if (duration > maxDurationIndex) revert InvalidTick();
+        if (rate < minRateIndex) revert InvalidTick();
+        if (rate > maxRateIndex) revert InvalidTick();
         if (reserved != 0) revert InvalidTick();
     }
 }
