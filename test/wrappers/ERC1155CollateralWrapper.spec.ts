@@ -224,13 +224,13 @@ describe("ERC1155CollateralWrapper", function () {
       ).to.be.revertedWith("ERC1155: insufficient balance for transfer");
     });
 
-    it("fails on empty list of token ids and multipliers", async function () {
+    it("fails on empty list of token ids and quantities", async function () {
       await expect(
         ERC1155CollateralWrapper.connect(accountBorrower).mint(nft1.address, [], [])
       ).to.be.revertedWithCustomError(ERC1155CollateralWrapper, "InvalidSize");
     });
 
-    it("fails on non-equal token ids and multipliers", async function () {
+    it("fails on non-equal token ids and quantities", async function () {
       await expect(
         ERC1155CollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124], [1])
       ).to.be.revertedWithCustomError(ERC1155CollateralWrapper, "InvalidSize");
