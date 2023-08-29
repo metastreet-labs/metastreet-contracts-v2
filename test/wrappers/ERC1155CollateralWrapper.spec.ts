@@ -16,6 +16,7 @@ describe("ERC1155CollateralWrapper", function () {
   let ERC1155CollateralWrapper: ERC1155CollateralWrapper;
   let accountBorrower: SignerWithAddress;
   let snapshotId: string;
+  let tokenIds: ethers.BigNumber[];
 
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
@@ -38,8 +39,18 @@ describe("ERC1155CollateralWrapper", function () {
 
     accountBorrower = accounts[1];
 
+    tokenIds = [];
+    for (let i = 123; i < 156; i++) {
+      tokenIds.push(i);
+    }
+
     /* Mint NFTs to borrower */
-    await nft1.mintBatch(accountBorrower.address, [123, 124, 125], [1, 2, 30], "0x");
+    await nft1.mintBatch(
+      accountBorrower.address,
+      tokenIds,
+      Array.from(Array(33), (_, index) => 3),
+      "0x"
+    );
     await nft2.mintBatch(accountBorrower.address, [126, 127, 128], [1, 2, 3], "0x");
 
     /* Approve batch token to transfer NFTs */
@@ -188,9 +199,13 @@ describe("ERC1155CollateralWrapper", function () {
       expect(await nft2.balanceOf(ERC1155CollateralWrapper.address, 128)).to.equal(3);
     });
 
-    it("mints batch size 32", async function () {
+    it("mints 32 token IDs", async function () {
       /* Mint batch */
-      await ERC1155CollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125], [1, 2, 29]);
+      await ERC1155CollateralWrapper.connect(accountBorrower).mint(
+        nft1.address,
+        tokenIds.slice(0, 32),
+        Array.from(Array(32), (_, index) => 1)
+      );
     });
 
     it("can transfer ERC1155CollateralWrapperToken", async function () {
@@ -236,9 +251,13 @@ describe("ERC1155CollateralWrapper", function () {
       ).to.be.revertedWithCustomError(ERC1155CollateralWrapper, "InvalidSize");
     });
 
-    it("fails on batch size 33", async function () {
+    it("fails on 33 token ids", async function () {
       await expect(
-        ERC1155CollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125], [1, 2, 30])
+        ERC1155CollateralWrapper.connect(accountBorrower).mint(
+          nft1.address,
+          tokenIds,
+          Array.from(Array(33), (_, index) => 1)
+        )
       ).to.be.revertedWithCustomError(ERC1155CollateralWrapper, "InvalidSize");
     });
 
@@ -291,9 +310,9 @@ describe("ERC1155CollateralWrapper", function () {
 
       expect(await ERC1155CollateralWrapper.exists(tokenId1)).to.equal(false);
 
-      expect(await nft1.balanceOf(accountBorrower.address, 123)).to.equal(1);
-      expect(await nft1.balanceOf(accountBorrower.address, 124)).to.equal(2);
-      expect(await nft1.balanceOf(accountBorrower.address, 125)).to.equal(30);
+      expect(await nft1.balanceOf(accountBorrower.address, 123)).to.equal(3);
+      expect(await nft1.balanceOf(accountBorrower.address, 124)).to.equal(3);
+      expect(await nft1.balanceOf(accountBorrower.address, 125)).to.equal(3);
       expect(await nft1.balanceOf(ERC1155CollateralWrapper.address, 123)).to.equal(0);
       expect(await nft1.balanceOf(ERC1155CollateralWrapper.address, 124)).to.equal(0);
       expect(await nft1.balanceOf(ERC1155CollateralWrapper.address, 125)).to.equal(0);
@@ -405,9 +424,9 @@ describe("ERC1155CollateralWrapper", function () {
       expect(await nft1.balanceOf(accounts[2].address, 123)).to.equal(1);
       expect(await nft1.balanceOf(accounts[2].address, 124)).to.equal(2);
       expect(await nft1.balanceOf(accounts[2].address, 125)).to.equal(3);
-      expect(await nft1.balanceOf(accountBorrower.address, 123)).to.equal(0);
-      expect(await nft1.balanceOf(accountBorrower.address, 124)).to.equal(0);
-      expect(await nft1.balanceOf(accountBorrower.address, 125)).to.equal(27);
+      expect(await nft1.balanceOf(accountBorrower.address, 123)).to.equal(2);
+      expect(await nft1.balanceOf(accountBorrower.address, 124)).to.equal(1);
+      expect(await nft1.balanceOf(accountBorrower.address, 125)).to.equal(0);
     });
   });
 
