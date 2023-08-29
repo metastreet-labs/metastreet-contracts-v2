@@ -164,44 +164,44 @@ contract ERC1155CollateralWrapper is ICollateralWrapper, ERC721, ERC1155Holder, 
      *
      * Emits a {BatchMinted} event
      *
-     * @dev Collateral token, nonce, token ids, batch size, and multipliers are encoded,
+     * @dev Collateral token, nonce, token ids, batch size, and quantities are encoded,
      * hashed and stored as the ERC1155CollateralWrapper token ID.
      * @param token Collateral token address
      * @param tokenIds List of token ids
-     * @param multipliers List of multipliers
+     * @param quantities List of quantities
      */
     function mint(
         address token,
         uint256[] calldata tokenIds,
-        uint256[] calldata multipliers
+        uint256[] calldata quantities
     ) external nonReentrant returns (uint256) {
-        /* Validate token ids and multipliers count */
-        if (tokenIds.length == 0 || tokenIds.length != multipliers.length) revert InvalidSize();
+        /* Validate token ids and quantities count */
+        if (tokenIds.length == 0 || tokenIds.length != quantities.length) revert InvalidSize();
 
-        /* Validate token ID and multiplier */
+        /* Validate token ID and quantity */
         uint256 batchSize;
         for (uint256 i; i < tokenIds.length; i++) {
             /* Validate unique token ID */
             if (i != 0 && tokenIds[i] <= tokenIds[i - 1]) revert InvalidOrdering();
 
-            /* Validate multiplier is non-zero */
-            if (multipliers[i] == 0) revert InvalidSize();
+            /* Validate quantity is non-zero */
+            if (quantities[i] == 0) revert InvalidSize();
 
             /* Compute batch size */
-            batchSize += multipliers[i];
+            batchSize += quantities[i];
         }
 
         /* Validate batch size */
         if (batchSize > MAX_BATCH_SIZE) revert InvalidSize();
 
         /* Create encoded batch and increment nonce */
-        bytes memory encodedBatch = abi.encode(token, _nonce++, batchSize, tokenIds, multipliers);
+        bytes memory encodedBatch = abi.encode(token, _nonce++, batchSize, tokenIds, quantities);
 
         /* Hash encoded batch */
         uint256 tokenId = uint256(_hash(encodedBatch));
 
         /* Batch transfer tokens */
-        IERC1155(token).safeBatchTransferFrom(msg.sender, address(this), tokenIds, multipliers, "");
+        IERC1155(token).safeBatchTransferFrom(msg.sender, address(this), tokenIds, quantities, "");
 
         /* Mint ERC1155CollateralWrapper token */
         _mint(msg.sender, tokenId);
@@ -221,7 +221,7 @@ contract ERC1155CollateralWrapper is ICollateralWrapper, ERC721, ERC1155Holder, 
         if (msg.sender != ownerOf(tokenId)) revert InvalidCaller();
 
         /* Decode context */
-        (address token, , , uint256[] memory tokenIds, uint256[] memory multipliers) = abi.decode(
+        (address token, , , uint256[] memory tokenIds, uint256[] memory quantities) = abi.decode(
             context,
             (address, uint256, uint256, uint256[], uint256[])
         );
@@ -230,7 +230,7 @@ contract ERC1155CollateralWrapper is ICollateralWrapper, ERC721, ERC1155Holder, 
         _burn(tokenId);
 
         /* Batch transfer tokens back to token owner */
-        IERC1155(token).safeBatchTransferFrom(address(this), msg.sender, tokenIds, multipliers, "");
+        IERC1155(token).safeBatchTransferFrom(address(this), msg.sender, tokenIds, quantities, "");
 
         emit BatchUnwrapped(tokenId, msg.sender);
     }
