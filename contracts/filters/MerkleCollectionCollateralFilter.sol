@@ -56,8 +56,10 @@ contract MerkleCollectionCollateralFilter is CollateralFilter {
      * @notice MerkleCollectionCollateralFilter initializer
      */
     function _initialize(address token, bytes32 root, uint32 nodeCount, string memory metadataURI_) internal {
-        /* Validate root and node count */
-        if (root == bytes32(0) || nodeCount == 0) revert InvalidMerkleParameters();
+        /* Validate root */
+        if (root == bytes32(0)) revert InvalidMerkleParameters();
+        /* Validate node count */
+        if (nodeCount == 0) revert InvalidMerkleParameters();
 
         _token = token;
         _root = root;
