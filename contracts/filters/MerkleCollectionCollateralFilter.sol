@@ -15,11 +15,6 @@ contract MerkleCollectionCollateralFilter is CollateralFilter {
     /**************************************************************************/
 
     /**
-     * @notice Invalid parameters
-     */
-    error InvalidMerkleParameters();
-
-    /**
      * @notice Invalid context
      */
     error InvalidContext();
@@ -57,9 +52,9 @@ contract MerkleCollectionCollateralFilter is CollateralFilter {
      */
     function _initialize(address token, bytes32 root, uint32 nodeCount, string memory metadataURI_) internal {
         /* Validate root */
-        if (root == bytes32(0)) revert InvalidMerkleParameters();
+        if (root == bytes32(0)) revert InvalidCollateralFilterParameters();
         /* Validate node count */
-        if (nodeCount == 0) revert InvalidMerkleParameters();
+        if (nodeCount == 0) revert InvalidCollateralFilterParameters();
 
         _token = token;
         _root = root;
@@ -78,10 +73,9 @@ contract MerkleCollectionCollateralFilter is CollateralFilter {
      */
     function _extractProof(bytes calldata proofData) internal pure returns (bytes32[] memory merkleProof) {
         /* Compute node count */
-        uint256 nodeCount = proofData.length / 32;
-
-        /* Reduce number of merkle nodes by 1 if last 32 bytes are empty */
-        if (bytes32(proofData[proofData.length - 32:]) == bytes32(0)) nodeCount -= 1;
+        uint256 nodeCount = (bytes32(proofData[proofData.length - 32:]) == bytes32(0))
+            ? proofData.length / 32 - 1
+            : proofData.length / 32;
 
         /* Instantiate merkle proof array */
         merkleProof = new bytes32[](nodeCount);
