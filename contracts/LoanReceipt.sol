@@ -165,7 +165,7 @@ library LoanReceipt {
         /* Validate encoded receipt length */
         if (encodedReceipt.length < LOAN_RECEIPT_HEADER_SIZE) revert InvalidReceiptEncoding();
 
-        uint16 collateralWrapperContextLen = uint16(bytes2(encodedReceipt[185:187]));
+        uint256 collateralWrapperContextLen = uint16(bytes2(encodedReceipt[185:187]));
 
         /* Validate length with collateral wrapper context */
         if (encodedReceipt.length < LOAN_RECEIPT_HEADER_SIZE + collateralWrapperContextLen)
@@ -193,7 +193,7 @@ library LoanReceipt {
         receipt.duration = uint64(bytes8(encodedReceipt[125:133]));
         receipt.collateralToken = address(uint160(bytes20(encodedReceipt[133:153])));
         receipt.collateralTokenId = uint256(bytes32(encodedReceipt[153:185]));
-        receipt.collateralWrapperContextLen = collateralWrapperContextLen;
+        receipt.collateralWrapperContextLen = uint16(collateralWrapperContextLen);
         receipt.collateralWrapperContext = encodedReceipt[187:187 + collateralWrapperContextLen];
 
         /* Decode node receipts */
