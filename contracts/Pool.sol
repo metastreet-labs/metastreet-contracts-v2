@@ -471,31 +471,36 @@ abstract contract Pool is
 
     /**
      * @notice Helper function that returns underlying collateral in (address,
-     * uint256[]) shape
+     * uint256[], uint256) shape
      * @param collateralToken Collateral token, either underlying token or collateral wrapper
      * @param collateralTokenId Collateral token ID
      * @param collateralWrapperContext Collateral wrapper context
-     * @return Underlying collateral token, unique token IDs, total tokens
+     * @return token Underlying collateral token
+     * @return tokenIds Underlying collateral token IDs (unique)
+     * @return tokenCount Underlying total token count
      */
     function _getUnderlyingCollateral(
         address collateralToken,
         uint256 collateralTokenId,
         bytes memory collateralWrapperContext
-    ) internal view returns (address, uint256[] memory, uint256) {
+    ) internal view returns (address token, uint256[] memory tokenIds, uint256 tokenCount) {
         /* Enumerate bundle if collateral token is a collateral wrapper */
         if (
             collateralToken == _collateralWrapper1 ||
             collateralToken == _collateralWrapper2 ||
             collateralToken == _collateralWrapper3
         ) {
-            return ICollateralWrapper(collateralToken).enumerate(collateralTokenId, collateralWrapperContext);
+            ICollateralWrapper collateralWrapper = ICollateralWrapper(collateralToken);
+            (token, tokenIds) = collateralWrapper.enumerate(collateralTokenId, collateralWrapperContext);
+            tokenCount = collateralWrapper.count(collateralTokenId, collateralWrapperContext);
+            return (token, tokenIds, tokenCount);
         }
 
         /* If single asset, convert to length one token ID array */
-        uint256[] memory underlyingCollateralTokenIds = new uint256[](1);
-        underlyingCollateralTokenIds[0] = collateralTokenId;
-
-        return (collateralToken, underlyingCollateralTokenIds, 1);
+        token = collateralToken;
+        tokenIds = new uint256[](1);
+        tokenIds[0] = collateralTokenId;
+        tokenCount = 1;
     }
 
     /**
