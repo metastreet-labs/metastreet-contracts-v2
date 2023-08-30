@@ -118,19 +118,28 @@ contract ERC1155CollateralWrapper is ICollateralWrapper, ERC721, ERC1155Holder, 
     /**
      * @inheritdoc ICollateralWrapper
      */
-    function enumerate(
-        uint256 tokenId,
-        bytes calldata context
-    ) external view returns (address, uint256[] memory, uint256) {
+    function enumerate(uint256 tokenId, bytes calldata context) external view returns (address, uint256[] memory) {
         if (tokenId != uint256(_hash(context))) revert InvalidContext();
 
         /* Decode context */
-        (address token, , uint256 batchSize, uint256[] memory tokenIds, ) = abi.decode(
+        (address token, , , uint256[] memory tokenIds, ) = abi.decode(
             context,
             (address, uint256, uint256, uint256[], uint256[])
         );
 
-        return (token, tokenIds, batchSize);
+        return (token, tokenIds);
+    }
+
+    /**
+     * @inheritdoc ICollateralWrapper
+     */
+    function count(uint256 tokenId, bytes calldata context) external view returns (uint256) {
+        if (tokenId != uint256(_hash(context))) revert InvalidContext();
+
+        /* Decode context */
+        (, , uint256 count_, , ) = abi.decode(context, (address, uint256, uint256, uint256[], uint256[]));
+
+        return count_;
     }
 
     /**************************************************************************/

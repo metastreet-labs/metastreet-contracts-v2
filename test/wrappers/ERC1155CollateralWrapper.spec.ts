@@ -94,15 +94,13 @@ describe("ERC1155CollateralWrapper", function () {
       );
 
       /* Enumerate */
-      const [token, tokenIds, count] = await ERC1155CollateralWrapper.enumerate(tokenId1, context);
-      console.log(" tokenIds:", tokenIds);
+      const [token, tokenIds] = await ERC1155CollateralWrapper.enumerate(tokenId1, context);
 
       /* Validate return */
       expect(token).to.equal(nft1.address);
       expect(tokenIds[0]).to.equal(123);
       expect(tokenIds[1]).to.equal(124);
       expect(tokenIds[2]).to.equal(125);
-      expect(count).to.equal(6);
     });
 
     it("fails on incorrect tokenId", async function () {
@@ -120,6 +118,52 @@ describe("ERC1155CollateralWrapper", function () {
       );
 
       await expect(ERC1155CollateralWrapper.enumerate(badTokenId, context)).to.be.revertedWithCustomError(
+        ERC1155CollateralWrapper,
+        "InvalidContext"
+      );
+    });
+  });
+
+  describe("#count", async function () {
+    it("count batch", async function () {
+      /* Mint batch */
+      const mintTx1 = await ERC1155CollateralWrapper.connect(accountBorrower).mint(
+        nft1.address,
+        [123, 124, 125],
+        [1, 2, 3]
+      );
+
+      /* Get token id */
+      const tokenId1 = (await extractEvent(mintTx1, ERC1155CollateralWrapper, "BatchMinted")).args.tokenId;
+
+      /* Create context */
+      const context = ethers.utils.defaultAbiCoder.encode(
+        ["address", "uint256", "uint256", "uint256[]", "uint256[]"],
+        [nft1.address, 0, 6, [123, 124, 125], [1, 2, 3]]
+      );
+
+      /* Enumerate */
+      const count = await ERC1155CollateralWrapper.count(tokenId1, context);
+
+      /* Validate return */
+      expect(count).to.equal(6);
+    });
+
+    it("fails on incorrect tokenId", async function () {
+      /* Mint batch */
+      await ERC1155CollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125], [1, 2, 3]);
+      /* Use different token id */
+      const badTokenId = BigNumber.from(
+        "80530570786821071483259871300278421257638987008682429097249700923201294947214"
+      );
+
+      /* Create context */
+      const context = ethers.utils.defaultAbiCoder.encode(
+        ["address", "uint256", "uint256", "uint256[]", "uint256[]"],
+        [nft1.address, 0, 6, [123, 124, 125], [1, 2, 3]]
+      );
+
+      await expect(ERC1155CollateralWrapper.count(badTokenId, context)).to.be.revertedWithCustomError(
         ERC1155CollateralWrapper,
         "InvalidContext"
       );
@@ -432,6 +476,7 @@ describe("ERC1155CollateralWrapper", function () {
             ethers.BigNumber.from(ERC1155CollateralWrapper.interface.getSighash("name"))
               .xor(ethers.BigNumber.from(ERC1155CollateralWrapper.interface.getSighash("unwrap")))
               .xor(ethers.BigNumber.from(ERC1155CollateralWrapper.interface.getSighash("enumerate")))
+              .xor(ethers.BigNumber.from(ERC1155CollateralWrapper.interface.getSighash("count")))
           )
         )
       ).to.equal(true);

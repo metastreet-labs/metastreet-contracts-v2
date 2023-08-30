@@ -497,7 +497,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         /* Determine if collateral token is a whitelisted collateral wrapper */
         if (isCollateralWrapper) {
             /* Get underlying collateral token and underlying collateral token IDs */
-            (underlyingCollateralToken, underlyingCollateralTokenIds, ) = ICollateralWrapper(collateralToken).enumerate(
+            (underlyingCollateralToken, underlyingCollateralTokenIds) = ICollateralWrapper(collateralToken).enumerate(
                 collateralTokenId,
                 collateralWrapperContext
             );
