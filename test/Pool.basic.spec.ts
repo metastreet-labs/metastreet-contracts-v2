@@ -3230,8 +3230,8 @@ describe("Pool Basic", function () {
     });
 
     it("fails on invalid value", async function () {
-      await expect(pool.setAdminFeeRate(0)).to.be.revertedWithCustomError(pool, "ParameterOutOfBounds");
-      await expect(pool.setAdminFeeRate(10000)).to.be.revertedWithCustomError(pool, "ParameterOutOfBounds");
+      await expect(pool.setAdminFeeRate(0)).to.be.revertedWithCustomError(pool, "InvalidParameters");
+      await expect(pool.setAdminFeeRate(10000)).to.be.revertedWithCustomError(pool, "InvalidParameters");
     });
 
     it("fails on invalid caller", async function () {
@@ -3419,7 +3419,7 @@ describe("Pool Basic", function () {
 
       await expect(
         pool.withdrawAdminFees(ethers.constants.AddressZero, FixedPoint.from("0.00001"))
-      ).to.be.revertedWithCustomError(pool, "InvalidAddress");
+      ).to.be.revertedWithCustomError(pool, "InvalidParameters");
     });
 
     it("fails on parameter out of bounds", async function () {
@@ -3431,7 +3431,7 @@ describe("Pool Basic", function () {
 
       await expect(pool.withdrawAdminFees(accounts[1].address, FixedPoint.from("10"))).to.be.revertedWithCustomError(
         pool,
-        "ParameterOutOfBounds"
+        "InvalidParameters"
       );
     });
   });

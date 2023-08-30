@@ -71,14 +71,9 @@ abstract contract Pool is
     /**************************************************************************/
 
     /**
-     * @notice Invalid address
+     * @notice Invalid parameters
      */
-    error InvalidAddress();
-
-    /**
-     * @notice Parameter out of bounds
-     */
-    error ParameterOutOfBounds();
+    error InvalidParameters();
 
     /**************************************************************************/
     /* Structures */
@@ -221,14 +216,12 @@ abstract contract Pool is
         address delegationRegistry_,
         address[] memory collateralWrappers_
     ) {
-        if (depositPremiumRate_ > LiquidityManager.BASIS_POINTS_SCALE) revert ParameterOutOfBounds();
+        if (depositPremiumRate_ > LiquidityManager.BASIS_POINTS_SCALE) revert InvalidParameters();
+        if (collateralWrappers_.length > 3) revert InvalidParameters();
+
         _depositPremiumRate = depositPremiumRate_;
-
         _collateralLiquidator = ICollateralLiquidator(collateralLiquidator_);
-
         _delegationRegistry = IDelegationRegistry(delegationRegistry_);
-
-        if (collateralWrappers_.length > 3) revert ParameterOutOfBounds();
         _collateralWrapper1 = (collateralWrappers_.length > 0) ? collateralWrappers_[0] : address(0);
         _collateralWrapper2 = (collateralWrappers_.length > 1) ? collateralWrappers_[1] : address(0);
         _collateralWrapper3 = (collateralWrappers_.length > 2) ? collateralWrappers_[2] : address(0);
@@ -246,24 +239,24 @@ abstract contract Pool is
      * @param rates_ Interest rate tiers
      */
     function _initialize(address currencyToken_, uint64[] memory durations_, uint64[] memory rates_) internal {
-        if (IERC20Metadata(currencyToken_).decimals() != 18) revert ParameterOutOfBounds();
+        if (IERC20Metadata(currencyToken_).decimals() != 18) revert InvalidParameters();
 
         _currencyToken = IERC20(currencyToken_);
         _admin = msg.sender;
 
         /* Assign durations */
-        if (durations_.length > Tick.MAX_NUM_DURATIONS) revert ParameterOutOfBounds();
+        if (durations_.length > Tick.MAX_NUM_DURATIONS) revert InvalidParameters();
         for (uint256 i; i < durations_.length; i++) {
             /* Check duration is monotonic */
-            if (i != 0 && durations_[i] >= durations_[i - 1]) revert ParameterOutOfBounds();
+            if (i != 0 && durations_[i] >= durations_[i - 1]) revert InvalidParameters();
             _durations.push(durations_[i]);
         }
 
         /* Assign rates */
-        if (rates_.length > Tick.MAX_NUM_RATES) revert ParameterOutOfBounds();
+        if (rates_.length > Tick.MAX_NUM_RATES) revert InvalidParameters();
         for (uint256 i; i < rates_.length; i++) {
             /* Check rate is monotonic */
-            if (i != 0 && rates_[i] <= rates_[i - 1]) revert ParameterOutOfBounds();
+            if (i != 0 && rates_[i] <= rates_[i - 1]) revert InvalidParameters();
             _rates.push(rates_[i]);
         }
 
@@ -1232,7 +1225,7 @@ abstract contract Pool is
      */
     function setAdminFeeRate(uint32 rate) external {
         if (msg.sender != _admin) revert InvalidCaller();
-        if (rate == 0 || rate >= LiquidityManager.BASIS_POINTS_SCALE) revert ParameterOutOfBounds();
+        if (rate == 0 || rate >= LiquidityManager.BASIS_POINTS_SCALE) revert InvalidParameters();
 
         _adminFeeRate = rate;
 
@@ -1249,8 +1242,7 @@ abstract contract Pool is
      */
     function withdrawAdminFees(address recipient, uint256 amount) external nonReentrant {
         if (msg.sender != _admin) revert InvalidCaller();
-        if (recipient == address(0)) revert InvalidAddress();
-        if (amount > _adminFeeBalance) revert ParameterOutOfBounds();
+        if (recipient == address(0) || amount > _adminFeeBalance) revert InvalidParameters();
 
         /* Update admin fees balance */
         _adminFeeBalance -= amount;
