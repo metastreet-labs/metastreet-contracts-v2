@@ -13,15 +13,6 @@ contract SetCollectionCollateralFilter is CollateralFilter {
     using EnumerableSet for EnumerableSet.UintSet;
 
     /**************************************************************************/
-    /* Errors */
-    /**************************************************************************/
-
-    /**
-     * @notice Invalid parameters
-     */
-    error InvalidSetParameters();
-
-    /**************************************************************************/
     /* State */
     /**************************************************************************/
 
@@ -44,7 +35,7 @@ contract SetCollectionCollateralFilter is CollateralFilter {
      */
     function _initialize(address token, uint256[] memory tokenIds_) internal {
         /* Validate root and node count */
-        if (tokenIds_.length == 0) revert InvalidSetParameters();
+        if (tokenIds_.length == 0) revert InvalidCollateralFilterParameters();
 
         /* Set supported token */
         _token = token;

@@ -15,11 +15,6 @@ contract MerkleCollectionCollateralFilter is CollateralFilter {
     /**************************************************************************/
 
     /**
-     * @notice Invalid parameters
-     */
-    error InvalidMerkleParameters();
-
-    /**
      * @notice Invalid context
      */
     error InvalidContext();
@@ -57,9 +52,9 @@ contract MerkleCollectionCollateralFilter is CollateralFilter {
      */
     function _initialize(address token, bytes32 root, uint32 nodeCount, string memory metadataURI_) internal {
         /* Validate root */
-        if (root == bytes32(0)) revert InvalidMerkleParameters();
+        if (root == bytes32(0)) revert InvalidCollateralFilterParameters();
         /* Validate node count */
-        if (nodeCount == 0) revert InvalidMerkleParameters();
+        if (nodeCount == 0) revert InvalidCollateralFilterParameters();
 
         _token = token;
         _root = root;

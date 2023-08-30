@@ -6,6 +6,19 @@ pragma solidity ^0.8.0;
  * @author MetaStreet Labs
  */
 abstract contract CollateralFilter {
+    /**************************************************************************/
+    /* Errors */
+    /**************************************************************************/
+
+    /**
+     * @notice Invalid parameters
+     */
+    error InvalidCollateralFilterParameters();
+
+    /**************************************************************************/
+    /* API */
+    /**************************************************************************/
+
     /**
      * @notice Get collateral filter name
      * @return Collateral filter name

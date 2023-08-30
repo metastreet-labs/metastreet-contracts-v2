@@ -9,15 +9,6 @@ import "../CollateralFilter.sol";
  */
 contract RangedCollectionCollateralFilter is CollateralFilter {
     /**************************************************************************/
-    /* Errors */
-    /**************************************************************************/
-
-    /**
-     * @notice Invalid address
-     */
-    error InvalidRange();
-
-    /**************************************************************************/
     /* State */
     /**************************************************************************/
 
@@ -44,7 +35,7 @@ contract RangedCollectionCollateralFilter is CollateralFilter {
      * @notice RangedCollectionCollateralFilter initializer
      */
     function _initialize(address token, uint256 startTokenId, uint256 endTokenId) internal {
-        if (endTokenId < startTokenId) revert InvalidRange();
+        if (endTokenId < startTokenId) revert InvalidCollateralFilterParameters();
 
         _token = token;
         _startTokenId = startTokenId;
