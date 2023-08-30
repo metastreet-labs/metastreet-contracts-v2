@@ -21,12 +21,19 @@ interface ICollateralWrapper {
      * @param context Implementation-specific context
      * @return token Token address
      * @return tokenIds List of unique token ids
-     * @return count Total token count
      */
     function enumerate(
         uint256 tokenId,
         bytes calldata context
-    ) external view returns (address token, uint256[] memory tokenIds, uint256 count);
+    ) external view returns (address token, uint256[] memory tokenIds);
+
+    /**
+     * @notice Get total token count represented by wrapped collateral
+     * @param tokenId Collateral wrapper token ID
+     * @param context Implementation-specific context
+     * @return count Total token count
+     */
+    function size(uint256 tokenId, bytes calldata context) external view returns (uint256 count);
 
     /*
      * Unwrap collateral

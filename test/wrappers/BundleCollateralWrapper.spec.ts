@@ -93,14 +93,13 @@ describe("BundleCollateralWrapper", function () {
       const context = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 456, 768]]);
 
       /* Enumerate */
-      const [token, tokenIds, count] = await bundleCollateralWrapper.enumerate(tokenId1, context);
+      const [token, tokenIds] = await bundleCollateralWrapper.enumerate(tokenId1, context);
 
       /* Validate return */
       expect(token).to.equal(nft1.address);
       expect(tokenIds[0]).to.equal(123);
       expect(tokenIds[1]).to.equal(456);
       expect(tokenIds[2]).to.equal(768);
-      expect(count).to.equal(3);
     });
 
     it("fails on incorrect tokenId", async function () {
@@ -116,6 +115,43 @@ describe("BundleCollateralWrapper", function () {
       const context = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 456, 768]]);
 
       await expect(bundleCollateralWrapper.enumerate(badTokenId, context)).to.be.revertedWithCustomError(
+        bundleCollateralWrapper,
+        "InvalidContext"
+      );
+    });
+  });
+
+  describe("#size", async function () {
+    it("size bundle", async function () {
+      /* Mint bundle */
+      const mintTx1 = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 456, 768]);
+
+      /* Get token id */
+      const tokenId1 = (await extractEvent(mintTx1, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+
+      /* Create context */
+      const context = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 456, 768]]);
+
+      /* Enumerate */
+      const count = await bundleCollateralWrapper.size(tokenId1, context);
+
+      /* Validate return */
+      expect(count).to.equal(3);
+    });
+
+    it("fails on incorrect tokenId", async function () {
+      /* Mint bundle */
+      await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 456, 768]);
+
+      /* Use different token id */
+      const badTokenId = BigNumber.from(
+        "80530570786821071483259871300278421257638987008682429097249700923201294947214"
+      );
+
+      /* Create context */
+      const context = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 456, 768]]);
+
+      await expect(bundleCollateralWrapper.size(badTokenId, context)).to.be.revertedWithCustomError(
         bundleCollateralWrapper,
         "InvalidContext"
       );
@@ -347,6 +383,7 @@ describe("BundleCollateralWrapper", function () {
             ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("name"))
               .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("unwrap")))
               .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("enumerate")))
+              .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("size")))
           )
         )
       ).to.equal(true);

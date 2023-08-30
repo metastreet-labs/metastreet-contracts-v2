@@ -106,14 +106,14 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard 
     function enumerate(
         uint256 tokenId,
         bytes calldata context
-    ) external view returns (address token, uint256[] memory tokenIds, uint256 count) {
+    ) external view returns (address token, uint256[] memory tokenIds) {
         if (tokenId != uint256(_hash(context))) revert InvalidContext();
 
         /* Get token address from context */
         token = address(uint160(bytes20(context[0:20])));
 
         /* Compute number of tokens in context */
-        count = (context.length - 20) / 32;
+        uint256 count = (context.length - 20) / 32;
 
         /* Instantiate asset info array */
         tokenIds = new uint256[](count);
@@ -124,6 +124,16 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard 
             tokenIds[i] = uint256(bytes32(context[offset:offset + 32]));
             offset += 32;
         }
+    }
+
+    /**
+     * @inheritdoc ICollateralWrapper
+     */
+    function size(uint256 tokenId, bytes calldata context) external view returns (uint256 count) {
+        if (tokenId != uint256(_hash(context))) revert InvalidContext();
+
+        /* Compute number of tokens in context */
+        count = (context.length - 20) / 32;
     }
 
     /**************************************************************************/

@@ -495,20 +495,29 @@ abstract contract Pool is
         uint256 collateralTokenId,
         bytes memory collateralWrapperContext
     ) internal view returns (address, uint256[] memory, uint256) {
-        /* Enumerate bundle if collateral token is a collateral wrapper */
+        /* Enumerate and get size if collateral token is a collateral wrapper */
         if (
             collateralToken == _collateralWrapper1 ||
             collateralToken == _collateralWrapper2 ||
             collateralToken == _collateralWrapper3
         ) {
-            return ICollateralWrapper(collateralToken).enumerate(collateralTokenId, collateralWrapperContext);
+            /* Enumerate collateral token */
+            (address underlyingCollateralToken, uint256[] memory underlyingCollateralTokenIds) = ICollateralWrapper(
+                collateralToken
+            ).enumerate(collateralTokenId, collateralWrapperContext);
+
+            return (
+                underlyingCollateralToken,
+                underlyingCollateralTokenIds,
+                ICollateralWrapper(collateralToken).size(collateralTokenId, collateralWrapperContext)
+            );
+        } else {
+            /* If single asset, convert to length one token ID array */
+            uint256[] memory underlyingCollateralTokenIds = new uint256[](1);
+            underlyingCollateralTokenIds[0] = collateralTokenId;
+
+            return (collateralToken, underlyingCollateralTokenIds, 1);
         }
-
-        /* If single asset, convert to length one token ID array */
-        uint256[] memory underlyingCollateralTokenIds = new uint256[](1);
-        underlyingCollateralTokenIds[0] = collateralTokenId;
-
-        return (collateralToken, underlyingCollateralTokenIds, 1);
     }
 
     /**
