@@ -818,12 +818,12 @@ abstract contract Pool is
      * @param shares Shares
      * @return redemptionId Redemption ID
      */
-    function _redeem(uint128 tick, uint128 shares) internal returns (uint128 redemptionId) {
+    function _redeem(uint128 tick, uint128 shares) internal returns (uint128) {
         /* Look up deposit */
         Deposit storage dep = _deposits[msg.sender][tick];
 
         /* Assign redemption ID */
-        redemptionId = dep.redemptionId++;
+        uint128 redemptionId = dep.redemptionId++;
 
         /* Look up redemption */
         Redemption storage redemption = dep.redemptions[redemptionId];
@@ -841,6 +841,8 @@ abstract contract Pool is
 
         /* Decrement deposit shares */
         dep.shares -= shares;
+
+        return redemptionId;
     }
 
     /**
