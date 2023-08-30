@@ -57,11 +57,6 @@ contract WeightedInterestRateModel is InterestRateModel {
     /**************************************************************************/
 
     /**
-     * @notice Invalid Tick Parameter
-     */
-    error InvalidParameters();
-
-    /**
      * @notice Insufficient utilization
      */
     error InsufficientUtilization();
@@ -88,9 +83,9 @@ contract WeightedInterestRateModel is InterestRateModel {
      * @notice WeightedInterestRateModel constructor
      */
     constructor(Parameters memory parameters) {
-        if (parameters.tickThreshold > MAX_TICK_THRESHOLD) revert InvalidParameters();
-        if (parameters.tickExponential < MIN_TICK_EXPONENTIAL || parameters.tickExponential > MAX_TICK_EXPONENTIAL)
-            revert InvalidParameters();
+        if (parameters.tickThreshold > MAX_TICK_THRESHOLD) revert InvalidInterestRateModelParameters();
+        if (parameters.tickExponential < MIN_TICK_EXPONENTIAL) revert InvalidInterestRateModelParameters();
+        if (parameters.tickExponential > MAX_TICK_EXPONENTIAL) revert InvalidInterestRateModelParameters();
 
         _tickThreshold = parameters.tickThreshold;
         _tickExponential = parameters.tickExponential;

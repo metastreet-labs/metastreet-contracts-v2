@@ -8,6 +8,19 @@ import "./interfaces/ILiquidity.sol";
  * @author MetaStreet Labs
  */
 abstract contract InterestRateModel {
+    /**************************************************************************/
+    /* Errors */
+    /**************************************************************************/
+
+    /**
+     * @notice Invalid parameters
+     */
+    error InvalidInterestRateModelParameters();
+
+    /**************************************************************************/
+    /* API */
+    /**************************************************************************/
+
     /**
      * @notice Get interest rate model name
      * @return Interest rate model name
