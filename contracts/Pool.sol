@@ -320,6 +320,13 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
+    function adminFeeBalance() external view returns (uint256) {
+        return _adminFeeBalance;
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
     function depositPremiumRate() external view returns (uint256) {
         return _depositPremiumRate;
     }
@@ -383,14 +390,6 @@ abstract contract Pool is
      */
     function loans(bytes32 receiptHash) external view returns (LoanStatus) {
         return _loans[receiptHash];
-    }
-
-    /**
-     * @notice Get total admin fee balance
-     * @return Total admin fee balance
-     */
-    function adminFeeBalance() external view returns (uint256) {
-        return _adminFeeBalance;
     }
 
     /**************************************************************************/

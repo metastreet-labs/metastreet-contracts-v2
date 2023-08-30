@@ -170,6 +170,12 @@ interface IPool {
     function adminFeeRate() external view returns (uint32);
 
     /**
+     * @notice Get admin fee balance
+     * @return Admin fee balance in currency tokens
+     */
+    function adminFeeBalance() external view returns (uint256);
+
+    /**
      * @notice Get deposit premium rate
      * @return Deposit premium rate in basis points
      */
