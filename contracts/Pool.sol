@@ -57,11 +57,6 @@ abstract contract Pool is
     uint256 public constant BORROWER_SURPLUS_SPLIT_BASIS_POINTS = 9_500;
 
     /**
-     * @notice Basis points scale
-     */
-    uint256 internal constant BASIS_POINTS_SCALE = 10_000;
-
-    /**
      * @notice Borrow options tag size in bytes
      */
     uint256 internal constant BORROW_OPTIONS_TAG_SIZE = 2;
@@ -688,7 +683,7 @@ abstract contract Pool is
         uint256 totalFee = repayment - principal;
 
         /* Compute admin fee */
-        uint256 adminFee = (_adminFeeRate * totalFee) / BASIS_POINTS_SCALE;
+        uint256 adminFee = (_adminFeeRate * totalFee) / LiquidityManager.BASIS_POINTS_SCALE;
 
         /* Distribute interest */
         uint128[] memory interest = _distribute(principal, totalFee - adminFee, nodes, count);
@@ -1080,7 +1075,11 @@ abstract contract Pool is
 
         /* Compute borrower's share of liquidation surplus */
         uint256 borrowerSurplus = hasSurplus
-            ? Math.mulDiv(proceeds - loanReceipt.repayment, BORROWER_SURPLUS_SPLIT_BASIS_POINTS, BASIS_POINTS_SCALE)
+            ? Math.mulDiv(
+                proceeds - loanReceipt.repayment,
+                BORROWER_SURPLUS_SPLIT_BASIS_POINTS,
+                LiquidityManager.BASIS_POINTS_SCALE
+            )
             : 0;
 
         /* Compute lenders' proceeds */
@@ -1227,7 +1226,7 @@ abstract contract Pool is
      */
     function setAdminFeeRate(uint32 rate) external {
         if (msg.sender != _admin) revert InvalidCaller();
-        if (rate == 0 || rate >= BASIS_POINTS_SCALE) revert ParameterOutOfBounds();
+        if (rate == 0 || rate >= LiquidityManager.BASIS_POINTS_SCALE) revert ParameterOutOfBounds();
         _adminFeeRate = rate;
         emit AdminFeeRateUpdated(rate);
     }
