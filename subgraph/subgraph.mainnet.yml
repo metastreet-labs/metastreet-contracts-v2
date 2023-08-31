@@ -22,6 +22,8 @@ dataSources:
           file: ../artifacts/contracts/Pool.sol/Pool.json
         - name: RangedCollectionCollateralFilter
           file: ../artifacts/contracts/filters/RangedCollectionCollateralFilter.sol/RangedCollectionCollateralFilter.json
+        - name: SetCollectionCollateralFilter
+          file: ../artifacts/contracts/filters/SetCollectionCollateralFilter.sol/SetCollectionCollateralFilter.json
         - name: ERC721
           file: ../artifacts/@openzeppelin/contracts/token/ERC721/ERC721.sol/ERC721.json
         - name: ERC20
