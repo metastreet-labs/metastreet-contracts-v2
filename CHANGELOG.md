@@ -1,3 +1,5 @@
+* BundleCollateralWrapper v2.0 - 08/31/2023
+    * Add implementation of `count()` in new ICollateralWrapper API.
 * ERC1155CollateralWrapper v1.0 - 08/31/2023
     * Initial release.
 * SetCollectionCollateralFilter v1.0 - 08/31/2023
