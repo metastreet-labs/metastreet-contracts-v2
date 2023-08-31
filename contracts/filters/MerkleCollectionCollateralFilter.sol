@@ -76,21 +76,22 @@ contract MerkleCollectionCollateralFilter is CollateralFilter {
      * @param proofData Proof data
      * @return merkleProof Merkle proof
      */
-    function _extractProof(bytes calldata proofData) internal pure returns (bytes32[] memory merkleProof) {
+    function _extractProof(bytes calldata proofData) internal pure returns (bytes32[] memory) {
         /* Compute node count */
-        uint256 nodeCount = proofData.length / 32;
-
-        /* Reduce number of merkle nodes by 1 if last 32 bytes are empty */
-        if (bytes32(proofData[proofData.length - 32:]) == bytes32(0)) nodeCount -= 1;
+        uint256 nodeCount = (bytes32(proofData[proofData.length - 32:]) == bytes32(0))
+            ? proofData.length / 32 - 1
+            : proofData.length / 32;
 
         /* Instantiate merkle proof array */
-        merkleProof = new bytes32[](nodeCount);
+        bytes32[] memory merkleProof = new bytes32[](nodeCount);
 
         /* Populate merkle proof array */
         for (uint256 i; i < nodeCount; i++) {
             /* Set node */
             merkleProof[i] = bytes32(proofData[i * 32:]);
         }
+
+        return merkleProof;
     }
 
     /**************************************************************************/
