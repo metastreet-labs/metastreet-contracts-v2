@@ -135,7 +135,17 @@ type Bundle @entity {
   underlyingCollateralTokenAddress: Bytes!
   underlyingCollateralTokenIds: [BigInt!]! # uint256[]
 }
+################################################################################
+# Batch Entity
+################################################################################
 
+type Batch @entity {
+  id: ID! # Batch token id
+  owner: Bytes! # address
+  collateralWrapperContext: Bytes!
+  underlyingCollateralTokenAddress: Bytes!
+  underlyingCollateralTokenIds: [BigInt!]! # uint256[]
+}
 ################################################################################
 # Loan Entity
 ################################################################################
