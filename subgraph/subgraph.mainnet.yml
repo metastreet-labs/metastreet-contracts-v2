@@ -141,6 +141,8 @@ templates:
           file: ../artifacts/contracts/Pool.sol/Pool.json
         - name: ICollateralWrapper
           file: ../artifacts/contracts/interfaces/ICollateralWrapper.sol/ICollateralWrapper.json
+        - name: ERC721
+          file: ../artifacts/@openzeppelin/contracts/token/ERC721/ERC721.sol/ERC721.json
       eventHandlers:
         - event: Deposited(indexed address,indexed uint128,uint256,uint256)
           handler: handleDeposited
@@ -191,6 +193,8 @@ templates:
           file: ../artifacts/contracts/Pool.sol/Pool.json
         - name: ICollateralWrapper
           file: ../artifacts/contracts/interfaces/ICollateralWrapper.sol/ICollateralWrapper.json
+        - name: ERC721
+          file: ../artifacts/@openzeppelin/contracts/token/ERC721/ERC721.sol/ERC721.json
       eventHandlers:
         - event: Deposited(indexed address,indexed uint128,uint256,uint256)
           handler: handleDeposited
