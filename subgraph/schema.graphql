@@ -125,11 +125,23 @@ type Redemption @entity {
 }
 
 ################################################################################
-# Bundle Entity
+# Bundle Entity (for BundleCollateralWrapper)
 ################################################################################
 
 type Bundle @entity {
   id: ID! # bundle token id
+  owner: Bytes! # address
+  collateralWrapperContext: Bytes!
+  underlyingCollateralTokenAddress: Bytes!
+  underlyingCollateralTokenIds: [BigInt!]! # uint256[]
+}
+
+################################################################################
+# Batch Entity (for ERC1155CollateralWrapper)
+################################################################################
+
+type Batch @entity {
+  id: ID! # Batch token id
   owner: Bytes! # address
   collateralWrapperContext: Bytes!
   underlyingCollateralTokenAddress: Bytes!
