@@ -1,5 +1,6 @@
 import { Address, BigInt, Bytes, dataSource, ethereum, store } from "@graphprotocol/graph-ts";
 import {
+  Batch as BatchEntity,
   Bundle as BundleEntity,
   CollateralLiquidated as CollateralLiquidatedEntity,
   CollateralToken as CollateralTokenEntity,
@@ -17,6 +18,7 @@ import {
   Tick as TickEntity,
   Withdrawn as WithdrawnEntity,
 } from "../generated/schema";
+import { ERC721 as ERC721Contract } from "../generated/templates/Pool/ERC721";
 import { ICollateralWrapper } from "../generated/templates/Pool/ICollateralWrapper";
 import {
   AdminFeeRateUpdated as AdminFeeRateUpdatedEvent,
@@ -383,15 +385,26 @@ function createLoanEntity(
   if (loanReceipt.collateralToken.equals(collateralTokenEntity.address)) {
     loanEntity.collateralTokenIds = [loanReceipt.collateralTokenId];
   } else {
-    const bundleId = loanReceipt.collateralTokenId.toString();
-    const bundleEntity = BundleEntity.load(bundleId);
-    if (bundleEntity) loanEntity.bundle = bundleId;
+    const collateralWrapperSymbol = ERC721Contract.bind(loanReceipt.collateralToken).symbol();
+    const wrappedEntityId = loanReceipt.collateralTokenId.toString();
 
-    const result = ICollateralWrapper.bind(loanReceipt.collateralToken).enumerate(
-      loanReceipt.collateralTokenId,
-      loanReceipt.collateralWrapperContext
-    );
-    loanEntity.collateralTokenIds = result.value1;
+    if (collateralWrapperSymbol == "MSBCW") {
+      const bundleEntity = BundleEntity.load(wrappedEntityId);
+      if (!bundleEntity) throw new Error("Bundle entity not found");
+      loanEntity.bundle = bundleEntity.id;
+      loanEntity.collateralTokenIds = bundleEntity.underlyingCollateralTokenIds;
+    } else if (collateralWrapperSymbol == "MSMTCW") {
+      const batchEntity = BatchEntity.load(wrappedEntityId);
+      if (!batchEntity) throw new Error("Batch entity not found");
+      loanEntity.batch = batchEntity.id;
+      loanEntity.collateralTokenIds = batchEntity.underlyingCollateralTokenIds;
+    } else {
+      const result = ICollateralWrapper.bind(loanReceipt.collateralToken).enumerate(
+        loanReceipt.collateralTokenId,
+        loanReceipt.collateralWrapperContext
+      );
+      loanEntity.collateralTokenIds = result.value1;
+    }
   }
 
   loanEntity.delegate = decodeLoanDelegate(event.receipt);

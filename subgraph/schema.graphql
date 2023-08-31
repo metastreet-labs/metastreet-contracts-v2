@@ -165,6 +165,7 @@ type Loan @entity {
   timestamp: BigInt! # uint64 (in seconds since epoch)
   completion: BigInt # uint64 (in seconds since epoch)
   bundle: Bundle # set only if this is a bundle loan
+  batch: Batch # set only if this is a batch loan
   delegate: Bytes # address
   # Decoded Loan Receipt
   borrower: Bytes! # address
