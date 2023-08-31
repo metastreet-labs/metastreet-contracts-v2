@@ -67,7 +67,7 @@ describe("BundleCollateralWrapper", function () {
 
   describe("constants", async function () {
     it("matches expected implementation version", async function () {
-      expect(await bundleCollateralWrapper.IMPLEMENTATION_VERSION()).to.equal("1.0");
+      expect(await bundleCollateralWrapper.IMPLEMENTATION_VERSION()).to.equal("2.0");
     });
     it("returns correct name", async function () {
       expect(await bundleCollateralWrapper.name()).to.equal("MetaStreet Bundle Collateral Wrapper");
