@@ -16,6 +16,10 @@ async function main() {
   const BundleCollateralWrapper = await ethers.getContractFactory("BundleCollateralWrapper", accounts[9]);
   const bundleCollateralWrapper = await BundleCollateralWrapper.deploy();
   console.log("BundleCollateralWrapper: ", bundleCollateralWrapper.address);
+  /* Deploy ERC1155 Collateral Wrapper */
+  const ERC1155CollateralWrapper = await ethers.getContractFactory("ERC1155CollateralWrapper", accounts[9]);
+  const erc1155CollateralWrapper = await ERC1155CollateralWrapper.deploy();
+  console.log("ERC1155CollateralWrapper: ", erc1155CollateralWrapper.address);
   /* Deploy English Auction Collateral Liquidator Implementation */
   const EnglishAuctionCollateralLiquidator = await ethers.getContractFactory(
     "EnglishAuctionCollateralLiquidator",
@@ -66,7 +70,7 @@ async function main() {
     5000,
     englishAuctionCollateralLiquidatorProxy.address,
     testDelegationRegistry.address,
-    [bundleCollateralWrapper.address],
+    [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
     {
       tickThreshold: FixedPoint.from("0.05"),
       tickExponential: FixedPoint.from("1.5"),
@@ -83,7 +87,7 @@ async function main() {
     5000,
     englishAuctionCollateralLiquidatorProxy.address,
     testDelegationRegistry.address,
-    [bundleCollateralWrapper.address],
+    [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
     {
       tickThreshold: FixedPoint.from("0.05"),
       tickExponential: FixedPoint.from("1.5"),
@@ -91,6 +95,20 @@ async function main() {
   );
   await weightedRateRangedCollectionPoolImpl.deployed();
   console.log("WeightedRateRangedCollectionPool Implementation: ", weightedRateRangedCollectionPoolImpl.address);
+  /* Deploy WeightedRateSetCollectionPool Implementation */
+  const WeightedRateSetCollectionPool = await ethers.getContractFactory("WeightedRateSetCollectionPool", accounts[9]);
+  const weightedRateSetCollectionPoolImpl = await WeightedRateSetCollectionPool.deploy(
+    5000,
+    englishAuctionCollateralLiquidatorProxy.address,
+    testDelegationRegistry.address,
+    [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
+    {
+      tickThreshold: FixedPoint.from("0.05"),
+      tickExponential: FixedPoint.from("1.5"),
+    }
+  );
+  await weightedRateSetCollectionPoolImpl.deployed();
+  console.log("WeightedRateSetCollectionPool Implementation: ", weightedRateSetCollectionPoolImpl.address);
   /**************************************************************************/
   /* Pool beacons */
   /**************************************************************************/
@@ -107,6 +125,11 @@ async function main() {
   await weightedRateRangedCollectionPoolBeacon.deployed();
   console.log("WeightedRateRangedCollectionPool Beacon: ", weightedRateRangedCollectionPoolBeacon.address);
   await poolFactory.addPoolImplementation(weightedRateRangedCollectionPoolBeacon.address);
+
+  const weightedRateSetCollectionPoolBeacon = await UpgradeableBeacon.deploy(weightedRateSetCollectionPoolImpl.address);
+  await weightedRateSetCollectionPoolBeacon.deployed();
+  console.log("WeightedRateSetCollectionPool Beacon: ", weightedRateSetCollectionPoolBeacon.address);
+  await poolFactory.addPoolImplementation(weightedRateSetCollectionPoolBeacon.address);
   /**************************************************************************/
   /* Currency token */
   /**************************************************************************/
@@ -117,7 +140,7 @@ async function main() {
   await wethTokenContract.transfer(accounts[1].address, ethers.utils.parseEther("5000000"));
   console.log("WETH : ", wethTokenContract.address);
   /**************************************************************************/
-  /* NFT contracts */
+  /* Mint ERC721s */
   /**************************************************************************/
   const tokenIds = [0, 1, 2, 3];
   const TestERC721 = await ethers.getContractFactory("TestERC721");
@@ -137,11 +160,27 @@ async function main() {
     console.log("%s: %s", name, nftContract.address);
   }
   /**************************************************************************/
+  /* Mint ERC1155s */
+  /**************************************************************************/
+  const TestERC1155 = await ethers.getContractFactory("TestERC1155");
+  const uri = "ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/";
+  const erc1155 = await TestERC1155.deploy(uri);
+  await erc1155.deployed();
+  console.log("ERC1155: ", erc1155.address);
+  await erc1155.mintBatch(
+    accounts[0].address,
+    tokenIds,
+    tokenIds.map(() => 20),
+    "0x"
+  );
+  collateralTokens.push(erc1155.address);
+  /**************************************************************************/
   /* Pools */
   /**************************************************************************/
   const pools: string[] = [];
   const poolsTicks: Record<string, BigNumber[]> = {};
-  for (let i = 0; i < collateralTokens.length; i++) {
+
+  async function createCollectionPool(i: number) {
     const params = ethers.utils.defaultAbiCoder.encode(
       ["address", "address", "uint64[]", "uint64[]"],
       [
@@ -152,7 +191,49 @@ async function main() {
       ]
     );
     const createPoolTx = await poolFactory.createProxied(weightedRateCollectionPoolBeacon.address, params);
-    const poolAddress = (await extractEvent(createPoolTx, poolFactory, "PoolCreated")).args.pool;
+    console.log("DEPLOYED COLLECTION POOl");
+    return (await extractEvent(createPoolTx, poolFactory, "PoolCreated")).args.pool;
+  }
+
+  async function createRangedCollectionPool(i: number) {
+    const params = ethers.utils.defaultAbiCoder.encode(
+      ["address", "uint256", "uint256", "address", "uint64[]", "uint64[]"],
+      [
+        collateralTokens[i],
+        0,
+        2,
+        wethTokenContract.address,
+        [30 * 86400, 14 * 86400, 7 * 86400],
+        [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
+      ]
+    );
+    const createPoolTx = await poolFactory.createProxied(weightedRateRangedCollectionPoolBeacon.address, params);
+    console.log("DEPLOYED RANGED POOl");
+    return (await extractEvent(createPoolTx, poolFactory, "PoolCreated")).args.pool;
+  }
+
+  async function createSetCollectionPool(i: number) {
+    const params = ethers.utils.defaultAbiCoder.encode(
+      ["address", "uint256[]", "address", "uint64[]", "uint64[]"],
+      [
+        collateralTokens[i],
+        tokenIds,
+        wethTokenContract.address,
+        [30 * 86400, 14 * 86400, 7 * 86400],
+        [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
+      ]
+    );
+    const createPoolTx = await poolFactory.createProxied(weightedRateSetCollectionPoolBeacon.address, params);
+    console.log("DEPLOYED SET POOl");
+    return (await extractEvent(createPoolTx, poolFactory, "PoolCreated")).args.pool;
+  }
+
+  for (let i = 0; i < collateralTokens.length; i++) {
+    let poolAddress: string;
+    if (i === 0) poolAddress = await createRangedCollectionPool(i);
+    else if (i === collateralTokens.length - 1) poolAddress = await createSetCollectionPool(i);
+    else poolAddress = await createCollectionPool(i);
+
     const poolContract = Pool__factory.connect(poolAddress, accounts[0]);
     const erc20Contract = ERC20__factory.connect(wethTokenContract.address, accounts[0]);
     await erc20Contract.approve(poolAddress, ethers.constants.MaxUint256);
@@ -195,21 +276,52 @@ async function main() {
     );
 
     // originate bundle loan
-    console.log("Originating bundle loan");
-    await nftContract.setApprovalForAll(bundleCollateralWrapper.address, true);
-    const mintTx = await bundleCollateralWrapper.connect(accounts[0]).mint(collateralToken, [1, 2]);
-    const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
-    const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
-    await bundleCollateralWrapper.connect(accounts[0]).setApprovalForAll(poolAddress, true);
-    await poolContract.borrow(
-      ethers.utils.parseEther("1"),
-      7 * 86400,
-      bundleCollateralWrapper.address,
-      bundleTokenId,
-      ethers.utils.parseEther("99"),
-      poolTicks,
-      ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, ethers.utils.hexDataLength(bundleData), bundleData])
-    );
+    {
+      console.log("Originating bundle loan");
+      await nftContract.setApprovalForAll(bundleCollateralWrapper.address, true);
+      const mintTx = await bundleCollateralWrapper.connect(accounts[0]).mint(collateralToken, [1, 2]);
+      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+      const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
+      await bundleCollateralWrapper.connect(accounts[0]).setApprovalForAll(poolAddress, true);
+      await poolContract.borrow(
+        ethers.utils.parseEther("1"),
+        7 * 86400,
+        bundleCollateralWrapper.address,
+        bundleTokenId,
+        ethers.utils.parseEther("99"),
+        poolTicks,
+        ethers.utils.solidityPack(
+          ["uint16", "uint16", "bytes"],
+          [1, ethers.utils.hexDataLength(bundleData), bundleData]
+        )
+      );
+    }
+
+    // originate batch loan
+    {
+      console.log("Originating batch loan");
+      const poolAddress = pools[pools.length - 1];
+      const poolContract = Pool__factory.connect(pools[pools.length - 1], accounts[0]);
+      const poolTicks = poolsTicks[poolContract.address];
+      await erc1155.setApprovalForAll(erc1155CollateralWrapper.address, true);
+      const mintTx = await erc1155CollateralWrapper.connect(accounts[0]).mint(
+        erc1155.address,
+        tokenIds,
+        tokenIds.map(() => 3)
+      );
+      const batchTokenId = (await extractEvent(mintTx, erc1155CollateralWrapper, "BatchMinted")).args.tokenId;
+      const batchData = (await extractEvent(mintTx, erc1155CollateralWrapper, "BatchMinted")).args.encodedBatch;
+      await erc1155CollateralWrapper.connect(accounts[0]).setApprovalForAll(poolAddress, true);
+      await poolContract.borrow(
+        ethers.utils.parseEther("1"),
+        7 * 86400,
+        erc1155CollateralWrapper.address,
+        batchTokenId,
+        ethers.utils.parseEther("99"),
+        poolTicks,
+        ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, ethers.utils.hexDataLength(batchData), batchData])
+      );
+    }
   }
   /**************************************************************************/
   /* Auctions */
