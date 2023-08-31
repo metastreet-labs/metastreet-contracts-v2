@@ -54,8 +54,8 @@ type PoolDayData @entity(immutable: true) {
 type CollateralToken @entity {
   id: ID!
   address: Bytes!
-  startTokenId: BigInt # uint256
-  endTokenId: BigInt # uint256
+  tokenIdRange: [BigInt!]
+  tokenIdSet: [BigInt!]
   name: String!
   auctionsActive: BigInt!
   pools: [Pool!]! @derivedFrom(field: "collateralToken")
