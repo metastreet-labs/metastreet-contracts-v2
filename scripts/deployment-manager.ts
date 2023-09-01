@@ -116,6 +116,16 @@ async function getTransparentProxyImplementation(address: string): Promise<strin
   return ethers.utils.getAddress(ethers.utils.hexDataSlice(implementationSlotData, 12));
 }
 
+async function getCollateralWrappers(address: string): Promise<string[]> {
+  const contract = await ethers.getContractAt(["function collateralWrappers() view returns (address[])"], address);
+  return (await contract.collateralWrappers()).filter((e: string) => e !== ethers.constants.AddressZero);
+}
+
+async function getCollateralWrapperName(address: string): Promise<string> {
+  const contract = await ethers.getContractAt(["function name() view returns (string)"], address);
+  return await contract.name();
+}
+
 function decodeArgs(args: string[]): (string | string[])[] {
   /* FIXME hack to handle arrays */
   return args.map((arg) => (arg.startsWith("[") && arg.endsWith("]") ? arg.slice(1, -1).split(",") : arg));
@@ -156,10 +166,13 @@ async function deploymentShow(deployment: Deployment) {
   console.log("\nCollateral Wrappers");
   for (const contractName in deployment.collateralWrappers) {
     const collateralWrapper = deployment.collateralWrappers[contractName];
+    const impl = await getTransparentProxyImplementation(collateralWrapper);
+    const version = await getImplementationVersion(impl);
 
     console.log(`  ${contractName}`);
     console.log(`      Address: ${collateralWrapper}`);
-    console.log(`      Impl:    ${await getTransparentProxyImplementation(collateralWrapper)}`);
+    console.log(`      Impl:    ${impl}`);
+    console.log(`      Version: ${version}`);
     console.log("");
   }
 
@@ -173,6 +186,13 @@ async function deploymentShow(deployment: Deployment) {
     console.log(`      Beacon:  ${poolImplementation}`);
     console.log(`      Impl:    ${impl}`);
     console.log(`      Version: ${version}`);
+    console.log(`      Collateral Wrappers:`);
+    for (const collateralWrapper of await getCollateralWrappers(impl)) {
+      const impl = await getTransparentProxyImplementation(collateralWrapper);
+      const name = await getCollateralWrapperName(impl);
+      const version = await getImplementationVersion(impl);
+      console.log(`          ${collateralWrapper} (${name} - v${version})`);
+    }
     console.log("");
   }
 
