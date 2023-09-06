@@ -56,6 +56,7 @@ type CollateralToken @entity {
   address: Bytes!
   rangedTokenIds: [BigInt!] # set if collateral token
   setTokenIds: [BigInt!]
+  merkleMetadataURI: String
   name: String!
   auctionsActive: BigInt!
   pools: [Pool!]! @derivedFrom(field: "collateralToken")

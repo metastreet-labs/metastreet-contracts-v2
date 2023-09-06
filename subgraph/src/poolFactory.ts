@@ -5,6 +5,7 @@ import { Pool as PoolContract } from "../generated/PoolFactory/Pool";
 import { PoolCreated as PoolCreatedEvent } from "../generated/PoolFactory/PoolFactory";
 import { RangedCollectionCollateralFilter as RangedCollectionCollateralFilterContract } from "../generated/PoolFactory/RangedCollectionCollateralFilter";
 import { SetCollectionCollateralFilter as SetCollectionCollateralFilterContract } from "../generated/PoolFactory/SetCollectionCollateralFilter";
+import { MerkleCollectionCollateralFilter as MerkleCollectionCollateralFilterContract } from "../generated/PoolFactory/MerkleCollectionCollateralFilter";
 import {
   CollateralToken as CollateralTokenEntity,
   CurrencyToken as CurrencyTokenEntity,
@@ -55,6 +56,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   let collateralTokenEntityId: string;
   let rangedTokenIds: BigInt[] | null = null;
   let setTokenIds: BigInt[] | null = null;
+  let merkleMetadataURI: string | null = null;
 
   if (collateralFilterName == "RangedCollectionCollateralFilter") {
     const rangedCollectionCollateralFilterContract = RangedCollectionCollateralFilterContract.bind(poolAddress);
@@ -64,6 +66,11 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   } else if (collateralFilterName == "SetCollectionCollateralFilter") {
     const setCollectionCollateralFilterContract = SetCollectionCollateralFilterContract.bind(poolAddress);
     setTokenIds = setCollectionCollateralFilterContract.collateralTokenIds();
+    // problematic since id will collide with an existing collection collateral token
+    collateralTokenEntityId = collateralTokenAddress.toHexString();
+  } else if (collateralFilterName == "MerkleCollectionCollateralFilter") {
+    const merkleCollectionCollateralFilterContract = MerkleCollectionCollateralFilterContract.bind(poolAddress);
+    merkleMetadataURI = merkleCollectionCollateralFilterContract.metadataURI();
     // problematic since id will collide with an existing collection collateral token
     collateralTokenEntityId = collateralTokenAddress.toHexString();
   } else {
@@ -78,6 +85,7 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
     collateralTokenEntity.address = collateralTokenAddress;
     collateralTokenEntity.rangedTokenIds = rangedTokenIds;
     collateralTokenEntity.setTokenIds = setTokenIds;
+    collateralTokenEntity.merkleMetadataURI = merkleMetadataURI;
     collateralTokenEntity.auctionsActive = BigInt.zero();
 
     const erc721Contract = ERC721.bind(collateralTokenAddress);
