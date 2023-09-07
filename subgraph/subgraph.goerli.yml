@@ -8,7 +8,7 @@ dataSources:
     source:
       address: "0x98A020Ff15265688289159DD83648AdfF450c754"
       abi: PoolFactory
-      startBlock: 9187401
+      startBlock: 9649671
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -40,7 +40,7 @@ dataSources:
     source:
       address: "0xe6cEc15993B1F0a81e2BB0C7120089CD8DC7d022"
       abi: BundleCollateralWrapper
-      startBlock: 9187404
+      startBlock: 9649671
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -62,7 +62,7 @@ dataSources:
     source:
       address: "0xc424E4EE414bE197f8baB74A27aCE0f606B9E22C"
       abi: ERC1155CollateralWrapper
-      startBlock: 9564928
+      startBlock: 9649671
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -84,7 +84,7 @@ dataSources:
     source:
       address: "0x3fa2E78429646cEB37d9895947D0611589327035"
       abi: EnglishAuctionCollateralLiquidator
-      startBlock: 9187409
+      startBlock: 9649671
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
