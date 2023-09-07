@@ -5,6 +5,7 @@ import { extractEvent } from "../test/helpers/EventUtilities";
 import { FixedPoint } from "../test/helpers/FixedPoint";
 import { Tick } from "../test/helpers/Tick";
 import { ERC20__factory, ERC721__factory, Pool__factory } from "../typechain";
+import { MerkleTree } from "../test/helpers/MerkleTree";
 
 async function main() {
   const accounts = await ethers.getSigners();
@@ -109,6 +110,24 @@ async function main() {
   );
   await weightedRateSetCollectionPoolImpl.deployed();
   console.log("WeightedRateSetCollectionPool Implementation: ", weightedRateSetCollectionPoolImpl.address);
+
+  /* Deploy WeightedRateMerkleCollectionPool Implementation */
+  const WeightedRateMerkleCollectionPool = await ethers.getContractFactory(
+    "WeightedRateMerkleCollectionPool",
+    accounts[9]
+  );
+  const weightedRateMerkleCollectionPoolImpl = await WeightedRateMerkleCollectionPool.deploy(
+    5000,
+    englishAuctionCollateralLiquidatorProxy.address,
+    testDelegationRegistry.address,
+    [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
+    {
+      tickThreshold: FixedPoint.from("0.05"),
+      tickExponential: FixedPoint.from("1.5"),
+    }
+  );
+  await weightedRateMerkleCollectionPoolImpl.deployed();
+  console.log("WeightedRateMerkleCollectionPool Implementation: ", weightedRateMerkleCollectionPoolImpl.address);
   /**************************************************************************/
   /* Pool beacons */
   /**************************************************************************/
@@ -130,6 +149,13 @@ async function main() {
   await weightedRateSetCollectionPoolBeacon.deployed();
   console.log("WeightedRateSetCollectionPool Beacon: ", weightedRateSetCollectionPoolBeacon.address);
   await poolFactory.addPoolImplementation(weightedRateSetCollectionPoolBeacon.address);
+
+  const weightedRateMerkleCollectionPoolBeacon = await UpgradeableBeacon.deploy(
+    weightedRateMerkleCollectionPoolImpl.address
+  );
+  await weightedRateMerkleCollectionPoolBeacon.deployed();
+  console.log("WeightedRateMerkleCollectionPool Beacon: ", weightedRateMerkleCollectionPoolBeacon.address);
+  await poolFactory.addPoolImplementation(weightedRateMerkleCollectionPoolBeacon.address);
   /**************************************************************************/
   /* Currency token */
   /**************************************************************************/
@@ -179,58 +205,60 @@ async function main() {
   /**************************************************************************/
   const pools: string[] = [];
   const poolsTicks: Record<string, BigNumber[]> = {};
+  const durations = [30 * 86400, 14 * 86400, 7 * 86400];
+  const rates = [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")];
 
   async function createCollectionPool(i: number) {
     const params = ethers.utils.defaultAbiCoder.encode(
       ["address", "address", "uint64[]", "uint64[]"],
-      [
-        collateralTokens[i],
-        wethTokenContract.address,
-        [30 * 86400, 14 * 86400, 7 * 86400],
-        [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
-      ]
+      [collateralTokens[i], wethTokenContract.address, durations, rates]
     );
     const createPoolTx = await poolFactory.createProxied(weightedRateCollectionPoolBeacon.address, params);
-    console.log("DEPLOYED COLLECTION POOl");
+    console.log("DEPLOYED COLLECTION POOL");
     return (await extractEvent(createPoolTx, poolFactory, "PoolCreated")).args.pool;
   }
 
   async function createRangedCollectionPool(i: number) {
     const params = ethers.utils.defaultAbiCoder.encode(
       ["address", "uint256", "uint256", "address", "uint64[]", "uint64[]"],
-      [
-        collateralTokens[i],
-        0,
-        2,
-        wethTokenContract.address,
-        [30 * 86400, 14 * 86400, 7 * 86400],
-        [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
-      ]
+      [collateralTokens[i], 0, 2, wethTokenContract.address, durations, rates]
     );
     const createPoolTx = await poolFactory.createProxied(weightedRateRangedCollectionPoolBeacon.address, params);
-    console.log("DEPLOYED RANGED POOl");
+    console.log("DEPLOYED RANGED POOL");
     return (await extractEvent(createPoolTx, poolFactory, "PoolCreated")).args.pool;
   }
 
   async function createSetCollectionPool(i: number) {
     const params = ethers.utils.defaultAbiCoder.encode(
       ["address", "uint256[]", "address", "uint64[]", "uint64[]"],
-      [
-        collateralTokens[i],
-        tokenIds,
-        wethTokenContract.address,
-        [30 * 86400, 14 * 86400, 7 * 86400],
-        [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
-      ]
+      [collateralTokens[i], tokenIds, wethTokenContract.address, durations, rates]
     );
     const createPoolTx = await poolFactory.createProxied(weightedRateSetCollectionPoolBeacon.address, params);
-    console.log("DEPLOYED SET POOl");
+    console.log("DEPLOYED SET POOL");
+    return (await extractEvent(createPoolTx, poolFactory, "PoolCreated")).args.pool;
+  }
+
+  async function createMerkleCollectionPool(i: number) {
+    const merkleTree = MerkleTree.buildTree(
+      tokenIds.map((tokenId) => [tokenId]),
+      ["uint256"]
+    );
+    const nodeCount = Math.ceil(Math.log2(tokenIds.length));
+    const metadataURI = "ipfs://QmZUvHgvb3p1souYvJtSMYS7MqjLao4PmXF4sxcTKe7m7G/";
+
+    const params = ethers.utils.defaultAbiCoder.encode(
+      ["address", "bytes32", "uint32", "string", "address", "uint64[]", "uint64[]"],
+      [collateralTokens[i], merkleTree.root, nodeCount, metadataURI, wethTokenContract.address, durations, rates]
+    );
+    const createPoolTx = await poolFactory.createProxied(weightedRateMerkleCollectionPoolBeacon.address, params);
+    console.log("DEPLOYED MERKLE POOL");
     return (await extractEvent(createPoolTx, poolFactory, "PoolCreated")).args.pool;
   }
 
   for (let i = 0; i < collateralTokens.length; i++) {
     let poolAddress: string;
     if (i === 0) poolAddress = await createRangedCollectionPool(i);
+    if (i === 2) poolAddress = await createMerkleCollectionPool(i);
     else if (i === collateralTokens.length - 1) poolAddress = await createSetCollectionPool(i);
     else poolAddress = await createCollectionPool(i);
 
