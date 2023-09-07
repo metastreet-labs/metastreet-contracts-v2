@@ -56,6 +56,8 @@ type CollateralToken @entity {
   address: Bytes!
   tokenIdRange: [BigInt!]
   tokenIdSet: [BigInt!]
+  tokenIdMerkleRoot: Bytes
+  tokenIdMerkleMetadataURI: String
   name: String!
   auctionsActive: BigInt!
   pools: [Pool!]! @derivedFrom(field: "collateralToken")
