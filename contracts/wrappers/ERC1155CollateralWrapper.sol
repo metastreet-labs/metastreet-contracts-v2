@@ -142,6 +142,17 @@ contract ERC1155CollateralWrapper is ICollateralWrapper, ERC721, ERC1155Holder, 
         return count_;
     }
 
+    /**
+     * @inheritdoc ICollateralWrapper
+     */
+    function validate(
+        uint256 principal,
+        uint256 repayment,
+        uint64 duration,
+        uint256 tokenId,
+        bytes memory context
+    ) external view {}
+
     /**************************************************************************/
     /* Internal Helpers */
     /**************************************************************************/
