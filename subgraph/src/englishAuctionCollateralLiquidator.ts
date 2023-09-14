@@ -11,7 +11,6 @@ import {
   Auction as AuctionEntity,
   Bid,
   Bid as BidEntity,
-  CollateralToken as CollateralTokenEntity,
   Liquidation as LiquidationEntity,
   Pool as PoolEntity,
 } from "../generated/schema";
@@ -122,14 +121,6 @@ function loadAuctionEntity(
   return AuctionEntity.load(auctionEntityId);
 }
 
-function updateCollateralTokenEntityAuctionsActiveCount(collateralToken: Bytes, countUpdate: i8): void {
-  const collateralTokenEntity = CollateralTokenEntity.load(collateralToken.toHexString());
-  if (collateralTokenEntity) {
-    collateralTokenEntity.auctionsActive = collateralTokenEntity.auctionsActive.plus(BigInt.fromI32(countUpdate));
-    collateralTokenEntity.save();
-  }
-}
-
 /**************************************************************************/
 /* Event handlers
 /**************************************************************************/
@@ -171,8 +162,6 @@ export function handleAuctionCreated(event: AuctionCreatedEvent): void {
   auctionEntity.status = AuctionStatus.Created;
 
   auctionEntity.save();
-
-  updateCollateralTokenEntityAuctionsActiveCount(event.params.collateralToken, 1);
 }
 
 export function handleAuctionStarted(event: AuctionStartedEvent): void {
@@ -239,6 +228,4 @@ export function handleAuctionEnded(event: AuctionEndedEvent): void {
 
   auctionEntity.status = AuctionStatus.Ended;
   auctionEntity.save();
-
-  updateCollateralTokenEntityAuctionsActiveCount(event.params.collateralToken, -1);
 }
