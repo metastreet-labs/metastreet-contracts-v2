@@ -1,11 +1,11 @@
 import { Address, BigInt, Bytes } from "@graphprotocol/graph-ts";
 import { ERC20 } from "../generated/PoolFactory/ERC20";
 import { ERC721 } from "../generated/PoolFactory/ERC721";
+import { MerkleCollectionCollateralFilter as MerkleCollectionCollateralFilterContract } from "../generated/PoolFactory/MerkleCollectionCollateralFilter";
 import { Pool as PoolContract } from "../generated/PoolFactory/Pool";
 import { PoolCreated as PoolCreatedEvent } from "../generated/PoolFactory/PoolFactory";
 import { RangedCollectionCollateralFilter as RangedCollectionCollateralFilterContract } from "../generated/PoolFactory/RangedCollectionCollateralFilter";
 import { SetCollectionCollateralFilter as SetCollectionCollateralFilterContract } from "../generated/PoolFactory/SetCollectionCollateralFilter";
-import { MerkleCollectionCollateralFilter as MerkleCollectionCollateralFilterContract } from "../generated/PoolFactory/MerkleCollectionCollateralFilter";
 import {
   CollateralToken as CollateralTokenEntity,
   CurrencyToken as CurrencyTokenEntity,
@@ -14,18 +14,20 @@ import {
 import { Pool as PoolTemplate, PoolV1 as PoolTemplateV1 } from "../generated/templates";
 
 export function handlePoolCreated(event: PoolCreatedEvent): void {
-  const poolAddress = event.params.pool;
-  const poolContract = PoolContract.bind(poolAddress);
-
   /**************************************************************************/
   /* Create Pool entity*/
   /**************************************************************************/
+
+  const poolAddress = event.params.pool;
+  const poolContract = PoolContract.bind(poolAddress);
+
   const poolEntity = new PoolEntity(poolAddress);
   // Properties
   poolEntity.implementationVersionMajor = poolContract.IMPLEMENTATION_VERSION().split(".")[0];
   poolEntity.implementation = event.params.implementation;
-  poolEntity.collateralWrappers = poolContract.collateralWrappers().map<Bytes>((x) => x);
+  poolEntity.collateralToken = poolContract.collateralToken();
   poolEntity.currencyToken = poolContract.currencyToken();
+  poolEntity.collateralWrappers = poolContract.collateralWrappers().map<Bytes>((x) => x);
   poolEntity.durations = poolContract.durations();
   poolEntity.rates = poolContract.rates();
   poolEntity.adminFeeRate = poolContract.adminFeeRate();
@@ -46,14 +48,9 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   poolEntity.loansRepaid = BigInt.zero();
   poolEntity.loansLiquidated = BigInt.zero();
   poolEntity.loansCollateralLiquidated = BigInt.zero();
-
-  /**************************************************************************/
-  /* Create CollateralToken entity */
-  /**************************************************************************/
-  const collateralTokenAddress = poolContract.collateralToken();
+  // Collateral Filter properties */
   const collateralFilterName = poolContract.COLLATERAL_FILTER_NAME();
 
-  let collateralTokenEntityId: string;
   let tokenIdRange: BigInt[] | null = null;
   let tokenIdSet: BigInt[] | null = null;
   let tokenIdMerkleRoot: Bytes | null = null;
@@ -63,34 +60,33 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
     const rangedCollectionCollateralFilterContract = RangedCollectionCollateralFilterContract.bind(poolAddress);
     const range = rangedCollectionCollateralFilterContract.collateralTokenIdRange();
     tokenIdRange = [range.value0, range.value1];
-    collateralTokenEntityId = `${collateralTokenAddress.toHexString()}:${range.value0}:${range.value1}`;
   } else if (collateralFilterName == "SetCollectionCollateralFilter") {
     const setCollectionCollateralFilterContract = SetCollectionCollateralFilterContract.bind(poolAddress);
     tokenIdSet = setCollectionCollateralFilterContract.collateralTokenIds();
-    // FIXME will collide with an existing collection collateral token
-    collateralTokenEntityId = collateralTokenAddress.toHexString();
   } else if (collateralFilterName == "MerkleCollectionCollateralFilter") {
     const merkleCollectionCollateralFilterContract = MerkleCollectionCollateralFilterContract.bind(poolAddress);
     tokenIdMerkleRoot = merkleCollectionCollateralFilterContract.merkleRoot();
     tokenIdMerkleMetadataURI = merkleCollectionCollateralFilterContract.metadataURI();
-    // FIXME id will collide with an existing collection collateral token
-    collateralTokenEntityId = collateralTokenAddress.toHexString();
-  }  else {
-    collateralTokenEntityId = collateralTokenAddress.toHexString();
   }
 
-  let collateralTokenEntity = CollateralTokenEntity.load(collateralTokenEntityId);
-  if (!collateralTokenEntity) {
-    /* Create collateral token entity if it doesn't exists */
-    collateralTokenEntity = new CollateralTokenEntity(collateralTokenEntityId);
-    collateralTokenEntity.address = collateralTokenAddress;
-    collateralTokenEntity.tokenIdRange = tokenIdRange;
-    collateralTokenEntity.tokenIdSet = tokenIdSet;
-    collateralTokenEntity.tokenIdMerkleRoot = tokenIdMerkleRoot;
-    collateralTokenEntity.tokenIdMerkleMetadataURI = tokenIdMerkleMetadataURI;
-    collateralTokenEntity.auctionsActive = BigInt.zero();
+  poolEntity.tokenIdRange = tokenIdRange;
+  poolEntity.tokenIdSet = tokenIdSet;
+  poolEntity.tokenIdMerkleRoot = tokenIdMerkleRoot;
+  poolEntity.tokenIdMerkleMetadataURI = tokenIdMerkleMetadataURI;
 
-    const erc721Contract = ERC721.bind(collateralTokenAddress);
+  poolEntity.save();
+
+  /**************************************************************************/
+  /* Create CollateralToken entity*/
+  /**************************************************************************/
+
+  let collateralTokenEntity = CollateralTokenEntity.load(poolEntity.collateralToken);
+
+  /* Create collateral token entity if it doesn't exist */
+  if (!collateralTokenEntity) {
+    collateralTokenEntity = new CollateralTokenEntity(poolEntity.collateralToken);
+
+    const erc721Contract = ERC721.bind(Address.fromBytes(poolEntity.collateralToken));
 
     const tokenName = erc721Contract.try_name();
     if (tokenName.reverted) collateralTokenEntity.name = "Unknown Token";
@@ -98,10 +94,14 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
 
     collateralTokenEntity.save();
   }
+
   /**************************************************************************/
   /* Create CurrencyToken entity */
   /**************************************************************************/
+
   let currencyTokenEntity = CurrencyTokenEntity.load(poolEntity.currencyToken);
+
+  /* Create currency token entity if it doesn't exist */
   if (!currencyTokenEntity) {
     currencyTokenEntity = new CurrencyTokenEntity(poolEntity.currencyToken);
 
@@ -117,16 +117,11 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
 
     currencyTokenEntity.save();
   }
+
   /**************************************************************************/
   /* Create Pool data source */
   /**************************************************************************/
-  // save pool entity
-  poolEntity.collateralToken = collateralTokenEntityId;
-  poolEntity.save();
 
-  if (poolEntity.implementationVersionMajor == "1") {
-    PoolTemplateV1.create(poolAddress);
-  } else {
-    PoolTemplate.create(poolAddress);
-  }
+  if (poolEntity.implementationVersionMajor == "1") PoolTemplateV1.create(poolAddress);
+  else PoolTemplate.create(poolAddress);
 }

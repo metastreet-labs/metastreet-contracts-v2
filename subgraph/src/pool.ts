@@ -3,7 +3,6 @@ import {
   Batch as BatchEntity,
   Bundle as BundleEntity,
   CollateralLiquidated as CollateralLiquidatedEntity,
-  CollateralToken as CollateralTokenEntity,
   Deposit as DepositEntity,
   Deposited as DepositedEntity,
   Loan as LoanEntity,
@@ -379,10 +378,7 @@ function createLoanEntity(
   loanEntity.loanReceipt = encodedReceipt;
   loanEntity.collateralToken = poolEntity.collateralToken;
 
-  const collateralTokenEntity = CollateralTokenEntity.load(poolEntity.collateralToken);
-  if (!collateralTokenEntity) throw new Error("CollateralToken entity not found");
-
-  if (loanReceipt.collateralToken.equals(collateralTokenEntity.address)) {
+  if (loanReceipt.collateralToken.equals(poolEntity.collateralToken)) {
     loanEntity.collateralTokenIds = [loanReceipt.collateralTokenId];
   } else {
     const collateralWrapperSymbol = ERC721Contract.bind(loanReceipt.collateralToken).symbol();

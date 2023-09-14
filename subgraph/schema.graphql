@@ -15,6 +15,11 @@ type Pool @entity {
   adminFeeRate: BigInt! # uint64
   collateralLiquidator: Bytes! # address
   delegationRegistry: Bytes! # address
+  # Collateral Filter
+  tokenIdRange: [BigInt!]
+  tokenIdSet: [BigInt!]
+  tokenIdMerkleRoot: Bytes
+  tokenIdMerkleMetadataURI: String
   # Derived Properties
   maxBorrows: [BigInt!]! # uint256[]
   # State
@@ -52,12 +57,7 @@ type PoolDayData @entity(immutable: true) {
 ################################################################################
 
 type CollateralToken @entity {
-  id: ID!
-  address: Bytes!
-  tokenIdRange: [BigInt!]
-  tokenIdSet: [BigInt!]
-  tokenIdMerkleRoot: Bytes
-  tokenIdMerkleMetadataURI: String
+  id: Bytes! # address
   name: String!
   auctionsActive: BigInt!
   pools: [Pool!]! @derivedFrom(field: "collateralToken")
