@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { ethers, network } from "hardhat";
+import { ethers } from "hardhat";
 import * as helpers from "@nomicfoundation/hardhat-network-helpers";
 
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
@@ -31,7 +31,6 @@ describe("Integration", function () {
   let poolImpl: Pool;
   let pool: Pool;
   let poolModel: PoolModel;
-  let snapshotId: string;
   let accountDepositors: SignerWithAddress[9];
   let accountBorrowers: SignerWithAddress[10];
   let accountLender: SignerWithAddress;
@@ -132,7 +131,6 @@ describe("Integration", function () {
 
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
-      5000,
       collateralLiquidator.address,
       delegationRegistry.address,
       [bundleCollateralWrapper.address],
@@ -196,8 +194,6 @@ describe("Integration", function () {
   });
 
   beforeEach("snapshot blockchain", async () => {
-    snapshotId = await network.provider.send("evm_snapshot", []);
-
     /* Reset internal storage */
     collateralsOwned = new Map<string, Set<ethers.BigNumber>>();
     loans = [];
@@ -218,10 +214,6 @@ describe("Integration", function () {
       liquidate: 0,
       onCollateralLiquidated: 0,
     };
-  });
-
-  afterEach("restore blockchain snapshot", async () => {
-    await network.provider.send("evm_revert", [snapshotId]);
   });
 
   /****************************************************************************/
@@ -396,12 +388,18 @@ describe("Integration", function () {
     let value = ethers.constants.Zero;
     let available = ethers.constants.Zero;
     let pending = ethers.constants.Zero;
+    let accrued = ethers.constants.Zero;
+    let accrualRate = ethers.constants.Zero;
     for (let node of nodes) {
       value = value.add(node.value);
       available = available.add(node.available);
       pending = pending.add(node.pending);
+
+      const [_, accrual] = await pool.liquidityNodeWithAccrual(node.tick);
+      accrued = accrued.add(accrual.accrued);
+      accrualRate = accrualRate.add(accrual.rate);
     }
-    return [value, available, pending];
+    return [value, available, pending, accrued, accrualRate];
   }
 
   async function compareStates(): Promise<void> {
@@ -620,8 +618,9 @@ describe("Integration", function () {
 
       /* Check if expired */
       if (timestamp.gt(maturity)) {
-        /* Remove loan from internal records based on encoded loan receipt */
-        removeLoanFromStorage(loans, encodedLoanReceipt);
+        /* Liquidate expired loan */
+        await liquidate(loan);
+
         return;
       }
 
@@ -697,13 +696,13 @@ describe("Integration", function () {
 
       /* Check if expired */
       if (timestamp.gt(maturity)) {
-        /* Remove loan from internal records based on encoded loan receipt */
-        removeLoanFromStorage(loans, encodedLoanReceipt);
+        /* Liquidate expired loan */
+        await liquidate(loan);
         return;
       }
 
       /* Go fast forward to a random timestamp that is before maturity */
-      const randomTimestamp = getRandomBN(maturity.sub(timestamp)).add(timestamp);
+      const randomTimestamp = getRandomBN(maturity.sub(timestamp).sub(1)).add(timestamp);
       await helpers.time.increaseTo(randomTimestamp);
 
       /* Source liquidity */
@@ -911,7 +910,7 @@ describe("Integration", function () {
     }
   }
 
-  async function liquidate(): Promise<void> {
+  async function liquidate(expiredLoan: any = null): Promise<void> {
     try {
       consoleLog("Executing liquidate()...");
 
@@ -922,7 +921,7 @@ describe("Integration", function () {
       }
 
       /* Randomly select existing loans */
-      const loan = loans[getRandomInteger(0, loans.length)];
+      const loan = expiredLoan ?? loans[getRandomInteger(0, loans.length)];
 
       const [borrower, tokenId, encodedLoanReceipt] = loan;
 
@@ -1040,6 +1039,21 @@ describe("Integration", function () {
   });
 
   after("integration test report", async function () {
+    /* Repay all outstanding loans */
+    while (loans.length != 0) {
+      await repay();
+    }
+
+    /* Restore all outstanding defaulted loans */
+    while (defaultedLoans.length != 0) {
+      await onCollateralLiquidated();
+    }
+
+    /* Check that accrued and accrualRate are 0 */
+    const [value, available, pending, accrued, accrualRate] = await liquidityNodes();
+    expect(accrued).to.equal(0, "Accrued is not 0");
+    expect(accrualRate).to.equal(0, "AccrualRate is not 0");
+
     consoleLog("\nSuccessful calls:");
     consoleLog(callStatistics);
   });

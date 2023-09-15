@@ -89,14 +89,27 @@ library LiquidityManager {
     }
 
     /**
+     * @notice Accrual state
+     * @param accrued Accrued interest
+     * @param rate Accrual rate
+     * @param timestamp Last accrual timestamp
+     */
+    struct Accrual {
+        uint128 accrued;
+        uint64 rate;
+        uint64 timestamp;
+    }
+
+    /**
      * @notice Liquidity node
      * @param value Liquidity value
      * @param shares Liquidity shares outstanding
      * @param available Liquidity available
      * @param pending Liquidity pending (with interest)
-     * @param redemption Redemption state
      * @param prev Previous liquidity node
      * @param next Next liquidity node
+     * @param redemption Redemption state
+     * @param accrual Accrual state
      */
     struct Node {
         uint128 value;
@@ -106,6 +119,7 @@ library LiquidityManager {
         uint128 prev;
         uint128 next;
         Redemptions redemptions;
+        Accrual accrual;
     }
 
     /**
@@ -179,6 +193,37 @@ library LiquidityManager {
         }
 
         return nodes;
+    }
+
+    /**
+     * @notice Get liquidity node with accrual info at tick
+     * @param liquidity Liquidity state
+     * @param tick Tick
+     * @return Liquidity node, Accrual info
+     */
+    function liquidityNodeWithAccrual(
+        Liquidity storage liquidity,
+        uint128 tick
+    ) internal view returns (ILiquidity.NodeInfo memory, ILiquidity.AccrualInfo memory) {
+        Node storage node = liquidity.nodes[tick];
+
+        return (
+            ILiquidity.NodeInfo({
+                tick: tick,
+                value: node.value,
+                shares: node.shares,
+                available: node.available,
+                pending: node.pending,
+                redemptions: node.redemptions.pending,
+                prev: node.prev,
+                next: node.next
+            }),
+            ILiquidity.AccrualInfo({
+                accrued: node.accrual.accrued,
+                rate: node.accrual.rate,
+                timestamp: node.accrual.timestamp
+            })
+        );
     }
 
     /**
@@ -400,6 +445,15 @@ library LiquidityManager {
         }
     }
 
+    /**
+     * @notice Process accrued value from accrual rate and timestamp
+     * @param node Liquidity node
+     */
+    function _accrue(Node storage node) internal {
+        node.accrual.accrued += node.accrual.rate * uint64(block.timestamp - node.accrual.timestamp);
+        node.accrual.timestamp = uint64(block.timestamp);
+    }
+
     /**************************************************************************/
     /* Primary API */
     /**************************************************************************/
@@ -419,15 +473,9 @@ library LiquidityManager {
      * @param liquidity Liquidity state
      * @param tick Tick
      * @param amount Amount
-     * @param depositPremiumRate Deposit premium rate in basis points
      * @return Number of shares
      */
-    function deposit(
-        Liquidity storage liquidity,
-        uint128 tick,
-        uint128 amount,
-        uint256 depositPremiumRate
-    ) internal returns (uint128) {
+    function deposit(Liquidity storage liquidity, uint128 tick, uint128 amount) internal returns (uint128) {
         Node storage node = liquidity.nodes[tick];
 
         /* If tick is reserved */
@@ -436,12 +484,16 @@ library LiquidityManager {
         /* Instantiate node, if necessary */
         _instantiate(liquidity, node, tick);
 
-        /* Compute deposit price as current value + the deposit premium rate on pending returns */
+        /* Process accrual */
+        _accrue(node);
+
+        /* Compute deposit price */
         uint256 price = node.shares == 0
             ? FIXED_POINT_SCALE
-            : ((node.value +
-                (((node.available + node.pending - node.value) * depositPremiumRate) / BASIS_POINTS_SCALE)) *
-                FIXED_POINT_SCALE) / node.shares;
+            : (Math.min(node.value + node.accrual.accrued, node.available + node.pending) * FIXED_POINT_SCALE) /
+                node.shares;
+
+        /* Compute shares */
         uint128 shares = ((amount * FIXED_POINT_SCALE) / price).toUint128();
 
         node.value += amount;
@@ -459,13 +511,19 @@ library LiquidityManager {
      * @param liquidity Liquidity state
      * @param tick Tick
      * @param used Used amount
-     * @param pending Pending Amount
+     * @param pending Pending amount
+     * @param duration Duration
      */
-    function use(Liquidity storage liquidity, uint128 tick, uint128 used, uint128 pending) internal {
+    function use(Liquidity storage liquidity, uint128 tick, uint128 used, uint128 pending, uint64 duration) internal {
         Node storage node = liquidity.nodes[tick];
 
         node.available -= used;
         node.pending += pending;
+
+        /* Process accrual */
+        _accrue(node);
+        /* Increment accrual rate */
+        node.accrual.rate += uint64((pending - used) / duration);
     }
 
     /**
@@ -475,13 +533,17 @@ library LiquidityManager {
      * @param used Used amount
      * @param pending Pending amount
      * @param restored Restored amount
+     * @param duration Duration
+     * @param elapsed Elapsed time since origination
      */
     function restore(
         Liquidity storage liquidity,
         uint128 tick,
         uint128 used,
         uint128 pending,
-        uint128 restored
+        uint128 restored,
+        uint64 duration,
+        uint64 elapsed
     ) internal {
         Node storage node = liquidity.nodes[tick];
 
@@ -494,6 +556,13 @@ library LiquidityManager {
 
         /* Process any pending redemptions */
         _processRedemptions(liquidity, node);
+
+        /* Process accrual */
+        _accrue(node);
+        /* Decrement accrual rate and accrued */
+        uint128 interest = pending - used;
+        node.accrual.rate -= uint64(interest / duration);
+        node.accrual.accrued -= (interest / duration) * elapsed;
     }
 
     /**

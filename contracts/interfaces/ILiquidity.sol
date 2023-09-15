@@ -41,6 +41,18 @@ interface ILiquidity {
         uint128 next;
     }
 
+    /**
+     * @notice Accrual info returned by getter
+     * @param accrued Accrued interest
+     * @param rate Accrual rate
+     * @param timestamp Accrual timestamp
+     */
+    struct AccrualInfo {
+        uint128 accrued;
+        uint64 rate;
+        uint64 timestamp;
+    }
+
     /**************************************************************************/
     /* API */
     /**************************************************************************/
@@ -59,4 +71,11 @@ interface ILiquidity {
      * @return Liquidity node
      */
     function liquidityNode(uint128 tick) external view returns (NodeInfo memory);
+
+    /**
+     * Get liquidity node with accrual info at tick
+     * @param tick Tick
+     * @return Liquidity node, Accrual info
+     */
+    function liquidityNodeWithAccrual(uint128 tick) external view returns (NodeInfo memory, AccrualInfo memory);
 }

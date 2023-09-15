@@ -63,6 +63,15 @@ contract TestLiquidityManager is ILiquidity {
         return _liquidity.liquidityNode(tick);
     }
 
+    /**
+     * @inheritdoc ILiquidity
+     */
+    function liquidityNodeWithAccrual(
+        uint128 tick
+    ) external view returns (ILiquidity.NodeInfo memory, ILiquidity.AccrualInfo memory) {
+        return _liquidity.liquidityNodeWithAccrual(tick);
+    }
+
     /**************************************************************************/
     /* Wrapper for Primary API */
     /**************************************************************************/
@@ -89,8 +98,8 @@ contract TestLiquidityManager is ILiquidity {
     /**
      * @dev External wrapper function for LiquidityManager.deposit()
      */
-    function deposit(uint128 tick, uint128 amount, uint256 depositPremiumRate) external returns (uint256) {
-        uint128 shares = _liquidity.deposit(tick, amount, depositPremiumRate);
+    function deposit(uint128 tick, uint128 amount) external returns (uint256) {
+        uint128 shares = _liquidity.deposit(tick, amount);
         emit Deposited(shares);
         return shares;
     }
@@ -98,15 +107,22 @@ contract TestLiquidityManager is ILiquidity {
     /**
      * @dev External wrapper function for LiquidityManager.use()
      */
-    function use(uint128 tick, uint128 amount, uint128 pending) external {
-        _liquidity.use(tick, amount, pending);
+    function use(uint128 tick, uint128 amount, uint128 pending, uint64 duration) external {
+        _liquidity.use(tick, amount, pending, duration);
     }
 
     /**
      * @dev External wrapper function for LiquidityManager.restore()
      */
-    function restore(uint128 tick, uint128 used, uint128 pending, uint128 restored) external {
-        _liquidity.restore(tick, used, pending, restored);
+    function restore(
+        uint128 tick,
+        uint128 used,
+        uint128 pending,
+        uint128 restored,
+        uint64 duration,
+        uint64 elapsed
+    ) external {
+        _liquidity.restore(tick, used, pending, restored, duration, elapsed);
     }
 
     /**
