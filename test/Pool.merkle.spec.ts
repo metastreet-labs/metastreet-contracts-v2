@@ -82,7 +82,6 @@ describe("Pool Merkle", function () {
 
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
-      5000,
       collateralLiquidator.address,
       delegationRegistry.address,
       [],

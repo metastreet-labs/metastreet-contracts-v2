@@ -26,22 +26,17 @@ contract WeightedRateRangedCollectionPool is Pool, WeightedInterestRateModel, Ra
 
     /**
      * @notice Pool constructor
-     * @param depositPremiumRate Deposit premium rate in basis points
      * @param collateralLiquidator Collateral liquidator
      * @param delegationRegistry Delegation registry contract
      * @param collateralWrappers Collateral wrappers
      * @param parameters WeightedInterestRateModel parameters
      */
     constructor(
-        uint256 depositPremiumRate,
         address collateralLiquidator,
         address delegationRegistry,
         address[] memory collateralWrappers,
         WeightedInterestRateModel.Parameters memory parameters
-    )
-        Pool(depositPremiumRate, collateralLiquidator, delegationRegistry, collateralWrappers)
-        WeightedInterestRateModel(parameters)
-    {
+    ) Pool(collateralLiquidator, delegationRegistry, collateralWrappers) WeightedInterestRateModel(parameters) {
         /* Disable initialization of implementation contract */
         _initialized = true;
     }

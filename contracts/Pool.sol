@@ -129,11 +129,6 @@ abstract contract Pool is
     /**************************************************************************/
 
     /**
-     * @notice Deposit premium rate in basis points
-     */
-    uint256 internal immutable _depositPremiumRate;
-
-    /**
      * @notice Collateral wrappers (max 3)
      */
     address internal immutable _collateralWrapper1;
@@ -205,21 +200,13 @@ abstract contract Pool is
 
     /**
      * @notice Pool constructor
-     * @param depositPremiumRate_ Deposit premium rate in basis points
      * @param collateralLiquidator_ Collateral liquidator
      * @param delegationRegistry_ Delegation registry contract
      * @param collateralWrappers_ Collateral wrappers
      */
-    constructor(
-        uint256 depositPremiumRate_,
-        address collateralLiquidator_,
-        address delegationRegistry_,
-        address[] memory collateralWrappers_
-    ) {
-        if (depositPremiumRate_ > LiquidityManager.BASIS_POINTS_SCALE) revert InvalidParameters();
+    constructor(address collateralLiquidator_, address delegationRegistry_, address[] memory collateralWrappers_) {
         if (collateralWrappers_.length > 3) revert InvalidParameters();
 
-        _depositPremiumRate = depositPremiumRate_;
         _collateralLiquidator = ICollateralLiquidator(collateralLiquidator_);
         _delegationRegistry = IDelegationRegistry(delegationRegistry_);
         _collateralWrapper1 = (collateralWrappers_.length > 0) ? collateralWrappers_[0] : address(0);
@@ -322,13 +309,6 @@ abstract contract Pool is
      */
     function adminFeeBalance() external view returns (uint256) {
         return _adminFeeBalance;
-    }
-
-    /**
-     * @inheritdoc IPool
-     */
-    function depositPremiumRate() external view returns (uint256) {
-        return _depositPremiumRate;
     }
 
     /**
@@ -712,7 +692,7 @@ abstract contract Pool is
             uint128 pending = nodes[i].used + interest[i];
 
             /* Use node */
-            _liquidity.use(nodes[i].tick, nodes[i].used, pending);
+            _liquidity.use(nodes[i].tick, nodes[i].used, pending, duration);
 
             /* Construct node receipt */
             receipt.nodeReceipts[i] = LoanReceipt.NodeReceipt({
@@ -762,6 +742,9 @@ abstract contract Pool is
         /* Compute proration and repayment using prorated interest */
         (uint256 repayment, uint256 proration) = _prorateRepayment(loanReceipt);
 
+        /* Compute elapsed time since loan origination */
+        uint64 elapsed = uint64(block.timestamp + loanReceipt.duration - loanReceipt.maturity);
+
         /* Restore liquidity nodes */
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
             /* Restore node */
@@ -773,7 +756,9 @@ abstract contract Pool is
                     uint128(
                         ((loanReceipt.nodeReceipts[i].pending - loanReceipt.nodeReceipts[i].used) * proration) /
                             LiquidityManager.FIXED_POINT_SCALE
-                    )
+                    ),
+                loanReceipt.duration,
+                elapsed
             );
         }
 
@@ -798,7 +783,7 @@ abstract contract Pool is
         Tick.validate(tick, 0, 0, _durations.length - 1, 0, _rates.length - 1);
 
         /* Deposit into liquidity node */
-        uint128 shares = _liquidity.deposit(tick, amount, _depositPremiumRate);
+        uint128 shares = _liquidity.deposit(tick, amount);
 
         /* Validate shares received is sufficient */
         if (shares == 0 || shares < minShares) revert InsufficientShares();
@@ -1093,6 +1078,7 @@ abstract contract Pool is
         uint256 totalPending = loanReceipt.repayment - loanReceipt.adminFee;
 
         /* Restore liquidity nodes */
+        uint64 elapsed = uint64(block.timestamp + loanReceipt.duration - loanReceipt.maturity);
         uint256 proceedsRemaining = lendersProceeds;
         uint256 lastIndex = loanReceipt.nodeReceipts.length - 1;
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
@@ -1106,7 +1092,9 @@ abstract contract Pool is
                 loanReceipt.nodeReceipts[i].tick,
                 loanReceipt.nodeReceipts[i].used,
                 loanReceipt.nodeReceipts[i].pending,
-                restored.toUint128()
+                restored.toUint128(),
+                loanReceipt.duration,
+                elapsed
             );
 
             /* Update proceeds remaining */
