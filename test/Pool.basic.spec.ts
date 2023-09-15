@@ -77,7 +77,6 @@ describe("Pool Basic", function () {
 
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
-      5000,
       collateralLiquidator.address,
       delegationRegistry.address,
       [],
@@ -346,12 +345,14 @@ describe("Pool Basic", function () {
 
       /* Revert since shares received is 0 */
       await expect(
-        pool.connect(accountDepositors[1]).deposit(Tick.encode("1"), FixedPoint.from("0.000000000000000001"), 0)
+        pool
+          .connect(accountDepositors[1])
+          .deposit(Tick.encode("1"), FixedPoint.from("0.000000000000000001"), FixedPoint.from("0.000000000000000001"))
       ).to.be.revertedWithCustomError(pool, "InsufficientShares");
 
       /* Revert since shares received less than min shares */
       await expect(
-        pool.connect(accountDepositors[1]).deposit(Tick.encode("1"), FixedPoint.from("1"), "999995890427848045")
+        pool.connect(accountDepositors[1]).deposit(Tick.encode("1"), FixedPoint.from("1"), FixedPoint.from("1"))
       ).to.be.revertedWithCustomError(pool, "InsufficientShares");
     });
   });
@@ -1567,7 +1568,7 @@ describe("Pool Basic", function () {
 
       /* Revert since shares received less than min shares */
       await expect(
-        pool.connect(accountDepositors[2]).rebalance(Tick.encode("2"), Tick.encode("1"), 0, "999995890427848045")
+        pool.connect(accountDepositors[2]).rebalance(Tick.encode("2"), Tick.encode("1"), 0, Tick.encode("1"))
       ).to.be.revertedWithCustomError(pool, "InsufficientShares");
     });
 

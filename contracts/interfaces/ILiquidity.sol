@@ -29,6 +29,9 @@ interface ILiquidity {
      * @param redemptions Total pending redemptions
      * @param prev Previous liquidity node
      * @param next Next liquidity node
+     * @param accrued Accrued interest
+     * @param accrualRate Accrual rate
+     * @param accrualTimestamp Accrual timestamp
      */
     struct NodeInfo {
         uint128 tick;
@@ -39,6 +42,9 @@ interface ILiquidity {
         uint128 redemptions;
         uint128 prev;
         uint128 next;
+        uint128 accrued;
+        uint64 accrualRate;
+        uint64 accrualTimestamp;
     }
 
     /**************************************************************************/
