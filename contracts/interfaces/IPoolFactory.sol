@@ -14,6 +14,11 @@ interface IPoolFactory {
      */
     error UnsupportedImplementation();
 
+    /**
+     * @notice Invalid Pool
+     */
+    error InvalidPool();
+
     /**************************************************************************/
     /* Events */
     /**************************************************************************/

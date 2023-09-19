@@ -124,7 +124,7 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
     /**
      * @inheritdoc IPoolFactory
      */
-    function isPool(address pool) external view returns (bool) {
+    function isPool(address pool) public view returns (bool) {
         return _pools.contains(pool);
     }
 
@@ -159,6 +159,18 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
     /**************************************************************************/
     /* Admin API */
     /**************************************************************************/
+
+    /**
+     * @notice Set pool admin fee rate
+     * @param pool Pool address
+     * @param rate Rate is the admin fee in basis points
+     */
+    function setAdminFeeRate(address pool, uint32 rate) external onlyOwner {
+        /* Validate pool */
+        if (!isPool(pool)) revert InvalidPool();
+
+        Address.functionCall(pool, abi.encodeWithSignature("setAdminFeeRate(uint32)", rate));
+    }
 
     /**
      * @notice Add pool implementation to allowlist
