@@ -3238,7 +3238,6 @@ describe("Pool Basic", function () {
     });
 
     it("fails on invalid value", async function () {
-      await expect(pool.setAdminFeeRate(0)).to.be.revertedWithCustomError(pool, "InvalidParameters");
       await expect(pool.setAdminFeeRate(10000)).to.be.revertedWithCustomError(pool, "InvalidParameters");
     });
 

@@ -1224,7 +1224,7 @@ abstract contract Pool is
      */
     function setAdminFeeRate(uint32 rate) external {
         if (msg.sender != _admin) revert InvalidCaller();
-        if (rate == 0 || rate >= LiquidityManager.BASIS_POINTS_SCALE) revert InvalidParameters();
+        if (rate >= LiquidityManager.BASIS_POINTS_SCALE) revert InvalidParameters();
 
         _adminFeeRate = rate;
 
