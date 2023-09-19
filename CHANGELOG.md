@@ -1,3 +1,7 @@
+* Pool v2.1 - 09/20/2023
+    * Add accrual value deposit pricing.
+    * Allow resetting admin fee rate to zero.
+
 * Pool v2.0 - 08/31/2023
     * Reverse duration ordering in ticks to source from longer duration ticks
       before shorter duration ones.
