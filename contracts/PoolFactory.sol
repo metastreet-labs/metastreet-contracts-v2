@@ -162,6 +162,7 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
 
     /**
      * @notice Add pool implementation to allowlist
+     * @param poolImplementation Pool implementation
      */
     function addPoolImplementation(address poolImplementation) external onlyOwner {
         if (_allowedImplementations.add(poolImplementation)) {
@@ -171,6 +172,7 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
 
     /**
      * @notice Remove pool implementation from allowlist
+     * @param poolImplementation Pool implementation
      */
     function removePoolImplementation(address poolImplementation) external onlyOwner {
         if (_allowedImplementations.remove(poolImplementation)) {
