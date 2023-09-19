@@ -155,10 +155,7 @@ library LiquidityManager {
                 pending: node.pending,
                 redemptions: node.redemptions.pending,
                 prev: node.prev,
-                next: node.next,
-                accrued: node.accrual.accrued,
-                accrualRate: node.accrual.rate,
-                accrualTimestamp: node.accrual.timestamp
+                next: node.next
             });
     }
 
@@ -196,6 +193,37 @@ library LiquidityManager {
         }
 
         return nodes;
+    }
+
+    /**
+     * Get liquidity node with accrual info at tick
+     * @param liquidity Liquidity state
+     * @param tick Tick
+     * @return Liquidity node, Accrual info
+     */
+    function liquidityNodeWithAccrual(
+        Liquidity storage liquidity,
+        uint128 tick
+    ) internal view returns (ILiquidity.NodeInfo memory, ILiquidity.AccrualInfo memory) {
+        Node storage node = liquidity.nodes[tick];
+
+        return (
+            ILiquidity.NodeInfo({
+                tick: tick,
+                value: node.value,
+                shares: node.shares,
+                available: node.available,
+                pending: node.pending,
+                redemptions: node.redemptions.pending,
+                prev: node.prev,
+                next: node.next
+            }),
+            ILiquidity.AccrualInfo({
+                accrued: node.accrual.accrued,
+                rate: node.accrual.rate,
+                timestamp: node.accrual.timestamp
+            })
+        );
     }
 
     /**

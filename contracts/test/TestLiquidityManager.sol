@@ -63,6 +63,15 @@ contract TestLiquidityManager is ILiquidity {
         return _liquidity.liquidityNode(tick);
     }
 
+    /**
+     * @inheritdoc ILiquidity
+     */
+    function liquidityNodeWithAccrual(
+        uint128 tick
+    ) external view returns (ILiquidity.NodeInfo memory, ILiquidity.AccrualInfo memory) {
+        return _liquidity.liquidityNodeWithAccrual(tick);
+    }
+
     /**************************************************************************/
     /* Wrapper for Primary API */
     /**************************************************************************/

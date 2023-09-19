@@ -403,6 +403,13 @@ abstract contract Pool is
         return _liquidity.liquidityNode(tick);
     }
 
+    /**
+     * @inheritdoc ILiquidity
+     */
+    function liquidityNodeWithAccrual(uint128 tick) external view returns (NodeInfo memory, AccrualInfo memory) {
+        return _liquidity.liquidityNodeWithAccrual(tick);
+    }
+
     /**************************************************************************/
     /* Helper Functions */
     /**************************************************************************/

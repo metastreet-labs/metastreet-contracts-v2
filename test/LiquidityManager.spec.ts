@@ -131,14 +131,14 @@ describe("LiquidityManager", function () {
       });
 
       /* Validate node */
-      const node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      const [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("5"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(FixedPoint.from("5"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
     });
     it("deposits into active node that has appreciated", async function () {
       /* Appreciate node */
@@ -165,14 +165,14 @@ describe("LiquidityManager", function () {
       });
 
       /* Validate node */
-      const node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      const [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("9"));
       expect(node.shares).to.equal(FixedPoint.from("7.5"));
       expect(node.available).to.equal(FixedPoint.from("9"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
     });
     it("deposits into active node that has depreciated", async function () {
       /* Depreciate node */
@@ -199,14 +199,14 @@ describe("LiquidityManager", function () {
       });
 
       /* Validate node */
-      const node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      const [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("6"));
       expect(node.shares).to.equal(FixedPoint.from("7.5"));
       expect(node.available).to.equal(FixedPoint.from("6"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
     });
     it("deposits into active node that has pending returns", async function () {
       /* Create node with used liquidity */
@@ -232,14 +232,14 @@ describe("LiquidityManager", function () {
       });
 
       /* Validate node */
-      const node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      const [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("8"));
       expect(node.shares).to.closeTo(FixedPoint.from("7.5"), 1000000);
       expect(node.available).to.equal(FixedPoint.from("3"));
       expect(node.pending).to.equal(FixedPoint.from("7"));
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.closeTo(FixedPoint.from("1"), 1000000);
-      expect(node.accrualRate).to.closeTo(FixedPoint.from("2").div(30 * 86000), 4000000000);
+      expect(accrual.accrued).to.closeTo(FixedPoint.from("1"), 1000000);
+      expect(accrual.rate).to.closeTo(FixedPoint.from("2").div(30 * 86000), 4000000000);
     });
     it("fails on reserved node", async function () {
       await expect(liquidityManager.deposit(0, FixedPoint.from("5"))).to.be.revertedWithCustomError(
@@ -302,14 +302,14 @@ describe("LiquidityManager", function () {
       await liquidityManager.use(Tick.encode("3"), FixedPoint.from("3"), FixedPoint.from("3.2"), 30 * 86400);
 
       /* Validate node */
-      const node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      const [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("5"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(FixedPoint.from("2"));
       expect(node.pending).to.equal(FixedPoint.from("3.2"));
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(FixedPoint.from("0.2").div(30 * 86400));
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(FixedPoint.from("0.2").div(30 * 86400));
     });
   });
 
@@ -334,14 +334,14 @@ describe("LiquidityManager", function () {
       );
 
       /* Validate node */
-      const node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      const [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("6"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(FixedPoint.from("6"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
     });
     it("restores less than pending", async function () {
       /* Use */
@@ -358,14 +358,14 @@ describe("LiquidityManager", function () {
       );
 
       /* Validate node */
-      const node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      const [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("4"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(FixedPoint.from("4"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
     });
     it("restores less than pending and becomes impaired", async function () {
       /* Use */
@@ -382,7 +382,7 @@ describe("LiquidityManager", function () {
       );
 
       /* Validate node */
-      let node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      let [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("0.20"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(FixedPoint.from("0.20"));
@@ -390,11 +390,11 @@ describe("LiquidityManager", function () {
       expect(node.redemptions).to.equal(ethers.constants.Zero);
       expect(node.prev).to.equal(ethers.constants.Zero);
       expect(node.next).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
 
       /* Validate head node linkage */
-      node = await liquidityManager.liquidityNode(ethers.constants.Zero);
+      [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(ethers.constants.Zero);
       expect(node.prev).to.equal(ethers.constants.Zero);
       expect(node.next).to.equal(MaxUint128);
     });
@@ -413,7 +413,7 @@ describe("LiquidityManager", function () {
       );
 
       /* Validate node */
-      let node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      let [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(4);
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(4);
@@ -421,11 +421,11 @@ describe("LiquidityManager", function () {
       expect(node.redemptions).to.equal(ethers.constants.Zero);
       expect(node.prev).to.equal(ethers.constants.Zero);
       expect(node.next).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
 
       /* Validate head node linkage */
-      node = await liquidityManager.liquidityNode(ethers.constants.Zero);
+      [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(ethers.constants.Zero);
       expect(node.prev).to.equal(ethers.constants.Zero);
       expect(node.next).to.equal(MaxUint128);
     });
@@ -460,14 +460,14 @@ describe("LiquidityManager", function () {
       });
 
       /* Validate node */
-      const node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      const [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("5"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(ethers.constants.Zero);
       expect(node.pending).to.equal(FixedPoint.from("5"));
       expect(node.redemptions).to.equal(FixedPoint.from("2"));
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
     });
     it("redeems from subsequent index", async function () {
       /* Redeem */
@@ -480,14 +480,14 @@ describe("LiquidityManager", function () {
       });
 
       /* Validate node */
-      let node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      let [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("4"));
       expect(node.shares).to.equal(FixedPoint.from("4"));
       expect(node.available).to.equal(FixedPoint.from("4"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
 
       /* Redeem */
       const redeemTx2 = await liquidityManager.redeem(Tick.encode("3"), FixedPoint.from("1"));
@@ -499,14 +499,14 @@ describe("LiquidityManager", function () {
       });
 
       /* Validate node */
-      node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("3"));
       expect(node.shares).to.equal(FixedPoint.from("3"));
       expect(node.available).to.equal(FixedPoint.from("3"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
     });
   });
 
@@ -546,14 +546,14 @@ describe("LiquidityManager", function () {
       ).to.deep.equal([FixedPoint.from("1"), FixedPoint.from("1")]);
 
       /* Validate node */
-      const node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      const [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("2"));
       expect(node.shares).to.equal(FixedPoint.from("2"));
       expect(node.available).to.equal(FixedPoint.from("2"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
     });
     it("processes redemption from restored liquidity", async function () {
       /* Use */
@@ -575,7 +575,7 @@ describe("LiquidityManager", function () {
       ).to.deep.equal([ethers.constants.Zero, ethers.constants.Zero]);
 
       /* Validate node */
-      let node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      let [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("5"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(ethers.constants.Zero);
@@ -604,14 +604,14 @@ describe("LiquidityManager", function () {
       ).to.deep.equal([FixedPoint.from("2"), FixedPoint.from("2.4")]);
 
       /* Validate node */
-      node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("3.6"));
       expect(node.shares).to.equal(FixedPoint.from("3"));
       expect(node.available).to.equal(FixedPoint.from("3.6"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal("385802469135");
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal("385802469135");
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
     });
     it("processes redemption from restored liquidity at multiple prices", async function () {
       /* Use */
@@ -645,7 +645,7 @@ describe("LiquidityManager", function () {
       ).to.deep.equal([ethers.constants.Zero, ethers.constants.Zero]);
 
       /* Validate node */
-      let node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      let [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("5"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(ethers.constants.Zero);
@@ -681,7 +681,7 @@ describe("LiquidityManager", function () {
       ).to.deep.equal([FixedPoint.from("2.5"), FixedPoint.from("3")]);
 
       /* Validate node */
-      node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("3"));
       expect(node.shares).to.equal(FixedPoint.from("2.5"));
       expect(node.available).to.equal(ethers.constants.Zero);
@@ -715,14 +715,14 @@ describe("LiquidityManager", function () {
       ).to.deep.equal([FixedPoint.from("3"), FixedPoint.from("3.8")]);
 
       /* Validate node */
-      node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("3.2"));
       expect(node.shares).to.equal(FixedPoint.from("2"));
       expect(node.available).to.equal(FixedPoint.from("3.2"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
     });
     it("processes redemption from impaired liquidity", async function () {
       /* Use 5 amount */
@@ -754,7 +754,7 @@ describe("LiquidityManager", function () {
       ).to.deep.equal([ethers.constants.Zero, ethers.constants.Zero]);
 
       /* Validate node */
-      let node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      let [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("5"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(ethers.constants.Zero);
@@ -785,7 +785,7 @@ describe("LiquidityManager", function () {
       ).to.deep.equal([FixedPoint.from("3"), FixedPoint.from("0.12")]);
 
       /* Validate node */
-      node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("0.08"));
       expect(node.shares).to.equal(FixedPoint.from("2"));
       expect(node.available).to.equal(FixedPoint.from("0.08"));
@@ -817,7 +817,7 @@ describe("LiquidityManager", function () {
       ).to.deep.equal([FixedPoint.from("2"), FixedPoint.from("0.08")]);
 
       /* Validate node */
-      node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(ethers.constants.Zero);
       expect(node.shares).to.equal(ethers.constants.Zero);
       expect(node.available).to.equal(ethers.constants.Zero);
@@ -830,14 +830,14 @@ describe("LiquidityManager", function () {
       await liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("4"));
 
       /* Validate node */
-      node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("4"));
       expect(node.shares).to.equal(FixedPoint.from("4"));
       expect(node.available).to.equal(FixedPoint.from("4"));
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
     });
     it("processes redemption from insolvent liquidity", async function () {
       /* Use 5 amount */
@@ -869,7 +869,7 @@ describe("LiquidityManager", function () {
       ).to.deep.equal([ethers.constants.Zero, ethers.constants.Zero]);
 
       /* Validate node */
-      let node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      let [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("5"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(ethers.constants.Zero);
@@ -900,14 +900,14 @@ describe("LiquidityManager", function () {
       ).to.deep.equal([FixedPoint.from("2.5"), ethers.constants.Zero]);
 
       /* Validate node */
-      node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(0);
       expect(node.shares).to.equal(FixedPoint.from("2.5"));
       expect(node.available).to.equal(0);
       expect(node.pending).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
 
       /* Validate node is inactive */
       expect(node.prev).to.equal(ethers.constants.Zero);
@@ -934,7 +934,7 @@ describe("LiquidityManager", function () {
       ).to.deep.equal([FixedPoint.from("2.5"), ethers.constants.Zero]);
 
       /* Validate node */
-      node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(ethers.constants.Zero);
       expect(node.shares).to.equal(ethers.constants.Zero);
       expect(node.available).to.equal(ethers.constants.Zero);
@@ -942,8 +942,8 @@ describe("LiquidityManager", function () {
       expect(node.redemptions).to.equal(ethers.constants.Zero);
       expect(node.prev).to.equal(ethers.constants.Zero);
       expect(node.next).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
     });
 
     it("delays redemption of insolvent node with pending interest", async function () {
@@ -1001,7 +1001,7 @@ describe("LiquidityManager", function () {
       ).to.deep.equal([ethers.constants.Zero, ethers.constants.Zero]);
 
       /* Validate node is inactive */
-      let node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      let [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(1);
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(ethers.constants.Zero);
@@ -1009,8 +1009,8 @@ describe("LiquidityManager", function () {
       expect(node.redemptions).to.equal(FixedPoint.from("5"));
       expect(node.prev).to.equal(ethers.constants.Zero);
       expect(node.next).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
 
       /* Restore second to 3, leaving insolvent dust */
       await helpers.time.setNextBlockTimestamp(
@@ -1029,7 +1029,7 @@ describe("LiquidityManager", function () {
       ).to.deep.equal([FixedPoint.from("5"), ethers.constants.Zero]);
 
       /* Validate node is inactive */
-      node = await liquidityManager.liquidityNode(Tick.encode("3"));
+      [node, accrual] = await liquidityManager.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(ethers.constants.Zero);
       expect(node.shares).to.equal(ethers.constants.Zero);
       expect(node.available).to.equal(ethers.constants.Zero);
@@ -1037,8 +1037,8 @@ describe("LiquidityManager", function () {
       expect(node.redemptions).to.equal(ethers.constants.Zero);
       expect(node.prev).to.equal(ethers.constants.Zero);
       expect(node.next).to.equal(ethers.constants.Zero);
-      expect(node.accrued).to.equal(ethers.constants.Zero);
-      expect(node.accrualRate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
     });
   });
 

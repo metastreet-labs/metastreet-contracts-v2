@@ -394,8 +394,10 @@ describe("Integration", function () {
       value = value.add(node.value);
       available = available.add(node.available);
       pending = pending.add(node.pending);
-      accrued = accrued.add(node.accrued);
-      accrualRate = accrualRate.add(node.accrualRate);
+
+      const [_, accrual] = await pool.liquidityNodeWithAccrual(node.tick);
+      accrued = accrued.add(accrual.accrued);
+      accrualRate = accrualRate.add(accrual.rate);
     }
     return [value, available, pending, accrued, accrualRate];
   }
