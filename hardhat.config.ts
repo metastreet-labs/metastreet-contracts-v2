@@ -24,6 +24,9 @@ const config: HardhatUserConfig = {
     ],
   },
   networks: {
+    hardhat: {
+      allowUnlimitedContractSize: true,
+    },
     mainnet: {
       url: process.env.MAINNET_URL || "",
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
