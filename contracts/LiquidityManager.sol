@@ -160,8 +160,33 @@ library LiquidityManager {
     }
 
     /**
-     * Get liquidity nodes spanning [startTick, endTick] range where startTick
-     * must be 0 or an instantiated tick
+     * @notice Count liquidity nodes spanning [startTick, endTick] range, where
+     * startTick is 0 or an instantiated tick
+     * @param liquidity Liquidity state
+     * @param startTick Start tick
+     * @param endTick End tick
+     * @return count Liquidity nodes count
+     */
+    function liquidityNodesCount(
+        Liquidity storage liquidity,
+        uint128 startTick,
+        uint128 endTick
+    ) internal view returns (uint256 count) {
+        /* Validate start tick has active liquidity */
+        if (liquidity.nodes[startTick].next == 0) revert InactiveLiquidity();
+
+        /* Count nodes */
+        uint256 t = startTick;
+        while (t != type(uint128).max && t <= endTick) {
+            t = liquidity.nodes[t].next;
+            count++;
+        }
+    }
+
+    /**
+     * @notice Get liquidity nodes spanning [startTick, endTick] range, where
+     * startTick is 0 or an instantiated tick
+     * @param liquidity Liquidity state
      * @param startTick Start tick
      * @param endTick End tick
      * @return Liquidity nodes
@@ -171,22 +196,13 @@ library LiquidityManager {
         uint128 startTick,
         uint128 endTick
     ) internal view returns (ILiquidity.NodeInfo[] memory) {
-        /* Validate start tick has active liquidity */
-        if (liquidity.nodes[startTick].next == 0) revert InactiveLiquidity();
-
-        /* Count nodes first to figure out how to size liquidity nodes array */
-        uint256 i;
-        uint128 t = startTick;
-        while (t != type(uint128).max && t <= endTick) {
-            t = liquidity.nodes[t].next;
-            i++;
-        }
-
-        ILiquidity.NodeInfo[] memory nodes = new ILiquidity.NodeInfo[](i);
+        ILiquidity.NodeInfo[] memory nodes = new ILiquidity.NodeInfo[](
+            liquidityNodesCount(liquidity, startTick, endTick)
+        );
 
         /* Populate nodes */
-        i = 0;
-        t = startTick;
+        uint256 i;
+        uint128 t = startTick;
         while (t != type(uint128).max && t <= endTick) {
             nodes[i] = liquidityNode(liquidity, t);
             t = nodes[i++].next;
