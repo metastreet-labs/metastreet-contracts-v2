@@ -18,6 +18,7 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 150,
           },
+          evmVersion: "shanghai",
           outputSelection: { "*": { "*": ["storageLayout"] } },
         },
       },
