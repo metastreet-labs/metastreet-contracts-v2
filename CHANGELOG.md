@@ -1,3 +1,6 @@
+* PoolFactory v1.2 - 09/20/2023
+    * Add `setAdminFeeRate()` API.
+
 * Pool v2.1 - 09/20/2023
     * Add accrual value deposit pricing.
     * Allow resetting admin fee rate to zero.
