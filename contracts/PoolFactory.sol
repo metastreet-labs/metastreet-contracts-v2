@@ -26,7 +26,7 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
     /**
      * @notice Implementation version
      */
-    string public constant IMPLEMENTATION_VERSION = "1.1";
+    string public constant IMPLEMENTATION_VERSION = "1.2";
 
     /**************************************************************************/
     /* State */
