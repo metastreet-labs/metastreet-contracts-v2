@@ -9,6 +9,9 @@
     "codegen-goerli": "rm -rf generated && graph codegen subgraph.goerli.yml",
     "build-goerli": "graph build subgraph.goerli.yml",
     "deploy-goerli": "graph deploy --node https://api.studio.thegraph.com/deploy/ metastreet-v2 subgraph.goerli.yml",
+    "codegen-sepolia": "rm -rf generated && graph codegen subgraph.sepolia.yml",
+    "build-sepolia": "graph build subgraph.sepolia.yml",
+    "deploy-sepolia": "npx graph deploy --studio metastreet-v2-sepolia-devel subgraph.sepolia.yml",
     "codegen-mainnet": "rm -rf generated && graph codegen subgraph.mainnet.yml",
     "build-mainnet": "graph build subgraph.mainnet.yml",
     "deploy-mainnet": "graph deploy --node https://api.studio.thegraph.com/deploy/ metastreet-v2-mainnet subgraph.mainnet.yml"
