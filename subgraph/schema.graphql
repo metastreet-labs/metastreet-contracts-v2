@@ -174,8 +174,10 @@ type Loan @entity {
   borrower: Bytes! # address
   maturity: BigInt! # uint64 (in seconds since epoch)
   duration: BigInt! # uint64 (in seconds)
-  collateralToken: CollateralToken! # in case of a bundle/note, this will still refer to the underlying collateral token
-  collateralTokenIds: [BigInt!]! # uint256[] (in case of a bundle/note, this will still refer to the underlying collateral token ids)
+  collateralToken: CollateralToken! # (Underlying collateral token)
+  collateralTokenIds: [BigInt!]! # uint256[] (Underlying collateral token IDs)
+  collateralWrapperToken: Bytes # address (Collateral wrapper token, if wrapped)
+  collateralWrapperTokenId: BigInt # uint256 (Collateral wrapper token ID, if wrapped)
   ticks: [BigInt!]! # uint128[]
   useds: [BigInt!]! # uint128[]
   interests: [BigInt!]! # uint128[]

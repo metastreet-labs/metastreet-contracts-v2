@@ -401,6 +401,9 @@ function createLoanEntity(
       );
       loanEntity.collateralTokenIds = result.value1;
     }
+
+    loanEntity.collateralWrapperToken = loanReceipt.collateralToken;
+    loanEntity.collateralWrapperTokenId = loanReceipt.collateralTokenId;
   }
 
   loanEntity.delegate = decodeLoanDelegate(event.receipt);
