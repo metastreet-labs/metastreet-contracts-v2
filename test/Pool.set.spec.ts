@@ -8,9 +8,10 @@ import {
   TestERC20,
   TestERC721,
   TestLoanReceipt,
-  TestDelegationRegistry,
+  TestDelegateRegistryV1,
   ExternalCollateralLiquidator,
   Pool,
+  TestDelegateRegistryV2,
 } from "../typechain";
 
 import { extractEvent, expectEvent } from "./helpers/EventUtilities";
@@ -30,7 +31,8 @@ describe("Pool Set Collection", function () {
   let accountBorrower: SignerWithAddress;
   let accountLender: SignerWithAddress;
   let accountLiquidator: SignerWithAddress;
-  let delegationRegistry: TestDelegationRegistry;
+  let delegateRegistryV1: TestDelegateRegistryV1;
+  let delegateRegistryV2: TestDelegateRegistryV2;
 
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
@@ -40,7 +42,8 @@ describe("Pool Set Collection", function () {
     const testLoanReceiptFactory = await ethers.getContractFactory("TestLoanReceipt");
     const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
-    const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
+    const delegateRegistryV1Factory = await ethers.getContractFactory("TestDelegateRegistryV1");
+    const delegateRegistryV2Factory = await ethers.getContractFactory("TestDelegateRegistryV2");
     const poolImplFactory = await ethers.getContractFactory("WeightedRateSetCollectionPool");
 
     /* Deploy test currency token */
@@ -70,14 +73,19 @@ describe("Pool Set Collection", function () {
       proxy.address
     )) as ExternalCollateralLiquidator;
 
-    /* Deploy test delegation registry */
-    delegationRegistry = await delegationRegistryFactory.deploy();
-    await delegationRegistry.deployed();
+    /* Deploy test delegation registry v1 */
+    delegateRegistryV1 = await delegateRegistryV1Factory.deploy();
+    await delegateRegistryV1.deployed();
+
+    /* Deploy test delegation registry v2 */
+    delegateRegistryV2 = await delegateRegistryV2Factory.deploy();
+    await delegateRegistryV2.deployed();
 
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       collateralLiquidator.address,
-      delegationRegistry.address,
+      delegateRegistryV1.address,
+      delegateRegistryV2.address,
       [],
       [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
     )) as Pool;
@@ -181,7 +189,7 @@ describe("Pool Set Collection", function () {
       expect(await pool.collateralLiquidator()).to.equal(collateralLiquidator.address);
     });
     it("returns expected delegation registry", async function () {
-      expect(await pool.delegationRegistry()).to.equal(delegationRegistry.address);
+      expect(await pool.delegateRegistryV1()).to.equal(delegateRegistryV1.address);
     });
   });
 
@@ -376,7 +384,7 @@ describe("Pool Set Collection", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(1);
     });
 
-    it("originates loan with delegation with set collection filter", async function () {
+    it("originates loan with v1 delegation with set collection filter", async function () {
       /* Compute borrow options */
       const borrowOptions = ethers.utils.solidityPack(
         ["uint16", "uint16", "bytes20"],
@@ -438,7 +446,7 @@ describe("Pool Set Collection", function () {
 
       await expect(borrowTx).to.emit(pool, "LoanOriginated");
 
-      await expectEvent(borrowTx, delegationRegistry, "DelegateForToken", {
+      await expectEvent(borrowTx, delegateRegistryV1, "DelegateForToken", {
         vault: pool.address,
         delegate: accountBorrower.address,
         contract_: nft1.address,
@@ -482,7 +490,124 @@ describe("Pool Set Collection", function () {
 
       /* Validate delegation */
       expect(
-        await delegationRegistry.checkDelegateForToken(accountBorrower.address, pool.address, nft1.address, 123)
+        await delegateRegistryV1.checkDelegateForToken(accountBorrower.address, pool.address, nft1.address, 123)
+      ).to.equal(true);
+    });
+
+    it("originates loan with v2 delegation with set collection filter", async function () {
+      /* Compute borrow options */
+      const borrowOptions = ethers.utils.solidityPack(
+        ["uint16", "uint16", "bytes20"],
+        [4, 20, accountBorrower.address]
+      );
+
+      /* Quote repayment */
+      const repayment = await pool.quote(
+        FixedPoint.from("25"),
+        30 * 86400,
+        nft1.address,
+        [123],
+        1,
+        await sourceLiquidity(FixedPoint.from("25")),
+        borrowOptions
+      );
+
+      /* Simulate borrow */
+      const simulatedRepayment = await pool
+        .connect(accountBorrower)
+        .callStatic.borrow(
+          FixedPoint.from("25"),
+          30 * 86400,
+          nft1.address,
+          123,
+          FixedPoint.from("26"),
+          await sourceLiquidity(FixedPoint.from("25")),
+          borrowOptions
+        );
+
+      /* Borrow */
+      const borrowTx = await pool
+        .connect(accountBorrower)
+        .borrow(
+          FixedPoint.from("25"),
+          30 * 86400,
+          nft1.address,
+          123,
+          FixedPoint.from("26"),
+          await sourceLiquidity(FixedPoint.from("25")),
+          borrowOptions
+        );
+
+      /* Validate return value from borrow() */
+      expect(simulatedRepayment).to.equal(repayment);
+
+      /* Validate events */
+      await expectEvent(borrowTx, nft1, "Transfer", {
+        from: accountBorrower.address,
+        to: pool.address,
+        tokenId: 123,
+      });
+
+      await expectEvent(borrowTx, tok1, "Transfer", {
+        from: pool.address,
+        to: accountBorrower.address,
+        value: FixedPoint.from("25"),
+      });
+
+      await expect(borrowTx).to.emit(pool, "LoanOriginated");
+
+      await expectEvent(borrowTx, delegateRegistryV2, "DelegateERC721", {
+        from: pool.address,
+        to: accountBorrower.address,
+        contract_: nft1.address,
+        tokenId: 123,
+        rights: ethers.constants.HashZero,
+        enable: true,
+      });
+
+      /* Extract loan receipt */
+      const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
+      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+
+      /* Validate hash */
+      expect(loanReceiptHash).to.equal(await loanReceiptLib.hash(loanReceipt));
+
+      /* Validate loan receipt */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+      expect(decodedLoanReceipt.version).to.equal(2);
+      expect(decodedLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedLoanReceipt.maturity).to.equal(
+        (await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp + 30 * 86400
+      );
+      expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
+      expect(decodedLoanReceipt.collateralToken).to.equal(nft1.address);
+      expect(decodedLoanReceipt.collateralTokenId).to.equal(123);
+      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
+
+      /* Sum used and pending totals from node receipts */
+      let totalUsed = ethers.constants.Zero;
+      let totalPending = ethers.constants.Zero;
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+        totalUsed = totalUsed.add(nodeReceipt.used);
+        totalPending = totalPending.add(nodeReceipt.pending);
+      }
+
+      /* Validate used and pending totals */
+      expect(totalUsed).to.equal(FixedPoint.from("25"));
+      expect(totalPending).to.equal(repayment);
+
+      /* Validate loan state */
+      expect(await pool.loans(loanReceiptHash)).to.equal(1);
+
+      /* Validate delegation */
+      expect(
+        await delegateRegistryV2.checkDelegateForERC721(
+          accountBorrower.address,
+          pool.address,
+          nft1.address,
+          123,
+          ethers.constants.HashZero
+        )
       ).to.equal(true);
     });
   });

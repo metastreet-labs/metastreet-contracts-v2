@@ -21,7 +21,8 @@ import "./interfaces/ICollateralWrapper.sol";
 import "./interfaces/ICollateralLiquidator.sol";
 import "./interfaces/ICollateralLiquidationReceiver.sol";
 
-import "./integrations/DelegateCash/IDelegationRegistry.sol";
+import "./integrations/DelegateCash/IDelegateRegistryV1.sol";
+import "./integrations/DelegateCash/IDelegateRegistryV2.sol";
 
 /**
  * @title Pool
@@ -121,7 +122,8 @@ abstract contract Pool is
         None,
         CollateralWrapperContext,
         CollateralFilterContext,
-        DelegateCash
+        DelegateCashV1,
+        DelegateCashV2
     }
 
     /**************************************************************************/
@@ -141,9 +143,14 @@ abstract contract Pool is
     ICollateralLiquidator internal immutable _collateralLiquidator;
 
     /**
-     * @notice Delegation registry contract
+     * @notice Delegate registry v1 contract
      */
-    IDelegationRegistry internal immutable _delegationRegistry;
+    IDelegateRegistryV1 internal immutable _delegateRegistryV1;
+
+    /**
+     * @notice Delegate registry v2 contract
+     */
+    IDelegateRegistryV2 internal immutable _delegateRegistryV2;
 
     /**************************************************************************/
     /* State */
@@ -201,14 +208,21 @@ abstract contract Pool is
     /**
      * @notice Pool constructor
      * @param collateralLiquidator_ Collateral liquidator
-     * @param delegationRegistry_ Delegation registry contract
+     * @param delegateRegistryV1_ Delegate registry v1 contract
+     * @param delegateRegistryV2_ Delegate registry v2 contract
      * @param collateralWrappers_ Collateral wrappers
      */
-    constructor(address collateralLiquidator_, address delegationRegistry_, address[] memory collateralWrappers_) {
+    constructor(
+        address collateralLiquidator_,
+        address delegateRegistryV1_,
+        address delegateRegistryV2_,
+        address[] memory collateralWrappers_
+    ) {
         if (collateralWrappers_.length > 3) revert InvalidParameters();
 
         _collateralLiquidator = ICollateralLiquidator(collateralLiquidator_);
-        _delegationRegistry = IDelegationRegistry(delegationRegistry_);
+        _delegateRegistryV1 = IDelegateRegistryV1(delegateRegistryV1_);
+        _delegateRegistryV2 = IDelegateRegistryV2(delegateRegistryV2_);
         _collateralWrapper1 = (collateralWrappers_.length > 0) ? collateralWrappers_[0] : address(0);
         _collateralWrapper2 = (collateralWrappers_.length > 1) ? collateralWrappers_[1] : address(0);
         _collateralWrapper3 = (collateralWrappers_.length > 2) ? collateralWrappers_[2] : address(0);
@@ -332,8 +346,15 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function delegationRegistry() external view returns (address) {
-        return address(_delegationRegistry);
+    function delegateRegistryV1() external view returns (address) {
+        return address(_delegateRegistryV1);
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
+    function delegateRegistryV2() external view returns (address) {
+        return address(_delegateRegistryV2);
     }
 
     /**
@@ -498,16 +519,36 @@ abstract contract Pool is
      * @param options Options data
      */
     function _optionDelegateCash(address collateralToken, uint256 collateralTokenId, bytes calldata options) internal {
-        /* Find delegate.cash tagged data in options */
-        bytes calldata delegateData = _getOptionsData(options, BorrowOptions.DelegateCash);
+        /* Find delegate.cash v2 tagged data in options */
+        bytes calldata delegateDataV2 = _getOptionsData(options, BorrowOptions.DelegateCashV2);
 
-        if (delegateData.length != 0) {
-            if (address(_delegationRegistry) == address(0)) revert InvalidBorrowOptions();
-            if (delegateData.length != 20) revert InvalidBorrowOptions();
+        if (delegateDataV2.length != 0) {
+            if (address(_delegateRegistryV2) == address(0)) revert InvalidBorrowOptions();
+            if (delegateDataV2.length != 20) revert InvalidBorrowOptions();
 
             /* Delegate token */
-            _delegationRegistry.delegateForToken(
-                address(uint160(bytes20(delegateData))),
+            _delegateRegistryV2.delegateERC721(
+                address(uint160(bytes20(delegateDataV2))),
+                collateralToken,
+                collateralTokenId,
+                "",
+                true
+            );
+
+            /* Return if found, skip additional search */
+            return;
+        }
+
+        /* Find delegate.cash v1 tagged data in options, if v2 data is empty */
+        bytes calldata delegateDataV1 = _getOptionsData(options, BorrowOptions.DelegateCashV1);
+
+        if (delegateDataV1.length != 0) {
+            if (address(_delegateRegistryV1) == address(0)) revert InvalidBorrowOptions();
+            if (delegateDataV1.length != 20) revert InvalidBorrowOptions();
+
+            /* Delegate token */
+            _delegateRegistryV1.delegateForToken(
+                address(uint160(bytes20(delegateDataV1))),
                 collateralToken,
                 collateralTokenId,
                 true
@@ -521,11 +562,19 @@ abstract contract Pool is
      * @param collateralTokenId Token id of token that delegation is being removed from
      */
     function _revokeDelegates(address collateralToken, uint256 collateralTokenId) internal {
-        /* No operation if _delegationRegistry not set */
-        if (address(_delegationRegistry) == address(0)) return;
+        /* No operation if _delegateRegistryV1 and _delegateRegistryV2 not set */
+        if (address(_delegateRegistryV1) == address(0) && address(_delegateRegistryV2) == address(0)) return;
 
-        /* Get delegates for collateral token and id */
-        address[] memory delegates = _delegationRegistry.getDelegatesForToken(
+        /* Get v2 delegates for collateral token and id */
+        IDelegateRegistryV2.Delegation[] memory delegatesV2 = _delegateRegistryV2.getOutgoingDelegations(address(this));
+
+        for (uint256 i; i < delegatesV2.length; i++) {
+            /* Revoke by setting value to false */
+            _delegateRegistryV2.delegateERC721(delegatesV2[i].to, collateralToken, collateralTokenId, "", false);
+        }
+
+        /* Get v1 delegates for collateral token and id */
+        address[] memory delegates = _delegateRegistryV1.getDelegatesForToken(
             address(this),
             collateralToken,
             collateralTokenId
@@ -533,7 +582,7 @@ abstract contract Pool is
 
         for (uint256 i; i < delegates.length; i++) {
             /* Revoke by setting value to false */
-            _delegationRegistry.delegateForToken(delegates[i], collateralToken, collateralTokenId, false);
+            _delegateRegistryV1.delegateForToken(delegates[i], collateralToken, collateralTokenId, false);
         }
     }
 

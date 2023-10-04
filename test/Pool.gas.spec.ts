@@ -83,6 +83,7 @@ describe("Pool Gas", function () {
     poolImpl = (await poolImplFactory.deploy(
       externalCollateralLiquidator.address,
       ethers.constants.AddressZero,
+      ethers.constants.AddressZero,
       [bundleCollateralWrapper.address],
       [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
     )) as Pool;
@@ -338,7 +339,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(166800);
+      expect(gasUsed).to.be.lt(166900);
     });
   });
 
@@ -403,8 +404,8 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 350100],
-      [FixedPoint.from("250"), 16, 466000],
+      [FixedPoint.from("150"), 10, 350600],
+      [FixedPoint.from("250"), 16, 466300],
     ]) {
       it(`borrow (bundle of 10, ${numTicks} ticks)`, async function () {
         /* Mint bundle of 10 */
@@ -779,6 +780,7 @@ describe("Pool Gas", function () {
         poolEACLImpl = (await poolImplFactory.deploy(
           englishAuctionCollateralLiquidator.address,
           ethers.constants.AddressZero,
+          ethers.constants.AddressZero,
           [bundleCollateralWrapper.address],
           [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
         )) as Pool;
@@ -1025,18 +1027,19 @@ describe("Pool Gas", function () {
       poolImpl = (await poolImplFactory.deploy(
         collateralLiquidator.address,
         ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
         [],
         [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
       )) as Pool;
       await poolImpl.deployed();
     });
     for (const [count, principal, numTicks, maxGas] of [
-      [10, FixedPoint.from("15"), 10, 338400],
-      [10, FixedPoint.from("25"), 16, 454100],
-      [100, FixedPoint.from("15"), 10, 341900],
-      [100, FixedPoint.from("25"), 16, 457700],
+      [10, FixedPoint.from("15"), 10, 338900],
+      [10, FixedPoint.from("25"), 16, 454500],
+      [100, FixedPoint.from("15"), 10, 342500],
+      [100, FixedPoint.from("25"), 16, 458100],
       [1000, FixedPoint.from("15"), 10, 366600],
-      [1000, FixedPoint.from("25"), 16, 462400],
+      [1000, FixedPoint.from("25"), 16, 462700],
     ]) {
       it(`merkle borrow (single, ${numTicks} ticks, ${count} token ids)`, async function () {
         /* Build merkle tree */
@@ -1153,6 +1156,7 @@ describe("Pool Gas", function () {
       poolImpl = (await poolImplFactory.deploy(
         collateralLiquidator.address,
         ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
         [ERC1155CollateralWrapper.address],
         [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
       )) as Pool;
@@ -1162,10 +1166,10 @@ describe("Pool Gas", function () {
       await nft2.connect(accountBorrower).setApprovalForAll(ERC1155CollateralWrapper.address, true);
     });
     for (const [principal, numTicks, totalTokenIds, maxGas] of [
-      [FixedPoint.from("245"), 10, 16, 419900],
-      [FixedPoint.from("434"), 16, 16, 535900],
-      [FixedPoint.from("490"), 10, 32, 500200],
-      [FixedPoint.from("868"), 16, 32, 616400],
+      [FixedPoint.from("245"), 10, 16, 420400],
+      [FixedPoint.from("434"), 16, 16, 536200],
+      [FixedPoint.from("490"), 10, 32, 500700],
+      [FixedPoint.from("868"), 16, 32, 616700],
     ]) {
       it(`erc1155 borrow (total token IDs ${totalTokenIds}, ${numTicks} tick)`, async function () {
         /* Mint NFT to borrower */

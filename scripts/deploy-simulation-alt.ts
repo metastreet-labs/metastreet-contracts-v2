@@ -61,7 +61,7 @@ async function main() {
   /* Pool implementations */
   /**************************************************************************/
   /* Deploy Test Delegation Registry */
-  const TestDelegationRegistry = await ethers.getContractFactory("TestDelegationRegistry", accounts[9]);
+  const TestDelegationRegistry = await ethers.getContractFactory("TestDelegateRegistryV1", accounts[9]);
   const testDelegationRegistry = await TestDelegationRegistry.deploy();
   await testDelegationRegistry.deployed();
   console.log("TestDelegationRegistry: ", testDelegationRegistry.address);

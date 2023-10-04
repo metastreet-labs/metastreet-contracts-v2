@@ -8,11 +8,12 @@ import {
   TestERC20,
   TestERC721,
   TestLoanReceipt,
-  TestDelegationRegistry,
+  TestDelegateRegistryV1,
   ExternalCollateralLiquidator,
   ILiquidity,
   Pool,
   BundleCollateralWrapper,
+  TestDelegateRegistryV2,
 } from "../typechain";
 
 import { extractEvent } from "./helpers/EventUtilities";
@@ -35,7 +36,8 @@ describe("Integration", function () {
   let accountBorrowers: SignerWithAddress[10];
   let accountLender: SignerWithAddress;
   let accountLiquidator: SignerWithAddress;
-  let delegationRegistry: TestDelegationRegistry;
+  let delegateRegistryV1: TestDelegateRegistryV1;
+  let delegateRegistryV2: TestDelegateRegistryV2;
   let bundleCollateralWrapper: BundleCollateralWrapper;
 
   /* Toggle logging */
@@ -85,7 +87,8 @@ describe("Integration", function () {
     const testLoanReceiptFactory = await ethers.getContractFactory("TestLoanReceipt");
     const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
-    const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
+    const delegateRegistryV1Factory = await ethers.getContractFactory("TestDelegateRegistryV1");
+    const delegateRegistryV2Factory = await ethers.getContractFactory("TestDelegateRegistryV2");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
     const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
 
@@ -121,9 +124,13 @@ describe("Integration", function () {
       proxy.address
     )) as ExternalCollateralLiquidator;
 
-    /* Deploy test delegation registry */
-    delegationRegistry = await delegationRegistryFactory.deploy();
-    await delegationRegistry.deployed();
+    /* Deploy test delegation registry v1 */
+    delegateRegistryV1 = await delegateRegistryV1Factory.deploy();
+    await delegateRegistryV1.deployed();
+
+    /* Deploy test delegation registry v2 */
+    delegateRegistryV2 = await delegateRegistryV2Factory.deploy();
+    await delegateRegistryV2.deployed();
 
     /* Deploy bundle collateral wrapper */
     bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
@@ -132,7 +139,8 @@ describe("Integration", function () {
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       collateralLiquidator.address,
-      delegationRegistry.address,
+      delegateRegistryV1.address,
+      delegateRegistryV2.address,
       [bundleCollateralWrapper.address],
       [CONFIG.tickThreshold, CONFIG.tickExponential]
     )) as Pool;

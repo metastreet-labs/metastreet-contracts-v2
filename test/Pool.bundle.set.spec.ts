@@ -8,10 +8,11 @@ import {
   TestERC20,
   TestERC721,
   TestLoanReceipt,
-  TestDelegationRegistry,
+  TestDelegateRegistryV1,
   ExternalCollateralLiquidator,
   Pool,
   BundleCollateralWrapper,
+  TestDelegateRegistryV2,
 } from "../typechain";
 
 import { extractEvent, expectEvent } from "./helpers/EventUtilities";
@@ -31,7 +32,8 @@ describe("Pool Bundle Set Collection", function () {
   let accountBorrower: SignerWithAddress;
   let accountLender: SignerWithAddress;
   let accountLiquidator: SignerWithAddress;
-  let delegationRegistry: TestDelegationRegistry;
+  let delegateRegistryV1: TestDelegateRegistryV1;
+  let delegateRegistryV2: TestDelegateRegistryV2;
   let bundleCollateralWrapper: BundleCollateralWrapper;
   let bundleData: any;
   let bundleTokenId: ethers.BigNumber;
@@ -44,7 +46,8 @@ describe("Pool Bundle Set Collection", function () {
     const testLoanReceiptFactory = await ethers.getContractFactory("TestLoanReceipt");
     const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
-    const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
+    const delegateRegistryV1Factory = await ethers.getContractFactory("TestDelegateRegistryV1");
+    const delegateRegistryV2Factory = await ethers.getContractFactory("TestDelegateRegistryV2");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
     const poolImplFactory = await ethers.getContractFactory("WeightedRateSetCollectionPool");
 
@@ -75,9 +78,13 @@ describe("Pool Bundle Set Collection", function () {
       proxy.address
     )) as ExternalCollateralLiquidator;
 
-    /* Deploy test delegation registry */
-    delegationRegistry = await delegationRegistryFactory.deploy();
-    await delegationRegistry.deployed();
+    /* Deploy test delegation registry v1 */
+    delegateRegistryV1 = await delegateRegistryV1Factory.deploy();
+    await delegateRegistryV1.deployed();
+
+    /* Deploy test delegation registry v2 */
+    delegateRegistryV2 = await delegateRegistryV2Factory.deploy();
+    await delegateRegistryV2.deployed();
 
     /* Deploy bundle collateral wrapper */
     bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
@@ -86,7 +93,8 @@ describe("Pool Bundle Set Collection", function () {
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       collateralLiquidator.address,
-      delegationRegistry.address,
+      delegateRegistryV1.address,
+      delegateRegistryV2.address,
       [bundleCollateralWrapper.address],
       [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
     )) as Pool;
@@ -203,7 +211,7 @@ describe("Pool Bundle Set Collection", function () {
       expect(await pool.collateralLiquidator()).to.equal(collateralLiquidator.address);
     });
     it("returns expected delegation registry", async function () {
-      expect(await pool.delegationRegistry()).to.equal(delegationRegistry.address);
+      expect(await pool.delegateRegistryV1()).to.equal(delegateRegistryV1.address);
     });
   });
 
@@ -420,7 +428,7 @@ describe("Pool Bundle Set Collection", function () {
         value: FixedPoint.from("25"),
       });
 
-      await expectEvent(borrowTx, delegationRegistry, "DelegateForToken", {
+      await expectEvent(borrowTx, delegateRegistryV1, "DelegateForToken", {
         vault: pool.address,
         delegate: accountBorrower.address,
         contract_: bundleCollateralWrapper.address,
