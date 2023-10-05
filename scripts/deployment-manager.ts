@@ -540,7 +540,7 @@ async function poolImplementationPause(deployment: Deployment, name: string) {
 /******************************************************************************/
 
 async function decodeLoanReceipt(deployment: Deployment, loanReceipt: string) {
-  const poolImplementation = deployment.poolBeacons.WeightedRateCollectionPool;
+  const poolImplementation = deployment.poolBeacons["v2.x-collection"];
   const address = await getBeaconImplementation(poolImplementation);
 
   const contract = await ethers.getContractAt("Pool", address);
