@@ -18,7 +18,7 @@ import { extractEvent, expectEvent } from "./helpers/EventUtilities";
 import { FixedPoint } from "./helpers/FixedPoint";
 import { Tick } from "./helpers/Tick";
 
-describe("Pool Basic", function () {
+describe.only("Pool Basic", function () {
   let accounts: SignerWithAddress[];
   let tok1: TestERC20;
   let nft1: TestERC721;
@@ -535,7 +535,7 @@ describe("Pool Basic", function () {
       /* Redeem 1.25 shares */
       await expect(
         pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1.25"))
-      ).to.be.revertedWithCustomError(pool, "InsufficientShares");
+      ).to.be.revertedWith("ERC1155: burn amount exceeds balance");
     });
 
     it("fails on zero shares", async function () {

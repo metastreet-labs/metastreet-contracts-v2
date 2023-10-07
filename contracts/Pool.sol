@@ -10,6 +10,8 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+
 import "./LoanReceipt.sol";
 import "./LiquidityManager.sol";
 import "./CollateralFilter.sol";
@@ -23,6 +25,8 @@ import "./interfaces/ICollateralLiquidationReceiver.sol";
 
 import "./integrations/DelegateCash/IDelegationRegistry.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @title Pool
  * @author MetaStreet Labs
@@ -35,7 +39,8 @@ abstract contract Pool is
     InterestRateModel,
     IPool,
     ILiquidity,
-    ICollateralLiquidationReceiver
+    ICollateralLiquidationReceiver,
+    ERC1155
 {
     using SafeCast for uint256;
     using SafeERC20 for IERC20;
@@ -92,13 +97,13 @@ abstract contract Pool is
     }
 
     /**
-     * @notice Deposit
-     * @param shares Shares
+     * @notice Redemptions
+    //  * @param shares Shares
      * @param redemptionId Next Redemption ID
      * @param redemptions Mapping of redemption ID to redemption
      */
-    struct Deposit {
-        uint128 shares;
+    struct Redemptions {
+        // uint128 shares;
         uint128 redemptionId;
         mapping(uint128 => Redemption) redemptions;
     }
@@ -185,9 +190,9 @@ abstract contract Pool is
     LiquidityManager.Liquidity internal _liquidity;
 
     /**
-     * @notice Mapping of account to tick to deposit
+     * @notice Mapping of account to tick to Redemptions
      */
-    mapping(address => mapping(uint128 => Deposit)) internal _deposits;
+    mapping(address => mapping(uint128 => Redemptions)) internal _redemptions;
 
     /**
      * @notice Mapping of loan receipt hash to loan status
@@ -204,7 +209,11 @@ abstract contract Pool is
      * @param delegationRegistry_ Delegation registry contract
      * @param collateralWrappers_ Collateral wrappers
      */
-    constructor(address collateralLiquidator_, address delegationRegistry_, address[] memory collateralWrappers_) {
+    constructor(
+        address collateralLiquidator_,
+        address delegationRegistry_,
+        address[] memory collateralWrappers_
+    ) ERC1155("") {
         if (collateralWrappers_.length > 3) revert InvalidParameters();
 
         _collateralLiquidator = ICollateralLiquidator(collateralLiquidator_);
@@ -344,8 +353,8 @@ abstract contract Pool is
      * @return redemptionId Redemption ID
      */
     function deposits(address account, uint128 tick) external view returns (uint128 shares, uint128 redemptionId) {
-        shares = _deposits[account][tick].shares;
-        redemptionId = _deposits[account][tick].redemptionId;
+        shares = balanceOf(account, tick).toUint128();
+        redemptionId = _redemptions[account][tick].redemptionId;
     }
 
     /**
@@ -360,7 +369,7 @@ abstract contract Pool is
         uint128 tick,
         uint128 redemptionId
     ) external view returns (Redemption memory) {
-        return _deposits[account][tick].redemptions[redemptionId];
+        return _redemptions[account][tick].redemptions[redemptionId];
     }
 
     /**
@@ -795,8 +804,8 @@ abstract contract Pool is
         /* Validate shares received is sufficient */
         if (shares == 0 || shares < minShares) revert InsufficientShares();
 
-        /* Add to deposit */
-        _deposits[msg.sender][tick].shares += shares;
+        /* Mint tokens */
+        _mint(msg.sender, tick, shares, "");
 
         return shares;
     }
@@ -808,17 +817,20 @@ abstract contract Pool is
      * @return redemptionId Redemption ID
      */
     function _redeem(uint128 tick, uint128 shares) internal returns (uint128) {
-        /* Look up deposit */
-        Deposit storage dep = _deposits[msg.sender][tick];
+        /* Validate shares */
+        if (shares == 0) revert InsufficientShares();
+
+        /* Burn tokens */
+        _burn(msg.sender, tick, shares);
+
+        /* Look up redemptions */
+        Redemptions storage red = _redemptions[msg.sender][tick];
 
         /* Assign redemption ID */
-        uint128 redemptionId = dep.redemptionId++;
+        uint128 redemptionId = red.redemptionId++;
 
         /* Look up redemption */
-        Redemption storage redemption = dep.redemptions[redemptionId];
-
-        /* Validate shares */
-        if (shares == 0 || shares > dep.shares) revert InsufficientShares();
+        Redemption storage redemption = red.redemptions[redemptionId];
 
         /* Redeem shares in tick with liquidity manager */
         (uint128 index, uint128 target) = _liquidity.redeem(tick, shares);
@@ -827,9 +839,6 @@ abstract contract Pool is
         redemption.pending = shares;
         redemption.index = index;
         redemption.target = target;
-
-        /* Decrement deposit shares */
-        dep.shares -= shares;
 
         return redemptionId;
     }
@@ -842,7 +851,7 @@ abstract contract Pool is
      */
     function _withdraw(uint128 tick, uint128 redemptionId) internal returns (uint128, uint128) {
         /* Look up redemption */
-        Redemption storage redemption = _deposits[msg.sender][tick].redemptions[redemptionId];
+        Redemption storage redemption = _redemptions[msg.sender][tick].redemptions[redemptionId];
 
         /* If no redemption is pending */
         if (redemption.pending == 0) revert InvalidRedemptionStatus();
@@ -853,7 +862,7 @@ abstract contract Pool is
 
         /* If the entire redemption is ready */
         if (shares == redemption.pending) {
-            delete _deposits[msg.sender][tick].redemptions[redemptionId];
+            delete _redemptions[msg.sender][tick].redemptions[redemptionId];
         } else {
             redemption.pending -= shares;
             redemption.index += processedIndices;
@@ -1162,7 +1171,7 @@ abstract contract Pool is
         uint128 redemptionId
     ) external view returns (uint256 shares, uint256 amount, uint256 sharesAhead) {
         /* Look up redemption */
-        Redemption storage redemption = _deposits[account][tick].redemptions[redemptionId];
+        Redemption storage redemption = _redemptions[account][tick].redemptions[redemptionId];
 
         /* If no redemption is pending */
         if (redemption.pending == 0) return (0, 0, 0);
@@ -1266,7 +1275,7 @@ abstract contract Pool is
     /**
      * @inheritdoc IERC165
      */
-    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view override(ERC1155, ERC165) returns (bool) {
         return interfaceId == type(ICollateralLiquidationReceiver).interfaceId || super.supportsInterface(interfaceId);
     }
 }
