@@ -97,6 +97,10 @@ type Tick @entity {
   redemptionPending: BigInt! # uint128
   prev: BigInt! # uint128
   next: BigInt! # uint128
+  # accrual info
+  accrued: BigInt # uint128
+  accrualRate: BigInt # uint64
+  accrualTimestamp: BigInt # uint64
   # for calculating apr and net earnings
   principalWeightedDuration: BigInt! # uint128
   interestWeightedMaturity: BigInt! # uint128

@@ -27,6 +27,7 @@ import {
   LoanOriginated as LoanOriginatedEvent,
   LoanRepaid as LoanRepaidEvent,
   Pool__decodeLoanReceiptResultValue0NodeReceiptsStruct as NodeReceipt,
+  Pool__liquidityNodeResultValue0Struct as LiquidityNode,
   Pool as PoolContract,
   Redeemed as RedeemedEvent,
   Withdrawn as WithdrawnEvent,
@@ -179,7 +180,12 @@ function updateTickEntity(
   principalWeightedDurationUpdate: BigInt,
   interestWeightedMaturityUpdate: BigInt
 ): void {
-  const node = poolContract.liquidityNode(encodedTick);
+  const nodeWithAccrual = poolContract.try_liquidityNodeWithAccrual(encodedTick);
+  const node = !nodeWithAccrual.reverted
+    ? changetype<LiquidityNode>(nodeWithAccrual.value.value0)
+    : poolContract.liquidityNode(encodedTick);
+  const accrual = !nodeWithAccrual.reverted ? nodeWithAccrual.value.value1 : null;
+
   const decodedTick = decodeTick(encodedTick);
   const tickId = getTickId(encodedTick);
 
@@ -208,6 +214,9 @@ function updateTickEntity(
   tickEntity.prev = node.prev;
   tickEntity.next = node.next;
   tickEntity.redemptionPending = node.redemptions;
+  tickEntity.accrued = accrual ? accrual.accrued : null;
+  tickEntity.accrualRate = accrual ? accrual.rate : null;
+  tickEntity.accrualTimestamp = accrual ? accrual.timestamp : null;
   tickEntity.principalWeightedDuration = tickEntity.principalWeightedDuration.plus(principalWeightedDurationUpdate);
   tickEntity.interestWeightedMaturity = tickEntity.interestWeightedMaturity.plus(interestWeightedMaturityUpdate);
 
