@@ -243,19 +243,19 @@ describe("LiquidityManager", function () {
     });
     it("deposits into active node that has high pending returns", async function () {
       /* Create node with used liquidity */
-      await liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("5"));
+      await liquidityManager.deposit(Tick.encode("100000"), FixedPoint.from("100000"));
       const useTx = await liquidityManager.use(
-        Tick.encode("3"),
-        FixedPoint.from("5"),
-        "340282366920938463463374607431768211455" /* type(uint128).max */,
+        Tick.encode("100000"),
+        FixedPoint.from("100000"),
+        FixedPoint.from("100500"),
         30 * 86400
       );
       await helpers.time.setNextBlockTimestamp(
-        (await ethers.provider.getBlock(useTx.blockHash!)).timestamp + 15 * 86400
+        (await ethers.provider.getBlock(useTx.blockHash!)).timestamp + 30 * 86400
       );
 
       /* Deposit 2 */
-      await liquidityManager.deposit(Tick.encode("3"), FixedPoint.from("3"));
+      await liquidityManager.deposit(Tick.encode("100000"), FixedPoint.from("100000"));
     });
     it("fails on reserved node", async function () {
       await expect(liquidityManager.deposit(0, FixedPoint.from("5"))).to.be.revertedWithCustomError(
