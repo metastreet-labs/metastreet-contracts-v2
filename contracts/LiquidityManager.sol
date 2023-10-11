@@ -13,6 +13,7 @@ import "./Tick.sol";
  */
 library LiquidityManager {
     using SafeCast for uint256;
+    using SafeCast for uint128;
 
     /**************************************************************************/
     /* Constants */
@@ -539,7 +540,7 @@ library LiquidityManager {
         /* Process accrual */
         _accrue(node);
         /* Increment accrual rate */
-        node.accrual.rate += uint64((pending - used) / duration);
+        node.accrual.rate += ((pending - used) / duration).toUint64();
     }
 
     /**
