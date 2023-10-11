@@ -466,7 +466,7 @@ library LiquidityManager {
      * @param node Liquidity node
      */
     function _accrue(Node storage node) internal {
-        node.accrual.accrued += node.accrual.rate * uint64(block.timestamp - node.accrual.timestamp);
+        node.accrual.accrued += node.accrual.rate * uint128(block.timestamp - node.accrual.timestamp);
         node.accrual.timestamp = uint64(block.timestamp);
     }
 
