@@ -266,7 +266,7 @@ abstract contract Pool is
      * @return Implementation version
      */
     function IMPLEMENTATION_VERSION() external pure returns (string memory) {
-        return "2.1";
+        return "2.2";
     }
 
     /**
