@@ -241,6 +241,22 @@ describe("LiquidityManager", function () {
       expect(accrual.accrued).to.closeTo(FixedPoint.from("1"), 1000000);
       expect(accrual.rate).to.closeTo(FixedPoint.from("2").div(30 * 86000), 4000000000);
     });
+    it("deposits into active node that has high pending returns", async function () {
+      /* Create node with used liquidity */
+      await liquidityManager.deposit(Tick.encode("100000"), FixedPoint.from("100000"));
+      const useTx = await liquidityManager.use(
+        Tick.encode("100000"),
+        FixedPoint.from("100000"),
+        FixedPoint.from("100500"),
+        30 * 86400
+      );
+      await helpers.time.setNextBlockTimestamp(
+        (await ethers.provider.getBlock(useTx.blockHash!)).timestamp + 30 * 86400
+      );
+
+      /* Deposit 2 */
+      await liquidityManager.deposit(Tick.encode("100000"), FixedPoint.from("100000"));
+    });
     it("fails on reserved node", async function () {
       await expect(liquidityManager.deposit(0, FixedPoint.from("5"))).to.be.revertedWithCustomError(
         liquidityManager,
