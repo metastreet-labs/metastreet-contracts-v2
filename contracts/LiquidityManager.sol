@@ -539,7 +539,8 @@ library LiquidityManager {
         /* Process accrual */
         _accrue(node);
         /* Increment accrual rate */
-        node.accrual.rate += uint64((pending - used) / duration);
+        uint256 rate = uint256(pending - used) / duration;
+        node.accrual.rate += rate.toUint64();
     }
 
     /**
@@ -576,9 +577,9 @@ library LiquidityManager {
         /* Process accrual */
         _accrue(node);
         /* Decrement accrual rate and accrued */
-        uint128 interest = pending - used;
-        node.accrual.rate -= uint64(interest / duration);
-        node.accrual.accrued -= (interest / duration) * elapsed;
+        uint256 rate = uint256(pending - used) / duration;
+        node.accrual.rate -= rate.toUint64();
+        node.accrual.accrued -= uint128(rate * elapsed);
     }
 
     /**
