@@ -1,3 +1,6 @@
+* Pool v2.2 - 10/11/2023
+    * Fix overflow revert from narrow casting of accruals in LiquidityManager.
+
 * PoolFactory v1.2 - 09/20/2023
     * Add `setAdminFeeRate()` API.
 
