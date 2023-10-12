@@ -147,11 +147,54 @@ contract PunkCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard {
     /**
      * @inheritdoc ICollateralWrapper
      */
+    function enumerateWithQuantities(
+        uint256 tokenId,
+        bytes calldata context
+    ) external view returns (address token, uint256[] memory tokenIds, uint256[] memory quantities) {
+        if (tokenId != uint256(_hash(context))) revert InvalidContext();
+
+        /* Set punks token */
+        token = _punksToken;
+
+        /* Compute number of tokens in context */
+        uint256 count_ = context.length / 32;
+
+        /* Instantiate asset info array */
+        tokenIds = new uint256[](count_);
+
+        /* Instantiate quantities array */
+        quantities = new uint256[](count_);
+
+        /* Populate arrays */
+        uint256 offset;
+        for (uint256 i; i < count_; i++) {
+            tokenIds[i] = uint256(bytes32(context[offset:offset + 32]));
+            quantities[i] = 1;
+            offset += 32;
+        }
+    }
+
+    /**
+     * @inheritdoc ICollateralWrapper
+     */
     function count(uint256 tokenId, bytes calldata context) external view returns (uint256) {
         if (tokenId != uint256(_hash(context))) revert InvalidContext();
 
         /* Compute number of tokens in context */
         return context.length / 32;
+    }
+
+    /**
+     * @inheritdoc ICollateralWrapper
+     */
+    function transferCalldata(
+        address,
+        address,
+        address to,
+        uint256 tokenId,
+        uint256
+    ) external view returns (address, bytes memory) {
+        return (address(_punksMarket), abi.encodeWithSelector(_punksMarket.transferPunk.selector, to, tokenId));
     }
 
     /**************************************************************************/

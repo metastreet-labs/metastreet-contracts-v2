@@ -128,6 +128,29 @@ describe("PunkCollateralWrapper", function () {
     });
   });
 
+  describe("#enumerateWithQuantities", async function () {
+    it("enumerate punk", async function () {
+      /* Mint punk */
+      const mintTx1 = await punkCollateralWrapper.connect(accountBorrower).mint([PUNK_ID_1, PUNK_ID_2]);
+
+      /* Get token id */
+      const tokenId1 = (await extractEvent(mintTx1, punkCollateralWrapper, "PunkMinted")).args.tokenId;
+
+      /* Create context */
+      const context = ethers.utils.solidityPack(["uint256[]"], [[PUNK_ID_1, PUNK_ID_2]]);
+
+      /* Enumerate */
+      const [token, tokenIds, quantities] = await punkCollateralWrapper.enumerateWithQuantities(tokenId1, context);
+
+      /* Validate return */
+      expect(token).to.equal(WPUNKS_ADDRESS);
+      expect(tokenIds[0]).to.equal(PUNK_ID_1);
+      expect(tokenIds[1]).to.equal(PUNK_ID_2);
+      expect(quantities[0]).to.equal(1);
+      expect(quantities[1]).to.equal(1);
+    });
+  });
+
   describe("#count", async function () {
     it("count batch", async function () {
       /* Mint punk */
@@ -162,6 +185,30 @@ describe("PunkCollateralWrapper", function () {
         punkCollateralWrapper,
         "InvalidContext"
       );
+    });
+  });
+
+  describe("#transferCalldata", async function () {
+    it("transfer calldata", async function () {
+      /* Get transferCalldata */
+      const [target, calldata] = await punkCollateralWrapper.transferCalldata(
+        WPUNKS_ADDRESS,
+        accountBorrower.address,
+        accounts[0].address,
+        PUNK_ID_1,
+        0
+      );
+
+      const tx = {
+        to: target,
+        data: calldata,
+      };
+
+      await accountBorrower.sendTransaction(tx);
+
+      /* Validate return */
+      const owner = await cryptoPunksMarket.punkIndexToAddress(PUNK_ID_1);
+      expect(owner).to.equal(accounts[0].address);
     });
   });
 
@@ -336,6 +383,8 @@ describe("PunkCollateralWrapper", function () {
               .xor(ethers.BigNumber.from(punkCollateralWrapper.interface.getSighash("unwrap")))
               .xor(ethers.BigNumber.from(punkCollateralWrapper.interface.getSighash("enumerate")))
               .xor(ethers.BigNumber.from(punkCollateralWrapper.interface.getSighash("count")))
+              .xor(ethers.BigNumber.from(punkCollateralWrapper.interface.getSighash("enumerateWithQuantities")))
+              .xor(ethers.BigNumber.from(punkCollateralWrapper.interface.getSighash("transferCalldata")))
           )
         )
       ).to.equal(true);

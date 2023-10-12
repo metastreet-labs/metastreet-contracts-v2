@@ -121,6 +121,31 @@ describe("BundleCollateralWrapper", function () {
     });
   });
 
+  describe("#enumerateWithQuantities", async function () {
+    it("enumerate bundle", async function () {
+      /* Mint bundle */
+      const mintTx1 = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 456, 768]);
+
+      /* Get token id */
+      const tokenId1 = (await extractEvent(mintTx1, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+
+      /* Create context */
+      const context = ethers.utils.solidityPack(["address", "uint256[]"], [nft1.address, [123, 456, 768]]);
+
+      /* Enumerate */
+      const [token, tokenIds, quantities] = await bundleCollateralWrapper.enumerateWithQuantities(tokenId1, context);
+
+      /* Validate return */
+      expect(token).to.equal(nft1.address);
+      expect(tokenIds[0]).to.equal(123);
+      expect(tokenIds[1]).to.equal(456);
+      expect(tokenIds[2]).to.equal(768);
+      expect(quantities[0]).to.equal(1);
+      expect(quantities[1]).to.equal(1);
+      expect(quantities[2]).to.equal(1);
+    });
+  });
+
   describe("#count", async function () {
     it("count bundle", async function () {
       /* Mint bundle */
@@ -155,6 +180,30 @@ describe("BundleCollateralWrapper", function () {
         bundleCollateralWrapper,
         "InvalidContext"
       );
+    });
+  });
+
+  describe("#transferCalldata", async function () {
+    it("transfer calldata", async function () {
+      /* Get transferCalldata */
+      const [target, calldata] = await bundleCollateralWrapper.transferCalldata(
+        nft1.address,
+        accountBorrower.address,
+        accounts[0].address,
+        123,
+        0
+      );
+
+      const tx = {
+        to: target,
+        data: calldata,
+      };
+
+      await accountBorrower.sendTransaction(tx);
+
+      /* Validate balance */
+      const balance = await nft1.balanceOf(accounts[0].address);
+      expect(balance).to.equal(1);
     });
   });
 
@@ -384,6 +433,8 @@ describe("BundleCollateralWrapper", function () {
               .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("unwrap")))
               .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("enumerate")))
               .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("count")))
+              .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("enumerateWithQuantities")))
+              .xor(ethers.BigNumber.from(bundleCollateralWrapper.interface.getSighash("transferCalldata")))
           )
         )
       ).to.equal(true);

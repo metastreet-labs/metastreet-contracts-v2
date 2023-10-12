@@ -135,6 +135,38 @@ describe("ERC1155CollateralWrapper", function () {
     });
   });
 
+  describe("#enumerateWithQuantities", async function () {
+    it("enumerate batch", async function () {
+      /* Mint batch */
+      const mintTx1 = await ERC1155CollateralWrapper.connect(accountBorrower).mint(
+        nft1.address,
+        [123, 124, 125],
+        [1, 2, 3]
+      );
+
+      /* Get token id */
+      const tokenId1 = (await extractEvent(mintTx1, ERC1155CollateralWrapper, "BatchMinted")).args.tokenId;
+
+      /* Create context */
+      const context = ethers.utils.defaultAbiCoder.encode(
+        ["address", "uint256", "uint256", "uint256[]", "uint256[]"],
+        [nft1.address, 0, 6, [123, 124, 125], [1, 2, 3]]
+      );
+
+      /* Enumerate */
+      const [token, tokenIds, quantities] = await ERC1155CollateralWrapper.enumerateWithQuantities(tokenId1, context);
+
+      /* Validate return */
+      expect(token).to.equal(nft1.address);
+      expect(tokenIds[0]).to.equal(123);
+      expect(tokenIds[1]).to.equal(124);
+      expect(tokenIds[2]).to.equal(125);
+      expect(quantities[0]).to.equal(1);
+      expect(quantities[1]).to.equal(2);
+      expect(quantities[2]).to.equal(3);
+    });
+  });
+
   describe("#count", async function () {
     it("count batch", async function () {
       /* Mint batch */
@@ -178,6 +210,30 @@ describe("ERC1155CollateralWrapper", function () {
         ERC1155CollateralWrapper,
         "InvalidContext"
       );
+    });
+  });
+
+  describe("#transferCalldata", async function () {
+    it("transfer calldata", async function () {
+      /* Get transferCalldata */
+      const [target, calldata] = await ERC1155CollateralWrapper.transferCalldata(
+        nft1.address,
+        accountBorrower.address,
+        accounts[0].address,
+        124,
+        2
+      );
+
+      const tx = {
+        to: target,
+        data: calldata,
+      };
+
+      await accountBorrower.sendTransaction(tx);
+
+      /* Validate balance */
+      const balance = await nft1.balanceOf(accounts[0].address, 124);
+      expect(balance).to.equal(2);
     });
   });
 
@@ -496,6 +552,8 @@ describe("ERC1155CollateralWrapper", function () {
               .xor(ethers.BigNumber.from(ERC1155CollateralWrapper.interface.getSighash("unwrap")))
               .xor(ethers.BigNumber.from(ERC1155CollateralWrapper.interface.getSighash("enumerate")))
               .xor(ethers.BigNumber.from(ERC1155CollateralWrapper.interface.getSighash("count")))
+              .xor(ethers.BigNumber.from(ERC1155CollateralWrapper.interface.getSighash("enumerateWithQuantities")))
+              .xor(ethers.BigNumber.from(ERC1155CollateralWrapper.interface.getSighash("transferCalldata")))
           )
         )
       ).to.equal(true);
