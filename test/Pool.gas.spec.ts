@@ -867,7 +867,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await liquidateTx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
 
-        expect(gasUsed).to.be.lt(255000);
+        expect(gasUsed).to.be.lt(274000);
       });
 
       it("liquidate (bundle of 10, english auction, 16 ticks)", async function () {
@@ -876,15 +876,19 @@ describe("Pool Gas", function () {
         const gasUsed = (await liquidateTx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
 
-        expect(gasUsed).to.be.lt(665000);
+        expect(gasUsed).to.be.lt(688000);
       });
 
       it("bid (first, english auction)", async function () {
-        await poolEACL.liquidate(singleLoanReceipt);
+        const liquidateTx = await poolEACL.liquidate(singleLoanReceipt);
+
+        /* Get liquidationHash */
+        const liquidationHash = (await extractEvent(liquidateTx, englishAuctionCollateralLiquidator, "AuctionCreated"))
+          .args[0];
 
         const bidTx = await englishAuctionCollateralLiquidator
           .connect(accountDepositors[0])
-          .bid(nft1.address, 123, FixedPoint.from("1"));
+          .bid(liquidationHash, nft1.address, 123, FixedPoint.from("1"));
 
         const gasUsed = (await bidTx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
@@ -893,14 +897,18 @@ describe("Pool Gas", function () {
       });
 
       it("bid (second, english auction)", async function () {
-        await poolEACL.liquidate(singleLoanReceipt);
+        const liquidateTx = await poolEACL.liquidate(singleLoanReceipt);
+
+        /* Get liquidationHash */
+        const liquidationHash = (await extractEvent(liquidateTx, englishAuctionCollateralLiquidator, "AuctionCreated"))
+          .args[0];
 
         await englishAuctionCollateralLiquidator
           .connect(accountDepositors[0])
-          .bid(nft1.address, 123, FixedPoint.from("1"));
+          .bid(liquidationHash, nft1.address, 123, FixedPoint.from("1"));
         const bid2Tx = await englishAuctionCollateralLiquidator
           .connect(accountDepositors[1])
-          .bid(nft1.address, 123, FixedPoint.from("2"));
+          .bid(liquidationHash, nft1.address, 123, FixedPoint.from("2"));
 
         const gasUsed = (await bid2Tx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
@@ -909,12 +917,16 @@ describe("Pool Gas", function () {
       });
 
       it("claim (single, english auction)", async function () {
-        await poolEACL.liquidate(singleLoanReceipt);
+        const liquidateTx = await poolEACL.liquidate(singleLoanReceipt);
+
+        /* Get liquidationHash */
+        const liquidationHash = (await extractEvent(liquidateTx, englishAuctionCollateralLiquidator, "AuctionCreated"))
+          .args[0];
 
         /* Bid on collateral */
         await englishAuctionCollateralLiquidator
           .connect(accountDepositors[0])
-          .bid(nft1.address, 123, FixedPoint.from("1"));
+          .bid(liquidationHash, nft1.address, 123, FixedPoint.from("1"));
 
         /* Wait for auction expiration */
         await helpers.time.increase(86400);
@@ -922,23 +934,27 @@ describe("Pool Gas", function () {
         /* Claim collateral */
         const claimTx = await englishAuctionCollateralLiquidator
           .connect(accountDepositors[0])
-          .claim(nft1.address, 123, singleLoanReceipt);
+          .claim(liquidationHash, nft1.address, 123, singleLoanReceipt);
 
         const gasUsed = (await claimTx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
 
-        expect(gasUsed).to.be.lt(490000);
+        expect(gasUsed).to.be.lt(484000);
       });
 
       it("claim (first / middle / last of bundle, english auction)", async function () {
-        await poolEACL.liquidate(bundleLoanReceipt);
+        const liquidateTx = await poolEACL.liquidate(bundleLoanReceipt);
+
+        /* Get liquidationHash */
+        const liquidationHash = (await extractEvent(liquidateTx, englishAuctionCollateralLiquidator, "AuctionCreated"))
+          .args[0];
 
         /* Bid on all collateral */
         const underlyingCollaterals = [124, 125, 126, 127, 128, 129, 130, 131, 132, 133];
         for (const underlyingCollateral of underlyingCollaterals) {
           await englishAuctionCollateralLiquidator
             .connect(accountDepositors[0])
-            .bid(nft1.address, underlyingCollateral, FixedPoint.from("1"));
+            .bid(liquidationHash, nft1.address, underlyingCollateral, FixedPoint.from("1"));
         }
 
         /* Wait for auction expiration */
@@ -949,7 +965,7 @@ describe("Pool Gas", function () {
         for (const underlyingCollateral of underlyingCollaterals) {
           const claimTx = await englishAuctionCollateralLiquidator
             .connect(accountDepositors[0])
-            .claim(nft1.address, underlyingCollateral, bundleLoanReceipt);
+            .claim(liquidationHash, nft1.address, underlyingCollateral, bundleLoanReceipt);
           gasUsed.push((await claimTx.wait()).gasUsed);
         }
 
@@ -957,9 +973,9 @@ describe("Pool Gas", function () {
         gasReport.push([`claim (middle of bundle, english auction)`, gasUsed[4]]);
         gasReport.push([`claim (last of bundle, english auction)`, gasUsed[9]]);
 
-        expect(gasUsed[0]).to.be.lt(125000);
-        expect(gasUsed[4]).to.be.lt(90000);
-        expect(gasUsed[9]).to.be.lt(475000);
+        expect(gasUsed[0]).to.be.lt(128000);
+        expect(gasUsed[4]).to.be.lt(93100);
+        expect(gasUsed[9]).to.be.lt(473000);
       });
     });
   });
