@@ -17,6 +17,7 @@ import "./InterestRateModel.sol";
 
 import "./interfaces/IPool.sol";
 import "./interfaces/ILiquidity.sol";
+import "./interfaces/IDeposit.sol";
 import "./interfaces/ICollateralWrapper.sol";
 import "./interfaces/ICollateralLiquidator.sol";
 import "./interfaces/ICollateralLiquidationReceiver.sol";
@@ -34,6 +35,7 @@ abstract contract Pool is
     CollateralFilter,
     InterestRateModel,
     IPool,
+    IDeposit,
     ILiquidity,
     ICollateralLiquidationReceiver
 {
@@ -78,30 +80,6 @@ abstract contract Pool is
     /**************************************************************************/
     /* Structures */
     /**************************************************************************/
-
-    /**
-     * @notice Redemption
-     * @param pending Redemption shares pending
-     * @param index Redemption queue index
-     * @param target Redemption queue target
-     */
-    struct Redemption {
-        uint128 pending;
-        uint128 index;
-        uint128 target;
-    }
-
-    /**
-     * @notice Deposit
-     * @param shares Shares
-     * @param redemptionId Next Redemption ID
-     * @param redemptions Mapping of redemption ID to redemption
-     */
-    struct Deposit {
-        uint128 shares;
-        uint128 redemptionId;
-        mapping(uint128 => Redemption) redemptions;
-    }
 
     /**
      * @notice Loan status
