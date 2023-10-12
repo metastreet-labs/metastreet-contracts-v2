@@ -129,11 +129,48 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard 
     /**
      * @inheritdoc ICollateralWrapper
      */
+    function enumerateWithQuantities(
+        uint256 tokenId,
+        bytes calldata context
+    ) external view returns (address token, uint256[] memory tokenIds, uint256[] memory quantities) {
+        if (tokenId != uint256(_hash(context))) revert InvalidContext();
+
+        /* Get token address from context */
+        token = address(uint160(bytes20(context[0:20])));
+
+        /* Compute number of tokens in context */
+        uint256 tokenCount = (context.length - 20) / 32;
+
+        /* Instantiate asset info array */
+        tokenIds = new uint256[](tokenCount);
+
+        /* Instantiate quantities array */
+        quantities = new uint256[](tokenCount);
+
+        /* Populate arrays */
+        uint256 offset = 20;
+        for (uint256 i; i < tokenCount; i++) {
+            tokenIds[i] = uint256(bytes32(context[offset:offset + 32]));
+            quantities[i] = 1;
+            offset += 32;
+        }
+    }
+
+    /**
+     * @inheritdoc ICollateralWrapper
+     */
     function count(uint256 tokenId, bytes calldata context) external view returns (uint256) {
         if (tokenId != uint256(_hash(context))) revert InvalidContext();
 
         /* Compute number of tokens in context */
         return (context.length - 20) / 32;
+    }
+
+    /**
+     * @inheritdoc ICollateralWrapper
+     */
+    function transferCalldata(address from, address to, uint256 tokenId, uint256) external pure returns (bytes memory) {
+        return abi.encodeWithSelector(IERC721.transferFrom.selector, from, to, tokenId);
     }
 
     /**************************************************************************/
