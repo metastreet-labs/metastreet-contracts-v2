@@ -14,6 +14,7 @@ import "./LoanReceipt.sol";
 import "./LiquidityManager.sol";
 import "./CollateralFilter.sol";
 import "./InterestRateModel.sol";
+import "./DepositToken.sol";
 
 import "./interfaces/IPool.sol";
 import "./interfaces/ILiquidity.sol";
@@ -171,6 +172,11 @@ abstract contract Pool is
      * @notice Mapping of loan receipt hash to loan status
      */
     mapping(bytes32 => LoanStatus) internal _loans;
+
+    /**
+     * @notice ERC1155 operator approval mapping
+     */
+    mapping(address => mapping(address => bool)) internal _operatorApprovals;
 
     /**************************************************************************/
     /* Constructor */
@@ -758,6 +764,7 @@ abstract contract Pool is
 
     /**
      * @dev Helper function to handle deposit accounting
+     *
      * @param tick Tick
      * @param amount Amount
      * @param minShares Minimum shares
@@ -773,8 +780,8 @@ abstract contract Pool is
         /* Validate shares received is sufficient */
         if (shares == 0 || shares < minShares) revert InsufficientShares();
 
-        /* Add to deposit */
-        _deposits[msg.sender][tick].shares += shares;
+        /* Add to deposit and mints token - cannot mint to zero address */
+        _transfer(address(0), msg.sender, tick, shares);
 
         return shares;
     }
@@ -806,8 +813,8 @@ abstract contract Pool is
         redemption.index = index;
         redemption.target = target;
 
-        /* Decrement deposit shares */
-        dep.shares -= shares;
+        /* Decrement deposit shares and burn tokens */
+        _transfer(msg.sender, address(0), tick, shares);
 
         return redemptionId;
     }
@@ -839,6 +846,82 @@ abstract contract Pool is
         }
 
         return (shares, amount);
+    }
+
+    /**************************************************************************/
+    /* Helper Functions - ERC1155 Token */
+    /**************************************************************************/
+
+    /**
+     * @notice Unchecked update function
+     *
+     * @dev Sender balance must be checked prior to calling
+     *
+     * @param from From
+     * @param to  To
+     * @param tick  Tick
+     * @param amount  Amount
+     */
+    function _uncheckedUpdate(address from, address to, uint256 tick, uint256 amount) internal {
+        uint128 tick_ = tick.toUint128();
+        uint128 amount_ = amount.toUint128();
+
+        if (from != address(0)) {
+            /* shares > amount check occurs in beforeUpdate or beforeUpdateBatch */
+            unchecked {
+                _deposits[from][tick_].shares = _deposits[from][tick_].shares - amount_;
+            }
+        }
+
+        if (to != address(0)) {
+            _deposits[to][tick_].shares += amount_;
+        }
+    }
+
+    /**
+     * @notice Handle deposits (mint tokens) and redemptions (burn tokens)
+     *
+     * @dev Validations, events and errors emitted from DepositToken library.
+     *      Should be used with care, as makes external call to unknown contract
+     *       that can represent reentrancy risk.
+     *
+     * @param from From
+     * @param to To
+     * @param tick Tick (ERC1155 id)
+     * @param amount Amount
+     */
+    function _transfer(address from, address to, uint256 tick, uint256 amount) internal {
+        /* Validate sender balances */
+        DepositToken.beforeUpdate(_deposits, from, tick, amount);
+
+        /* Deposit (mint) or redeem (burn) tokens */
+        _uncheckedUpdate(from, to, tick, amount);
+
+        /* Validate ERC1155Receiver status */
+        DepositToken.afterUpdate(msg.sender, from, to, tick, amount);
+    }
+
+    /**
+     * @notice Handle deposits (mint tokens) and redemptions (burn tokens)
+     *
+     * @dev Validations, events and errors emitted from DepositToken library
+     *
+     * @param from From
+     * @param to To
+     * @param ticks Ticks (ERC1155 ids)
+     * @param amounts Amounts
+     */
+    function _transferBatch(address from, address to, uint256[] memory ticks, uint256[] memory amounts) internal {
+        /* Validate sender balances */
+        DepositToken.beforeUpdateBatch(_deposits, from, ticks, amounts);
+
+        for (uint256 i = 0; i < ticks.length; i++) {
+            /* Deposit (mint) or redeem (burn) tokens */
+            _uncheckedUpdate(from, to, ticks[i], amounts[i]);
+        }
+
+        /* Validate ERC1155Receiver status */
+        DepositToken.afterUpdateBatch(msg.sender, from, to, ticks, amounts);
     }
 
     /**************************************************************************/
@@ -1106,11 +1189,11 @@ abstract contract Pool is
      * @inheritdoc IPool
      */
     function deposit(uint128 tick, uint256 amount, uint256 minShares) external nonReentrant returns (uint256) {
-        /* Handle deposit accounting and compute shares */
-        uint128 shares = _deposit(tick, amount.toUint128(), minShares.toUint128());
-
         /* Transfer deposit amount */
         _currencyToken.safeTransferFrom(msg.sender, address(this), amount);
+
+        /* Handle deposit accounting and compute shares */
+        uint128 shares = _deposit(tick, amount.toUint128(), minShares.toUint128());
 
         /* Emit Deposited */
         emit Deposited(msg.sender, tick, amount, shares);
@@ -1190,10 +1273,86 @@ abstract contract Pool is
 
         /* Emit Withdrawn */
         emit Withdrawn(msg.sender, srcTick, redemptionId, oldShares, amount);
+
         /* Emit Deposited */
         emit Deposited(msg.sender, dstTick, amount, newShares);
 
         return (oldShares, newShares, amount);
+    }
+
+    /**************************************************************************/
+    /* Token API */
+    /**************************************************************************/
+
+    /**
+     * @notice IERC1155 balanceOf
+     */
+    function balanceOf(address account, uint256 tick) public view returns (uint256) {
+        return DepositToken.balanceOf(_deposits, account, tick);
+    }
+
+    /**
+     * @notice IERC1155 balanceOfBatch
+     */
+    function balanceOfBatch(
+        address[] calldata accounts,
+        uint256[] calldata ticks
+    ) external view returns (uint256[] memory) {
+        return DepositToken.balanceOfBatch(_deposits, accounts, ticks);
+    }
+
+    /**
+     * @notice IERC1155 setApprovalForAll
+     */
+    function setApprovalForAll(address operator, bool approved) external {
+        /* Add approval */
+        _operatorApprovals[msg.sender][operator] = approved;
+
+        /* Validate address and emit event */
+        DepositToken.afterApprovalForAll(operator, approved);
+    }
+
+    /**
+     * @notice IERC1155 isApprovedForAll
+     */
+    function isApprovedForAll(address account, address operator) public view returns (bool) {
+        return DepositToken.isApprovedForAll(_operatorApprovals, account, operator);
+    }
+
+    /**
+     * @notice IERC1155 safeTransferFrom
+     */
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tick,
+        uint256 amount,
+        bytes memory data
+    ) external nonReentrant {
+        data;
+
+        /* Validate approval and non-zero recipient address */
+        DepositToken.beforeTransfer(_operatorApprovals, msg.sender, from, to);
+
+        _transfer(from, to, tick, amount);
+    }
+
+    /**
+     * @notice IERC1155 safeBatchTransferFrom
+     */
+    function safeBatchTransferFrom(
+        address from,
+        address to,
+        uint256[] memory ticks,
+        uint256[] memory amounts,
+        bytes memory data
+    ) external nonReentrant {
+        data;
+
+        /* Validate approval and non-zero recipient address */
+        DepositToken.beforeTransfer(_operatorApprovals, from, to);
+
+        _transferBatch(from, to, ticks, amounts);
     }
 
     /**************************************************************************/
@@ -1245,6 +1404,9 @@ abstract contract Pool is
      * @inheritdoc IERC165
      */
     function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
-        return interfaceId == type(ICollateralLiquidationReceiver).interfaceId || super.supportsInterface(interfaceId);
+        return
+            interfaceId == type(IERC1155).interfaceId ||
+            interfaceId == type(ICollateralLiquidationReceiver).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 }

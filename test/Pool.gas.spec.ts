@@ -248,7 +248,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(240000);
+      expect(gasUsed).to.be.lt(240600);
     });
     it("deposit (existing tick)", async function () {
       await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
@@ -257,7 +257,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(100800);
+      expect(gasUsed).to.be.lt(103600);
     });
     it("deposit (existing deposit)", async function () {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
@@ -266,7 +266,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(85000);
+      expect(gasUsed).to.be.lt(86500);
     });
   });
 
@@ -279,7 +279,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(125000);
+      expect(gasUsed).to.be.lt(127600);
     });
     it("redeem (entire)", async function () {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
@@ -289,7 +289,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(125000);
+      expect(gasUsed).to.be.lt(127600);
     });
   });
 
@@ -321,7 +321,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(242100);
+      expect(gasUsed).to.be.lt(251000);
     });
 
     it("multicall redeem + rebalance (existing tick)", async function () {
@@ -338,7 +338,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(166800);
+      expect(gasUsed).to.be.lt(175800);
     });
   });
 
