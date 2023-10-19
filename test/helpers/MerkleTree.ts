@@ -45,4 +45,10 @@ export class MerkleTree {
 
     return ethers.utils.solidityPack(Array(proofs.length).fill("bytes"), proofs);
   }
+
+  static buildMultiProof(values: any[], tree: StandardMerkleTree<any>): string {
+    const { proof, proofFlags } = tree.getMultiProof([values]);
+
+    return ethers.utils.defaultAbiCoder.encode(["bytes32[]", "bool[]"], [proof, proofFlags]);
+  }
 }

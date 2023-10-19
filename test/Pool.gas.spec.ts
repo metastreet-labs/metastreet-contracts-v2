@@ -1031,7 +1031,7 @@ describe("Pool Gas", function () {
       await poolImpl.deployed();
     });
     for (const [count, principal, numTicks, maxGas] of [
-      [10, FixedPoint.from("15"), 10, 340000],
+      [10, FixedPoint.from("15"), 10, 342000],
       [10, FixedPoint.from("25"), 16, 460000],
       [100, FixedPoint.from("15"), 10, 350000],
       [100, FixedPoint.from("25"), 16, 465000],
@@ -1081,12 +1081,12 @@ describe("Pool Gas", function () {
         expect(ticks.length).to.equal(numTicks);
 
         /* Compute merkle proof */
-        const merkleProof = MerkleTree.buildProof("123", nodeCount, merkleTree);
+        const merkleMultiProof = MerkleTree.buildMultiProof([ethers.BigNumber.from("123")], merkleTree);
 
         /* Compute borrow options */
         const borrowOptions = ethers.utils.solidityPack(
           ["uint16", "uint16", "bytes"],
-          [2, ethers.utils.hexDataLength(merkleProof), merkleProof]
+          [2, ethers.utils.hexDataLength(merkleMultiProof), merkleMultiProof]
         );
 
         /* Borrow */

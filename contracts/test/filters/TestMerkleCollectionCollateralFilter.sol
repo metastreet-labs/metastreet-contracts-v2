@@ -23,12 +23,7 @@ contract TestMerkleCollectionCollateralFilter is MerkleCollectionCollateralFilte
     /**
      * @dev External wrapper function for _collateralSupported
      */
-    function collateralSupported(
-        address token,
-        uint256 tokenId,
-        uint256 index,
-        bytes calldata context
-    ) external view returns (bool) {
-        return _collateralSupported(token, tokenId, index, context);
+    function collateralSupported(address token, uint256[] memory tokenIds, bytes calldata context) external view {
+        _collateralSupported(token, tokenIds, context);
     }
 }

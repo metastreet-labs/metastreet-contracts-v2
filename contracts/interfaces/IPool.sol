@@ -35,12 +35,6 @@ interface IPool {
     error InvalidBorrowOptions();
 
     /**
-     * @notice Unsupported collateral
-     * @param index Index of unsupported asset
-     */
-    error UnsupportedCollateral(uint256 index);
-
-    /**
      * @notice Unsupported loan duration
      */
     error UnsupportedLoanDuration();

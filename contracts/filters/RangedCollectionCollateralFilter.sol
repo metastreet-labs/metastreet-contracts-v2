@@ -79,12 +79,17 @@ contract RangedCollectionCollateralFilter is CollateralFilter {
     /**
      * @inheritdoc CollateralFilter
      */
-    function _collateralSupported(
-        address token,
-        uint256 tokenId,
-        uint256,
-        bytes calldata
-    ) internal view override returns (bool) {
-        return token == _token && tokenId >= _startTokenId && tokenId <= _endTokenId;
+    function _collateralSupported(address token, uint256[] memory tokenIds, bytes calldata) internal view override {
+        /* Validate token supported */
+        if (token != _token) revert UnsupportedCollateral();
+
+        // /* Cache token ID range */
+        // uint256 startTokenId = _startTokenId;
+        // uint256 endTokenId = _endTokenId;
+
+        /* Validate token ID in range */
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            if (tokenIds[i] < _startTokenId || tokenIds[i] > _endTokenId) revert UnsupportedCollateral();
+        }
     }
 }

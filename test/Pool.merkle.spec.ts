@@ -275,12 +275,12 @@ describe("Pool Merkle", function () {
 
     it("originates loan with merkle filter", async function () {
       /* Compute merkle proof */
-      const merkleProof = MerkleTree.buildProof("123", nodeCount, merkleTree);
+      const merkleMultiProof = MerkleTree.buildMultiProof([ethers.BigNumber.from("123")], merkleTree);
 
       /* Compute borrow options */
       const borrowOptions = ethers.utils.solidityPack(
         ["uint16", "uint16", "bytes"],
-        [2, ethers.utils.hexDataLength(merkleProof), merkleProof]
+        [2, ethers.utils.hexDataLength(merkleMultiProof), merkleMultiProof]
       );
 
       /* Source liquidity */
@@ -362,12 +362,12 @@ describe("Pool Merkle", function () {
 
     it("originates loan with delegation with merkle filter", async function () {
       /* Compute merkle proof */
-      const merkleProof = MerkleTree.buildProof("123", nodeCount, merkleTree);
+      const merkleMultiProof = MerkleTree.buildMultiProof([ethers.BigNumber.from("123")], merkleTree);
 
       /* Compute borrow options */
       const borrowOptions = ethers.utils.solidityPack(
         ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes20"],
-        [2, ethers.utils.hexDataLength(merkleProof), merkleProof, 3, 20, accountBorrower.address]
+        [2, ethers.utils.hexDataLength(merkleMultiProof), merkleMultiProof, 3, 20, accountBorrower.address]
       );
 
       /* Source liquidity */
@@ -468,12 +468,12 @@ describe("Pool Merkle", function () {
 
     it("refinance loan at maturity with same principal and merkle filter", async function () {
       /* Compute merkle proof */
-      const merkleProof = MerkleTree.buildProof("123", nodeCount, merkleTree);
+      const merkleMultiProof = MerkleTree.buildMultiProof([ethers.BigNumber.from("123")], merkleTree);
 
       /* Compute borrow options */
       const borrowOptions = ethers.utils.solidityPack(
         ["uint16", "uint16", "bytes"],
-        [2, ethers.utils.hexDataLength(merkleProof), merkleProof]
+        [2, ethers.utils.hexDataLength(merkleMultiProof), merkleMultiProof]
       );
 
       /* Source liquidity */

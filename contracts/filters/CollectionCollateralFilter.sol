@@ -56,12 +56,7 @@ contract CollectionCollateralFilter is CollateralFilter {
     /**
      * @inheritdoc CollateralFilter
      */
-    function _collateralSupported(
-        address token,
-        uint256,
-        uint256,
-        bytes calldata
-    ) internal view override returns (bool) {
-        return token == _token;
+    function _collateralSupported(address token, uint256[] memory, bytes calldata) internal view override {
+        if (token != _token) revert UnsupportedCollateral();
     }
 }

@@ -87,16 +87,12 @@ contract SetCollectionCollateralFilter is CollateralFilter {
     /**
      * @inheritdoc CollateralFilter
      */
-    function _collateralSupported(
-        address token,
-        uint256 tokenId,
-        uint256,
-        bytes calldata
-    ) internal view override returns (bool) {
+    function _collateralSupported(address token, uint256[] memory tokenIds, bytes calldata) internal view override {
         /* Validate token supported */
-        if (token != _token) return false;
+        if (token != _token) revert UnsupportedCollateral();
 
-        /* Validate token ID is in set of token IDs */
-        return _tokenIds.contains(tokenId);
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            if (!_tokenIds.contains(tokenIds[i])) revert UnsupportedCollateral();
+        }
     }
 }

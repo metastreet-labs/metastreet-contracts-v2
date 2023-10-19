@@ -11,15 +11,6 @@ import "../CollateralFilter.sol";
  */
 contract MerkleCollectionCollateralFilter is CollateralFilter {
     /**************************************************************************/
-    /* Errors */
-    /**************************************************************************/
-
-    /**
-     * @notice Invalid context
-     */
-    error InvalidContext();
-
-    /**************************************************************************/
     /* State */
     /**************************************************************************/
 
@@ -27,11 +18,6 @@ contract MerkleCollectionCollateralFilter is CollateralFilter {
      * @notice Supported token
      */
     address private _token;
-
-    /**
-     * @notice Length of proof (multiple of 32)
-     */
-    uint32 private _proofLength;
 
     /**
      * @notice Merkle root
@@ -53,40 +39,10 @@ contract MerkleCollectionCollateralFilter is CollateralFilter {
     function _initialize(address token, bytes32 root, uint32 nodeCount, string memory metadataURI_) internal {
         /* Validate root */
         if (root == bytes32(0)) revert InvalidCollateralFilterParameters();
-        /* Validate node count */
-        if (nodeCount == 0) revert InvalidCollateralFilterParameters();
 
         _token = token;
         _root = root;
-        _proofLength = nodeCount * 32;
         _metadataURI = metadataURI_;
-    }
-
-    /**************************************************************************/
-    /* Helpers */
-    /**************************************************************************/
-
-    /**
-     * @notice Helper function that returns merkle proof in bytes32[] shape
-     * @param proofData Proof data
-     * @return merkleProof Merkle proof
-     */
-    function _extractProof(bytes calldata proofData) internal pure returns (bytes32[] memory) {
-        /* Compute node count */
-        uint256 nodeCount = (bytes32(proofData[proofData.length - 32:]) == bytes32(0))
-            ? proofData.length / 32 - 1
-            : proofData.length / 32;
-
-        /* Instantiate merkle proof array */
-        bytes32[] memory merkleProof = new bytes32[](nodeCount);
-
-        /* Populate merkle proof array */
-        for (uint256 i; i < nodeCount; i++) {
-            /* Set node */
-            merkleProof[i] = bytes32(proofData[i * 32:]);
-        }
-
-        return merkleProof;
     }
 
     /**************************************************************************/
@@ -140,23 +96,21 @@ contract MerkleCollectionCollateralFilter is CollateralFilter {
      */
     function _collateralSupported(
         address token,
-        uint256 tokenId,
-        uint256 index,
+        uint256[] memory tokenIds,
         bytes calldata context
-    ) internal view override returns (bool) {
+    ) internal view override {
         /* Validate token supported */
-        if (token != _token) return false;
+        if (token != _token) revert UnsupportedCollateral();
 
-        /* Compute proof offset */
-        uint32 proofLength = _proofLength;
-        uint256 proofOffset = index * proofLength;
-
-        /* Validate context length */
-        if (context.length < proofOffset + proofLength) revert InvalidContext();
+        /* Decode context */
+        (bytes32[] memory proof, bool[] memory proofFlags) = abi.decode(context, (bytes32[], bool[]));
 
         /* Compute leaf hash */
-        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(tokenId))));
+        bytes32[] memory leaves = new bytes32[](tokenIds.length);
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            leaves[i] = keccak256(bytes.concat(keccak256(abi.encode(tokenIds[i]))));
+        }
 
-        return MerkleProof.verify(_extractProof(context[proofOffset:proofOffset + proofLength]), _root, leaf);
+        if (!MerkleProof.multiProofVerify(proof, proofFlags, _root, leaves)) revert UnsupportedCollateral();
     }
 }

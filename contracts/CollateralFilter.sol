@@ -15,6 +15,11 @@ abstract contract CollateralFilter {
      */
     error InvalidCollateralFilterParameters();
 
+    /**
+     * @notice Unsupported collateral
+     */
+    error UnsupportedCollateral();
+
     /**************************************************************************/
     /* API */
     /**************************************************************************/
@@ -40,15 +45,12 @@ abstract contract CollateralFilter {
     /**
      * Query if collateral token is supported
      * @param token Collateral token contract
-     * @param tokenId Collateral Token ID
-     * @param index Collateral Token ID index
+     * @param tokenIds Collateral Token IDs
      * @param context ABI-encoded context
-     * @return True if supported, otherwise false
      */
     function _collateralSupported(
         address token,
-        uint256 tokenId,
-        uint256 index,
+        uint256[] memory tokenIds,
         bytes calldata context
-    ) internal view virtual returns (bool);
+    ) internal view virtual;
 }
