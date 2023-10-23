@@ -178,6 +178,17 @@ abstract contract Pool is
      */
     mapping(address => mapping(address => bool)) internal _operatorApprovals;
 
+    /**
+<<<<<<< HEAD
+     * @notice ERC1155 total supply
+     */
+    mapping(uint128 => uint256) internal _totalSupply;
+=======
+     * @notice Current ERD20 token implementation
+     */
+    address private _tokenImplementationERC20;
+>>>>>>> 22a6668 (contracts: update totalSupply)
+
     /**************************************************************************/
     /* Constructor */
     /**************************************************************************/
@@ -1281,8 +1292,18 @@ abstract contract Pool is
     }
 
     /**************************************************************************/
-    /* Token API */
+    /* IERC1155 API */
     /**************************************************************************/
+
+    /**
+     * @notice Total supply of token by tick
+     *
+     * @param tick Tick
+     */
+    function totalSupply(uint256 tick) public view returns (uint256) {
+        NodeInfo memory node = _liquidity.liquidityNode(tick.toUint128());
+        return node.shares - node.redemptions;
+    }
 
     /**
      * @notice IERC1155 balanceOf
