@@ -14,6 +14,7 @@ import "./LoanReceipt.sol";
 import "./LiquidityManager.sol";
 import "./CollateralFilter.sol";
 import "./InterestRateModel.sol";
+import "./DepositToken.sol";
 
 import "./interfaces/IPool.sol";
 import "./interfaces/ILiquidity.sol";
@@ -33,6 +34,7 @@ abstract contract Pool is
     Multicall,
     CollateralFilter,
     InterestRateModel,
+    DepositToken,
     IPool,
     ILiquidity,
     ICollateralLiquidationReceiver
@@ -798,6 +800,9 @@ abstract contract Pool is
         /* Add to deposit */
         _deposits[msg.sender][tick].shares += shares;
 
+        /* Call token hook */
+        onExternalTransfer(address(0), msg.sender, tick, shares);
+
         return shares;
     }
 
@@ -830,6 +835,9 @@ abstract contract Pool is
 
         /* Decrement deposit shares */
         dep.shares -= shares;
+
+        /* Call token hook */
+        onExternalTransfer(msg.sender, address(0), tick, shares);
 
         return redemptionId;
     }
@@ -1212,10 +1220,30 @@ abstract contract Pool is
 
         /* Emit Withdrawn */
         emit Withdrawn(msg.sender, srcTick, redemptionId, oldShares, amount);
+
         /* Emit Deposited */
         emit Deposited(msg.sender, dstTick, amount, newShares);
 
         return (oldShares, newShares, amount);
+    }
+
+    /**
+     * @notice Handles Transfer call from token contract
+     *
+     * @dev DepositERC20 contract MUST validate sender balance prior to calling
+     *      Only callable by DepositERC20 contract
+     *
+     * @param from From
+     * @param to To
+     * @param tick Tick
+     * @param amount Amount
+     */
+    function transfer(address from, address to, uint128 tick, uint256 amount) external nonReentrant {
+        /* Validate caller is ERC20 created by Pool */
+        if (msg.sender != depositToken(tick)) revert InvalidCaller();
+
+        _deposits[from][tick].shares -= amount.toUint128();
+        _deposits[to][tick].shares += amount.toUint128();
     }
 
     /**************************************************************************/
