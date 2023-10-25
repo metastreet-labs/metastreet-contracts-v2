@@ -13,6 +13,7 @@ import {
   ILiquidity,
   Pool,
   BundleCollateralWrapper,
+  DepositERC20,
 } from "../typechain";
 
 import { extractEvent } from "./helpers/EventUtilities";
@@ -37,6 +38,7 @@ describe("Integration", function () {
   let accountLiquidator: SignerWithAddress;
   let delegationRegistry: TestDelegationRegistry;
   let bundleCollateralWrapper: BundleCollateralWrapper;
+  let depositERC20Impl: DepositERC20;
 
   /* Toggle logging */
   const SILENCE_LOG = true;
@@ -88,6 +90,7 @@ describe("Integration", function () {
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
     const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
+    const depositERC20ImplFactory = await ethers.getContractFactory("DepositERC20");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy(
@@ -129,10 +132,15 @@ describe("Integration", function () {
     bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
     await bundleCollateralWrapper.deployed();
 
+    /* Deploy deposit erc20 implementation */
+    depositERC20Impl = (await depositERC20ImplFactory.deploy()) as DepositERC20;
+    await depositERC20Impl.deployed();
+
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       collateralLiquidator.address,
       delegationRegistry.address,
+      depositERC20Impl.address,
       [bundleCollateralWrapper.address],
       [CONFIG.tickThreshold, CONFIG.tickExponential]
     )) as Pool;
