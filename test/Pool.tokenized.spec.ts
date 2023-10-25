@@ -13,13 +13,15 @@ import {
   ExternalCollateralLiquidator,
   Pool,
   TestERC1155Receiver,
+  MetaStreetToken,
+  TestMaliciousPoolERC20,
 } from "../typechain";
 
 import { extractEvent, expectEvent } from "./helpers/EventUtilities";
 import { FixedPoint } from "./helpers/FixedPoint";
 import { Tick } from "./helpers/Tick";
 
-describe("Pool Tokenized", function () {
+describe.only("Pool Tokenized", function () {
   let accounts: SignerWithAddress[];
   let tok1: TestERC20;
   let nft1: TestERC721;
@@ -28,7 +30,7 @@ describe("Pool Tokenized", function () {
   let poolImpl: Pool;
   let pool: Pool;
   let snapshotId: string;
-  let accountDepositors: SignerWithAddress[3];
+  let accountDepositors: SignerWithAddress[];
   let accountBorrower: SignerWithAddress;
   let accountLender: SignerWithAddress;
   let accountLiquidator: SignerWithAddress;
@@ -37,6 +39,16 @@ describe("Pool Tokenized", function () {
   let testERC1155ReceiverFail: TestERC1155Receiver;
   let testERC1155ReceiverFailRevert: TestERC1155Receiver;
   let testERC1155ReceiverNotImplemented: TestERC20;
+  let metaStreetToken: MetaStreetToken;
+  let maliciousToken: TestMaliciousPoolERC20;
+
+  /* CONSTANTS */
+  const TICK10 = Tick.encode("10");
+  const TICK15 = Tick.encode("15");
+  const ZERO_ETHER = FixedPoint.from("0");
+  const ONE_ETHER = FixedPoint.from("1");
+  const TWO_ETHER = FixedPoint.from("2");
+  const THREE_ETHER = FixedPoint.from("3");
 
   before("deploy fixture", async () => {
     const RECEIVER_SINGLE_MAGIC_VALUE = "0xf23a6e61";
@@ -52,6 +64,8 @@ describe("Pool Tokenized", function () {
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
     const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
     const testERC1155ReceiverFactory = await ethers.getContractFactory("TestERC1155Receiver");
+    const metaStreetTokenFactory = await ethers.getContractFactory("MetaStreetToken");
+    const maliciousTokenFactory = await ethers.getContractFactory("TestMaliciousPoolERC20");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;
@@ -147,6 +161,12 @@ describe("Pool Tokenized", function () {
     await proxy.deployed();
     pool = (await ethers.getContractAt("Pool", proxy.address)) as Pool;
 
+    /* Deploy MetaStreet Token Implementation */
+    metaStreetToken = (await metaStreetTokenFactory.deploy()) as MetaStreetToken;
+
+    /* Deploy malicious MetaStreet Token */
+    maliciousToken = (await maliciousTokenFactory.deploy(pool.address, TICK10)) as TestMaliciousPoolERC20;
+
     /* Arrange accounts */
     accountDepositors = accounts.slice(1, 4);
     accountBorrower = accounts[4];
@@ -195,81 +215,764 @@ describe("Pool Tokenized", function () {
   });
 
   /****************************************************************************/
-  /* Token API */
+  /* ERC20 Token */
+  /****************************************************************************/
+
+  describe("ERC20 Token", async function () {
+    beforeEach("set token implementation", async () => {
+      await pool.setTokenImplementation(metaStreetToken.address);
+    });
+
+    describe("#_createERC20", async function () {
+      it("deposit into new tick creates ERC20 token contract at correct address", async function () {
+        /* Deposit */
+        const depTx = await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+        const tokenInstance = (await extractEvent(depTx, pool, "TokenCreated")).args.instance;
+        const tokenImplementation = (await extractEvent(depTx, pool, "TokenCreated")).args.implementation;
+
+        const cloneCreationCode = [
+          "0x3d602d80600a3d3981f3363d3d373d3d3d363d73",
+          metaStreetToken.address.replace(/0x/, "").toLowerCase(),
+          "5af43d82803e903d91602b57fd5bf3",
+        ].join("");
+
+        const predictedDeterministicAddress = ethers.utils.getCreate2Address(
+          pool.address,
+          ethers.utils.hexZeroPad(ethers.utils.hexlify(TICK10), 32),
+          ethers.utils.keccak256(cloneCreationCode)
+        );
+
+        expectEvent(depTx, pool, "TokenCreated", {
+          instance: predictedDeterministicAddress,
+          implementation: metaStreetToken.address,
+        });
+
+        expect(tokenInstance).to.equal(predictedDeterministicAddress);
+        expect(tokenImplementation).to.equal(metaStreetToken.address);
+      });
+
+      it("second deposit succeeds", async function () {
+        /* Deposit */
+        const depTx = await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+        const tokenInstance = (await extractEvent(depTx, pool, "TokenCreated")).args.instance;
+        const tokenImplementation = (await extractEvent(depTx, pool, "TokenCreated")).args.implementation;
+
+        const cloneCreationCode = [
+          "0x3d602d80600a3d3981f3363d3d373d3d3d363d73",
+          metaStreetToken.address.replace(/0x/, "").toLowerCase(),
+          "5af43d82803e903d91602b57fd5bf3",
+        ].join("");
+
+        const predictedDeterministicAddress = ethers.utils.getCreate2Address(
+          pool.address,
+          ethers.utils.hexZeroPad(ethers.utils.hexlify(TICK10), 32),
+          ethers.utils.keccak256(cloneCreationCode)
+        );
+
+        expectEvent(depTx, pool, "TokenCreated", {
+          instance: predictedDeterministicAddress,
+          implementation: metaStreetToken.address,
+        });
+
+        expect(tokenInstance).to.equal(predictedDeterministicAddress);
+        expect(tokenImplementation).to.equal(metaStreetToken.address);
+
+        await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
+      });
+
+      it("create multiple erc20 token contracts", async function () {
+        /* Deposit TICK10 */
+        const depTx = await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+        const tokenInstance = (await extractEvent(depTx, pool, "TokenCreated")).args.instance;
+        const tokenImplementation = (await extractEvent(depTx, pool, "TokenCreated")).args.implementation;
+
+        const cloneCreationCode = [
+          "0x3d602d80600a3d3981f3363d3d373d3d3d363d73",
+          metaStreetToken.address.replace(/0x/, "").toLowerCase(),
+          "5af43d82803e903d91602b57fd5bf3",
+        ].join("");
+
+        const predictedDeterministicAddress = ethers.utils.getCreate2Address(
+          pool.address,
+          ethers.utils.hexZeroPad(ethers.utils.hexlify(TICK10), 32),
+          ethers.utils.keccak256(cloneCreationCode)
+        );
+
+        expectEvent(depTx, pool, "TokenCreated", {
+          instance: predictedDeterministicAddress,
+          implementation: metaStreetToken.address,
+        });
+
+        expect(tokenInstance).to.equal(predictedDeterministicAddress);
+        expect(tokenImplementation).to.equal(metaStreetToken.address);
+
+        /* Deposit TICK15 */
+        const depTx2 = await pool.connect(accountDepositors[1]).deposit(TICK15, ONE_ETHER, 0);
+        const tokenInstance2 = (await extractEvent(depTx2, pool, "TokenCreated")).args.instance;
+        const tokenImplementation2 = (await extractEvent(depTx2, pool, "TokenCreated")).args.implementation;
+
+        const predictedDeterministicAddress2 = ethers.utils.getCreate2Address(
+          pool.address,
+          ethers.utils.hexZeroPad(ethers.utils.hexlify(TICK15), 32), // Different Salt
+          ethers.utils.keccak256(cloneCreationCode)
+        );
+
+        expectEvent(depTx2, pool, "TokenCreated", {
+          instance: predictedDeterministicAddress2,
+          implementation: metaStreetToken.address,
+        });
+
+        expect(tokenInstance2).to.equal(predictedDeterministicAddress2);
+        expect(tokenImplementation2).to.equal(metaStreetToken.address);
+      });
+
+      it("attempt to transfer using malicious token contract reverts", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+
+        /* Confirm deposit state */
+        const [shares] = await pool.deposits(accountDepositors[0].address, TICK10);
+        expect(shares).to.equal(ONE_ETHER);
+
+        const [attackerShares] = await pool.deposits(accountDepositors[1].address, TICK10);
+        expect(attackerShares).to.equal(ZERO_ETHER);
+
+        /* Attempt Transfer */
+        await expect(
+          maliciousToken.connect(accountDepositors[1]).transfer(accountDepositors[1].address, ONE_ETHER)
+        ).to.be.revertedWithCustomError(pool, "InvalidTokenContract");
+
+        /* Confirm deposit state */
+        const [shares2] = await pool.deposits(accountDepositors[0].address, TICK10);
+        expect(shares2).to.equal(ONE_ETHER);
+
+        const [attackerShares2] = await pool.deposits(accountDepositors[1].address, TICK10);
+        expect(attackerShares2).to.equal(ZERO_ETHER);
+      });
+    });
+
+    describe("#totalSupply", async function () {
+      let erc20Token10: MetaStreetToken;
+      let erc20Token15: MetaStreetToken;
+
+      beforeEach("deposit into new tick", async () => {
+        const depTx = await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+        const tokenInstance = (await extractEvent(depTx, pool, "TokenCreated")).args.instance;
+        erc20Token10 = (await ethers.getContractAt("MetaStreetToken", tokenInstance)) as MetaStreetToken;
+      });
+
+      it("returns correct amount of tokens", async function () {
+        expect(await erc20Token10.totalSupply()).to.equal(ONE_ETHER);
+      });
+
+      it("returns correct amount of tokens - multiple depositors", async function () {
+        await pool.connect(accountDepositors[1]).deposit(TICK10, TWO_ETHER, 0);
+        expect(await erc20Token10.totalSupply()).to.equal(FixedPoint.from("3"));
+      });
+
+      it("returns correct amount of tokens - multiple depositors, multiple ticks", async function () {
+        const depTx = await pool.connect(accountDepositors[1]).deposit(TICK15, TWO_ETHER, 0);
+        const tokenInstance = (await extractEvent(depTx, pool, "TokenCreated")).args.instance;
+        erc20Token15 = (await ethers.getContractAt("MetaStreetToken", tokenInstance)) as MetaStreetToken;
+
+        expect(await erc20Token10.totalSupply()).to.equal(ONE_ETHER);
+        expect(await erc20Token15.totalSupply()).to.equal(TWO_ETHER);
+      });
+
+      it("returns correct amount of tokens - after redeem", async function () {
+        await pool.connect(accountDepositors[0]).redeem(TICK10, ONE_ETHER);
+        expect(await erc20Token10.totalSupply()).to.equal(ZERO_ETHER);
+      });
+
+      it("returns correct amount of tokens - after redeem multiple times", async function () {
+        await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+
+        await pool.connect(accountDepositors[0]).redeem(TICK10, ONE_ETHER);
+        await pool.connect(accountDepositors[0]).redeem(TICK10, ONE_ETHER);
+
+        expect(await erc20Token10.totalSupply()).to.equal(ZERO_ETHER);
+      });
+    });
+
+    describe("#balanceOf", async function () {
+      let erc20Token10: MetaStreetToken;
+      let erc20Token15: MetaStreetToken;
+
+      beforeEach("deposit into new ticks", async () => {
+        const depTx10 = await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+        const tokenInstance10 = (await extractEvent(depTx10, pool, "TokenCreated")).args.instance;
+        erc20Token10 = (await ethers.getContractAt("MetaStreetToken", tokenInstance10)) as MetaStreetToken;
+
+        const depTx15 = await pool.connect(accountDepositors[0]).deposit(TICK15, ONE_ETHER, 0);
+        const tokenInstance15 = (await extractEvent(depTx15, pool, "TokenCreated")).args.instance;
+        erc20Token15 = (await ethers.getContractAt("MetaStreetToken", tokenInstance15)) as MetaStreetToken;
+      });
+
+      it("returns correct amount of tokens", async function () {
+        expect(await erc20Token10.balanceOf(accountDepositors[0].address)).to.equal(ONE_ETHER);
+        expect(await erc20Token15.balanceOf(accountDepositors[0].address)).to.equal(ONE_ETHER);
+      });
+
+      it("returns correct amount of tokens - multiple depositors", async function () {
+        await pool.connect(accountDepositors[1]).deposit(TICK10, TWO_ETHER, 0);
+        expect(await erc20Token10.balanceOf(accountDepositors[0].address)).to.equal(ONE_ETHER);
+        expect(await erc20Token10.balanceOf(accountDepositors[1].address)).to.equal(TWO_ETHER);
+      });
+
+      it("returns correct amount of tokens - multiple depositors, multiple ticks", async function () {
+        await pool.connect(accountDepositors[1]).deposit(TICK15, TWO_ETHER, 0);
+        expect(await erc20Token10.balanceOf(accountDepositors[0].address)).to.equal(ONE_ETHER);
+        expect(await erc20Token15.balanceOf(accountDepositors[1].address)).to.equal(TWO_ETHER);
+      });
+
+      it("returns correct amount of tokens - after redeem", async function () {
+        await pool.connect(accountDepositors[0]).redeem(TICK10, ONE_ETHER);
+        expect(await erc20Token10.balanceOf(accountDepositors[0].address)).to.equal(ZERO_ETHER);
+      });
+
+      it("returns correct amount of tokens - after redeem multiple times", async function () {
+        await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+
+        await pool.connect(accountDepositors[0]).redeem(TICK10, ONE_ETHER);
+        await pool.connect(accountDepositors[0]).redeem(TICK10, ONE_ETHER);
+
+        expect(await erc20Token10.balanceOf(accountDepositors[0].address)).to.equal(ZERO_ETHER);
+      });
+
+      it("returns correct amount of tokens - after transfer", async function () {
+        await erc20Token10.connect(accountDepositors[0]).transfer(accountDepositors[1].address, ONE_ETHER);
+
+        expect(await erc20Token10.balanceOf(accountDepositors[0].address)).to.equal(ZERO_ETHER);
+        expect(await erc20Token10.balanceOf(accountDepositors[1].address)).to.equal(ONE_ETHER);
+      });
+
+      it("returns correct amount of tokens - after transfer multiple times", async function () {
+        await erc20Token10.connect(accountDepositors[0]).transfer(accountDepositors[1].address, ONE_ETHER);
+        await erc20Token10.connect(accountDepositors[1]).transfer(accountDepositors[2].address, ONE_ETHER);
+
+        expect(await erc20Token10.balanceOf(accountDepositors[0].address)).to.equal(ZERO_ETHER);
+        expect(await erc20Token10.balanceOf(accountDepositors[1].address)).to.equal(ZERO_ETHER);
+        expect(await erc20Token10.balanceOf(accountDepositors[2].address)).to.equal(ONE_ETHER);
+      });
+    });
+
+    describe("#transfer", async function () {
+      let erc20Token10: MetaStreetToken;
+      let erc20Token15: MetaStreetToken;
+
+      beforeEach("deposit into new ticks", async () => {
+        const depTx10 = await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+        const tokenInstance10 = (await extractEvent(depTx10, pool, "TokenCreated")).args.instance;
+        erc20Token10 = (await ethers.getContractAt("MetaStreetToken", tokenInstance10)) as MetaStreetToken;
+
+        const depTx15 = await pool.connect(accountDepositors[0]).deposit(TICK15, ONE_ETHER, 0);
+        const tokenInstance15 = (await extractEvent(depTx15, pool, "TokenCreated")).args.instance;
+        erc20Token15 = (await ethers.getContractAt("MetaStreetToken", tokenInstance15)) as MetaStreetToken;
+      });
+
+      it("should transfer tokens and update deposit state", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[1]).deposit(TICK10, ONE_ETHER, 0);
+
+        /* Transfer */
+        await erc20Token10.connect(accountDepositors[1]).transfer(accountDepositors[2].address, ONE_ETHER);
+
+        /* Validate token balance */
+        expect(await erc20Token10.balanceOf(accountDepositors[1].address)).to.equal(ZERO_ETHER);
+        expect(await erc20Token10.balanceOf(accountDepositors[2].address)).to.equal(ONE_ETHER);
+
+        /* Validate pool deposit state */
+        const [shares1] = await pool.deposits(accountDepositors[1].address, TICK10);
+        expect(shares1).to.equal(ZERO_ETHER);
+
+        const [shares2] = await pool.deposits(accountDepositors[2].address, TICK10);
+        expect(shares2).to.equal(ONE_ETHER);
+      });
+
+      it("should transfer tokens and update deposit state - multiple ticks", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[1]).deposit(TICK10, ONE_ETHER, 0);
+        await pool.connect(accountDepositors[1]).deposit(TICK15, ONE_ETHER, 0);
+
+        /* Transfer */
+        await erc20Token10.connect(accountDepositors[1]).transfer(accountDepositors[2].address, ONE_ETHER);
+        await erc20Token15.connect(accountDepositors[1]).transfer(accountDepositors[2].address, ONE_ETHER);
+
+        /* Validate token balance */
+        expect(await erc20Token10.balanceOf(accountDepositors[1].address)).to.equal(ZERO_ETHER);
+        expect(await erc20Token10.balanceOf(accountDepositors[2].address)).to.equal(ONE_ETHER);
+
+        expect(await erc20Token15.balanceOf(accountDepositors[1].address)).to.equal(ZERO_ETHER);
+        expect(await erc20Token15.balanceOf(accountDepositors[2].address)).to.equal(ONE_ETHER);
+
+        /* Validate pool deposit state */
+        const [shares1] = await pool.deposits(accountDepositors[1].address, TICK10);
+        expect(shares1).to.equal(ZERO_ETHER);
+
+        const [shares2] = await pool.deposits(accountDepositors[2].address, TICK10);
+        expect(shares2).to.equal(ONE_ETHER);
+
+        const [shares3] = await pool.deposits(accountDepositors[1].address, TICK15);
+        expect(shares3).to.equal(ZERO_ETHER);
+
+        const [shares4] = await pool.deposits(accountDepositors[2].address, TICK15);
+        expect(shares4).to.equal(ONE_ETHER);
+      });
+
+      it("should transfer tokens and update deposit state - multiple depositors", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[1]).deposit(TICK10, ONE_ETHER, 0);
+        await pool.connect(accountDepositors[2]).deposit(TICK10, ONE_ETHER, 0);
+
+        /* Transfer */
+        await erc20Token10.connect(accountDepositors[1]).transfer(accountDepositors[2].address, ONE_ETHER);
+
+        /* Validate token balance */
+        expect(await erc20Token10.balanceOf(accountDepositors[1].address)).to.equal(ZERO_ETHER);
+        expect(await erc20Token10.balanceOf(accountDepositors[2].address)).to.equal(TWO_ETHER);
+
+        /* Validate pool deposit state */
+        const [shares1] = await pool.deposits(accountDepositors[1].address, TICK10);
+        expect(shares1).to.equal(ZERO_ETHER);
+
+        const [shares2] = await pool.deposits(accountDepositors[2].address, TICK10);
+        expect(shares2).to.equal(TWO_ETHER);
+      });
+
+      it("reverts when transferring more than balance", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[1]).deposit(TICK10, ONE_ETHER, 0);
+
+        /* Transfer */
+        await expect(
+          erc20Token10.connect(accountDepositors[1]).transfer(accountDepositors[2].address, TWO_ETHER)
+        ).to.be.revertedWithCustomError(erc20Token10, "ERC20InsufficientBalance");
+      });
+
+      it("reverts when transferring to zero address", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[1]).deposit(TICK10, ONE_ETHER, 0);
+
+        /* Transfer */
+        await expect(erc20Token10.connect(accountDepositors[1]).transfer(ethers.constants.AddressZero, ONE_ETHER))
+          .to.be.revertedWithCustomError(erc20Token10, "ERC20InvalidReceiver")
+          .withArgs(ethers.constants.AddressZero);
+      });
+    });
+
+    describe("#allowance", async function () {
+      let erc20Token10: MetaStreetToken;
+      let erc20Token15: MetaStreetToken;
+
+      beforeEach("deposit into new ticks", async () => {
+        const depTx10 = await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+        const tokenInstance10 = (await extractEvent(depTx10, pool, "TokenCreated")).args.instance;
+        erc20Token10 = (await ethers.getContractAt("MetaStreetToken", tokenInstance10)) as MetaStreetToken;
+
+        const depTx15 = await pool.connect(accountDepositors[0]).deposit(TICK15, ONE_ETHER, 0);
+        const tokenInstance15 = (await extractEvent(depTx15, pool, "TokenCreated")).args.instance;
+        erc20Token15 = (await ethers.getContractAt("MetaStreetToken", tokenInstance15)) as MetaStreetToken;
+      });
+
+      it("returns zero when queried about zero address", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+
+        /* Call allowance */
+        expect(await erc20Token10.allowance(accountDepositors[0].address, ethers.constants.AddressZero)).to.equal(0);
+      });
+
+      it("returns zero when account hasn't approved", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+
+        /* Call allowance */
+        expect(await erc20Token10.allowance(accountDepositors[0].address, accountDepositors[1].address)).to.equal(0);
+      });
+
+      it("returns correct amount of tokens", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[1]).deposit(TICK10, ONE_ETHER, 0);
+
+        /* Approve */
+        await erc20Token10.connect(accountDepositors[1]).approve(accountDepositors[2].address, ONE_ETHER);
+
+        /* Call allowance */
+        expect(await erc20Token10.allowance(accountDepositors[1].address, accountDepositors[2].address)).to.equal(
+          ONE_ETHER
+        );
+      });
+
+      it("allowance correctly decrement after transfer", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[1]).deposit(TICK10, ONE_ETHER, 0);
+
+        /* Approve */
+        await erc20Token10.connect(accountDepositors[1]).approve(accountDepositors[2].address, ONE_ETHER);
+
+        /* Transfer */
+        await erc20Token10
+          .connect(accountDepositors[2])
+          .transferFrom(accountDepositors[1].address, accountDepositors[2].address, ONE_ETHER);
+
+        /* Call allowance */
+        expect(await erc20Token10.allowance(accountDepositors[1].address, accountDepositors[2].address)).to.equal(
+          ZERO_ETHER
+        );
+      });
+
+      it("allowance does not decrement after transfer when allowance is infinite", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[1]).deposit(TICK10, ONE_ETHER, 0);
+
+        /* Approve */
+        await erc20Token10
+          .connect(accountDepositors[1])
+          .approve(accountDepositors[2].address, ethers.constants.MaxUint256);
+
+        /* Transfer */
+        await erc20Token10
+          .connect(accountDepositors[2])
+          .transferFrom(accountDepositors[1].address, accountDepositors[2].address, ONE_ETHER);
+
+        /* Call allowance */
+        expect(await erc20Token10.allowance(accountDepositors[1].address, accountDepositors[2].address)).to.equal(
+          ethers.constants.MaxUint256
+        );
+      });
+    });
+
+    describe("#approve", async function () {
+      let erc20Token10: MetaStreetToken;
+      let erc20Token15: MetaStreetToken;
+
+      beforeEach("deposit into new ticks", async () => {
+        const depTx10 = await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+        const tokenInstance10 = (await extractEvent(depTx10, pool, "TokenCreated")).args.instance;
+        erc20Token10 = (await ethers.getContractAt("MetaStreetToken", tokenInstance10)) as MetaStreetToken;
+
+        const depTx15 = await pool.connect(accountDepositors[0]).deposit(TICK15, ONE_ETHER, 0);
+        const tokenInstance15 = (await extractEvent(depTx15, pool, "TokenCreated")).args.instance;
+        erc20Token15 = (await ethers.getContractAt("MetaStreetToken", tokenInstance15)) as MetaStreetToken;
+      });
+
+      it("should approve tokens and update allowance state", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[1]).deposit(TICK10, ONE_ETHER, 0);
+
+        /* Approve */
+        await erc20Token10.connect(accountDepositors[1]).approve(accountDepositors[2].address, ONE_ETHER);
+
+        /* Validate allowance */
+        expect(await erc20Token10.allowance(accountDepositors[1].address, accountDepositors[2].address)).to.equal(
+          ONE_ETHER
+        );
+      });
+
+      it("should approve tokens and update allowance state - multiple ticks", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[1]).deposit(TICK10, ONE_ETHER, 0);
+        await pool.connect(accountDepositors[1]).deposit(TICK15, ONE_ETHER, 0);
+
+        /* Approve */
+        await erc20Token10.connect(accountDepositors[1]).approve(accountDepositors[2].address, ONE_ETHER);
+        await erc20Token15.connect(accountDepositors[1]).approve(accountDepositors[2].address, ONE_ETHER);
+
+        /* Validate allowance */
+        expect(await erc20Token10.allowance(accountDepositors[1].address, accountDepositors[2].address)).to.equal(
+          ONE_ETHER
+        );
+        expect(await erc20Token15.allowance(accountDepositors[1].address, accountDepositors[2].address)).to.equal(
+          ONE_ETHER
+        );
+      });
+
+      it("should approve tokens and update allowance state - multiple depositors", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[1]).deposit(TICK10, ONE_ETHER, 0);
+        await pool.connect(accountDepositors[2]).deposit(TICK10, ONE_ETHER, 0);
+
+        /* Approve */
+        await erc20Token10.connect(accountDepositors[1]).approve(accountDepositors[2].address, ONE_ETHER);
+
+        /* Validate allowance */
+        expect(await erc20Token10.allowance(accountDepositors[1].address, accountDepositors[2].address)).to.equal(
+          ONE_ETHER
+        );
+      });
+    });
+
+    describe("#transferFrom", async function () {
+      let erc20Token10: MetaStreetToken;
+      let erc20Token15: MetaStreetToken;
+
+      beforeEach("deposit into new ticks", async () => {
+        const depTx10 = await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+        const tokenInstance10 = (await extractEvent(depTx10, pool, "TokenCreated")).args.instance;
+        erc20Token10 = (await ethers.getContractAt("MetaStreetToken", tokenInstance10)) as MetaStreetToken;
+
+        const depTx15 = await pool.connect(accountDepositors[0]).deposit(TICK15, ONE_ETHER, 0);
+        const tokenInstance15 = (await extractEvent(depTx15, pool, "TokenCreated")).args.instance;
+        erc20Token15 = (await ethers.getContractAt("MetaStreetToken", tokenInstance15)) as MetaStreetToken;
+      });
+
+      it("should transfer tokens and update deposit state", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[1]).deposit(TICK10, ONE_ETHER, 0);
+
+        /* Approve */
+        await erc20Token10.connect(accountDepositors[1]).approve(accountDepositors[2].address, ONE_ETHER);
+
+        /* Transfer */
+        await erc20Token10
+          .connect(accountDepositors[2])
+          .transferFrom(accountDepositors[1].address, accountDepositors[2].address, ONE_ETHER);
+
+        /* Validate token balance */
+        expect(await erc20Token10.balanceOf(accountDepositors[1].address)).to.equal(ZERO_ETHER);
+        expect(await erc20Token10.balanceOf(accountDepositors[2].address)).to.equal(ONE_ETHER);
+
+        /* Validate pool deposit state */
+        const [shares1] = await pool.deposits(accountDepositors[1].address, TICK10);
+        expect(shares1).to.equal(ZERO_ETHER);
+
+        const [shares2] = await pool.deposits(accountDepositors[2].address, TICK10);
+        expect(shares2).to.equal(ONE_ETHER);
+      });
+
+      it("should transfer tokens and update deposit state - multiple ticks", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[1]).deposit(TICK10, ONE_ETHER, 0);
+        await pool.connect(accountDepositors[1]).deposit(TICK15, ONE_ETHER, 0);
+
+        /* Approve */
+        await erc20Token10.connect(accountDepositors[1]).approve(accountDepositors[2].address, ONE_ETHER);
+        await erc20Token15.connect(accountDepositors[1]).approve(accountDepositors[2].address, ONE_ETHER);
+
+        /* Transfer */
+        await erc20Token10
+          .connect(accountDepositors[2])
+          .transferFrom(accountDepositors[1].address, accountDepositors[2].address, ONE_ETHER);
+
+        await erc20Token15
+          .connect(accountDepositors[2])
+          .transferFrom(accountDepositors[1].address, accountDepositors[2].address, ONE_ETHER);
+
+        /* Validate token balance */
+        expect(await erc20Token10.balanceOf(accountDepositors[1].address)).to.equal(ZERO_ETHER);
+        expect(await erc20Token10.balanceOf(accountDepositors[2].address)).to.equal(ONE_ETHER);
+
+        expect(await erc20Token15.balanceOf(accountDepositors[1].address)).to.equal(ZERO_ETHER);
+        expect(await erc20Token15.balanceOf(accountDepositors[2].address)).to.equal(ONE_ETHER);
+
+        /* Validate pool deposit state */
+        const [shares1] = await pool.deposits(accountDepositors[1].address, TICK10);
+        expect(shares1).to.equal(ZERO_ETHER);
+
+        const [shares2] = await pool.deposits(accountDepositors[2].address, TICK10);
+        expect(shares2).to.equal(ONE_ETHER);
+
+        const [shares3] = await pool.deposits(accountDepositors[1].address, TICK15);
+        expect(shares3).to.equal(ZERO_ETHER);
+
+        const [shares4] = await pool.deposits(accountDepositors[2].address, TICK15);
+        expect(shares4).to.equal(ONE_ETHER);
+      });
+
+      it("reverts when not approved", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[1]).deposit(TICK10, ONE_ETHER, 0);
+
+        /* Transfer */
+        await expect(
+          erc20Token10
+            .connect(accountDepositors[2])
+            .transferFrom(accountDepositors[1].address, accountDepositors[2].address, ONE_ETHER)
+        ).to.be.revertedWithCustomError(erc20Token10, "ERC20InsufficientAllowance");
+      });
+
+      it("reverts when insufficient allowance approved", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[1]).deposit(TICK10, TWO_ETHER, 0);
+
+        /* Approve */
+        await erc20Token10.connect(accountDepositors[1]).approve(accountDepositors[2].address, ONE_ETHER);
+
+        /* Transfer */
+        await expect(
+          erc20Token10
+            .connect(accountDepositors[2])
+            .transferFrom(accountDepositors[1].address, accountDepositors[2].address, TWO_ETHER)
+        ).to.be.revertedWithCustomError(erc20Token10, "ERC20InsufficientAllowance");
+      });
+    });
+  });
+
+  /****************************************************************************/
+  /* ERC1155 - Total Supply */
+  /****************************************************************************/
+  describe("#totalSupply", async function () {
+    it("returns zero when no deposits", async function () {
+      expect(await pool.totalSupply(TICK10)).to.equal(0);
+    });
+
+    it("returns the correct amount of tokens", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+
+      /* Validate token state */
+      expect(await pool.totalSupply(TICK10)).to.equal(ONE_ETHER);
+    });
+
+    it("returns the correct amount of tokens - multiple depositors", async function () {
+      /* Deposit 1 */
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+
+      /* Deposit 2 */
+      await pool.connect(accountDepositors[1]).deposit(TICK10, TWO_ETHER, 0);
+
+      /* Validate token state */
+      expect(await pool.totalSupply(TICK10)).to.equal(FixedPoint.from("3"));
+    });
+
+    it("returns the correct amount of tokens - multiple depositors, multiple ticks", async function () {
+      /* Deposit 1 */
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+
+      /* Deposit 2 */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), TWO_ETHER, 0);
+
+      /* Validate token state */
+      expect(await pool.totalSupply(TICK10)).to.equal(ONE_ETHER);
+      expect(await pool.totalSupply(Tick.encode("15"))).to.equal(TWO_ETHER);
+    });
+
+    it("returns the correct amount of tokens - after redeem", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
+
+      /* Redeem */
+      await pool.connect(accountDepositors[0]).redeem(TICK10, ONE_ETHER);
+
+      /* Validate token state */
+      expect(await pool.totalSupply(TICK10)).to.equal(ONE_ETHER);
+    });
+
+    it("returns the correct amount of tokens - after redeem multiple times", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(TICK10, FixedPoint.from("3"), 0);
+
+      /* Redeem */
+      await pool.connect(accountDepositors[0]).redeem(TICK10, ONE_ETHER);
+      await pool.connect(accountDepositors[0]).redeem(TICK10, ONE_ETHER);
+
+      /* Validate token state */
+      expect(await pool.totalSupply(TICK10)).to.equal(ONE_ETHER);
+    });
+
+    it("returns the correct amount of tokens - after redeem multiple times, multiple depositors", async function () {
+      /* Deposit 1 */
+      await pool.connect(accountDepositors[0]).deposit(TICK10, FixedPoint.from("3"), 0);
+
+      /* Deposit 2 */
+      await pool.connect(accountDepositors[1]).deposit(TICK10, TWO_ETHER, 0);
+
+      /* Redeem */
+      await pool.connect(accountDepositors[0]).redeem(TICK10, ONE_ETHER);
+      await pool.connect(accountDepositors[1]).redeem(TICK10, ONE_ETHER);
+
+      /* Validate token state */
+      expect(await pool.totalSupply(TICK10)).to.equal(FixedPoint.from("3"));
+    });
+
+    it("returns the correct amount of tokens - after transfer", async function () {
+      /* Deposit */
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
+
+      /* Transfer */
+      await pool
+        .connect(accountDepositors[0])
+        .safeTransferFrom(accountDepositors[0].address, accountDepositors[1].address, TICK10, ONE_ETHER, "0x");
+
+      /* Validate token state */
+      expect(await pool.totalSupply(TICK10)).to.equal(TWO_ETHER);
+    });
+  });
+
+  /****************************************************************************/
+  /* 1155 Token API */
   /****************************************************************************/
 
   describe("#balanceOf", async function () {
     it("returns zero when queried about zero address", async function () {
       /* Create valid tick */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       /* Call balanceOf */
-      expect(await pool.balanceOf(ethers.constants.AddressZero, Tick.encode("10"))).to.equal(0);
+      expect(await pool.balanceOf(ethers.constants.AddressZero, TICK10)).to.equal(0);
     });
 
     it("returns zero when accounts haven't deposited", async function () {
       /* Create valid tick */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       /* Call balanceOf */
-      expect(await pool.balanceOf(accountDepositors[1].address, Tick.encode("10"))).to.equal(0);
-      expect(await pool.balanceOf(accountDepositors[2].address, Tick.encode("10"))).to.equal(0);
+      expect(await pool.balanceOf(accountDepositors[1].address, TICK10)).to.equal(0);
+      expect(await pool.balanceOf(accountDepositors[2].address, TICK10)).to.equal(0);
     });
 
     it("returns the correct amount of tokens", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ONE_ETHER);
     });
 
     it("returns the correct amount of tokens - multiple depositors", async function () {
       /* Deposit 1 */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       /* Deposit 2 */
-      await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[1]).deposit(TICK10, TWO_ETHER, 0);
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
-      expect(await pool.balanceOf(accountDepositors[1].address, Tick.encode("10"))).to.equal(FixedPoint.from("2"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ONE_ETHER);
+      expect(await pool.balanceOf(accountDepositors[1].address, TICK10)).to.equal(TWO_ETHER);
     });
 
     it("returns the correct amount of tokens - multiple depositors, multiple ticks", async function () {
       /* Deposit 1 */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       /* Deposit 2 */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), TWO_ETHER, 0);
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("15"))).to.equal(FixedPoint.from("2"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ONE_ETHER);
+      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("15"))).to.equal(TWO_ETHER);
     });
   });
 
   describe("#balanceOfBatch", async function () {
     it("reverts when input arrays don't match", async function () {
       /* Create valid tick */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       /* Call balanceOf */
-      await expect(
-        pool.balanceOfBatch([accountDepositors[0].address, accountDepositors[1].address], [Tick.encode("10")])
-      )
+      await expect(pool.balanceOfBatch([accountDepositors[0].address, accountDepositors[1].address], [TICK10]))
         .to.be.revertedWithCustomError(pool, "ERC1155InvalidArrayLength")
         .withArgs(1, 2);
     });
 
     it("returns zero when accounts haven't deposited", async function () {
       /* Create valid tick */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       /* Call balanceOfBatch */
       const res = await pool.balanceOfBatch(
         [accountDepositors[1].address, accountDepositors[2].address],
-        [Tick.encode("10"), Tick.encode("10")]
+        [TICK10, TICK10]
       );
 
       expect(res[0]).to.equal(0);
@@ -278,33 +981,33 @@ describe("Pool Tokenized", function () {
 
     it("returns the correct amount of tokens per account", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
-      await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+      await pool.connect(accountDepositors[1]).deposit(TICK10, TWO_ETHER, 0);
 
       /* Call balanceOfBatch */
       const res = await pool.balanceOfBatch(
         [accountDepositors[0].address, accountDepositors[1].address],
-        [Tick.encode("10"), Tick.encode("10")]
+        [TICK10, TICK10]
       );
 
-      expect(res[0]).to.equal(FixedPoint.from("1"));
-      expect(res[1]).to.equal(FixedPoint.from("2"));
+      expect(res[0]).to.equal(ONE_ETHER);
+      expect(res[1]).to.equal(TWO_ETHER);
     });
 
     it("returns the correct amount of tokens per account when using same address", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
-      await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+      await pool.connect(accountDepositors[1]).deposit(TICK10, TWO_ETHER, 0);
 
       /* Call balanceOfBatch */
       const res = await pool.balanceOfBatch(
         [accountDepositors[0].address, accountDepositors[1].address, accountDepositors[0].address],
-        [Tick.encode("10"), Tick.encode("10"), Tick.encode("10")]
+        [TICK10, TICK10, TICK10]
       );
 
-      expect(res[0]).to.equal(FixedPoint.from("1"));
-      expect(res[1]).to.equal(FixedPoint.from("2"));
-      expect(res[2]).to.equal(FixedPoint.from("1"));
+      expect(res[0]).to.equal(ONE_ETHER);
+      expect(res[1]).to.equal(TWO_ETHER);
+      expect(res[2]).to.equal(ONE_ETHER);
     });
   });
 
@@ -364,198 +1067,162 @@ describe("Pool Tokenized", function () {
   describe("#safeTransferFrom", async function () {
     it("successfully transfers tokens", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       /* Transfer */
       const tx = await pool
         .connect(accountDepositors[0])
-        .safeTransferFrom(
-          accountDepositors[0].address,
-          accountDepositors[1].address,
-          Tick.encode("10"),
-          FixedPoint.from("1"),
-          "0x"
-        );
+        .safeTransferFrom(accountDepositors[0].address, accountDepositors[1].address, TICK10, ONE_ETHER, "0x");
 
       /* Validate events */
       await expectEvent(tx, pool, "TransferSingle", {
         operator: accountDepositors[0].address,
         from: accountDepositors[0].address,
         to: accountDepositors[1].address,
-        id: Tick.encode("10"),
-        value: FixedPoint.from("1"),
+        id: TICK10,
+        value: ONE_ETHER,
       });
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("0"));
-      expect(await pool.balanceOf(accountDepositors[1].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ZERO_ETHER);
+      expect(await pool.balanceOf(accountDepositors[1].address, TICK10)).to.equal(ONE_ETHER);
 
       /* Validate deposit state */
-      const [shares0] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares0).to.equal(FixedPoint.from("0"));
+      const [shares0] = await pool.deposits(accountDepositors[0].address, TICK10);
+      expect(shares0).to.equal(ZERO_ETHER);
 
-      const [shares1] = await pool.deposits(accountDepositors[1].address, Tick.encode("10"));
-      expect(shares1).to.equal(FixedPoint.from("1"));
+      const [shares1] = await pool.deposits(accountDepositors[1].address, TICK10);
+      expect(shares1).to.equal(ONE_ETHER);
     });
 
     it("successfully transfers tokens back and forth", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       /* Transfer */
       await pool
         .connect(accountDepositors[0])
-        .safeTransferFrom(
-          accountDepositors[0].address,
-          accountDepositors[1].address,
-          Tick.encode("10"),
-          FixedPoint.from("1"),
-          "0x"
-        );
+        .safeTransferFrom(accountDepositors[0].address, accountDepositors[1].address, TICK10, ONE_ETHER, "0x");
 
       /* Transfer back */
       await pool
         .connect(accountDepositors[1])
-        .safeTransferFrom(
-          accountDepositors[1].address,
-          accountDepositors[0].address,
-          Tick.encode("10"),
-          FixedPoint.from("1"),
-          "0x"
-        );
+        .safeTransferFrom(accountDepositors[1].address, accountDepositors[0].address, TICK10, ONE_ETHER, "0x");
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
-      expect(await pool.balanceOf(accountDepositors[1].address, Tick.encode("10"))).to.equal(FixedPoint.from("0"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ONE_ETHER);
+      expect(await pool.balanceOf(accountDepositors[1].address, TICK10)).to.equal(ZERO_ETHER);
 
       /* Validate deposit state */
-      const [shares0] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares0).to.equal(FixedPoint.from("1"));
+      const [shares0] = await pool.deposits(accountDepositors[0].address, TICK10);
+      expect(shares0).to.equal(ONE_ETHER);
 
-      const [shares1] = await pool.deposits(accountDepositors[1].address, Tick.encode("10"));
-      expect(shares1).to.equal(FixedPoint.from("0"));
+      const [shares1] = await pool.deposits(accountDepositors[1].address, TICK10);
+      expect(shares1).to.equal(ZERO_ETHER);
     });
 
     it("successfully transfers tokens - multiple deposits, multiple ticks", async function () {
       /* Deposit 1 */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       /* Deposit 2 */
-      await pool.connect(accountDepositors[1]).deposit(Tick.encode("15"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[1]).deposit(Tick.encode("15"), TWO_ETHER, 0);
 
       /* Transfer */
       const tx = await pool
         .connect(accountDepositors[0])
-        .safeTransferFrom(
-          accountDepositors[0].address,
-          accountDepositors[1].address,
-          Tick.encode("10"),
-          FixedPoint.from("1"),
-          "0x"
-        );
+        .safeTransferFrom(accountDepositors[0].address, accountDepositors[1].address, TICK10, ONE_ETHER, "0x");
 
       /* Validate events */
       await expectEvent(tx, pool, "TransferSingle", {
         operator: accountDepositors[0].address,
         from: accountDepositors[0].address,
         to: accountDepositors[1].address,
-        id: Tick.encode("10"),
-        value: FixedPoint.from("1"),
+        id: TICK10,
+        value: ONE_ETHER,
       });
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("0"));
-      expect(await pool.balanceOf(accountDepositors[1].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
-      expect(await pool.balanceOf(accountDepositors[1].address, Tick.encode("15"))).to.equal(FixedPoint.from("2"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ZERO_ETHER);
+      expect(await pool.balanceOf(accountDepositors[1].address, TICK10)).to.equal(ONE_ETHER);
+      expect(await pool.balanceOf(accountDepositors[1].address, Tick.encode("15"))).to.equal(TWO_ETHER);
 
       /* Validate deposit state */
-      const [shares0] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares0).to.equal(FixedPoint.from("0"));
+      const [shares0] = await pool.deposits(accountDepositors[0].address, TICK10);
+      expect(shares0).to.equal(ZERO_ETHER);
 
-      const [shares1a] = await pool.deposits(accountDepositors[1].address, Tick.encode("10"));
-      expect(shares1a).to.equal(FixedPoint.from("1"));
+      const [shares1a] = await pool.deposits(accountDepositors[1].address, TICK10);
+      expect(shares1a).to.equal(ONE_ETHER);
 
       const [shares1b] = await pool.deposits(accountDepositors[1].address, Tick.encode("15"));
-      expect(shares1b).to.equal(FixedPoint.from("2"));
+      expect(shares1b).to.equal(TWO_ETHER);
     });
 
     it("successfully transfers tokens - multiple deposits", async function () {
       /* Deposit 1 */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
       /* Deposit 2 */
-      await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[1]).deposit(TICK10, TWO_ETHER, 0);
 
       /* Transfer */
       const tx = await pool
         .connect(accountDepositors[0])
-        .safeTransferFrom(
-          accountDepositors[0].address,
-          accountDepositors[1].address,
-          Tick.encode("10"),
-          FixedPoint.from("1"),
-          "0x"
-        );
+        .safeTransferFrom(accountDepositors[0].address, accountDepositors[1].address, TICK10, ONE_ETHER, "0x");
 
       /* Validate events */
       await expectEvent(tx, pool, "TransferSingle", {
         operator: accountDepositors[0].address,
         from: accountDepositors[0].address,
         to: accountDepositors[1].address,
-        id: Tick.encode("10"),
-        value: FixedPoint.from("1"),
+        id: TICK10,
+        value: ONE_ETHER,
       });
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("0"));
-      expect(await pool.balanceOf(accountDepositors[1].address, Tick.encode("10"))).to.equal(FixedPoint.from("3"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ZERO_ETHER);
+      expect(await pool.balanceOf(accountDepositors[1].address, TICK10)).to.equal(FixedPoint.from("3"));
 
       /* Validate deposit state */
-      const [shares0] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares0).to.equal(FixedPoint.from("0"));
+      const [shares0] = await pool.deposits(accountDepositors[0].address, TICK10);
+      expect(shares0).to.equal(ZERO_ETHER);
 
-      const [shares1] = await pool.deposits(accountDepositors[1].address, Tick.encode("10"));
+      const [shares1] = await pool.deposits(accountDepositors[1].address, TICK10);
       expect(shares1).to.equal(FixedPoint.from("3"));
     });
 
     it("successfully transfers partial token balance", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
 
       /* Transfer */
       const tx = await pool
         .connect(accountDepositors[0])
-        .safeTransferFrom(
-          accountDepositors[0].address,
-          accountDepositors[1].address,
-          Tick.encode("10"),
-          FixedPoint.from("1"),
-          "0x"
-        );
+        .safeTransferFrom(accountDepositors[0].address, accountDepositors[1].address, TICK10, ONE_ETHER, "0x");
 
       /* Validate events */
       await expectEvent(tx, pool, "TransferSingle", {
         operator: accountDepositors[0].address,
         from: accountDepositors[0].address,
         to: accountDepositors[1].address,
-        id: Tick.encode("10"),
-        value: FixedPoint.from("1"),
+        id: TICK10,
+        value: ONE_ETHER,
       });
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
-      expect(await pool.balanceOf(accountDepositors[1].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ONE_ETHER);
+      expect(await pool.balanceOf(accountDepositors[1].address, TICK10)).to.equal(ONE_ETHER);
 
       /* Validate deposit state */
-      const [shares0] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares0).to.equal(FixedPoint.from("1"));
+      const [shares0] = await pool.deposits(accountDepositors[0].address, TICK10);
+      expect(shares0).to.equal(ONE_ETHER);
 
-      const [shares1] = await pool.deposits(accountDepositors[1].address, Tick.encode("10"));
-      expect(shares1).to.equal(FixedPoint.from("1"));
+      const [shares1] = await pool.deposits(accountDepositors[1].address, TICK10);
+      expect(shares1).to.equal(ONE_ETHER);
     });
 
     it("successfully transfers tokens when called by operator", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
 
       /* Set approval for all */
       await pool.connect(accountDepositors[0]).setApprovalForAll(accountDepositors[1].address, true);
@@ -563,50 +1230,38 @@ describe("Pool Tokenized", function () {
       /* Transfer */
       const tx = await pool
         .connect(accountDepositors[1])
-        .safeTransferFrom(
-          accountDepositors[0].address,
-          accountDepositors[1].address,
-          Tick.encode("10"),
-          FixedPoint.from("1"),
-          "0x"
-        );
+        .safeTransferFrom(accountDepositors[0].address, accountDepositors[1].address, TICK10, ONE_ETHER, "0x");
 
       /* Validate events */
       await expectEvent(tx, pool, "TransferSingle", {
         operator: accountDepositors[1].address,
         from: accountDepositors[0].address,
         to: accountDepositors[1].address,
-        id: Tick.encode("10"),
-        value: FixedPoint.from("1"),
+        id: TICK10,
+        value: ONE_ETHER,
       });
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
-      expect(await pool.balanceOf(accountDepositors[1].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ONE_ETHER);
+      expect(await pool.balanceOf(accountDepositors[1].address, TICK10)).to.equal(ONE_ETHER);
 
       /* Validate deposit state */
-      const [shares0] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares0).to.equal(FixedPoint.from("1"));
+      const [shares0] = await pool.deposits(accountDepositors[0].address, TICK10);
+      expect(shares0).to.equal(ONE_ETHER);
 
-      const [shares1] = await pool.deposits(accountDepositors[1].address, Tick.encode("10"));
-      expect(shares1).to.equal(FixedPoint.from("1"));
+      const [shares1] = await pool.deposits(accountDepositors[1].address, TICK10);
+      expect(shares1).to.equal(ONE_ETHER);
     });
 
     it("reverts when operator not approved", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
 
       /* Transfer */
       await expect(
         pool
           .connect(accountDepositors[1])
-          .safeTransferFrom(
-            accountDepositors[0].address,
-            accountDepositors[1].address,
-            Tick.encode("10"),
-            FixedPoint.from("1"),
-            "0x"
-          )
+          .safeTransferFrom(accountDepositors[0].address, accountDepositors[1].address, TICK10, ONE_ETHER, "0x")
       )
         .to.be.revertedWithCustomError(pool, "ERC1155MissingApprovalForAll")
         .withArgs(accountDepositors[1].address, accountDepositors[0].address);
@@ -614,7 +1269,7 @@ describe("Pool Tokenized", function () {
 
     it("reverts after unsetting approval for all", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
 
       /* Set approval for all */
       await pool.connect(accountDepositors[0]).setApprovalForAll(accountDepositors[1].address, true);
@@ -626,13 +1281,7 @@ describe("Pool Tokenized", function () {
       await expect(
         pool
           .connect(accountDepositors[1])
-          .safeTransferFrom(
-            accountDepositors[0].address,
-            accountDepositors[1].address,
-            Tick.encode("10"),
-            FixedPoint.from("1"),
-            "0x"
-          )
+          .safeTransferFrom(accountDepositors[0].address, accountDepositors[1].address, TICK10, ONE_ETHER, "0x")
       )
         .to.be.revertedWithCustomError(pool, "ERC1155MissingApprovalForAll")
         .withArgs(accountDepositors[1].address, accountDepositors[0].address);
@@ -640,37 +1289,25 @@ describe("Pool Tokenized", function () {
 
     it("reverts when transferring more than balance", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       await expect(
         pool
           .connect(accountDepositors[0])
-          .safeTransferFrom(
-            accountDepositors[0].address,
-            accountDepositors[1].address,
-            Tick.encode("10"),
-            FixedPoint.from("2"),
-            "0x"
-          )
+          .safeTransferFrom(accountDepositors[0].address, accountDepositors[1].address, TICK10, TWO_ETHER, "0x")
       )
         .to.be.revertedWithCustomError(pool, "ERC1155InsufficientBalance")
-        .withArgs(accountDepositors[0].address, FixedPoint.from("1"), FixedPoint.from("2"), Tick.encode("10"));
+        .withArgs(accountDepositors[0].address, ONE_ETHER, TWO_ETHER, TICK10);
     });
 
     it("reverts when transferring to zero address", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       await expect(
         pool
           .connect(accountDepositors[0])
-          .safeTransferFrom(
-            accountDepositors[0].address,
-            ethers.constants.AddressZero,
-            Tick.encode("10"),
-            FixedPoint.from("1"),
-            "0x"
-          )
+          .safeTransferFrom(accountDepositors[0].address, ethers.constants.AddressZero, TICK10, ONE_ETHER, "0x")
       )
         .to.be.revertedWithCustomError(pool, "ERC1155InvalidReceiver")
         .withArgs(ethers.constants.AddressZero);
@@ -680,38 +1317,32 @@ describe("Pool Tokenized", function () {
   describe("#safeTransferFrom - ERC1155Receiver", async function () {
     it("successfully transfers tokens to smart contract that implements ERC1155Receiver", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
 
       /* Transfer */
       const tx = await pool
         .connect(accountDepositors[0])
-        .safeTransferFrom(
-          accountDepositors[0].address,
-          testERC1155ReceiverPass.address,
-          Tick.encode("10"),
-          FixedPoint.from("1"),
-          "0x"
-        );
+        .safeTransferFrom(accountDepositors[0].address, testERC1155ReceiverPass.address, TICK10, ONE_ETHER, "0x");
 
       /* Validate events */
       await expectEvent(tx, pool, "TransferSingle", {
         operator: accountDepositors[0].address,
         from: accountDepositors[0].address,
         to: testERC1155ReceiverPass.address,
-        id: Tick.encode("10"),
-        value: FixedPoint.from("1"),
+        id: TICK10,
+        value: ONE_ETHER,
       });
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
-      expect(await pool.balanceOf(testERC1155ReceiverPass.address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ONE_ETHER);
+      expect(await pool.balanceOf(testERC1155ReceiverPass.address, TICK10)).to.equal(ONE_ETHER);
 
       /* Validate deposit state */
-      const [shares0] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares0).to.equal(FixedPoint.from("1"));
+      const [shares0] = await pool.deposits(accountDepositors[0].address, TICK10);
+      expect(shares0).to.equal(ONE_ETHER);
 
-      const [shares1] = await pool.deposits(testERC1155ReceiverPass.address, Tick.encode("10"));
-      expect(shares1).to.equal(FixedPoint.from("1"));
+      const [shares1] = await pool.deposits(testERC1155ReceiverPass.address, TICK10);
+      expect(shares1).to.equal(ONE_ETHER);
 
       /* Confirm onERC1155Received called */
       expect(await testERC1155ReceiverPass.wasOnERC1155ReceivedCalled()).to.equal(true);
@@ -719,19 +1350,13 @@ describe("Pool Tokenized", function () {
 
     it("reverts when transferring to smart contract with ERC1155Receiver function that returns incorrect value", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
 
       /* Transfer */
       await expect(
         pool
           .connect(accountDepositors[0])
-          .safeTransferFrom(
-            accountDepositors[0].address,
-            testERC1155ReceiverFail.address,
-            Tick.encode("10"),
-            FixedPoint.from("1"),
-            "0x"
-          )
+          .safeTransferFrom(accountDepositors[0].address, testERC1155ReceiverFail.address, TICK10, ONE_ETHER, "0x")
       )
         .to.be.revertedWithCustomError(pool, "ERC1155InvalidReceiver")
         .withArgs(testERC1155ReceiverFail.address);
@@ -739,7 +1364,7 @@ describe("Pool Tokenized", function () {
 
     it("reverts when transferring to smart contract with ERC1155Receiver function that reverts", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
 
       /* Transfer */
       await expect(
@@ -748,8 +1373,8 @@ describe("Pool Tokenized", function () {
           .safeTransferFrom(
             accountDepositors[0].address,
             testERC1155ReceiverFailRevert.address,
-            Tick.encode("10"),
-            FixedPoint.from("1"),
+            TICK10,
+            ONE_ETHER,
             "0x"
           )
       ).to.be.revertedWith("TestERC1155Receiver: reverting on receive");
@@ -759,7 +1384,7 @@ describe("Pool Tokenized", function () {
 
     it("reverts when transferring to smart contract that does not implement ERC1155Receiver", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
 
       /* Transfer */
       await expect(
@@ -768,8 +1393,8 @@ describe("Pool Tokenized", function () {
           .safeTransferFrom(
             accountDepositors[0].address,
             testERC1155ReceiverNotImplemented.address,
-            Tick.encode("10"),
-            FixedPoint.from("1"),
+            TICK10,
+            ONE_ETHER,
             "0x"
           )
       )
@@ -781,8 +1406,8 @@ describe("Pool Tokenized", function () {
   describe("#safeBatchTransferFrom", async function () {
     it("successfully transfers tokens", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), TWO_ETHER, 0);
 
       /* Transfer */
       await pool
@@ -790,35 +1415,35 @@ describe("Pool Tokenized", function () {
         .safeBatchTransferFrom(
           accountDepositors[0].address,
           accountDepositors[1].address,
-          [Tick.encode("10"), Tick.encode("15")],
-          [FixedPoint.from("1"), FixedPoint.from("2")],
+          [TICK10, Tick.encode("15")],
+          [ONE_ETHER, TWO_ETHER],
           "0x"
         );
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("0"));
-      expect(await pool.balanceOf(accountDepositors[1].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("15"))).to.equal(FixedPoint.from("0"));
-      expect(await pool.balanceOf(accountDepositors[1].address, Tick.encode("15"))).to.equal(FixedPoint.from("2"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ZERO_ETHER);
+      expect(await pool.balanceOf(accountDepositors[1].address, TICK10)).to.equal(ONE_ETHER);
+      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("15"))).to.equal(ZERO_ETHER);
+      expect(await pool.balanceOf(accountDepositors[1].address, Tick.encode("15"))).to.equal(TWO_ETHER);
 
       /* Validate deposit state */
-      const [shares0] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares0).to.equal(FixedPoint.from("0"));
+      const [shares0] = await pool.deposits(accountDepositors[0].address, TICK10);
+      expect(shares0).to.equal(ZERO_ETHER);
 
-      const [shares1] = await pool.deposits(accountDepositors[1].address, Tick.encode("10"));
-      expect(shares1).to.equal(FixedPoint.from("1"));
+      const [shares1] = await pool.deposits(accountDepositors[1].address, TICK10);
+      expect(shares1).to.equal(ONE_ETHER);
 
       const [shares2] = await pool.deposits(accountDepositors[0].address, Tick.encode("15"));
-      expect(shares2).to.equal(FixedPoint.from("0"));
+      expect(shares2).to.equal(ZERO_ETHER);
 
       const [shares3] = await pool.deposits(accountDepositors[1].address, Tick.encode("15"));
-      expect(shares3).to.equal(FixedPoint.from("2"));
+      expect(shares3).to.equal(TWO_ETHER);
     });
 
     it("successfully batch transfers tokens when called by operator", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), TWO_ETHER, 0);
 
       /* Set approval for all */
       await pool.connect(accountDepositors[0]).setApprovalForAll(accountDepositors[1].address, true);
@@ -829,37 +1454,37 @@ describe("Pool Tokenized", function () {
         .safeBatchTransferFrom(
           accountDepositors[0].address,
           accountDepositors[1].address,
-          [Tick.encode("10"), Tick.encode("15")],
-          [FixedPoint.from("1"), FixedPoint.from("1")],
+          [TICK10, Tick.encode("15")],
+          [ONE_ETHER, ONE_ETHER],
           "0x"
         );
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
-      expect(await pool.balanceOf(accountDepositors[1].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ONE_ETHER);
+      expect(await pool.balanceOf(accountDepositors[1].address, TICK10)).to.equal(ONE_ETHER);
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("15"))).to.equal(FixedPoint.from("1"));
-      expect(await pool.balanceOf(accountDepositors[1].address, Tick.encode("15"))).to.equal(FixedPoint.from("1"));
+      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("15"))).to.equal(ONE_ETHER);
+      expect(await pool.balanceOf(accountDepositors[1].address, Tick.encode("15"))).to.equal(ONE_ETHER);
 
       /* Validate deposit state */
-      const [shares0] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares0).to.equal(FixedPoint.from("1"));
+      const [shares0] = await pool.deposits(accountDepositors[0].address, TICK10);
+      expect(shares0).to.equal(ONE_ETHER);
 
-      const [shares1] = await pool.deposits(accountDepositors[1].address, Tick.encode("10"));
-      expect(shares1).to.equal(FixedPoint.from("1"));
+      const [shares1] = await pool.deposits(accountDepositors[1].address, TICK10);
+      expect(shares1).to.equal(ONE_ETHER);
 
       const [shares0b] = await pool.deposits(accountDepositors[0].address, Tick.encode("15"));
-      expect(shares0b).to.equal(FixedPoint.from("1"));
+      expect(shares0b).to.equal(ONE_ETHER);
 
       const [shares1b] = await pool.deposits(accountDepositors[1].address, Tick.encode("15"));
-      expect(shares1b).to.equal(FixedPoint.from("1"));
+      expect(shares1b).to.equal(ONE_ETHER);
     });
 
     it("reverts when operator not approved - batch", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), TWO_ETHER, 0);
 
       /* Transfer */
       await expect(
@@ -868,8 +1493,8 @@ describe("Pool Tokenized", function () {
           .safeBatchTransferFrom(
             accountDepositors[0].address,
             accountDepositors[1].address,
-            [Tick.encode("10"), Tick.encode("15")],
-            [FixedPoint.from("1"), FixedPoint.from("1")],
+            [TICK10, Tick.encode("15")],
+            [ONE_ETHER, ONE_ETHER],
             "0x"
           )
       )
@@ -879,8 +1504,8 @@ describe("Pool Tokenized", function () {
 
     it("reverts after unsetting approval for all - batch", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), TWO_ETHER, 0);
 
       /* Set approval for all */
       await pool.connect(accountDepositors[0]).setApprovalForAll(accountDepositors[1].address, true);
@@ -895,8 +1520,8 @@ describe("Pool Tokenized", function () {
           .safeBatchTransferFrom(
             accountDepositors[0].address,
             accountDepositors[1].address,
-            [Tick.encode("10"), Tick.encode("15")],
-            [FixedPoint.from("1"), FixedPoint.from("1")],
+            [TICK10, Tick.encode("15")],
+            [ONE_ETHER, ONE_ETHER],
             "0x"
           )
       )
@@ -906,8 +1531,8 @@ describe("Pool Tokenized", function () {
 
     it("reverts when transferring more than balance - batch", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), TWO_ETHER, 0);
 
       await expect(
         pool
@@ -915,8 +1540,8 @@ describe("Pool Tokenized", function () {
           .safeBatchTransferFrom(
             accountDepositors[0].address,
             accountDepositors[1].address,
-            [Tick.encode("10"), Tick.encode("15")],
-            [FixedPoint.from("2"), FixedPoint.from("1")],
+            [TICK10, Tick.encode("15")],
+            [TWO_ETHER, ONE_ETHER],
             "0x"
           )
       ).to.be.revertedWithCustomError(pool, "ERC1155InsufficientBalance");
@@ -924,8 +1549,8 @@ describe("Pool Tokenized", function () {
 
     it("reverts when transferring to zero address", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), TWO_ETHER, 0);
 
       await expect(
         pool
@@ -933,8 +1558,8 @@ describe("Pool Tokenized", function () {
           .safeBatchTransferFrom(
             accountDepositors[0].address,
             ethers.constants.AddressZero,
-            [Tick.encode("10"), Tick.encode("15")],
-            [FixedPoint.from("1"), FixedPoint.from("2")],
+            [TICK10, Tick.encode("15")],
+            [ONE_ETHER, TWO_ETHER],
             "0x"
           )
       )
@@ -946,8 +1571,8 @@ describe("Pool Tokenized", function () {
   describe("#safeBatchTransferFrom - ERC1155Receiver", async function () {
     it("successfully transfers tokens to smart contract that implements ERC1155Receiver - batch", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), TWO_ETHER, 0);
 
       /* Transfer */
       await pool
@@ -955,21 +1580,21 @@ describe("Pool Tokenized", function () {
         .safeBatchTransferFrom(
           accountDepositors[0].address,
           testERC1155ReceiverPass.address,
-          [Tick.encode("10"), Tick.encode("15")],
-          [FixedPoint.from("1"), FixedPoint.from("1")],
+          [TICK10, Tick.encode("15")],
+          [ONE_ETHER, ONE_ETHER],
           "0x"
         );
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
-      expect(await pool.balanceOf(testERC1155ReceiverPass.address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ONE_ETHER);
+      expect(await pool.balanceOf(testERC1155ReceiverPass.address, TICK10)).to.equal(ONE_ETHER);
 
       /* Validate deposit state */
-      const [shares0] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares0).to.equal(FixedPoint.from("1"));
+      const [shares0] = await pool.deposits(accountDepositors[0].address, TICK10);
+      expect(shares0).to.equal(ONE_ETHER);
 
-      const [shares1] = await pool.deposits(testERC1155ReceiverPass.address, Tick.encode("10"));
-      expect(shares1).to.equal(FixedPoint.from("1"));
+      const [shares1] = await pool.deposits(testERC1155ReceiverPass.address, TICK10);
+      expect(shares1).to.equal(ONE_ETHER);
 
       /* Confirm onERC1155Received called */
       expect(await testERC1155ReceiverPass.wasOnERC1155BatchReceivedCalled()).to.equal(true);
@@ -977,8 +1602,8 @@ describe("Pool Tokenized", function () {
 
     it("reverts when transferring to smart contract with ERC1155Receiver function that returns incorrect value", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), TWO_ETHER, 0);
 
       /* Transfer */
       await expect(
@@ -987,8 +1612,8 @@ describe("Pool Tokenized", function () {
           .safeBatchTransferFrom(
             accountDepositors[0].address,
             testERC1155ReceiverFail.address,
-            [Tick.encode("10"), Tick.encode("15")],
-            [FixedPoint.from("1"), FixedPoint.from("1")],
+            [TICK10, Tick.encode("15")],
+            [ONE_ETHER, ONE_ETHER],
             "0x"
           )
       )
@@ -998,8 +1623,8 @@ describe("Pool Tokenized", function () {
 
     it("reverts when transferring to smart contract with ERC1155Receiver function that reverts - batch", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), TWO_ETHER, 0);
 
       /* Transfer */
       await expect(
@@ -1008,8 +1633,8 @@ describe("Pool Tokenized", function () {
           .safeBatchTransferFrom(
             accountDepositors[0].address,
             testERC1155ReceiverFailRevert.address,
-            [Tick.encode("10"), Tick.encode("15")],
-            [FixedPoint.from("1"), FixedPoint.from("1")],
+            [TICK10, Tick.encode("15")],
+            [ONE_ETHER, ONE_ETHER],
             "0x"
           )
       ).to.be.revertedWith("TestERC1155Receiver: reverting on batch receive");
@@ -1019,8 +1644,8 @@ describe("Pool Tokenized", function () {
 
     it("reverts when transferring to smart contract that does not implement ERC1155Receiver", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), TWO_ETHER, 0);
 
       /* Transfer */
       await expect(
@@ -1029,8 +1654,8 @@ describe("Pool Tokenized", function () {
           .safeBatchTransferFrom(
             accountDepositors[0].address,
             testERC1155ReceiverNotImplemented.address,
-            [Tick.encode("10"), Tick.encode("15")],
-            [FixedPoint.from("1"), FixedPoint.from("1")],
+            [TICK10, Tick.encode("15")],
+            [ONE_ETHER, ONE_ETHER],
             "0x"
           )
       )
@@ -1045,40 +1670,40 @@ describe("Pool Tokenized", function () {
 
   describe("#deposit", async function () {
     it("successfully deposits and mints ERC-1155 tokens", async function () {
-      const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      const depositTx = await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       /* Validate events */
       await expectEvent(depositTx, pool, "Deposited", {
         account: accountDepositors[0].address,
-        tick: Tick.encode("10"),
-        amount: FixedPoint.from("1"),
-        shares: FixedPoint.from("1"),
+        tick: TICK10,
+        amount: ONE_ETHER,
+        shares: ONE_ETHER,
       });
 
       await expectEvent(depositTx, tok1, "Transfer", {
         from: accountDepositors[0].address,
         to: pool.address,
-        value: FixedPoint.from("1"),
+        value: ONE_ETHER,
       });
 
       await expectEvent(depositTx, pool, "TransferSingle", {
         operator: accountDepositors[0].address,
         from: ethers.constants.AddressZero,
         to: accountDepositors[0].address,
-        id: Tick.encode("10"),
-        value: FixedPoint.from("1"),
+        id: TICK10,
+        value: ONE_ETHER,
       });
 
       /* Validate deposit state */
-      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(FixedPoint.from("1"));
+      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, TICK10);
+      expect(shares).to.equal(ONE_ETHER);
       expect(redemptionId).to.equal(ethers.constants.Zero);
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ONE_ETHER);
 
       /* Validate redemption state */
-      const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
+      const redemption = await pool.redemptions(accountDepositors[0].address, TICK10, 0);
       expect(redemption.pending).to.equal(ethers.constants.Zero);
       expect(redemption.index).to.equal(ethers.constants.Zero);
       expect(redemption.target).to.equal(ethers.constants.Zero);
@@ -1089,24 +1714,24 @@ describe("Pool Tokenized", function () {
 
     it("successfully deposits additional and mints additional tokens", async function () {
       /* Deposit 1 */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ONE_ETHER);
 
       /* Deposit 2 */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, TWO_ETHER, 0);
 
       /* Validate deposit state */
-      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, TICK10);
       expect(shares).to.equal(FixedPoint.from("3"));
       expect(redemptionId).to.equal(ethers.constants.Zero);
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("3"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(FixedPoint.from("3"));
 
       /* Validate redemption state */
-      const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
+      const redemption = await pool.redemptions(accountDepositors[0].address, TICK10, 0);
       expect(redemption.pending).to.equal(ethers.constants.Zero);
       expect(redemption.index).to.equal(ethers.constants.Zero);
       expect(redemption.target).to.equal(ethers.constants.Zero);
@@ -1117,28 +1742,28 @@ describe("Pool Tokenized", function () {
 
     it("successfully deposits at new tick after garbage collecting old tick, properly mints and burns tokens", async function () {
       /* Deposit 1 ETH */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ONE_ETHER);
 
       /* Only two nodes (including head) */
       expect((await pool.liquidityNodes(0, MaxUint128)).length).to.equal(2);
 
       /* Redeem 1 shares */
-      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).redeem(TICK10, ONE_ETHER);
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("0"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ZERO_ETHER);
 
       /* Only head node now */
       expect((await pool.liquidityNodes(0, MaxUint128)).length).to.equal(1);
 
       /* Deposit 1 ETH at new tick close to garbage collected one */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10.1"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10.1"), ONE_ETHER, 0);
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10.1"))).to.equal(FixedPoint.from("1"));
+      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10.1"))).to.equal(ONE_ETHER);
 
       /* Two nodes again */
       expect((await pool.liquidityNodes(0, MaxUint128)).length).to.equal(2);
@@ -1148,59 +1773,59 @@ describe("Pool Tokenized", function () {
   describe("#redeem", async function () {
     it("successfully redeems entire deposit from available cash, burns token", async function () {
       /* Deposit 1 ETH */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ONE_ETHER);
 
       /* Redeem 1 shares */
-      const redeemTx = await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1"));
+      const redeemTx = await pool.connect(accountDepositors[0]).redeem(TICK10, ONE_ETHER);
 
       /* Validate events */
       await expectEvent(redeemTx, pool, "Redeemed", {
         account: accountDepositors[0].address,
-        tick: Tick.encode("10"),
+        tick: TICK10,
         redemptionId: 0,
-        shares: FixedPoint.from("1"),
+        shares: ONE_ETHER,
       });
 
       await expectEvent(redeemTx, pool, "TransferSingle", {
         operator: accountDepositors[0].address,
         from: accountDepositors[0].address,
         to: ethers.constants.AddressZero,
-        id: Tick.encode("10"),
-        value: FixedPoint.from("1"),
+        id: TICK10,
+        value: ONE_ETHER,
       });
 
       /* Validate deposit state */
-      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, TICK10);
       expect(shares).to.equal(ethers.constants.Zero);
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("0"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ZERO_ETHER);
 
       /* Validate redemption state */
-      const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(redemption.pending).to.equal(FixedPoint.from("1"));
+      const redemption = await pool.redemptions(accountDepositors[0].address, TICK10, 0);
+      expect(redemption.pending).to.equal(ONE_ETHER);
       expect(redemption.index).to.equal(ethers.constants.Zero);
       expect(redemption.target).to.equal(ethers.constants.Zero);
     });
 
     it("successfully redeems partial deposit from available cash, burns correct amount of tokens", async function () {
       /* Deposit 1 ETH */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ONE_ETHER);
 
       /* Redeem 0.5 shares */
-      const redeemTx = await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("0.5"));
+      const redeemTx = await pool.connect(accountDepositors[0]).redeem(TICK10, FixedPoint.from("0.5"));
 
       /* Validate events */
       await expectEvent(redeemTx, pool, "Redeemed", {
         account: accountDepositors[0].address,
-        tick: Tick.encode("10"),
+        tick: TICK10,
         redemptionId: 0,
         shares: FixedPoint.from("0.5"),
       });
@@ -1209,20 +1834,20 @@ describe("Pool Tokenized", function () {
         operator: accountDepositors[0].address,
         from: accountDepositors[0].address,
         to: ethers.constants.AddressZero,
-        id: Tick.encode("10"),
+        id: TICK10,
         value: FixedPoint.from("0.5"),
       });
 
       /* Validate deposit state */
-      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, TICK10);
       expect(shares).to.equal(FixedPoint.from("0.5"));
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("0.5"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(FixedPoint.from("0.5"));
 
       /* Validate redemption state */
-      const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
+      const redemption = await pool.redemptions(accountDepositors[0].address, TICK10, 0);
       expect(redemption.pending).to.equal(FixedPoint.from("0.5"));
       expect(redemption.index).to.equal(ethers.constants.Zero);
       expect(redemption.target).to.equal(ethers.constants.Zero);
@@ -1230,35 +1855,35 @@ describe("Pool Tokenized", function () {
 
     it("successfully schedules redemption, burns tokens", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("10"), 0);
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("10"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(FixedPoint.from("10"));
       expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("15"))).to.equal(FixedPoint.from("10"));
 
       /* Create loan */
       await createActiveLoan(FixedPoint.from("15"));
 
       /* Redeem 5 shares */
-      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("5"));
+      await pool.connect(accountDepositors[0]).redeem(TICK10, FixedPoint.from("5"));
 
       /* Validate deposit state */
-      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, TICK10);
       expect(shares).to.equal(FixedPoint.from("5"));
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("5"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(FixedPoint.from("5"));
 
       /* Validate redemption state */
-      const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
+      const redemption = await pool.redemptions(accountDepositors[0].address, TICK10, 0);
       expect(redemption.pending).to.equal(FixedPoint.from("5"));
       expect(redemption.index).to.equal(ethers.constants.Zero);
       expect(redemption.target).to.equal(ethers.constants.Zero);
 
       /* Validate tick state */
-      const node = await pool.liquidityNode(Tick.encode("10"));
+      const node = await pool.liquidityNode(TICK10);
       expect(node.value).to.equal(FixedPoint.from("10"));
       expect(node.available).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(FixedPoint.from("5"));
@@ -1266,42 +1891,42 @@ describe("Pool Tokenized", function () {
 
     it("successfully schedules multiple redemptions, properly burns tokens", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("10"), 0);
 
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("10"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(FixedPoint.from("10"));
       expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("15"))).to.equal(FixedPoint.from("10"));
 
       /* Create loan */
       await createActiveLoan(FixedPoint.from("15"));
 
       /* Redeem 5 shares */
-      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("5"));
+      await pool.connect(accountDepositors[0]).redeem(TICK10, FixedPoint.from("5"));
       /* Redeem another 5 shares */
-      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("5"));
+      await pool.connect(accountDepositors[0]).redeem(TICK10, FixedPoint.from("5"));
 
       /* Validate deposit state */
-      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(FixedPoint.from("0"));
+      const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, TICK10);
+      expect(shares).to.equal(ZERO_ETHER);
       expect(redemptionId).to.equal(ethers.BigNumber.from("2"));
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("0"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ZERO_ETHER);
 
       /* Validate redemption state */
-      const redemption1 = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
+      const redemption1 = await pool.redemptions(accountDepositors[0].address, TICK10, 0);
       expect(redemption1.pending).to.equal(FixedPoint.from("5"));
       expect(redemption1.index).to.equal(ethers.constants.Zero);
       expect(redemption1.target).to.equal(ethers.constants.Zero);
 
       /* Validate redemption state */
-      const redemption2 = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 1);
+      const redemption2 = await pool.redemptions(accountDepositors[0].address, TICK10, 1);
       expect(redemption2.pending).to.equal(FixedPoint.from("5"));
       expect(redemption2.index).to.equal(ethers.constants.Zero);
       expect(redemption2.target).to.equal(FixedPoint.from("5"));
 
       /* Validate tick state */
-      const node = await pool.liquidityNode(Tick.encode("10"));
+      const node = await pool.liquidityNode(TICK10);
       expect(node.value).to.equal(FixedPoint.from("10"));
       expect(node.available).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(FixedPoint.from("10"));
@@ -1311,26 +1936,24 @@ describe("Pool Tokenized", function () {
   describe("#rebalance", async function () {
     it("rebalances a full redemption into another tick, properly burns and mints tokens", async function () {
       /* Deposit 1 ETH */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, ONE_ETHER, 0);
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("1"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ONE_ETHER);
 
       /* Redeem all shares */
-      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).redeem(TICK10, ONE_ETHER);
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(FixedPoint.from("0"));
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(ZERO_ETHER);
 
       /* Rebalances to 15 ETH tick */
-      const rebalanceTx = await pool
-        .connect(accountDepositors[0])
-        .rebalance(Tick.encode("10"), Tick.encode("15"), 0, 0);
+      const rebalanceTx = await pool.connect(accountDepositors[0]).rebalance(TICK10, Tick.encode("15"), 0, 0);
 
       /* Validate events */
       await expectEvent(rebalanceTx, pool, "Withdrawn", {
         account: accountDepositors[0].address,
-        tick: Tick.encode("10"),
+        tick: TICK10,
         redemptionId: 0,
         shares: FixedPoint.from("1.0"),
         amount: FixedPoint.from("1.0"),
@@ -1348,11 +1971,11 @@ describe("Pool Tokenized", function () {
       //   from: ethers.constants.AddressZero,
       //   to: accountDepositors[0].address,
       //   id: Tick.encode("15"),
-      //   value: FixedPoint.from("1"),
+      //   value: ONE_ETHER,
       // });
 
       /* Validate deposit state */
-      let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, TICK10);
       expect(shares).to.equal(ethers.constants.Zero);
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
@@ -1361,10 +1984,10 @@ describe("Pool Tokenized", function () {
       expect(redemptionId).to.equal(ethers.constants.Zero);
 
       /* Validate token state */
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("15"))).to.equal(FixedPoint.from("1"));
+      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("15"))).to.equal(ONE_ETHER);
 
       /* Validate redemption state */
-      let redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
+      let redemption = await pool.redemptions(accountDepositors[0].address, TICK10, 0);
       expect(redemption.pending).to.equal(ethers.constants.Zero);
       expect(redemption.index).to.equal(ethers.constants.Zero);
       expect(redemption.target).to.equal(ethers.constants.Zero);
@@ -1375,7 +1998,7 @@ describe("Pool Tokenized", function () {
       expect(redemption.target).to.equal(ethers.constants.Zero);
 
       /* Validate tick state */
-      let node = await pool.liquidityNode(Tick.encode("10"));
+      let node = await pool.liquidityNode(TICK10);
       expect(node.value).to.equal(ethers.constants.Zero);
       expect(node.available).to.equal(ethers.constants.Zero);
       expect(node.redemptions).to.equal(ethers.constants.Zero);
@@ -1388,7 +2011,7 @@ describe("Pool Tokenized", function () {
 
     it("rebalances a partial redemption into another tick, properly burns and mint tokens", async function () {
       /* Deposit */
-      await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+      await pool.connect(accountDepositors[0]).deposit(TICK10, FixedPoint.from("10"), 0);
 
       /* Create loan 1 */
       const [loanReceipt1] = await createActiveLoan(FixedPoint.from("5"));
@@ -1397,20 +2020,18 @@ describe("Pool Tokenized", function () {
       const [loanReceipt2] = await createActiveLoan(FixedPoint.from("5"));
 
       /* Redeem all shares */
-      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("10"));
+      await pool.connect(accountDepositors[0]).redeem(TICK10, FixedPoint.from("10"));
 
       /* Repay loan 1 */
       const repaymentTx = await pool.connect(accountBorrower).repay(loanReceipt1);
 
       /* Rebalance */
-      const rebalanceTx = await pool
-        .connect(accountDepositors[0])
-        .rebalance(Tick.encode("10"), Tick.encode("15"), 0, 0);
+      const rebalanceTx = await pool.connect(accountDepositors[0]).rebalance(TICK10, Tick.encode("15"), 0, 0);
 
       /* Validate events */
       await expectEvent(rebalanceTx, pool, "Withdrawn", {
         account: accountDepositors[0].address,
-        tick: Tick.encode("10"),
+        tick: TICK10,
         redemptionId: 0,
       });
 
@@ -1420,7 +2041,7 @@ describe("Pool Tokenized", function () {
       });
 
       /* Validate deposit state */
-      let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
+      let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, TICK10);
       expect(shares).to.equal(ethers.constants.Zero);
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
@@ -1433,17 +2054,17 @@ describe("Pool Tokenized", function () {
         FixedPoint.from("5.0"),
         FixedPoint.from("0.01")
       );
-      expect(await pool.balanceOf(accountDepositors[0].address, Tick.encode("10"))).to.equal(0);
+      expect(await pool.balanceOf(accountDepositors[0].address, TICK10)).to.equal(0);
 
       /* Validate redemption state */
-      let redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
+      let redemption = await pool.redemptions(accountDepositors[0].address, TICK10, 0);
       expect(redemption.pending).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
 
       redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("15"), 0);
       expect(redemption.pending).to.equal(ethers.constants.Zero);
 
       /* Validate tick state */
-      let node = await pool.liquidityNode(Tick.encode("10"));
+      let node = await pool.liquidityNode(TICK10);
       expect(node.value).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
       expect(node.available).to.be.closeTo(ethers.constants.Zero, 1);
       expect(node.redemptions).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
@@ -1515,7 +2136,7 @@ describe("Pool Tokenized", function () {
 
   async function setupImpairedTick(): Promise<void> {
     /* Create deposit at 10 ETH tick */
-    await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("5"), 0);
+    await pool.connect(accountDepositors[0]).deposit(TICK10, FixedPoint.from("5"), 0);
 
     /* Create expired loan taking 5 ETH */
     const [loanReceipt] = await createExpiredLoan(FixedPoint.from("5"));
@@ -1539,7 +2160,7 @@ describe("Pool Tokenized", function () {
   async function setupInsolventTick(): Promise<void> {
     /* Create deposits at 5 ETH, 10 ETH, and 15 ETH ticks */
     await pool.connect(accountDepositors[0]).deposit(Tick.encode("5"), FixedPoint.from("5"), 0);
-    await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("5"), 0);
+    await pool.connect(accountDepositors[0]).deposit(TICK10, FixedPoint.from("5"), 0);
     await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
     /* Create expired loan taking 15 ETH */

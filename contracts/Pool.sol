@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import "@openzeppelin/contracts/proxy/Clones.sol";
 
 import "./LoanReceipt.sol";
 import "./LiquidityManager.sol";
@@ -24,6 +25,8 @@ import "./interfaces/ICollateralLiquidator.sol";
 import "./interfaces/ICollateralLiquidationReceiver.sol";
 
 import "./integrations/DelegateCash/IDelegationRegistry.sol";
+
+import "./MetaStreetToken.sol";
 
 /**
  * @title Pool
@@ -77,6 +80,18 @@ abstract contract Pool is
      * @notice Invalid parameters
      */
     error InvalidParameters();
+
+    /**
+     * @notice Invalid parameters
+     */
+    error UnsupportedImplementation();
+
+    /**
+     * @notice Invalid token contract
+     *
+     * @dev Only clones deployed from Pool can execute transfers
+     */
+    error InvalidTokenContract();
 
     /**************************************************************************/
     /* Structures */
@@ -179,15 +194,9 @@ abstract contract Pool is
     mapping(address => mapping(address => bool)) internal _operatorApprovals;
 
     /**
-<<<<<<< HEAD
-     * @notice ERC1155 total supply
-     */
-    mapping(uint128 => uint256) internal _totalSupply;
-=======
      * @notice Current ERD20 token implementation
      */
     address private _tokenImplementationERC20;
->>>>>>> 22a6668 (contracts: update totalSupply)
 
     /**************************************************************************/
     /* Constructor */
@@ -894,7 +903,7 @@ abstract contract Pool is
      *
      * @dev Validations, events and errors emitted from DepositToken library.
      *      Should be used with care, as makes external call to unknown contract
-     *       that can represent reentrancy risk.
+     *      that can represent reentrancy risk.
      *
      * @param from From
      * @param to To
@@ -1206,6 +1215,9 @@ abstract contract Pool is
         /* Handle deposit accounting and compute shares */
         uint128 shares = _deposit(tick, amount.toUint128(), minShares.toUint128());
 
+        /* Create ERC20 if does not exists */
+        _createERC20(tick);
+
         /* Emit Deposited */
         emit Deposited(msg.sender, tick, amount, shares);
 
@@ -1371,9 +1383,87 @@ abstract contract Pool is
         data;
 
         /* Validate approval and non-zero recipient address */
-        DepositToken.beforeTransfer(_operatorApprovals, from, to);
+        DepositToken.beforeTransfer(_operatorApprovals, msg.sender, from, to);
 
         _transferBatch(from, to, ticks, amounts);
+    }
+
+    /**************************************************************************/
+    /* ERC20 Factory - Helpers */
+    /**************************************************************************/
+
+    /**
+     * @notice Helper function to get implementation address from clone
+     */
+    function _getImplementation(address instance) public view returns (address) {
+        bytes32 bytecodeSlice = bytes32(instance.code);
+
+        return address(uint160(uint256(bytecodeSlice >> 16)));
+    }
+
+    /**************************************************************************/
+    /* ERC20 Factory */
+    /**************************************************************************/
+
+    /**
+     * @notice Create ERC20 token for tick if it does not exist using create2
+     *
+     * @param tick Tick
+     */
+    function _createERC20(uint128 tick) internal {
+        /* Do nothing if already exists */
+        if (_erc20Address(_tokenImplementationERC20, tick).code.length > 0) {
+            return;
+        }
+
+        /* Create token instance */
+        address tokenInstance = Clones.cloneDeterministic(_tokenImplementationERC20, bytes32(uint256(tick)));
+
+        /* Initialize token instance */
+        Address.functionCall(tokenInstance, abi.encodeWithSignature("initialize(bytes)", abi.encode(tick)));
+
+        emit TokenCreated(tokenInstance, _tokenImplementationERC20);
+    }
+
+    /**
+     * @notice Get create2 deterministic address for given implementation and tick
+     *
+     * @param implementation Implementation address
+     * @param tick Tick
+     */
+    function _erc20Address(address implementation, uint128 tick) internal view returns (address) {
+        return Clones.predictDeterministicAddress(implementation, bytes32(uint256(tick)), address(this));
+    }
+
+    /**************************************************************************/
+    /* ERC20 API */
+    /**************************************************************************/
+
+    function transfer(address from, address to, uint128 tick, uint256 amount) external nonReentrant {
+        /* Get implementation address from caller bytecode */
+        address implementation = _getImplementation(msg.sender);
+
+        /* Validate caller is ERC20 created by Pool */
+        if (msg.sender != _erc20Address(implementation, tick)) revert InvalidTokenContract();
+
+        /* Execute update - balance check occurs in token contract */
+        _uncheckedUpdate(from, to, tick, amount);
+
+        /* Validate ERC1155Receiver status */
+        DepositToken.afterUpdate(msg.sender, from, to, tick, amount);
+    }
+
+    /**************************************************************************/
+    /* ERC20 Admin */
+    /**************************************************************************/
+
+    function setTokenImplementation(address implementation) external {
+        if (msg.sender != _admin) revert InvalidCaller();
+        if (implementation == address(0)) revert InvalidParameters();
+
+        _tokenImplementationERC20 = implementation;
+
+        emit TokenImplementationUpdated(implementation);
     }
 
     /**************************************************************************/

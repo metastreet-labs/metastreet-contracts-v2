@@ -135,6 +135,19 @@ interface IPool {
      */
     event AdminFeesWithdrawn(address indexed account, uint256 amount);
 
+    /**
+     * @notice Emitted when implementation updated
+     * @param implementation Implementation address
+     */
+    event TokenImplementationUpdated(address indexed implementation);
+
+    /**
+     * @notice Emitted when ERC20 token created
+     * @param instance Instance address
+     * @param implementation Implementation address
+     */
+    event TokenCreated(address indexed instance, address implementation);
+
     /**************************************************************************/
     /* Getters */
     /**************************************************************************/
