@@ -94,15 +94,15 @@ contract DepositERC20Factory is DepositToken, IBeacon {
      * @param from From
      * @param to To
      * @param tick Tick
-     * @param amount Amount
+     * @param shares Shares
      */
-    function onExternalTransfer(address from, address to, uint128 tick, uint256 amount) internal override {
+    function onExternalTransfer(address from, address to, uint128 tick, uint256 shares) internal override {
         /* Create token instance if it does not exist */
         if (_tokens[tick] == address(0)) {
             _createDeterministicProxy(tick);
         }
 
         /* Call external transfer hook */
-        IDepositERC20(_tokens[tick]).onExternalTransfer(from, to, amount);
+        IDepositERC20(_tokens[tick]).onExternalTransfer(from, to, shares);
     }
 }
