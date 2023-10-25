@@ -4,13 +4,19 @@ pragma solidity 0.8.20;
 import "../Pool.sol";
 import "../rates/WeightedInterestRateModel.sol";
 import "../filters/SetCollectionCollateralFilter.sol";
+import "../tokenization/DepositERC20Factory.sol";
 
 /**
  * @title Pool Configuration with a Weighted Interest Rate Model and Set Collection
  * Collateral Filter
  * @author MetaStreet Labs
  */
-contract WeightedRateSetCollectionPool is Pool, WeightedInterestRateModel, SetCollectionCollateralFilter {
+contract WeightedRateSetCollectionPool is
+    Pool,
+    WeightedInterestRateModel,
+    SetCollectionCollateralFilter,
+    DepositERC20Factory
+{
     /**************************************************************************/
     /* State */
     /**************************************************************************/
@@ -28,15 +34,21 @@ contract WeightedRateSetCollectionPool is Pool, WeightedInterestRateModel, SetCo
      * @notice Pool constructor
      * @param collateralLiquidator Collateral liquidator
      * @param delegationRegistry Delegation registry contract
+     * @param depositERC20implementation DepositERC20 implementation address
      * @param collateralWrappers Collateral wrappers
      * @param parameters WeightedInterestRateModel parameters
      */
     constructor(
         address collateralLiquidator,
         address delegationRegistry,
+        address depositERC20implementation,
         address[] memory collateralWrappers,
         WeightedInterestRateModel.Parameters memory parameters
-    ) Pool(collateralLiquidator, delegationRegistry, collateralWrappers) WeightedInterestRateModel(parameters) {
+    )
+        Pool(collateralLiquidator, delegationRegistry, collateralWrappers)
+        WeightedInterestRateModel(parameters)
+        DepositERC20Factory(depositERC20implementation)
+    {
         /* Disable initialization of implementation contract */
         _initialized = true;
     }
