@@ -14,6 +14,7 @@ import "./LoanReceipt.sol";
 import "./LiquidityManager.sol";
 import "./CollateralFilter.sol";
 import "./InterestRateModel.sol";
+import "./tokenization/DepositToken.sol";
 
 import "./interfaces/IPool.sol";
 import "./interfaces/ILiquidity.sol";
@@ -33,6 +34,7 @@ abstract contract Pool is
     Multicall,
     CollateralFilter,
     InterestRateModel,
+    DepositToken,
     IPool,
     ILiquidity,
     ICollateralLiquidationReceiver
@@ -1131,6 +1133,9 @@ abstract contract Pool is
         /* Handle deposit accounting and compute shares */
         uint128 shares = _deposit(tick, amount.toUint128(), minShares.toUint128());
 
+        /* Call token hook */
+        onExternalTransfer(address(0), msg.sender, tick, shares);
+
         /* Transfer deposit amount */
         _currencyToken.safeTransferFrom(msg.sender, address(this), amount);
 
@@ -1146,6 +1151,9 @@ abstract contract Pool is
     function redeem(uint128 tick, uint256 shares) external nonReentrant returns (uint128) {
         /* Handle redeem accounting */
         uint128 redemptionId = _redeem(tick, shares.toUint128());
+
+        /* Call token hook */
+        onExternalTransfer(msg.sender, address(0), tick, shares);
 
         /* Emit Redeemed event */
         emit Redeemed(msg.sender, tick, redemptionId, shares);
@@ -1210,12 +1218,35 @@ abstract contract Pool is
         /* Handle deposit accounting and compute new shares */
         uint128 newShares = _deposit(dstTick, amount, minShares.toUint128());
 
+        /* Call token hook */
+        onExternalTransfer(address(0), msg.sender, dstTick, newShares);
+
         /* Emit Withdrawn */
         emit Withdrawn(msg.sender, srcTick, redemptionId, oldShares, amount);
+
         /* Emit Deposited */
         emit Deposited(msg.sender, dstTick, amount, newShares);
 
         return (oldShares, newShares, amount);
+    }
+
+    /**
+     * @notice Transfer shares between accounts by operator
+     *
+     * @dev Only callable by deposit token contract
+     *
+     * @param from From
+     * @param to To
+     * @param tick Tick
+     * @param shares Shares
+     */
+    function transfer(address from, address to, uint128 tick, uint256 shares) external nonReentrant {
+        /* Validate caller is deposit token created by Pool */
+        if (msg.sender != depositToken(tick)) revert InvalidCaller();
+        if (_deposits[from][tick].shares < shares) revert InsufficientShares();
+
+        _deposits[from][tick].shares -= shares.toUint128();
+        _deposits[to][tick].shares += shares.toUint128();
     }
 
     /**************************************************************************/

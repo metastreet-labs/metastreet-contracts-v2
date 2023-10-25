@@ -13,6 +13,8 @@ import {
   ILiquidity,
   Pool,
   BundleCollateralWrapper,
+  DepositERC20,
+  WeightedRateCollectionPool,
 } from "../typechain";
 
 import { extractEvent } from "./helpers/EventUtilities";
@@ -29,7 +31,7 @@ describe("Integration", function () {
   let collateralLiquidatorImpl: ExternalCollateralLiquidator;
   let collateralLiquidator: ExternalCollateralLiquidator;
   let poolImpl: Pool;
-  let pool: Pool;
+  let pool: WeightedRateCollectionPool;
   let poolModel: PoolModel;
   let accountDepositors: SignerWithAddress[9];
   let accountBorrowers: SignerWithAddress[10];
@@ -37,6 +39,7 @@ describe("Integration", function () {
   let accountLiquidator: SignerWithAddress;
   let delegationRegistry: TestDelegationRegistry;
   let bundleCollateralWrapper: BundleCollateralWrapper;
+  let depositERC20Impl: DepositERC20;
 
   /* Toggle logging */
   const SILENCE_LOG = true;
@@ -88,6 +91,7 @@ describe("Integration", function () {
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
     const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
+    const depositERC20ImplFactory = await ethers.getContractFactory("DepositERC20");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy(
@@ -129,10 +133,15 @@ describe("Integration", function () {
     bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
     await bundleCollateralWrapper.deployed();
 
+    /* Deploy deposit erc20 implementation */
+    depositERC20Impl = (await depositERC20ImplFactory.deploy()) as DepositERC20;
+    await depositERC20Impl.deployed();
+
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       collateralLiquidator.address,
       delegationRegistry.address,
+      depositERC20Impl.address,
       [bundleCollateralWrapper.address],
       [CONFIG.tickThreshold, CONFIG.tickExponential]
     )) as Pool;
@@ -149,7 +158,7 @@ describe("Integration", function () {
       ])
     );
     await proxy.deployed();
-    pool = (await ethers.getContractAt("Pool", proxy.address)) as Pool;
+    pool = (await ethers.getContractAt("WeightedRateCollectionPool", proxy.address)) as WeightedRateCollectionPool;
 
     /* Set admin rate */
     await pool.setAdminFeeRate(CONFIG.adminFeeRate);
@@ -422,6 +431,16 @@ describe("Integration", function () {
     expect(available).to.equal(poolModel.liquidity.available, "Available liquidity unequal");
     expect(pending).to.equal(poolModel.liquidity.pending, "Pending liquidity unequal");
     consoleLog(`Top level liquidity => value: ${value}, available: ${available}, pending: ${pending}`);
+
+    /* Compare shares to DepositERC20 token balance */
+    const flattenedDeposits = flattenDeposits(false);
+    for (const deposit of flattenedDeposits) {
+      const [tick, , shares, , depositor] = deposit;
+      const tokenAddr = await pool.depositToken(ethers.BigNumber.from(tick));
+      const token = (await ethers.getContractAt("DepositERC20", tokenAddr)) as DepositERC20;
+      const depositERC20Balance = await token.balanceOf(depositor.address);
+      expect(depositERC20Balance).to.equal(shares, "DepositERC20 balance unequal");
+    }
   }
 
   async function getTransactionTimestamp(blockNumber: ethers.BigNumber): Promise<ethers.BigNumber> {
@@ -469,7 +488,13 @@ describe("Integration", function () {
 
       /* Execute deposit() on Pool */
       consoleLog(`Params => tick: ${tick}, amount: ${amount}`);
-      const depositTx = await pool.connect(depositor).deposit(tick, amount, 0);
+
+      const depositTx = await pool
+        .connect(depositor)
+        .multicall([
+          pool.interface.encodeFunctionData("deposit", [tick, amount, 0]),
+          pool.interface.encodeFunctionData("tokenize", [tick]),
+        ]);
 
       const [value, available, pending] = await liquidityNodes();
 

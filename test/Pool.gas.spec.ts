@@ -15,6 +15,8 @@ import {
   Pool,
   BundleCollateralWrapper,
   ERC1155CollateralWrapper,
+  DepositERC20,
+  WeightedRateCollectionPool,
 } from "../typechain";
 
 import { extractEvent, expectEvent } from "./helpers/EventUtilities";
@@ -29,13 +31,14 @@ describe("Pool Gas", function () {
   let loanReceiptLib: TestLoanReceipt;
   let externalCollateralLiquidator: ExternalCollateralLiquidator;
   let poolImpl: Pool;
-  let pool: Pool;
+  let pool: WeightedRateCollectionPool;
   let snapshotId: string;
   let accountDepositors: SignerWithAddress[3];
   let accountBorrower: SignerWithAddress;
   let accountLender: SignerWithAddress;
   let accountLiquidator: SignerWithAddress;
   let bundleCollateralWrapper: BundleCollateralWrapper;
+  let depositERC20Impl: DepositERC20;
 
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
@@ -47,6 +50,7 @@ describe("Pool Gas", function () {
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
     const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
+    const depositERC20ImplFactory = await ethers.getContractFactory("DepositERC20");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("20000"))) as TestERC20;
@@ -79,10 +83,15 @@ describe("Pool Gas", function () {
     bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
     await bundleCollateralWrapper.deployed();
 
+    /* Deploy deposit erc20 implementation */
+    depositERC20Impl = (await depositERC20ImplFactory.deploy()) as DepositERC20;
+    await depositERC20Impl.deployed();
+
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       externalCollateralLiquidator.address,
       ethers.constants.AddressZero,
+      depositERC20Impl.address,
       [bundleCollateralWrapper.address],
       [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
     )) as Pool;
@@ -104,7 +113,7 @@ describe("Pool Gas", function () {
       ])
     );
     await proxy.deployed();
-    pool = (await ethers.getContractAt("Pool", proxy.address)) as Pool;
+    pool = (await ethers.getContractAt("WeightedRateCollectionPool", proxy.address)) as WeightedRateCollectionPool;
 
     /* Arrange accounts */
     accountDepositors = accounts.slice(1, 4);
@@ -247,26 +256,74 @@ describe("Pool Gas", function () {
 
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
-
-      expect(gasUsed).to.be.lt(240000);
+      console.log("deposit new tick gas: ", gasUsed.toString());
+      expect(gasUsed).to.be.lt(240100);
     });
+
     it("deposit (existing tick)", async function () {
       await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
       const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
-
-      expect(gasUsed).to.be.lt(105000);
+      console.log("deposit existing tick gas: ", gasUsed.toString());
+      expect(gasUsed).to.be.lt(103100);
     });
+
     it("deposit (existing deposit)", async function () {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
       const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       const gasUsed = (await depositTx.wait()).gasUsed;
-      gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(85000);
+      gasReport.push([this.test.title, gasUsed]);
+      expect(gasUsed).to.be.lt(86000);
+    });
+
+    it("deposit (new tick) and tokenize", async function () {
+      const depositTx = await pool
+        .connect(accountDepositors[0])
+        .multicall([
+          pool.interface.encodeFunctionData("deposit", [Tick.encode("10"), FixedPoint.from("1"), 0]),
+          pool.interface.encodeFunctionData("tokenize", [Tick.encode("10")]),
+        ]);
+
+      const gasUsed = (await depositTx.wait()).gasUsed;
+
+      gasReport.push([this.test.title, gasUsed]);
+      expect(gasUsed).to.be.lt(478700);
+    });
+
+    it("deposit (existing tick) - previously tokenized", async function () {
+      await pool
+        .connect(accountDepositors[0])
+        .multicall([
+          pool.interface.encodeFunctionData("deposit", [Tick.encode("10"), FixedPoint.from("1"), 0]),
+          pool.interface.encodeFunctionData("tokenize", [Tick.encode("10")]),
+        ]);
+
+      const depositTx = await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+
+      const gasUsed = (await depositTx.wait()).gasUsed;
+
+      gasReport.push([this.test.title, gasUsed]);
+      expect(gasUsed).to.be.lt(114600);
+    });
+
+    it("deposit (existing deposit) - previously tokenized", async function () {
+      await pool
+        .connect(accountDepositors[0])
+        .multicall([
+          pool.interface.encodeFunctionData("deposit", [Tick.encode("10"), FixedPoint.from("1"), 0]),
+          pool.interface.encodeFunctionData("tokenize", [Tick.encode("10")]),
+        ]);
+
+      const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+
+      const gasUsed = (await depositTx.wait()).gasUsed;
+
+      gasReport.push([this.test.title, gasUsed]);
+      expect(gasUsed).to.be.lt(97500);
     });
   });
 
@@ -279,7 +336,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(125000);
+      expect(gasUsed).to.be.lt(142000);
     });
     it("redeem (entire)", async function () {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
@@ -289,7 +346,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(125000);
+      expect(gasUsed).to.be.lt(139000);
     });
   });
 
@@ -321,7 +378,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(242100);
+      expect(gasUsed).to.be.lt(523200);
     });
 
     it("multicall redeem + rebalance (existing tick)", async function () {
@@ -338,7 +395,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(166800);
+      expect(gasUsed).to.be.lt(205000);
     });
   });
 
@@ -744,6 +801,7 @@ describe("Pool Gas", function () {
       let englishAuctionCollateralLiquidator: EnglishAuctionCollateralLiquidator;
       let singleLoanReceipt: string;
       let bundleLoanReceipt: string;
+      let depositERC20: DepositERC20;
 
       beforeEach("setup pool", async function () {
         const testProxyFactory = await ethers.getContractFactory("TestProxy");
@@ -751,6 +809,7 @@ describe("Pool Gas", function () {
           "EnglishAuctionCollateralLiquidator"
         );
         const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
+        const depositERC20Factory = await ethers.getContractFactory("DepositERC20");
 
         /* Deploy english auction collateral liquidator implementation */
         const englishAuctionCollateralLiquidatorImpl = await englishAuctionCollateralLiquidatorFactory.deploy([
@@ -775,10 +834,15 @@ describe("Pool Gas", function () {
           proxy.address
         )) as EnglishAuctionCollateralLiquidator;
 
+        /* Deploy deposit ERC20 */
+        depositERC20 = (await depositERC20Factory.deploy()) as DepositERC20;
+        await depositERC20.deployed();
+
         /* Deploy pool implementation */
         poolEACLImpl = (await poolImplFactory.deploy(
           englishAuctionCollateralLiquidator.address,
           ethers.constants.AddressZero,
+          depositERC20.address,
           [bundleCollateralWrapper.address],
           [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
         )) as Pool;
@@ -1016,11 +1080,13 @@ describe("Pool Gas", function () {
     let collateralLiquidator: ExternalCollateralLiquidator;
     let proxy;
     let testProxyFactory: any;
+    let depositERC20: DepositERC20;
 
     beforeEach("setup pool", async function () {
       testProxyFactory = await ethers.getContractFactory("TestProxy");
       const poolImplFactory = await ethers.getContractFactory("WeightedRateMerkleCollectionPool");
       const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
+      const depositERC20Factory = await ethers.getContractFactory("DepositERC20");
 
       /* Deploy external collateral liquidator implementation */
       const collateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
@@ -1037,10 +1103,15 @@ describe("Pool Gas", function () {
         proxy.address
       )) as ExternalCollateralLiquidator;
 
+      /* Deploy deposit ERC20 */
+      depositERC20 = (await depositERC20Factory.deploy()) as DepositERC20;
+      await depositERC20.deployed();
+
       /* Deploy pool implementation */
       poolImpl = (await poolImplFactory.deploy(
         collateralLiquidator.address,
         ethers.constants.AddressZero,
+        depositERC20.address,
         [],
         [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
       )) as Pool;
@@ -1134,6 +1205,7 @@ describe("Pool Gas", function () {
     let ERC1155WrapperTokenId: ethers.BigNumber;
     let ERC1155WrapperData: any;
     let nft2: TestERC1155;
+    let depositERC20: DepositERC20;
 
     beforeEach("setup pool", async function () {
       testProxyFactory = await ethers.getContractFactory("TestProxy");
@@ -1141,6 +1213,7 @@ describe("Pool Gas", function () {
       const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
       const ERC1155CollateralWrapperFactory = await ethers.getContractFactory("ERC1155CollateralWrapper");
       const testERC1155Factory = await ethers.getContractFactory("TestERC1155");
+      const depositERC20Factory = await ethers.getContractFactory("DepositERC20");
 
       /* Deploy external collateral liquidator implementation */
       const collateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
@@ -1165,10 +1238,15 @@ describe("Pool Gas", function () {
       ERC1155CollateralWrapper = await ERC1155CollateralWrapperFactory.deploy();
       await ERC1155CollateralWrapper.deployed();
 
+      /* Deploy deposit ERC20 */
+      depositERC20 = (await depositERC20Factory.deploy()) as DepositERC20;
+      await depositERC20.deployed();
+
       /* Deploy pool implementation */
       poolImpl = (await poolImplFactory.deploy(
         collateralLiquidator.address,
         ethers.constants.AddressZero,
+        depositERC20.address,
         [ERC1155CollateralWrapper.address],
         [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
       )) as Pool;
