@@ -94,6 +94,15 @@ interface IPool {
     );
 
     /**
+     * @notice Emitted when deposit shares are transferred
+     * @param from Source account
+     * @param to Destination acount
+     * @param tick Tick
+     * @param shares Amount of shares transferred
+     */
+    event Transferred(address indexed from, address indexed to, uint128 indexed tick, uint256 shares);
+
+    /**
      * @notice Emitted when a loan is originated
      * @param loanReceiptHash Loan receipt hash
      * @param loanReceipt Loan receipt

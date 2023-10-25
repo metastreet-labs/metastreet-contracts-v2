@@ -28,6 +28,7 @@ describe("PoolFactory", function () {
   let snapshotId: string;
   let delegationRegistry: TestDelegationRegistry;
   let bundleCollateralWrapper: BundleCollateralWrapper;
+  let erc20DepositTokenImpl: ERC20DepositTokenImplementation;
 
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
@@ -41,6 +42,7 @@ describe("PoolFactory", function () {
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
     const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
+    const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;
@@ -73,10 +75,15 @@ describe("PoolFactory", function () {
     bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
     await bundleCollateralWrapper.deployed();
 
+    /* Deploy erc20 deposit token implementation */
+    erc20DepositTokenImpl = (await erc20DepositTokenImplFactory.deploy()) as ERC20DepositTokenImplementation;
+    await erc20DepositTokenImpl.deployed();
+
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       collateralLiquidator.address,
       delegationRegistry.address,
+      erc20DepositTokenImpl.address,
       [bundleCollateralWrapper.address],
       [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
     )) as Pool;

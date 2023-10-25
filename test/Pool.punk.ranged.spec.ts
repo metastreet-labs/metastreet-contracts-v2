@@ -10,6 +10,7 @@ import {
   TestDelegationRegistry,
   ExternalCollateralLiquidator,
   Pool,
+  ERC20DepositTokenImplementation,
   PunkCollateralWrapper,
   ICryptoPunksMarket,
 } from "../typechain";
@@ -31,6 +32,7 @@ describe("Pool Punk Ranged Collection", function () {
   let accountLender: SignerWithAddress;
   let accountLiquidator: SignerWithAddress;
   let delegationRegistry: TestDelegationRegistry;
+  let erc20DepositTokenImpl: ERC20DepositTokenImplementation;
   let punkCollateralWrapper: PunkCollateralWrapper;
   let punkData: any;
   let punkTokenId: ethers.BigNumber;
@@ -72,6 +74,7 @@ describe("Pool Punk Ranged Collection", function () {
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
     const punkCollateralWrapperFactory = await ethers.getContractFactory("PunkCollateralWrapper");
     const poolImplFactory = await ethers.getContractFactory("WeightedRateRangedCollectionPool");
+    const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;
@@ -100,6 +103,10 @@ describe("Pool Punk Ranged Collection", function () {
     delegationRegistry = await delegationRegistryFactory.deploy();
     await delegationRegistry.deployed();
 
+    /* Deploy erc20 deposit token implementation */
+    erc20DepositTokenImpl = (await erc20DepositTokenImplFactory.deploy()) as ERC20DepositTokenImplementation;
+    await erc20DepositTokenImpl.deployed();
+
     /* Deploy bundle collateral wrapper */
     punkCollateralWrapper = await punkCollateralWrapperFactory.deploy(PUNKS_ADDRESS, WPUNKS_ADDRESS);
     await punkCollateralWrapper.deployed();
@@ -108,6 +115,7 @@ describe("Pool Punk Ranged Collection", function () {
     poolImpl = (await poolImplFactory.deploy(
       collateralLiquidator.address,
       delegationRegistry.address,
+      erc20DepositTokenImpl.address,
       [punkCollateralWrapper.address],
       [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
     )) as Pool;

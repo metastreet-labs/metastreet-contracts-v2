@@ -37,6 +37,7 @@ describe("Pool Merkle", function () {
   let merkleTree: StandardMerkleTree<any>;
   let nodeCount: number;
   let rates: ethers.BigNumber[];
+  let erc20DepositTokenImpl: ERC20DepositTokenImplementation;
 
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
@@ -48,6 +49,7 @@ describe("Pool Merkle", function () {
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
     const poolImplFactory = await ethers.getContractFactory("WeightedRateMerkleCollectionPool");
+    const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;
@@ -80,10 +82,15 @@ describe("Pool Merkle", function () {
     delegationRegistry = await delegationRegistryFactory.deploy();
     await delegationRegistry.deployed();
 
+    /* Deploy erc20 deposit token implementation */
+    erc20DepositTokenImpl = (await erc20DepositTokenImplFactory.deploy()) as ERC20DepositTokenImplementation;
+    await erc20DepositTokenImpl.deployed();
+
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       collateralLiquidator.address,
       delegationRegistry.address,
+      erc20DepositTokenImpl.address,
       [],
       [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
     )) as Pool;
