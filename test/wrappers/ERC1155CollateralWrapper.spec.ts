@@ -72,7 +72,7 @@ describe("ERC1155CollateralWrapper", function () {
 
   describe("constants", async function () {
     it("matches expected implementation version", async function () {
-      expect(await ERC1155CollateralWrapper.IMPLEMENTATION_VERSION()).to.equal("1.0");
+      expect(await ERC1155CollateralWrapper.IMPLEMENTATION_VERSION()).to.equal("1.1");
     });
     it("returns correct name", async function () {
       expect(await ERC1155CollateralWrapper.name()).to.equal("MetaStreet ERC1155 Collateral Wrapper");
