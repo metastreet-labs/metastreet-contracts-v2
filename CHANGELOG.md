@@ -1,3 +1,5 @@
+* PunkCollateralWrapper v1.0 - 10/27/2023
+    * Initial release.
 * ERC1155CollateralWrapper v2.1 - 10/27/2023
     * Add implementation of new `enumerateWithQuantities()` and
       `transferCalldata()` APIs.
