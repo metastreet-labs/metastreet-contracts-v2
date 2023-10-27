@@ -430,6 +430,16 @@ describe("Integration", function () {
     expect(available).to.equal(poolModel.liquidity.available, "Available liquidity unequal");
     expect(pending).to.equal(poolModel.liquidity.pending, "Pending liquidity unequal");
     consoleLog(`Top level liquidity => value: ${value}, available: ${available}, pending: ${pending}`);
+
+    /* Compare shares to DepositERC20 token balance */
+    const flattenedDeposits = flattenDeposits(false);
+    for (const deposit of flattenedDeposits) {
+      const [tick, , shares, , depositor] = deposit;
+      const tokenAddr = await pool.depositToken(ethers.BigNumber.from(tick));
+      const token = (await ethers.getContractAt("DepositERC20", tokenAddr)) as DepositERC20;
+      const depositERC20Balance = await token.balanceOf(depositor.address);
+      expect(depositERC20Balance).to.equal(shares, "DepositERC20 balance unequal");
+    }
   }
 
   async function getTransactionTimestamp(blockNumber: ethers.BigNumber): Promise<ethers.BigNumber> {
