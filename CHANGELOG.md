@@ -1,3 +1,7 @@
+* BundleCollateralWrapper v2.1 - 10/27/2023
+    * Add implementation of new `enumerateWithQuantities()` and
+      `transferCalldata()` APIs.
+
 * Pool v2.2 - 10/11/2023
     * Fix overflow revert from narrow casting of accruals in LiquidityManager.
 
