@@ -1,3 +1,6 @@
+* EnglishAuctionCollateralLiquidator v1.2 - 10/27/2023
+    * Add generic support for wrapped collateral.
+
 * PunkCollateralWrapper v1.0 - 10/27/2023
     * Initial release.
 * ERC1155CollateralWrapper v2.1 - 10/27/2023
