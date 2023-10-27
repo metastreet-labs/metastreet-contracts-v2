@@ -1,3 +1,6 @@
+* ERC1155CollateralWrapper v2.1 - 10/27/2023
+    * Add implementation of new `enumerateWithQuantities()` and
+      `transferCalldata()` APIs.
 * BundleCollateralWrapper v2.1 - 10/27/2023
     * Add implementation of new `enumerateWithQuantities()` and
       `transferCalldata()` APIs.
