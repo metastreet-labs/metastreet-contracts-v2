@@ -13,6 +13,7 @@ import {
   ILiquidity,
   Pool,
   BundleCollateralWrapper,
+  DepositERC20,
 } from "../typechain";
 
 import { extractEvent } from "./helpers/EventUtilities";
@@ -37,6 +38,7 @@ describe("Integration", function () {
   let accountLiquidator: SignerWithAddress;
   let delegationRegistry: TestDelegationRegistry;
   let bundleCollateralWrapper: BundleCollateralWrapper;
+  let depositERC20Impl: DepositERC20;
 
   /* Toggle logging */
   const SILENCE_LOG = true;
@@ -88,6 +90,7 @@ describe("Integration", function () {
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
     const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
+    const depositERC20ImplFactory = await ethers.getContractFactory("DepositERC20");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy(
@@ -129,10 +132,15 @@ describe("Integration", function () {
     bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
     await bundleCollateralWrapper.deployed();
 
+    /* Deploy MetaStreet Token Implementation */
+    depositERC20Impl = (await depositERC20ImplFactory.deploy()) as DepositERC20;
+    await depositERC20Impl.deployed();
+
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       collateralLiquidator.address,
       delegationRegistry.address,
+      depositERC20Impl.address,
       [bundleCollateralWrapper.address],
       [CONFIG.tickThreshold, CONFIG.tickExponential]
     )) as Pool;
@@ -422,6 +430,16 @@ describe("Integration", function () {
     expect(available).to.equal(poolModel.liquidity.available, "Available liquidity unequal");
     expect(pending).to.equal(poolModel.liquidity.pending, "Pending liquidity unequal");
     consoleLog(`Top level liquidity => value: ${value}, available: ${available}, pending: ${pending}`);
+
+    /* Compare shares to DepositERC20 */
+    const flattenedDeposits = flattenDeposits(false);
+    for (const deposit of flattenedDeposits) {
+      const [tick, , shares, , depositor] = deposit;
+      const tokenAddr = await computeDeterministicAddress(ethers.BigNumber.from(tick));
+      const token = (await ethers.getContractAt("DepositERC20", tokenAddr)) as DepositERC20;
+      const depositERC20Balance = await token.balanceOf(depositor.address);
+      expect(depositERC20Balance).to.equal(shares, "DepositERC20 balance unequal");
+    }
   }
 
   async function getTransactionTimestamp(blockNumber: ethers.BigNumber): Promise<ethers.BigNumber> {
@@ -439,6 +457,29 @@ describe("Integration", function () {
     }
     return callSequence;
   }
+
+  /****************************************************************************/
+  /* DepositERC20 Helper */
+  /****************************************************************************/
+
+  const tickToBytes = (tick: BigNumber) => {
+    return ethers.utils.hexZeroPad(ethers.utils.hexlify(tick), 32);
+  };
+
+  const computeDeterministicAddress = async (tick: BigNumber) => {
+    const ABI = ["function initialize(bytes)"];
+    const iface = new ethers.utils.Interface(ABI);
+
+    const initData = ethers.utils.defaultAbiCoder.encode(
+      ["address", "bytes"],
+      [pool.address, iface.encodeFunctionData("initialize", [tickToBytes(tick)])]
+    );
+
+    const beaconProxyBytecode = (await ethers.getContractFactory("BeaconProxy")).bytecode;
+    const creationCode = ethers.utils.hexConcat([beaconProxyBytecode, initData]);
+
+    return ethers.utils.getCreate2Address(pool.address, tickToBytes(tick), ethers.utils.keccak256(creationCode));
+  };
 
   /****************************************************************************/
   /* Function Wrappers */
