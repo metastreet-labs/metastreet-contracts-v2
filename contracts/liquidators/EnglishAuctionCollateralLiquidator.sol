@@ -29,7 +29,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
     /**
      * @notice Implementation version
      */
-    string public constant IMPLEMENTATION_VERSION = "1.1";
+    string public constant IMPLEMENTATION_VERSION = "1.2";
 
     /**
      * @notice Basis points scale
