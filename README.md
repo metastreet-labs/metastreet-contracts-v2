@@ -26,6 +26,14 @@ Start hardhat network:
 npm run node
 ```
 
+Run Slither:
+
+```
+python3 -m venv venv && source venv/bin/activate
+pip3 install slither-analyzer
+slither .
+```
+
 ## Additional Targets
 
 - Format contracts, tests, and scripts (prettier): `npm run format`
