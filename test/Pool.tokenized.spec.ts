@@ -21,7 +21,7 @@ import { FixedPoint } from "./helpers/FixedPoint";
 import { Tick } from "./helpers/Tick";
 import { BigNumber } from "ethers";
 
-describe.only("Pool Tokenized", function () {
+describe("Pool Tokenized", function () {
   let accounts: SignerWithAddress[];
   let tok1: TestERC20;
   let nft1: TestERC721;

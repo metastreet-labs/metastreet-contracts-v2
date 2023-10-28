@@ -13,6 +13,7 @@ import {
   ExternalCollateralLiquidator,
   Pool,
   ERC1155CollateralWrapper,
+  DepositERC20,
 } from "../typechain";
 
 import { extractEvent, expectEvent } from "./helpers/EventUtilities";
@@ -34,6 +35,7 @@ describe("Pool ERC1155", function () {
   let accountLiquidator: SignerWithAddress;
   let delegationRegistry: TestDelegationRegistry;
   let ERC1155CollateralWrapper: ERC1155CollateralWrapper;
+  let depositERC20Impl: DepositERC20;
 
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
@@ -46,6 +48,7 @@ describe("Pool ERC1155", function () {
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
     const ERC1155CollateralWrapperFactory = await ethers.getContractFactory("ERC1155CollateralWrapper");
     const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
+    const depositERC20ImplFactory = await ethers.getContractFactory("DepositERC20");
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;
@@ -82,10 +85,15 @@ describe("Pool ERC1155", function () {
     ERC1155CollateralWrapper = await ERC1155CollateralWrapperFactory.deploy();
     await ERC1155CollateralWrapper.deployed();
 
+    /* Deploy MetaStreet Token Implementation */
+    depositERC20Impl = (await depositERC20ImplFactory.deploy()) as DepositERC20;
+    await depositERC20Impl.deployed();
+
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       collateralLiquidator.address,
       delegationRegistry.address,
+      depositERC20Impl.address,
       [ERC1155CollateralWrapper.address],
       [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
     )) as Pool;
