@@ -169,8 +169,14 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard 
     /**
      * @inheritdoc ICollateralWrapper
      */
-    function transferCalldata(address from, address to, uint256 tokenId, uint256) external pure returns (bytes memory) {
-        return abi.encodeWithSelector(IERC721.transferFrom.selector, from, to, tokenId);
+    function transferCalldata(
+        address token,
+        address from,
+        address to,
+        uint256 tokenId,
+        uint256
+    ) external pure returns (address, bytes memory) {
+        return (token, abi.encodeWithSelector(IERC721.transferFrom.selector, from, to, tokenId));
     }
 
     /**************************************************************************/

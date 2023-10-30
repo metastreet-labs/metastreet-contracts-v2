@@ -42,6 +42,7 @@ describe("Pool Punk Ranged Collection", function () {
   const PUNK_ID_3 = ethers.BigNumber.from("35");
   const PUNK_OWNER = "0xA858DDc0445d8131daC4d1DE01f834ffcbA52Ef1"; /* Yuga Labs address */
   const PUNKS_ADDRESS = "0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB";
+  const WPUNKS_ADDRESS = "0xb7F7F6C52F2e2fdb1963Eab30438024864c313F6";
   const BLOCK_ID = 17965920;
 
   before("deploy fixture", async function () {
@@ -100,7 +101,7 @@ describe("Pool Punk Ranged Collection", function () {
     await delegationRegistry.deployed();
 
     /* Deploy bundle collateral wrapper */
-    punkCollateralWrapper = await punkCollateralWrapperFactory.deploy();
+    punkCollateralWrapper = await punkCollateralWrapperFactory.deploy(PUNKS_ADDRESS, WPUNKS_ADDRESS);
     await punkCollateralWrapper.deployed();
 
     /* Deploy pool implementation */
@@ -119,7 +120,7 @@ describe("Pool Punk Ranged Collection", function () {
         ethers.utils.defaultAbiCoder.encode(
           ["address", "uint256", "uint256", "address", "uint64[]", "uint64[]"],
           [
-            PUNKS_ADDRESS,
+            WPUNKS_ADDRESS,
             PUNK_ID_1,
             PUNK_ID_3,
             tok1.address,
@@ -293,7 +294,7 @@ describe("Pool Punk Ranged Collection", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        PUNKS_ADDRESS,
+        WPUNKS_ADDRESS,
         [PUNK_ID_1, PUNK_ID_2, PUNK_ID_3],
         3,
         await sourceLiquidity(FixedPoint.from("25")),
@@ -392,7 +393,7 @@ describe("Pool Punk Ranged Collection", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        PUNKS_ADDRESS,
+        WPUNKS_ADDRESS,
         [PUNK_ID_1, PUNK_ID_2, PUNK_ID_3],
         3,
         await sourceLiquidity(FixedPoint.from("25")),

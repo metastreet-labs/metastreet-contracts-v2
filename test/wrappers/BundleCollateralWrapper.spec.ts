@@ -186,7 +186,8 @@ describe("BundleCollateralWrapper", function () {
   describe("#transferCalldata", async function () {
     it("transfer calldata", async function () {
       /* Get transferCalldata */
-      const calldata = await bundleCollateralWrapper.transferCalldata(
+      const [target, calldata] = await bundleCollateralWrapper.transferCalldata(
+        nft1.address,
         accountBorrower.address,
         accounts[0].address,
         123,
@@ -194,7 +195,7 @@ describe("BundleCollateralWrapper", function () {
       );
 
       const tx = {
-        to: nft1.address,
+        to: target,
         data: calldata,
       };
 

@@ -50,18 +50,21 @@ interface ICollateralWrapper {
 
     /*
      * Transfer collateral calldata
+     * @param token Collateral token
      * @param from From address
      * @param to To address
      * @param tokenId Collateral wrapper token ID
      * @param quantity Quantity of token ID
+     * @return target Transfer target
      * @return data Transfer calldata
      */
     function transferCalldata(
+        address token,
         address from,
         address to,
         uint256 tokenId,
         uint256 quantity
-    ) external pure returns (bytes memory data);
+    ) external returns (address target, bytes memory data);
 
     /*
      * Unwrap collateral

@@ -40,6 +40,7 @@ describe("Pool Punks", function () {
   const PUNK_ID_3 = ethers.BigNumber.from("28");
   const PUNK_OWNER = "0xA858DDc0445d8131daC4d1DE01f834ffcbA52Ef1"; /* Yuga Labs address */
   const PUNKS_ADDRESS = "0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB";
+  const WPUNKS_ADDRESS = "0xb7F7F6C52F2e2fdb1963Eab30438024864c313F6";
   const BLOCK_ID = 17965920;
 
   before("deploy fixture", async function () {
@@ -98,7 +99,7 @@ describe("Pool Punks", function () {
     await delegationRegistry.deployed();
 
     /* Deploy punk collateral wrapper */
-    punkCollateralWrapper = await punkCollateralWrapperFactory.deploy();
+    punkCollateralWrapper = await punkCollateralWrapperFactory.deploy(PUNKS_ADDRESS, WPUNKS_ADDRESS);
     await punkCollateralWrapper.deployed();
 
     /* Deploy pool implementation */
@@ -117,7 +118,7 @@ describe("Pool Punks", function () {
         ethers.utils.defaultAbiCoder.encode(
           ["address", "address", "uint64[]", "uint64[]"],
           [
-            PUNKS_ADDRESS,
+            WPUNKS_ADDRESS,
             tok1.address,
             [30 * 86400, 14 * 86400, 7 * 86400],
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
@@ -307,7 +308,7 @@ describe("Pool Punks", function () {
         await pool.quote(
           FixedPoint.from("10"),
           30 * 86400,
-          PUNKS_ADDRESS,
+          WPUNKS_ADDRESS,
           [PUNK_ID_1, PUNK_ID_2, PUNK_ID_3],
           3,
           await sourceLiquidity(FixedPoint.from("10")),
@@ -319,7 +320,7 @@ describe("Pool Punks", function () {
         await pool.quote(
           FixedPoint.from("25"),
           30 * 86400,
-          PUNKS_ADDRESS,
+          WPUNKS_ADDRESS,
           [PUNK_ID_1, PUNK_ID_2, PUNK_ID_3],
           3,
           await sourceLiquidity(FixedPoint.from("25")),
@@ -333,7 +334,7 @@ describe("Pool Punks", function () {
         pool.quote(
           FixedPoint.from("1000"),
           30 * 86400,
-          PUNKS_ADDRESS,
+          WPUNKS_ADDRESS,
           [PUNK_ID_1, PUNK_ID_2, PUNK_ID_3],
           3,
           await sourceLiquidity(FixedPoint.from("25")),
@@ -358,7 +359,7 @@ describe("Pool Punks", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        PUNKS_ADDRESS,
+        WPUNKS_ADDRESS,
         [PUNK_ID_1, PUNK_ID_2, PUNK_ID_3],
         3,
         await sourceLiquidity(FixedPoint.from("25")),
@@ -462,7 +463,7 @@ describe("Pool Punks", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        PUNKS_ADDRESS,
+        WPUNKS_ADDRESS,
         [PUNK_ID_1, PUNK_ID_2, PUNK_ID_3],
         3,
         await sourceLiquidity(FixedPoint.from("25")),
@@ -580,7 +581,7 @@ describe("Pool Punks", function () {
       const repayment = await pool.quote(
         FixedPoint.from("85"),
         30 * 86400,
-        PUNKS_ADDRESS,
+        WPUNKS_ADDRESS,
         [PUNK_ID_1, PUNK_ID_2, PUNK_ID_3],
         3,
         await sourceLiquidity(FixedPoint.from("85"), 3),
@@ -733,7 +734,7 @@ describe("Pool Punks", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        PUNKS_ADDRESS,
+        WPUNKS_ADDRESS,
         [124, 125],
         2,
         await sourceLiquidity(FixedPoint.from("25")),

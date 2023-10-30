@@ -37,6 +37,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
   const PUNK_ID_3 = ethers.BigNumber.from("28");
   const PUNK_OWNER = "0xA858DDc0445d8131daC4d1DE01f834ffcbA52Ef1"; /* Yuga Labs address */
   const PUNKS_ADDRESS = "0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB";
+  const WPUNKS_ADDRESS = "0xb7F7F6C52F2e2fdb1963Eab30438024864c313F6";
   const BLOCK_ID = 17965920;
 
   before("fork mainnet and deploy fixture", async function () {
@@ -66,9 +67,6 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       "EnglishAuctionCollateralLiquidator"
     );
     const testCollateralLiquidatorJigFactory = await ethers.getContractFactory("TestCollateralLiquidatorJig");
-    const testCollateralLiquidatorJigTruncatedFactory = await ethers.getContractFactory(
-      "TestCollateralLiquidatorJigTruncated"
-    );
     const punkCollateralWrapperFactory = await ethers.getContractFactory("PunkCollateralWrapper");
 
     /* Deploy test currency token */
@@ -83,7 +81,10 @@ describe("EnglishAuctionCollateralLiquidator", function () {
     await loanReceiptLibrary.deployed();
 
     /* Deploy punk collateral wrapper */
-    punkCollateralWrapper = (await punkCollateralWrapperFactory.deploy()) as PunkCollateralWrapper;
+    punkCollateralWrapper = (await punkCollateralWrapperFactory.deploy(
+      PUNKS_ADDRESS,
+      WPUNKS_ADDRESS
+    )) as PunkCollateralWrapper;
     await punkCollateralWrapper.deployed();
 
     /* Deploy collateral liquidator implementation */
@@ -272,15 +273,15 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       }
       await expect(liquidateTx)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, cryptoPunksMarket.address, tokenIds[0])
+        .withArgs(liquidationHash, WPUNKS_ADDRESS, tokenIds[0])
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, cryptoPunksMarket.address, tokenIds[1])
+        .withArgs(liquidationHash, WPUNKS_ADDRESS, tokenIds[1])
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, cryptoPunksMarket.address, tokenIds[2]);
+        .withArgs(liquidationHash, WPUNKS_ADDRESS, tokenIds[2]);
 
       /* Validate state */
       for (const [index, tokenId] of tokenIds.entries()) {
-        const auction = await collateralLiquidator.auctions(liquidationHash, cryptoPunksMarket.address, tokenId);
+        const auction = await collateralLiquidator.auctions(liquidationHash, WPUNKS_ADDRESS, tokenId);
         await expect(auction.endTime).to.equal(0);
         await expect(auction.highestBid).to.equal(0);
         await expect(auction.highestBidder).to.equal(ethers.constants.AddressZero);
@@ -336,17 +337,17 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       /* Bid with accountBidder1 */
       const bid1Tx = await collateralLiquidator
         .connect(accountBidder1)
-        .bid(liquidationHash, cryptoPunksMarket.address, PUNK_ID_1, ethers.utils.parseEther("1"));
+        .bid(liquidationHash, WPUNKS_ADDRESS, PUNK_ID_1, ethers.utils.parseEther("1"));
 
       /* Bid with accountBidder2 */
       await collateralLiquidator
         .connect(accountBidder2)
-        .bid(liquidationHash, cryptoPunksMarket.address, PUNK_ID_2, ethers.utils.parseEther("2"));
+        .bid(liquidationHash, WPUNKS_ADDRESS, PUNK_ID_2, ethers.utils.parseEther("2"));
 
       /* Bid with accountBidder3 */
       await collateralLiquidator
         .connect(accountBidder3)
-        .bid(liquidationHash, cryptoPunksMarket.address, PUNK_ID_3, ethers.utils.parseEther("3"));
+        .bid(liquidationHash, WPUNKS_ADDRESS, PUNK_ID_3, ethers.utils.parseEther("3"));
 
       /* Fast forward to 1 second after end time */
       const transactionTime = await getBlockTimestamp(bid1Tx.blockNumber);
@@ -355,21 +356,15 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       /* Claim with accountBidder1 */
       const claim1Tx = await collateralLiquidator
         .connect(accountBidder1)
-        .claim(liquidationHash, cryptoPunksMarket.address, PUNK_ID_1, loanReceipt);
+        .claim(liquidationHash, WPUNKS_ADDRESS, PUNK_ID_1, loanReceipt);
 
       /* Validate events */
       await expect(claim1Tx)
         .to.emit(collateralLiquidator, "AuctionEnded")
-        .withArgs(
-          liquidationHash,
-          cryptoPunksMarket.address,
-          PUNK_ID_1,
-          accountBidder1.address,
-          ethers.utils.parseEther("1")
-        );
+        .withArgs(liquidationHash, WPUNKS_ADDRESS, PUNK_ID_1, accountBidder1.address, ethers.utils.parseEther("1"));
 
       /* Validate state */
-      const auction1 = await collateralLiquidator.auctions(liquidationHash, cryptoPunksMarket.address, PUNK_ID_1);
+      const auction1 = await collateralLiquidator.auctions(liquidationHash, WPUNKS_ADDRESS, PUNK_ID_1);
       await expect(auction1.endTime).to.equal(ethers.constants.Zero);
 
       const liquidation1 = await collateralLiquidator.liquidations(liquidationHash);
@@ -386,21 +381,15 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       /* Claim with accountBidder2 */
       const claim2Tx = await collateralLiquidator
         .connect(accountBidder2)
-        .claim(liquidationHash, cryptoPunksMarket.address, PUNK_ID_2, loanReceipt);
+        .claim(liquidationHash, WPUNKS_ADDRESS, PUNK_ID_2, loanReceipt);
 
       /* Validate events */
       await expect(claim2Tx)
         .to.emit(collateralLiquidator, "AuctionEnded")
-        .withArgs(
-          liquidationHash,
-          cryptoPunksMarket.address,
-          PUNK_ID_2,
-          accountBidder2.address,
-          ethers.utils.parseEther("2")
-        );
+        .withArgs(liquidationHash, WPUNKS_ADDRESS, PUNK_ID_2, accountBidder2.address, ethers.utils.parseEther("2"));
 
       /* Validate state */
-      const auction2 = await collateralLiquidator.auctions(liquidationHash, cryptoPunksMarket.address, PUNK_ID_2);
+      const auction2 = await collateralLiquidator.auctions(liquidationHash, WPUNKS_ADDRESS, PUNK_ID_2);
       await expect(auction2.endTime).to.equal(ethers.constants.Zero);
 
       const liquidation2 = await collateralLiquidator.liquidations(liquidationHash);
@@ -417,18 +406,12 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       /* Claim with accountBidder3 */
       const claim3Tx = await collateralLiquidator
         .connect(accountBidder3)
-        .claim(liquidationHash, cryptoPunksMarket.address, PUNK_ID_3, loanReceipt);
+        .claim(liquidationHash, WPUNKS_ADDRESS, PUNK_ID_3, loanReceipt);
 
       /* Validate events */
       await expect(claim3Tx)
         .to.emit(collateralLiquidator, "AuctionEnded")
-        .withArgs(
-          liquidationHash,
-          cryptoPunksMarket.address,
-          PUNK_ID_3,
-          accountBidder3.address,
-          ethers.utils.parseEther("3")
-        );
+        .withArgs(liquidationHash, WPUNKS_ADDRESS, PUNK_ID_3, accountBidder3.address, ethers.utils.parseEther("3"));
 
       await expect(claim3Tx)
         .to.emit(collateralLiquidator, "LiquidationEnded")
@@ -445,7 +428,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       });
 
       /* Validate state */
-      const auction3 = await collateralLiquidator.auctions(liquidationHash, cryptoPunksMarket.address, PUNK_ID_3);
+      const auction3 = await collateralLiquidator.auctions(liquidationHash, WPUNKS_ADDRESS, PUNK_ID_3);
       await expect(auction3.endTime).to.equal(ethers.constants.Zero);
 
       const liquidation3 = await collateralLiquidator.liquidations(liquidationHash);

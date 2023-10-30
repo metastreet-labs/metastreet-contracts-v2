@@ -23,6 +23,7 @@ describe("PunkCollateralWrapper", function () {
   const PUNK_ID_5 = ethers.BigNumber.from("50");
   const PUNK_OWNER = "0xA858DDc0445d8131daC4d1DE01f834ffcbA52Ef1"; /* Yuga Labs address */
   const PUNKS_ADDRESS = "0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB";
+  const WPUNKS_ADDRESS = "0xb7F7F6C52F2e2fdb1963Eab30438024864c313F6";
   const BLOCK_ID = 17965920;
 
   before("fork mainnet and deploy fixture", async function () {
@@ -53,7 +54,10 @@ describe("PunkCollateralWrapper", function () {
 
     cryptoPunksMarket = (await ethers.getContractAt("ICryptoPunksMarket", PUNKS_ADDRESS)) as ICryptoPunksMarket;
 
-    punkCollateralWrapper = (await punkCollateralWrapperFactory.deploy()) as PunkCollateralWrapper;
+    punkCollateralWrapper = (await punkCollateralWrapperFactory.deploy(
+      PUNKS_ADDRESS,
+      WPUNKS_ADDRESS
+    )) as PunkCollateralWrapper;
     await punkCollateralWrapper.deployed();
 
     accountBorrower = await ethers.getImpersonatedSigner(PUNK_OWNER);
@@ -118,7 +122,7 @@ describe("PunkCollateralWrapper", function () {
       const [token, tokenIds] = await punkCollateralWrapper.enumerate(tokenId1, context);
 
       /* Validate return */
-      expect(token).to.equal(cryptoPunksMarket.address);
+      expect(token).to.equal(WPUNKS_ADDRESS);
       expect(tokenIds[0]).to.equal(PUNK_ID_1);
       expect(tokenIds[1]).to.equal(PUNK_ID_2);
     });
@@ -139,7 +143,7 @@ describe("PunkCollateralWrapper", function () {
       const [token, tokenIds, quantities] = await punkCollateralWrapper.enumerateWithQuantities(tokenId1, context);
 
       /* Validate return */
-      expect(token).to.equal(cryptoPunksMarket.address);
+      expect(token).to.equal(WPUNKS_ADDRESS);
       expect(tokenIds[0]).to.equal(PUNK_ID_1);
       expect(tokenIds[1]).to.equal(PUNK_ID_2);
       expect(quantities[0]).to.equal(1);
@@ -187,7 +191,8 @@ describe("PunkCollateralWrapper", function () {
   describe("#transferCalldata", async function () {
     it("transfer calldata", async function () {
       /* Get transferCalldata */
-      const calldata = await punkCollateralWrapper.transferCalldata(
+      const [target, calldata] = await punkCollateralWrapper.transferCalldata(
+        WPUNKS_ADDRESS,
         accountBorrower.address,
         accounts[0].address,
         PUNK_ID_1,
@@ -195,7 +200,7 @@ describe("PunkCollateralWrapper", function () {
       );
 
       const tx = {
-        to: cryptoPunksMarket.address,
+        to: target,
         data: calldata,
       };
 

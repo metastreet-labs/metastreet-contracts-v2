@@ -164,12 +164,13 @@ contract ERC1155CollateralWrapper is ICollateralWrapper, ERC721, ERC1155Holder, 
      * @inheritdoc ICollateralWrapper
      */
     function transferCalldata(
+        address token,
         address from,
         address to,
         uint256 tokenId,
         uint256 quantity
-    ) external pure returns (bytes memory) {
-        return abi.encodeWithSelector(IERC1155.safeTransferFrom.selector, from, to, tokenId, quantity, "");
+    ) external pure returns (address, bytes memory) {
+        return (token, abi.encodeWithSelector(IERC1155.safeTransferFrom.selector, from, to, tokenId, quantity, ""));
     }
 
     /**************************************************************************/

@@ -22,11 +22,6 @@ contract PunkCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard {
     string public constant IMPLEMENTATION_VERSION = "1.0";
 
     /**
-     * @notice Crypto punk market on mainnet
-     */
-    ICryptoPunksMarket internal constant PUNKS_MARKET = ICryptoPunksMarket(0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB);
-
-    /**
      * @notice Maximum bundle size
      */
     uint256 internal constant MAX_BUNDLE_SIZE = 32;
@@ -70,13 +65,30 @@ contract PunkCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard {
     event PunkUnwrapped(uint256 indexed tokenId, address indexed account);
 
     /**************************************************************************/
+    /* Immutable State */
+    /**************************************************************************/
+
+    /**
+     * @notice Crypto punk market
+     */
+    ICryptoPunksMarket internal immutable _punksMarket;
+
+    /**
+     * @notice Wrapped crypto punk (WPUNKS)
+     */
+    address internal immutable _wpunks;
+
+    /**************************************************************************/
     /* Constructor */
     /**************************************************************************/
 
     /**
      * @notice PunkCollateralWrapper constructor
      */
-    constructor() ERC721("MetaStreet Punk Collateral Wrapper", "MSPCW") {}
+    constructor(address punksMarket, address wpunks) ERC721("MetaStreet Punk Collateral Wrapper", "MSPCW") {
+        _punksMarket = ICryptoPunksMarket(punksMarket);
+        _wpunks = wpunks;
+    }
 
     /**************************************************************************/
     /* Implementation */
@@ -114,8 +126,8 @@ contract PunkCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard {
     ) external view returns (address token, uint256[] memory tokenIds) {
         if (tokenId != uint256(_hash(context))) revert InvalidContext();
 
-        /* Set token as punks market address */
-        token = address(PUNKS_MARKET);
+        /* Set token as WPUNKS address */
+        token = _wpunks;
 
         /* Compute number of tokens in context */
         uint256 count_ = context.length / 32;
@@ -140,8 +152,8 @@ contract PunkCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard {
     ) external view returns (address token, uint256[] memory tokenIds, uint256[] memory quantities) {
         if (tokenId != uint256(_hash(context))) revert InvalidContext();
 
-        /* Set token as punks market address */
-        token = address(PUNKS_MARKET);
+        /* Set token as WPUNKS address */
+        token = _wpunks;
 
         /* Compute number of tokens in context */
         uint256 count_ = context.length / 32;
@@ -174,8 +186,14 @@ contract PunkCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard {
     /**
      * @inheritdoc ICollateralWrapper
      */
-    function transferCalldata(address, address to, uint256 tokenId, uint256) external pure returns (bytes memory) {
-        return abi.encodeWithSelector(PUNKS_MARKET.transferPunk.selector, to, tokenId);
+    function transferCalldata(
+        address,
+        address,
+        address to,
+        uint256 tokenId,
+        uint256
+    ) external view returns (address, bytes memory) {
+        return (address(_punksMarket), abi.encodeWithSelector(_punksMarket.transferPunk.selector, to, tokenId));
     }
 
     /**************************************************************************/
@@ -217,10 +235,10 @@ contract PunkCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard {
             encodedBundle = abi.encodePacked(encodedBundle, tokenIds[i]);
 
             /* Validate that caller owns the punk */
-            if (PUNKS_MARKET.punkIndexToAddress(tokenIds[i]) != msg.sender) revert InvalidCaller();
+            if (_punksMarket.punkIndexToAddress(tokenIds[i]) != msg.sender) revert InvalidCaller();
 
             /* Requires offerPunkForSaleToAddress with 0 ethers to this contract */
-            PUNKS_MARKET.buyPunk(tokenIds[i]);
+            _punksMarket.buyPunk(tokenIds[i]);
         }
 
         /* Hash encodedBundle */
@@ -251,7 +269,7 @@ contract PunkCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard {
         /* Transfer punk back to owner of token */
         uint256 offset;
         for (uint256 i; i < count_; i++) {
-            PUNKS_MARKET.transferPunk(msg.sender, uint256(bytes32(context[offset:offset + 32])));
+            _punksMarket.transferPunk(msg.sender, uint256(bytes32(context[offset:offset + 32])));
             offset += 32;
         }
 

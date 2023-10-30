@@ -216,7 +216,8 @@ describe("ERC1155CollateralWrapper", function () {
   describe("#transferCalldata", async function () {
     it("transfer calldata", async function () {
       /* Get transferCalldata */
-      const calldata = await ERC1155CollateralWrapper.transferCalldata(
+      const [target, calldata] = await ERC1155CollateralWrapper.transferCalldata(
+        nft1.address,
         accountBorrower.address,
         accounts[0].address,
         124,
@@ -224,7 +225,7 @@ describe("ERC1155CollateralWrapper", function () {
       );
 
       const tx = {
-        to: nft1.address,
+        to: target,
         data: calldata,
       };
 

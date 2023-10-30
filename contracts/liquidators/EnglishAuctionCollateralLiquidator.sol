@@ -686,14 +686,19 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
 
         /* Transfer collateral from contract to auction winner */
         if (_isCollateralWrapper(collateralToken_)) {
-            (bool success, ) = collateralToken.call(
-                ICollateralWrapper(collateralToken_).transferCalldata(
-                    address(this),
-                    auction_.highestBidder,
-                    collateralTokenId,
-                    auction_.quantity
-                )
+            /* Get transfer call target and calldata */
+            (address target, bytes memory data) = ICollateralWrapper(collateralToken_).transferCalldata(
+                collateralToken,
+                address(this),
+                auction_.highestBidder,
+                collateralTokenId,
+                auction_.quantity
             );
+
+            /* Transfer collateral */
+            (bool success, ) = target.call(data);
+
+            /* Validate call success */
             if (!success) revert InvalidClaim();
         } else {
             IERC721(collateralToken).transferFrom(address(this), auction_.highestBidder, collateralTokenId);
