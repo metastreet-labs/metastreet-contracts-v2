@@ -797,18 +797,40 @@ describe("Pool Tokenized", function () {
         ).to.be.revertedWithCustomError(erc20Token10, "ERC20InsufficientAllowance");
       });
 
-      it("reverts when transfer from address zero", async function () {
+      it("reverts if msg.sender transfersFrom without approval", async function () {
         /* Deposit */
         await pool.connect(accountDepositors[1]).deposit(TICK10, ONE_ETHER, 0);
 
-        /* Transfer */
+        /* Attempt Transfer */
         await expect(
           erc20Token10
             .connect(accountDepositors[1])
-            .transferFrom(ethers.constants.AddressZero, accountDepositors[2].address, ONE_ETHER)
-        )
-          .to.be.revertedWithCustomError(erc20Token10, "ERC20InvalidSender")
-          .withArgs(ethers.constants.AddressZero);
+            .transferFrom(accountDepositors[1].address, accountDepositors[2].address, ONE_ETHER)
+        ).to.be.revertedWithCustomError(erc20Token10, "ERC20InsufficientAllowance");
+      });
+
+      it("msg.sender can approve self to transferFrom", async function () {
+        /* Deposit */
+        await pool.connect(accountDepositors[1]).deposit(TICK10, ONE_ETHER, 0);
+
+        /* Approve */
+        await erc20Token10.connect(accountDepositors[1]).approve(accountDepositors[1].address, ONE_ETHER);
+
+        /* Transfer */
+        await erc20Token10
+          .connect(accountDepositors[1])
+          .transferFrom(accountDepositors[1].address, accountDepositors[2].address, ONE_ETHER);
+
+        /* Validate token balance */
+        expect(await erc20Token10.balanceOf(accountDepositors[1].address)).to.equal(ZERO_ETHER);
+        expect(await erc20Token10.balanceOf(accountDepositors[2].address)).to.equal(ONE_ETHER);
+
+        /* Validate pool deposit state */
+        const [shares1] = await pool.deposits(accountDepositors[1].address, TICK10);
+        expect(shares1).to.equal(ZERO_ETHER);
+
+        const [shares2] = await pool.deposits(accountDepositors[2].address, TICK10);
+        expect(shares2).to.equal(ONE_ETHER);
       });
 
       it("reverts when insufficient allowance approved", async function () {

@@ -52,13 +52,6 @@ contract DepositERC20 is IERC20Metadata {
     error ERC20InvalidSpender(address sender);
 
     /**
-     * @notice Invalid Approver
-     *
-     * @param approver Address initiating an approval operation.
-     */
-    error ERC20InvalidApprover(address approver);
-
-    /**
      * @notice Invalid Sender
      *
      * @param sender Address whose tokens are being transferred.
@@ -278,24 +271,28 @@ contract DepositERC20 is IERC20Metadata {
     /**************************************************************************/
 
     /**
-     * @notice Helper function to approve allowance
+     * @notice Helper function to transfer tokens
      *
-     * @param owner Account owner
-     * @param spender Account spender
-     * @param value Amount to approve
+     * @param from From
+     * @param to To
+     * @param value Value
      */
-    function _approve(address owner, address spender, uint256 value) internal virtual {
-        if (owner == address(0)) {
-            revert ERC20InvalidApprover(address(0));
+    function _transfer(address from, address to, uint256 value) internal {
+        /* No transfer to zero address */
+        if (to == address(0)) {
+            revert ERC20InvalidReceiver(address(0));
         }
 
-        if (spender == address(0)) {
-            revert ERC20InvalidSpender(address(0));
+        /* Validate balance */
+        uint256 fromBalance = balanceOf(from);
+        if (fromBalance < value) {
+            revert ERC20InsufficientBalance(from, fromBalance, value);
         }
 
-        _allowances[owner][spender] = value;
+        /* Call transfer on pool */
+        _pool.transfer(from, to, _tick, value);
 
-        emit Approval(owner, spender, value);
+        emit Transfer(from, to, value);
     }
 
     /**************************************************************************/
@@ -344,7 +341,9 @@ contract DepositERC20 is IERC20Metadata {
      * @inheritdoc IERC20
      */
     function transfer(address to, uint256 value) public returns (bool) {
-        return transferFrom(msg.sender, to, value);
+        _transfer(msg.sender, to, value);
+
+        return true;
     }
 
     /**
@@ -358,7 +357,14 @@ contract DepositERC20 is IERC20Metadata {
      * @inheritdoc IERC20
      */
     function approve(address spender, uint256 value) public returns (bool) {
-        _approve(msg.sender, spender, value);
+        if (spender == address(0)) {
+            revert ERC20InvalidSpender(address(0));
+        }
+
+        _allowances[msg.sender][spender] = value;
+
+        emit Approval(msg.sender, spender, value);
+
         return true;
     }
 
@@ -366,35 +372,23 @@ contract DepositERC20 is IERC20Metadata {
      * @inheritdoc IERC20
      */
     function transferFrom(address from, address to, uint256 value) public returns (bool) {
-        if (to == address(0)) {
-            revert ERC20InvalidReceiver(address(0));
-        }
-
+        /* No transfer from zero address */
         if (from == address(0)) {
             revert ERC20InvalidSender(address(0));
         }
 
-        uint256 fromBalance = balanceOf(from);
-        if (fromBalance < value) {
-            revert ERC20InsufficientBalance(from, fromBalance, value);
-        }
-
-        /* Check + update allowance if spending allowance */
-        if (msg.sender != from) {
-            uint256 currentAllowance = allowance(from, msg.sender);
-            if (currentAllowance != type(uint256).max) {
-                if (currentAllowance < value) {
-                    revert ERC20InsufficientAllowance(msg.sender, currentAllowance, value);
-                }
-                unchecked {
-                    _approve(from, msg.sender, currentAllowance - value);
-                }
+        /* Check + update allowance */
+        uint256 currentAllowance = allowance(from, msg.sender);
+        if (currentAllowance != type(uint256).max) {
+            if (currentAllowance < value) {
+                revert ERC20InsufficientAllowance(msg.sender, currentAllowance, value);
+            }
+            unchecked {
+                _allowances[from][msg.sender] = currentAllowance - value;
             }
         }
 
-        _pool.transfer(from, to, _tick, value);
-
-        emit Transfer(from, to, value);
+        _transfer(from, to, value);
 
         return true;
     }
