@@ -14,6 +14,16 @@ import "./DepositERC20.sol";
  */
 contract DepositERC20Factory is DepositToken, IBeacon {
     /**************************************************************************/
+    /* Structures */
+    /**************************************************************************/
+
+    /// @custom:storage-location erc7201:depositErc20Factory.tokens
+    struct Tokens {
+        /* Mapping of tick to token address */
+        mapping(uint128 => address) tokens;
+    }
+
+    /**************************************************************************/
     /* State */
     /**************************************************************************/
 
@@ -22,10 +32,9 @@ contract DepositERC20Factory is DepositToken, IBeacon {
      */
     address internal immutable _implementation;
 
-    /**
-     * @notice Mapping of tick to token address
-     */
-    mapping(uint128 => address) internal _tokens;
+    /* keccak256(abi.encode(uint256(keccak256("depositErc20Factory.tokens")) - 1)) & ~bytes32(uint256(0xff)); */
+    bytes32 private constant TOKENS_STORAGE_LOCATION =
+        0xdd9d77cb4ffb012bceccbd97482173debbdfa5f1f5563a0acea13754e9f53b00;
 
     /**************************************************************************/
     /* Constructor */
@@ -43,6 +52,17 @@ contract DepositERC20Factory is DepositToken, IBeacon {
     /**************************************************************************/
     /* Internal Helpers */
     /**************************************************************************/
+
+    /**
+     * @notice Get reference to tokens erc7201 storage
+     *
+     * @return $ Reference to tokens storage
+     */
+    function _getTokensStorage() private pure returns (Tokens storage $) {
+        assembly {
+            $.slot := TOKENS_STORAGE_LOCATION
+        }
+    }
 
     /**
      * @notice Create deterministing proxy for tick with Create2
@@ -64,7 +84,7 @@ contract DepositERC20Factory is DepositToken, IBeacon {
         );
 
         /* Store token instance in mapping */
-        _tokens[tick] = tokenInstance;
+        _getTokensStorage().tokens[tick] = tokenInstance;
 
         emit TokenCreated(tokenInstance, _implementation);
     }
@@ -84,7 +104,7 @@ contract DepositERC20Factory is DepositToken, IBeacon {
      * @inheritdoc DepositToken
      */
     function depositToken(uint128 tick) public view override returns (address) {
-        return _tokens[tick];
+        return _getTokensStorage().tokens[tick];
     }
 
     /**************************************************************************/
@@ -102,11 +122,11 @@ contract DepositERC20Factory is DepositToken, IBeacon {
      */
     function onExternalTransfer(address from, address to, uint128 tick, uint256 shares) internal override {
         /* Create token instance if it does not exist */
-        if (_tokens[tick] == address(0)) {
+        if (_getTokensStorage().tokens[tick] == address(0)) {
             _createDeterministicProxy(tick);
         }
 
         /* Call external transfer hook */
-        DepositERC20(_tokens[tick]).onExternalTransfer(from, to, shares);
+        DepositERC20(_getTokensStorage().tokens[tick]).onExternalTransfer(from, to, shares);
     }
 }
