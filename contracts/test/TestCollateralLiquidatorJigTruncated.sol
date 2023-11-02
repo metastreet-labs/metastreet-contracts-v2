@@ -1,33 +1,21 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
 import "../LoanReceipt.sol";
 
 import "../interfaces/ICollateralLiquidator.sol";
-import "../interfaces/ICollateralLiquidationReceiver.sol";
 
 /**
- * @title Testing Jig for Collateral Liquidators
+ * @title Truncated Testing Jig for Collateral Liquidators
  * @author MetaStreet Labs
  */
-contract TestCollateralLiquidatorJig is ERC165, ERC721Holder, ICollateralLiquidationReceiver {
+contract TestCollateralLiquidatorJigTruncated is ERC721Holder {
     using SafeERC20 for IERC20;
-
-    /**************************************************************************/
-    /* Errors */
-    /**************************************************************************/
-
-    /**
-     * @notice Force a revert
-     */
-    error ForceRevert();
 
     /**************************************************************************/
     /* Events */
@@ -106,32 +94,5 @@ contract TestCollateralLiquidatorJig is ERC165, ERC721Holder, ICollateralLiquida
             loanReceipt.collateralWrapperContext,
             encodedLoanReceipt
         );
-    }
-
-    /**
-     * @notice Callback on loan collateral liquidated
-     * @param loanReceipt Loan receipt
-     * @param proceeds Liquidation proceeds in currency tokens
-     */
-    function onCollateralLiquidated(bytes calldata loanReceipt, uint256 proceeds) external {
-        LoanReceipt.LoanReceiptV2 memory decodedLoanReceipt = LoanReceipt.decode(loanReceipt);
-
-        /* Force a revert to test try...catch in English Auction */
-        if (decodedLoanReceipt.collateralTokenId == 130) {
-            revert ForceRevert();
-        }
-
-        emit CollateralLiquidated(proceeds);
-    }
-
-    /******************************************************/
-    /* ERC165 interface */
-    /******************************************************/
-
-    /**
-     * @inheritdoc IERC165
-     */
-    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
-        return interfaceId == type(ICollateralLiquidationReceiver).interfaceId || super.supportsInterface(interfaceId);
     }
 }
