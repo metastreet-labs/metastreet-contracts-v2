@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import "./LoanReceipt.sol";
-import "./LiquidityManager.sol";
+import "./LiquidityLogic.sol";
 import "./CollateralFilter.sol";
 import "./InterestRateModel.sol";
 import "./tokenization/DepositToken.sol";
@@ -42,7 +42,7 @@ abstract contract Pool is
     using SafeCast for uint256;
     using SafeERC20 for IERC20;
     using LoanReceipt for LoanReceipt.LoanReceiptV2;
-    using LiquidityManager for LiquidityManager.Liquidity;
+    using LiquidityLogic for LiquidityLogic.Liquidity;
 
     /**************************************************************************/
     /* Constants */
@@ -51,7 +51,7 @@ abstract contract Pool is
     /**
      * @notice Tick spacing basis points
      */
-    uint256 public constant TICK_LIMIT_SPACING_BASIS_POINTS = LiquidityManager.TICK_LIMIT_SPACING_BASIS_POINTS;
+    uint256 public constant TICK_LIMIT_SPACING_BASIS_POINTS = LiquidityLogic.TICK_LIMIT_SPACING_BASIS_POINTS;
 
     /**
      * @notice Borrower's split of liquidation proceed surplus in basis points
@@ -184,7 +184,7 @@ abstract contract Pool is
     /**
      * @notice Liquidity
      */
-    LiquidityManager.Liquidity internal _liquidity;
+    LiquidityLogic.Liquidity internal _liquidity;
 
     /**
      * @notice Mapping of account to tick to deposit
@@ -592,8 +592,8 @@ abstract contract Pool is
 
         /* Calculate repayment from principal, rate, and duration */
         uint256 repayment = (principal *
-            (LiquidityManager.FIXED_POINT_SCALE + (_rate(principal, _rates, nodes, count) * duration))) /
-            LiquidityManager.FIXED_POINT_SCALE;
+            (LiquidityLogic.FIXED_POINT_SCALE + (_rate(principal, _rates, nodes, count) * duration))) /
+            LiquidityLogic.FIXED_POINT_SCALE;
 
         return (repayment, nodes, count);
     }
@@ -609,15 +609,15 @@ abstract contract Pool is
     ) internal view returns (uint256 repayment, uint256 proration) {
         /* Minimum of proration and 1.0 */
         proration = Math.min(
-            ((block.timestamp - (loanReceipt.maturity - loanReceipt.duration)) * LiquidityManager.FIXED_POINT_SCALE) /
+            ((block.timestamp - (loanReceipt.maturity - loanReceipt.duration)) * LiquidityLogic.FIXED_POINT_SCALE) /
                 loanReceipt.duration,
-            LiquidityManager.FIXED_POINT_SCALE
+            LiquidityLogic.FIXED_POINT_SCALE
         );
 
         /* Compute repayment using prorated interest */
         repayment =
             loanReceipt.principal +
-            (((loanReceipt.repayment - loanReceipt.principal) * proration) / LiquidityManager.FIXED_POINT_SCALE);
+            (((loanReceipt.repayment - loanReceipt.principal) * proration) / LiquidityLogic.FIXED_POINT_SCALE);
     }
 
     /**
@@ -674,7 +674,7 @@ abstract contract Pool is
         uint256 totalFee = repayment - principal;
 
         /* Compute admin fee */
-        uint256 adminFee = (_adminFeeRate * totalFee) / LiquidityManager.BASIS_POINTS_SCALE;
+        uint256 adminFee = (_adminFeeRate * totalFee) / LiquidityLogic.BASIS_POINTS_SCALE;
 
         /* Distribute interest */
         uint128[] memory interest = _distribute(principal, totalFee - adminFee, nodes, count);
@@ -764,7 +764,7 @@ abstract contract Pool is
                 loanReceipt.nodeReceipts[i].used +
                     uint128(
                         ((loanReceipt.nodeReceipts[i].pending - loanReceipt.nodeReceipts[i].used) * proration) /
-                            LiquidityManager.FIXED_POINT_SCALE
+                            LiquidityLogic.FIXED_POINT_SCALE
                     ),
                 loanReceipt.duration,
                 elapsed
@@ -772,7 +772,7 @@ abstract contract Pool is
         }
 
         /* Update admin fee total balance with prorated admin fee */
-        _adminFeeBalance += (loanReceipt.adminFee * proration) / LiquidityManager.FIXED_POINT_SCALE;
+        _adminFeeBalance += (loanReceipt.adminFee * proration) / LiquidityLogic.FIXED_POINT_SCALE;
 
         /* Mark loan status repaid */
         _loans[loanReceiptHash] = LoanStatus.Repaid;
@@ -1076,7 +1076,7 @@ abstract contract Pool is
             ? Math.mulDiv(
                 proceeds - loanReceipt.repayment,
                 BORROWER_SURPLUS_SPLIT_BASIS_POINTS,
-                LiquidityManager.BASIS_POINTS_SCALE
+                LiquidityLogic.BASIS_POINTS_SCALE
             )
             : 0;
 
@@ -1265,7 +1265,7 @@ abstract contract Pool is
      */
     function setAdminFeeRate(uint32 rate) external {
         if (msg.sender != _admin) revert InvalidCaller();
-        if (rate >= LiquidityManager.BASIS_POINTS_SCALE) revert InvalidParameters();
+        if (rate >= LiquidityLogic.BASIS_POINTS_SCALE) revert InvalidParameters();
 
         _adminFeeRate = rate;
 

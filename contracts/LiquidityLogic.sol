@@ -8,10 +8,10 @@ import "./interfaces/ILiquidity.sol";
 import "./Tick.sol";
 
 /**
- * @title LiquidityManager
+ * @title Liquidity Logic
  * @author MetaStreet Labs
  */
-library LiquidityManager {
+library LiquidityLogic {
     using SafeCast for uint256;
 
     /**************************************************************************/
