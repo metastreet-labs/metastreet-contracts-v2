@@ -2,14 +2,14 @@
 pragma solidity 0.8.20;
 
 import "../interfaces/ILiquidity.sol";
-import "../LiquidityManager.sol";
+import "../LiquidityLogic.sol";
 
 /**
- * @title Test Contract Wrapper for LiquidityManager
+ * @title Test Contract Wrapper for LiquidityLogic
  * @author MetaStreet Labs
  */
-contract TestLiquidityManager is ILiquidity {
-    using LiquidityManager for LiquidityManager.Liquidity;
+contract TestLiquidityLogic is ILiquidity {
+    using LiquidityLogic for LiquidityLogic.Liquidity;
 
     /**************************************************************************/
     /* Events */
@@ -35,7 +35,7 @@ contract TestLiquidityManager is ILiquidity {
     /**
      * @notice Liquidity
      */
-    LiquidityManager.Liquidity internal _liquidity;
+    LiquidityLogic.Liquidity internal _liquidity;
 
     /**************************************************************************/
     /* Constructor */
@@ -77,7 +77,7 @@ contract TestLiquidityManager is ILiquidity {
     /**************************************************************************/
 
     /**
-     * @dev External wrapper function for LiquidityManager.redemptionAvailable()
+     * @dev External wrapper function for LiquidityLogic.redemptionAvailable()
      */
     function redemptionAvailable(
         uint128 tick,
@@ -89,14 +89,14 @@ contract TestLiquidityManager is ILiquidity {
     }
 
     /**
-     * @dev External wrapper function for LiquidityManager._instantiate()
+     * @dev External wrapper function for LiquidityLogic._instantiate()
      */
     function instantiate(uint128 tick) external {
         return _liquidity._instantiate(_liquidity.nodes[tick], tick);
     }
 
     /**
-     * @dev External wrapper function for LiquidityManager.deposit()
+     * @dev External wrapper function for LiquidityLogic.deposit()
      */
     function deposit(uint128 tick, uint128 amount) external returns (uint256) {
         uint128 shares = _liquidity.deposit(tick, amount);
@@ -105,14 +105,14 @@ contract TestLiquidityManager is ILiquidity {
     }
 
     /**
-     * @dev External wrapper function for LiquidityManager.use()
+     * @dev External wrapper function for LiquidityLogic.use()
      */
     function use(uint128 tick, uint128 amount, uint128 pending, uint64 duration) external {
         _liquidity.use(tick, amount, pending, duration);
     }
 
     /**
-     * @dev External wrapper function for LiquidityManager.restore()
+     * @dev External wrapper function for LiquidityLogic.restore()
      */
     function restore(
         uint128 tick,
@@ -126,7 +126,7 @@ contract TestLiquidityManager is ILiquidity {
     }
 
     /**
-     * @dev External wrapper function for LiquidityManager.redeem()
+     * @dev External wrapper function for LiquidityLogic.redeem()
      */
     function redeem(uint128 tick, uint128 shares) external returns (uint128, uint128) {
         (uint128 index, uint128 target) = _liquidity.redeem(tick, shares);
@@ -135,7 +135,7 @@ contract TestLiquidityManager is ILiquidity {
     }
 
     /**
-     * @dev External wrapper function for LiquidityManager.source()
+     * @dev External wrapper function for LiquidityLogic.source()
      */
     function source(
         uint256 amount,
