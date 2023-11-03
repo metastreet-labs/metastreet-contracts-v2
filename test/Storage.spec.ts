@@ -2,52 +2,30 @@ import { expect } from "chai";
 import hre from "hardhat";
 
 import fs from "fs";
-import util from "util";
-
-const stat = util.promisify(fs.stat);
-
-interface SourceNames {
-  [key: string]: string;
-}
+import path from "path";
 
 describe("Storage Layout", function () {
-  let artifact: any;
-  let sourceNames: SourceNames = {};
-
-  const getLatestBuildInfo = async (filePaths: string[]) => {
-    let latestFile;
-    let latestTime = 0;
-
-    for (const filePath of filePaths) {
-      const stats = await stat(filePath);
-      const mtime = new Date(util.inspect(stats.mtime));
-
-      if (mtime.getTime() > latestTime) {
-        latestTime = mtime.getTime();
-        latestFile = filePath;
-      }
-    }
-
-    return latestFile;
-  };
+  let contractStorageLayout: { [key: string]: object } = {};
 
   before("deploy fixture", async () => {
-    /* Get all build infos */
-    const buildInfos = await hre.artifacts.getBuildInfoPaths();
-    if (buildInfos.length === 0) {
-      throw new Error("No build info found.");
-    }
+    let buildInfos: { [key: string]: object } = {};
 
-    /* Get latest build info */
-    const latestBuildInfo = await getLatestBuildInfo(buildInfos);
-
-    /* Parse build info to get artifact */
-    artifact = JSON.parse(fs.readFileSync(latestBuildInfo).toString());
-
-    /* Get contract name paired with source name */
+    /* Look up storage layout for each contract */
     for (const fullName of await hre.artifacts.getAllFullyQualifiedNames()) {
       const { sourceName, contractName } = await hre.artifacts.readArtifact(fullName);
-      sourceNames[contractName] = sourceName;
+
+      const artifactPath = await hre.artifacts.formArtifactPathFromFullyQualifiedName(fullName);
+      const debugArtifactPath = artifactPath.replace(".json", ".dbg.json");
+      const buildInfoPath = JSON.parse(fs.readFileSync(debugArtifactPath).toString()).buildInfo;
+
+      if (!buildInfos[buildInfoPath]) {
+        buildInfos[buildInfoPath] = JSON.parse(
+          fs.readFileSync(path.join(path.dirname(debugArtifactPath), buildInfoPath))
+        );
+      }
+
+      contractStorageLayout[contractName] =
+        buildInfos[buildInfoPath].output?.contracts?.[sourceName]?.[contractName]?.storageLayout;
     }
   });
 
@@ -55,42 +33,16 @@ describe("Storage Layout", function () {
   /* Lookup functions */
   /****************************************************************************/
 
-  function lookupStorage(contract: string) {
-    let storages: Array<{ name: string; slot: string; offset: string }> = [];
-    const sourceName = sourceNames[contract];
-    const storage = artifact.output?.contracts?.[sourceName]?.[contract]?.storageLayout?.storage;
-    if (!storage) {
-      throw new Error("Invalid contract or source name");
-    }
-    for (const stateVariable of storage) {
-      /* Check if state variable is a struct */
-      const isStruct = stateVariable.type.startsWith("t_struct");
-
-      if (isStruct) {
-        /* Get the storage layouts of all the variables in the struct */
-        const structStorages = lookupStructStorage(contract, stateVariable.label);
-        storages = storages.concat(structStorages);
-      } else {
-        storages.push({
-          name: stateVariable.label,
-          slot: stateVariable.slot,
-          offset: stateVariable.offset,
-        });
-      }
+  function lookupVariableStorage(contract: string, storageVariable: string): { slot: string; offset: number } {
+    if (!contractStorageLayout[contract]) {
+      throw new Error(`Missing storage layout for contract: ${contract}`);
     }
 
-    return storages;
-  }
+    const storage = contractStorageLayout[contract].storage;
 
-  function lookupVariableStorage(contract: string, stateVariable: string) {
-    const sourceName = sourceNames[contract];
-    const storage = artifact.output?.contracts?.[sourceName]?.[contract]?.storageLayout?.storage;
-    if (!storage) {
-      throw new Error("Invalid contract or source name");
-    }
-
+    /* Find matching storage variable */
     for (const variable of storage) {
-      if (variable.label === stateVariable) {
+      if (variable.label === storageVariable) {
         return {
           slot: variable.slot,
           offset: variable.offset,
@@ -98,79 +50,92 @@ describe("Storage Layout", function () {
       }
     }
 
-    throw new Error(`Invalid state variable provided: ${stateVariable} for contract ${contract}`);
+    throw new Error(`Contract storage variable not found: ${storageVariable} for contract ${contract}`);
   }
 
-  function lookupStructStorage(contract: string, stateVariable: string) {
-    const storages: Array<{ name: string; slot: string; offset: string }> = [];
-    const sourceName = sourceNames[contract];
-
-    const storage = artifact.output?.contracts?.[sourceName]?.[contract]?.storageLayout?.storage;
-    if (!storage) {
-      throw new Error("Invalid contract or source name");
+  function lookupStructStorageLayout(
+    contract: string,
+    storageVariable: string
+  ): { name: string; type: string; slot: string; offset: number }[] {
+    if (!contractStorageLayout[contract]) {
+      throw new Error(`Missing storage layout for contract: ${contract}`);
     }
 
-    /* Get the state variable slot to offset struct variable slot and struct name */
-    const structTypeId = storage?.find((variable: any) => variable.label === stateVariable)?.type;
-    const slot = storage?.find((variable: any) => variable.label === stateVariable)?.slot;
+    const storageLayout = contractStorageLayout[contract];
+
+    /* Get the state variable slot to offset struct variable slot */
+    const slot = storageLayout.storage?.find((variable: any) => variable.label === storageVariable)?.slot;
     if (!slot) {
-      throw new Error(`Invalid variable provided: ${stateVariable} for contract ${contract}`);
+      throw new Error(`Contract storage variable not found: ${storageVariable} for contract ${contract}`);
     }
 
     /* Get struct layout */
-    const structDefinition = artifact.output?.contracts?.[sourceName]?.[contract]?.storageLayout?.types[structTypeId];
+    const structTypeId = storageLayout.storage?.find((variable: any) => variable.label === storageVariable)?.type;
+    const structDefinition = storageLayout.types[structTypeId];
     if (!structDefinition) {
-      throw new Error("Invalid contract, source name, or struct type id");
+      throw new Error(
+        `Type definition for structure not found: type ${structTypeId}, storage variable ${storageVariable}, contract ${contract}`
+      );
     }
 
     /* Get the struct name */
     const structName = structTypeId.match(/t_struct\((.*?)\)/);
     if (!structName || !structName[1]) {
-      throw new Error("Invalid struct type id");
+      throw new Error(
+        `Unexpected structure name for type ${structTypeId}, storage variable ${storageVariable}, contract ${contract}`
+      );
     }
-    const prefix = `${stateVariable} ${structName[1]}`;
 
-    for (const structVariable of structDefinition.members) {
-      storages.push({
-        name: `${prefix}.${structVariable.label}`,
-        slot: String(parseInt(structVariable.slot) + parseInt(slot)),
-        offset: structVariable.offset,
+    let structStorageLayout: { name: string; type: string; slot: string; offset: string }[] = [];
+    for (const member of structDefinition.members) {
+      structStorageLayout.push({
+        name: `${storageVariable}.${member.label}`,
+        type: structName[1],
+        slot: String(parseInt(member.slot) + parseInt(slot)),
+        offset: member.offset,
       });
     }
 
-    return storages;
+    return structStorageLayout;
   }
 
-  function lookupStructVariableStorage(contract: string, stateVariable: string, structVariable: string) {
-    const sourceName = sourceNames[contract];
-    const storage = artifact.output?.contracts?.[sourceName]?.[contract]?.storageLayout?.storage;
-    if (!storage) {
-      throw new Error("Invalid contract or source name");
+  function lookupStructFieldStorage(
+    contract: string,
+    storageVariable: string,
+    structField: string
+  ): { slot: string; offset: number } {
+    if (!contractStorageLayout[contract]) {
+      throw new Error(`Missing storage layout for contract: ${contract}`);
     }
 
-    /* Get the state variable slot to offset struct variable slot and struct name */
-    const structTypeId = storage?.find((variable: any) => variable.label === stateVariable)?.type;
-    const slot = storage?.find((variable: any) => variable.label === stateVariable)?.slot;
-    if (!slot || !structTypeId) {
-      throw new Error(`Invalid state variable provided: ${stateVariable} for contract ${contract}`);
+    const storageLayout = contractStorageLayout[contract];
+
+    /* Get the state variable slot to offset struct variable slot */
+    const slot = storageLayout.storage?.find((variable: any) => variable.label === storageVariable)?.slot;
+    if (!slot) {
+      throw new Error(`Contract storage variable not found: ${storageVariable} for contract ${contract}`);
     }
 
     /* Get struct layout */
-    const structDefinition = artifact.output?.contracts?.[sourceName]?.[contract]?.storageLayout?.types[structTypeId];
+    const structTypeId = storageLayout.storage?.find((variable: any) => variable.label === storageVariable)?.type;
+    const structDefinition = storageLayout.types[structTypeId];
     if (!structDefinition) {
-      throw new Error("Invalid struct type id");
+      throw new Error(
+        `Type definition for structure not found: type ${structTypeId}, storage variable ${storageVariable}, contract ${contract}`
+      );
     }
 
-    for (const variable of structDefinition.members) {
-      if (variable.label === structVariable)
+    for (const field of structDefinition.members) {
+      if (field.label === structField) {
         return {
-          slot: String(parseInt(variable.slot) + parseInt(slot)),
-          offset: variable.offset,
+          slot: String(parseInt(field.slot) + parseInt(slot)),
+          offset: field.offset,
         };
+      }
     }
 
     throw new Error(
-      `Invalid struct variable provided: ${structVariable} for contract ${contract} in state ${stateVariable}`
+      `Structure field not found: field ${structField}, storage variable ${storageVariable}, contract ${contract}`
     );
   }
 
@@ -207,7 +172,7 @@ describe("Storage Layout", function () {
 
       expect(lookupVariableStorage(contractName, "_token")).to.be.eql({ slot: "0", offset: 0 });
       expect(lookupVariableStorage(contractName, "_tokenIds")).to.be.eql({ slot: "1", offset: 0 });
-      expect(lookupStructVariableStorage(contractName, "_tokenIds", "_inner")).to.be.eql({
+      expect(lookupStructFieldStorage(contractName, "_tokenIds", "_inner")).to.be.eql({
         slot: "1",
         offset: 0,
       });
@@ -238,7 +203,7 @@ describe("Storage Layout", function () {
       expect(lookupVariableStorage(contractName, "_admin")).to.be.eql({ slot: "4", offset: 0 });
       expect(lookupVariableStorage(contractName, "_adminFeeBalance")).to.be.eql({ slot: "5", offset: 0 });
       expect(lookupVariableStorage(contractName, "_liquidity")).to.be.eql({ slot: "6", offset: 0 });
-      expect(lookupStructVariableStorage(contractName, "_liquidity", "nodes")).to.be.eql({ slot: "6", offset: 0 });
+      expect(lookupStructFieldStorage(contractName, "_liquidity", "nodes")).to.be.eql({ slot: "6", offset: 0 });
       expect(lookupVariableStorage(contractName, "_deposits")).to.be.eql({ slot: "7", offset: 0 });
       expect(lookupVariableStorage(contractName, "_loans")).to.be.eql({ slot: "8", offset: 0 });
       expect(lookupVariableStorage(contractName, "_token")).to.be.eql({ slot: "9", offset: 0 });
@@ -367,7 +332,7 @@ describe("Storage Layout", function () {
       expect(lookupVariableStorage(contractName, "_owner")).to.be.eql({ slot: "0", offset: 0 });
       expect(lookupVariableStorage(contractName, "_initialized")).to.be.eql({ slot: "0", offset: 20 });
       expect(lookupVariableStorage(contractName, "_pools")).to.be.eql({ slot: "1", offset: 0 });
-      expect(lookupStructVariableStorage(contractName, "_pools", "_inner")).to.be.eql({
+      expect(lookupStructFieldStorage(contractName, "_pools", "_inner")).to.be.eql({
         slot: "1",
         offset: 0,
       });
@@ -375,7 +340,7 @@ describe("Storage Layout", function () {
         slot: "3",
         offset: 0,
       });
-      expect(lookupStructVariableStorage(contractName, "_allowedImplementations", "_inner")).to.be.eql({
+      expect(lookupStructFieldStorage(contractName, "_allowedImplementations", "_inner")).to.be.eql({
         slot: "3",
         offset: 0,
       });
