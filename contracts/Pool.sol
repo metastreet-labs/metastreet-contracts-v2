@@ -374,23 +374,6 @@ abstract contract Pool is
         return _loans[receiptHash];
     }
 
-    /**************************************************************************/
-    /* Loan Receipt External Helpers */
-    /**************************************************************************/
-
-    /**
-     * @notice Decode loan receipt
-     * @param loanReceipt Loan receipt
-     * @return Decoded loan receipt
-     */
-    function decodeLoanReceipt(bytes calldata loanReceipt) external pure returns (LoanReceipt.LoanReceiptV2 memory) {
-        return LoanReceipt.decode(loanReceipt);
-    }
-
-    /**************************************************************************/
-    /* ILiquidity Getters */
-    /**************************************************************************/
-
     /**
      * @inheritdoc ILiquidity
      */
@@ -410,6 +393,19 @@ abstract contract Pool is
      */
     function liquidityNodeWithAccrual(uint128 tick) external view returns (NodeInfo memory, AccrualInfo memory) {
         return _liquidity.liquidityNodeWithAccrual(tick);
+    }
+
+    /**************************************************************************/
+    /* Loan Receipt External Helpers */
+    /**************************************************************************/
+
+    /**
+     * @notice Decode loan receipt
+     * @param loanReceipt Loan receipt
+     * @return Decoded loan receipt
+     */
+    function decodeLoanReceipt(bytes calldata loanReceipt) external pure returns (LoanReceipt.LoanReceiptV2 memory) {
+        return LoanReceipt.decode(loanReceipt);
     }
 
     /**************************************************************************/
