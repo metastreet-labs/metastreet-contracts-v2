@@ -10,16 +10,6 @@ interface ILiquidity {
     /**************************************************************************/
 
     /**
-     * @notice Node source
-     * @param tick Tick
-     * @param used Amount used
-     */
-    struct NodeSource {
-        uint128 tick;
-        uint128 used;
-    }
-
-    /**
      * @notice Flattened liquidity node returned by getter
      * @param tick Tick
      * @param value Liquidity value

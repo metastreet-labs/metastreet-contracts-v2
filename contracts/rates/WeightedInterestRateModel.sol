@@ -115,7 +115,7 @@ contract WeightedInterestRateModel is InterestRateModel {
     function _rate(
         uint256 amount,
         uint64[] memory rates,
-        ILiquidity.NodeSource[] memory nodes,
+        LiquidityLogic.NodeSource[] memory nodes,
         uint16 count
     ) internal pure override returns (uint256) {
         uint256 weightedRate;
@@ -136,9 +136,9 @@ contract WeightedInterestRateModel is InterestRateModel {
     function _distribute(
         uint256 amount,
         uint256 interest,
-        ILiquidity.NodeSource[] memory nodes,
+        LiquidityLogic.NodeSource[] memory nodes,
         uint16 count
-    ) internal view override returns (uint128[] memory) {
+    ) internal view override {
         /* Interest threshold for tick to receive interest */
         uint256 threshold = Math.mulDiv(_tickThreshold, amount, FIXED_POINT_SCALE);
 
@@ -147,7 +147,7 @@ contract WeightedInterestRateModel is InterestRateModel {
         uint256 weight = (FIXED_POINT_SCALE * FIXED_POINT_SCALE) / base;
 
         /* Assign weighted interest to ticks backwards */
-        uint128[] memory pending = new uint128[](count);
+        uint128[] memory interests = new uint128[](count);
         uint256 normalization;
         uint256 index = count;
         for (uint256 i; i < count; i++) {
@@ -158,7 +158,7 @@ contract WeightedInterestRateModel is InterestRateModel {
             uint256 scaledWeight = Math.mulDiv(weight, nodes[index].used, amount);
 
             /* Assign weighted interest */
-            pending[index] = Math.mulDiv(scaledWeight, interest, FIXED_POINT_SCALE).toUint128();
+            interests[index] = Math.mulDiv(scaledWeight, interest, FIXED_POINT_SCALE).toUint128();
 
             /* Accumulate scaled weight for later normalization */
             normalization += scaledWeight;
@@ -173,15 +173,16 @@ contract WeightedInterestRateModel is InterestRateModel {
         /* Normalize weighted interest */
         for (uint256 i; i < count; i++) {
             /* Calculate normalized interest to tick */
-            pending[i] = ((pending[i] * FIXED_POINT_SCALE) / normalization).toUint128();
+            uint256 normalizedInterest = (interests[i] * FIXED_POINT_SCALE) / normalization;
+
+            /* Assign node pending amount */
+            nodes[i].pending = nodes[i].used + normalizedInterest.toUint128();
 
             /* Track remaining interest */
-            interest -= pending[i];
+            interest -= normalizedInterest;
         }
 
         /* Drop off remaining dust at lowest tick */
-        pending[0] += interest.toUint128();
-
-        return pending;
+        nodes[0].pending += interest.toUint128();
     }
 }

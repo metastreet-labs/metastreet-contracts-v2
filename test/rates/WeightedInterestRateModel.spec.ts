@@ -57,6 +57,7 @@ describe("WeightedInterestRateModel", function () {
     {
       tick: Tick.encode("15", 0, 0),
       used: FixedPoint.from("10"),
+      pending: ethers.constants.Zero,
     },
   ];
 
@@ -64,18 +65,22 @@ describe("WeightedInterestRateModel", function () {
     {
       tick: Tick.encode("1", 0, 0),
       used: FixedPoint.from("1"),
+      pending: ethers.constants.Zero,
     },
     {
       tick: Tick.encode("5", 0, 0),
       used: FixedPoint.from("4"),
+      pending: ethers.constants.Zero,
     },
     {
       tick: Tick.encode("10", 0, 0),
       used: FixedPoint.from("5"),
+      pending: ethers.constants.Zero,
     },
     {
       tick: Tick.encode("15", 0, 0),
       used: FixedPoint.from("2"),
+      pending: ethers.constants.Zero,
     },
   ];
 
@@ -83,22 +88,27 @@ describe("WeightedInterestRateModel", function () {
     {
       tick: Tick.encode("1", 0, 0),
       used: FixedPoint.from("1"),
+      pending: ethers.constants.Zero,
     },
     {
       tick: Tick.encode("5", 0, 0),
       used: FixedPoint.from("4"),
+      pending: ethers.constants.Zero,
     },
     {
       tick: Tick.encode("10", 0, 0),
       used: FixedPoint.from("5"),
+      pending: ethers.constants.Zero,
     },
     {
       tick: Tick.encode("12", 0, 0),
       used: 10,
+      pending: ethers.constants.Zero,
     },
     {
       tick: Tick.encode("15", 0, 0),
       used: FixedPoint.from("2"),
+      pending: ethers.constants.Zero,
     },
   ];
 
@@ -112,14 +122,17 @@ describe("WeightedInterestRateModel", function () {
             {
               tick: Tick.encode("5", 0, 0),
               used: FixedPoint.from("5"),
+              pending: ethers.constants.Zero,
             },
             {
               tick: Tick.encode("10", 0, 0),
               used: FixedPoint.from("2.5"),
+              pending: ethers.constants.Zero,
             },
             {
               tick: Tick.encode("20", 0, 0),
               used: FixedPoint.from("2.5"),
+              pending: ethers.constants.Zero,
             },
           ],
           3
@@ -134,14 +147,17 @@ describe("WeightedInterestRateModel", function () {
             {
               tick: Tick.encode("5", 0, 2),
               used: FixedPoint.from("5"),
+              pending: ethers.constants.Zero,
             },
             {
               tick: Tick.encode("10", 0, 2),
               used: FixedPoint.from("2.5"),
+              pending: ethers.constants.Zero,
             },
             {
               tick: Tick.encode("20", 0, 2),
               used: FixedPoint.from("2.5"),
+              pending: ethers.constants.Zero,
             },
           ],
           3
@@ -156,14 +172,17 @@ describe("WeightedInterestRateModel", function () {
             {
               tick: Tick.encode("5", 0, 0),
               used: FixedPoint.from("5"),
+              pending: ethers.constants.Zero,
             },
             {
               tick: Tick.encode("10", 0, 1),
               used: FixedPoint.from("2.5"),
+              pending: ethers.constants.Zero,
             },
             {
               tick: Tick.encode("20", 0, 2),
               used: FixedPoint.from("2.5"),
+              pending: ethers.constants.Zero,
             },
           ],
           3
@@ -181,7 +200,7 @@ describe("WeightedInterestRateModel", function () {
         sources1.length
       );
       expect(pending.length).to.equal(1);
-      expect(pending[0]).to.equal(FixedPoint.from("3"));
+      expect(pending[0]).to.equal(sources1[0].used.add(FixedPoint.from("3")));
     });
     it("distributes interest to four nodes", async function () {
       const pending = await interestRateModel1.distribute(
@@ -191,10 +210,10 @@ describe("WeightedInterestRateModel", function () {
         sources4.length
       );
       expect(pending.length).to.equal(4);
-      expect(pending[0]).to.equal(FixedPoint.from("0.044444444444444444"));
-      expect(pending[1]).to.equal(FixedPoint.from("0.355555555555555552"));
-      expect(pending[2]).to.equal(FixedPoint.from("0.888888888888888890"));
-      expect(pending[3]).to.equal(FixedPoint.from("0.711111111111111114"));
+      expect(pending[0]).to.equal(sources4[0].used.add(FixedPoint.from("0.044444444444444444")));
+      expect(pending[1]).to.equal(sources4[1].used.add(FixedPoint.from("0.355555555555555552")));
+      expect(pending[2]).to.equal(sources4[2].used.add(FixedPoint.from("0.888888888888888890")));
+      expect(pending[3]).to.equal(sources4[3].used.add(FixedPoint.from("0.711111111111111114")));
     });
   });
 
@@ -207,7 +226,7 @@ describe("WeightedInterestRateModel", function () {
         sources1.length
       );
       expect(pending.length).to.equal(1);
-      expect(pending[0]).to.equal(FixedPoint.from("3"));
+      expect(pending[0]).to.equal(sources1[0].used.add(FixedPoint.from("3")));
     });
     it("distributes interest to four nodes", async function () {
       const pending = await interestRateModel2.distribute(
@@ -217,10 +236,10 @@ describe("WeightedInterestRateModel", function () {
         sources4.length
       );
       expect(pending.length).to.equal(4);
-      expect(pending[0]).to.equal(FixedPoint.from("0.079999999999999999"));
-      expect(pending[1]).to.equal(FixedPoint.from("0.480000000000000000"));
-      expect(pending[2]).to.equal(FixedPoint.from("0.900000000000000001"));
-      expect(pending[3]).to.equal(FixedPoint.from("0.540000000000000000"));
+      expect(pending[0]).to.equal(sources4[0].used.add(FixedPoint.from("0.079999999999999999")));
+      expect(pending[1]).to.equal(sources4[1].used.add(FixedPoint.from("0.480000000000000000")));
+      expect(pending[2]).to.equal(sources4[2].used.add(FixedPoint.from("0.900000000000000001")));
+      expect(pending[3]).to.equal(sources4[3].used.add(FixedPoint.from("0.540000000000000000")));
     });
     it("distributes interest to five nodes with one dust node", async function () {
       const pending = await interestRateModel2.distribute(
@@ -230,11 +249,11 @@ describe("WeightedInterestRateModel", function () {
         sources5.length
       );
       expect(pending.length).to.equal(5);
-      expect(pending[0]).to.equal(FixedPoint.from("0.079999999999999999"));
-      expect(pending[1]).to.equal(FixedPoint.from("0.480000000000000000"));
-      expect(pending[2]).to.equal(FixedPoint.from("0.900000000000000001"));
-      expect(pending[3]).to.equal(ethers.constants.Zero);
-      expect(pending[4]).to.equal(FixedPoint.from("0.540000000000000000"));
+      expect(pending[0]).to.equal(sources5[0].used.add(FixedPoint.from("0.079999999999999999")));
+      expect(pending[1]).to.equal(sources5[1].used.add(FixedPoint.from("0.480000000000000000")));
+      expect(pending[2]).to.equal(sources5[2].used.add(FixedPoint.from("0.900000000000000001")));
+      expect(pending[3]).to.equal(sources5[3].used);
+      expect(pending[4]).to.equal(sources5[4].used.add(FixedPoint.from("0.540000000000000000")));
     });
   });
 });

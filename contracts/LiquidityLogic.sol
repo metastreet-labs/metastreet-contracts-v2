@@ -67,6 +67,18 @@ library LiquidityLogic {
     /**************************************************************************/
 
     /**
+     * @notice Node source
+     * @param tick Tick
+     * @param used Amount used
+     * @param pending Amount pending
+     */
+    struct NodeSource {
+        uint128 tick;
+        uint128 used;
+        uint128 pending;
+    }
+
+    /**
      * @notice Fulfilled redemption
      * @param shares Shares redeemed
      * @param amount Amount redeemed
@@ -628,8 +640,8 @@ library LiquidityLogic {
         uint128[] calldata ticks,
         uint256 multiplier,
         uint256 durationIndex
-    ) internal view returns (ILiquidity.NodeSource[] memory, uint16) {
-        ILiquidity.NodeSource[] memory sources = new ILiquidity.NodeSource[](ticks.length);
+    ) internal view returns (NodeSource[] memory, uint16) {
+        NodeSource[] memory sources = new NodeSource[](ticks.length);
 
         uint256 prevTick;
         uint256 taken;
@@ -647,7 +659,7 @@ library LiquidityLogic {
             uint128 take = uint128(Math.min(Math.min(limit * multiplier - taken, node.available), amount - taken));
 
             /* Record the liquidity allocation in our sources list */
-            sources[count] = ILiquidity.NodeSource({tick: tick, used: take});
+            sources[count] = NodeSource({tick: tick, used: take, pending: 0});
 
             taken += take;
             prevTick = tick;

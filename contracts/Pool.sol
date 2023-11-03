@@ -549,8 +549,8 @@ abstract contract Pool is
      * @param ticks Liquidity node ticks
      * @param collateralFilterContext Collateral filter context
      * @param isRefinance True if called by refinance()
-     * @return Repayment amount in currency tokens, liquidity nodes, liquidity
-     * node count
+     * @return Repayment amount in currency tokens, admin fee in currency
+     * tokens, liquidity nodes, liquidity node count
      */
     function _quote(
         uint256 principal,
@@ -561,7 +561,7 @@ abstract contract Pool is
         uint128[] calldata ticks,
         bytes calldata collateralFilterContext,
         bool isRefinance
-    ) internal view returns (uint256, ILiquidity.NodeSource[] memory, uint16) {
+    ) internal view returns (uint256, uint256, LiquidityLogic.NodeSource[] memory, uint16) {
         /* Verify collateral is supported */
         if (!isRefinance) {
             for (uint256 i; i < collateralTokenIds.length; i++) {
@@ -583,7 +583,7 @@ abstract contract Pool is
         }
 
         /* Source liquidity nodes */
-        (ILiquidity.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
+        (LiquidityLogic.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
             principal,
             ticks,
             collateralTokenCount,
@@ -595,7 +595,16 @@ abstract contract Pool is
             (LiquidityLogic.FIXED_POINT_SCALE + (_rate(principal, _rates, nodes, count) * duration))) /
             LiquidityLogic.FIXED_POINT_SCALE;
 
-        return (repayment, nodes, count);
+        /* Compute total fee */
+        uint256 totalFee = repayment - principal;
+
+        /* Compute admin fee */
+        uint256 adminFee = (_adminFeeRate * totalFee) / LiquidityLogic.BASIS_POINTS_SCALE;
+
+        /* Distribute interest */
+        _distribute(principal, totalFee - adminFee, nodes, count);
+
+        return (repayment, adminFee, nodes, count);
     }
 
     /**
@@ -655,8 +664,8 @@ abstract contract Pool is
             uint256 underlyingCollateralTokenCount
         ) = _getUnderlyingCollateral(collateralToken, collateralTokenId, collateralWrapperContext);
 
-        /* Quote repayment and liquidity nodes */
-        (uint256 repayment, ILiquidity.NodeSource[] memory nodes, uint16 count) = _quote(
+        /* Quote repayment, admin fee, and liquidity nodes */
+        (uint256 repayment, uint256 adminFee, LiquidityLogic.NodeSource[] memory nodes, uint16 count) = _quote(
             principal,
             duration,
             underlyingCollateralToken,
@@ -669,15 +678,6 @@ abstract contract Pool is
 
         /* Validate repayment */
         if (repayment > maxRepayment) revert RepaymentTooHigh();
-
-        /* Compute total fee */
-        uint256 totalFee = repayment - principal;
-
-        /* Compute admin fee */
-        uint256 adminFee = (_adminFeeRate * totalFee) / LiquidityLogic.BASIS_POINTS_SCALE;
-
-        /* Distribute interest */
-        uint128[] memory interest = _distribute(principal, totalFee - adminFee, nodes, count);
 
         /* Build the loan receipt */
         LoanReceipt.LoanReceiptV2 memory receipt = LoanReceipt.LoanReceiptV2({
@@ -697,17 +697,14 @@ abstract contract Pool is
 
         /* Use liquidity nodes */
         for (uint256 i; i < count; i++) {
-            /* Compute pending */
-            uint128 pending = nodes[i].used + interest[i];
-
             /* Use node */
-            _liquidity.use(nodes[i].tick, nodes[i].used, pending, duration);
+            _liquidity.use(nodes[i].tick, nodes[i].used, nodes[i].pending, duration);
 
             /* Construct node receipt */
             receipt.nodeReceipts[i] = LoanReceipt.NodeReceipt({
                 tick: nodes[i].tick,
                 used: nodes[i].used,
-                pending: pending
+                pending: nodes[i].pending
             });
         }
 
@@ -882,7 +879,7 @@ abstract contract Pool is
         bytes calldata options
     ) external view returns (uint256) {
         /* Quote repayment */
-        (uint256 repayment, , ) = _quote(
+        (uint256 repayment, , , ) = _quote(
             principal,
             duration,
             collateralToken,

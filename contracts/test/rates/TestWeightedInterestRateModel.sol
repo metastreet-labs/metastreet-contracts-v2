@@ -24,7 +24,7 @@ contract TestWeightedInterestRateModel is WeightedInterestRateModel {
     function rate(
         uint256 amount,
         uint64[] memory rates,
-        ILiquidity.NodeSource[] memory nodes,
+        LiquidityLogic.NodeSource[] memory nodes,
         uint16 count
     ) external pure returns (uint256) {
         return _rate(amount, rates, nodes, count);
@@ -36,9 +36,15 @@ contract TestWeightedInterestRateModel is WeightedInterestRateModel {
     function distribute(
         uint256 amount,
         uint256 interest,
-        ILiquidity.NodeSource[] memory nodes,
+        LiquidityLogic.NodeSource[] memory nodes,
         uint16 count
     ) external view returns (uint128[] memory) {
-        return _distribute(amount, interest, nodes, count);
+        _distribute(amount, interest, nodes, count);
+
+        uint128[] memory pending = new uint128[](count);
+        for (uint256 i; i < count; i++) {
+            pending[i] = nodes[i].pending;
+        }
+        return pending;
     }
 }
