@@ -648,39 +648,28 @@ abstract contract Pool is
      * @param duration Duration in seconds
      * @param collateralToken Collateral token address
      * @param collateralTokenId Collateral token ID
+     * @param repayment Repayment amount in currency tokens
      * @param maxRepayment Maximum repayment amount in currency tokens
-     * @param ticks Liquidity node ticks
+     * @param adminFee Admin fee in currency tokens
+     * @param nodes Liquidity nodes
+     * @param count Liquidity node count
      * @param collateralWrapperContext Collateral wrapper context data
-     * @param collateralFilterContext Collateral filter context data
-     * @param isRefinance True if called by refinance()
-     * @return Repayment amount in currency tokens, encoded loan receipt, loan
-     * receipt hash
+     * @return Encoded loan receipt, loan receipt hash
      */
     function _borrow(
         uint256 principal,
         uint64 duration,
         address collateralToken,
         uint256 collateralTokenId,
+        uint256 repayment,
         uint256 maxRepayment,
-        uint128[] calldata ticks,
-        bytes memory collateralWrapperContext,
-        bytes calldata collateralFilterContext,
-        bool isRefinance
-    ) internal returns (uint256, bytes memory, bytes32) {
+        uint256 adminFee,
+        LiquidityLogic.NodeSource[] memory nodes,
+        uint16 count,
+        bytes memory collateralWrapperContext
+    ) internal returns (bytes memory, bytes32) {
         /* Validate duration is non-zero */
         if (duration == 0) revert UnsupportedLoanDuration();
-
-        /* Quote repayment, admin fee, and liquidity nodes */
-        (uint256 repayment, uint256 adminFee, LiquidityLogic.NodeSource[] memory nodes, uint16 count) = _quote(
-            principal,
-            duration,
-            collateralToken,
-            collateralTokenId,
-            ticks,
-            collateralWrapperContext,
-            collateralFilterContext,
-            isRefinance
-        );
 
         /* Validate repayment */
         if (repayment > maxRepayment) revert RepaymentTooHigh();
@@ -724,7 +713,7 @@ abstract contract Pool is
         /* Store loan status */
         _loans[loanReceiptHash] = LoanStatus.Active;
 
-        return (repayment, encodedLoanReceipt, loanReceiptHash);
+        return (encodedLoanReceipt, loanReceiptHash);
     }
 
     /**
@@ -910,17 +899,30 @@ abstract contract Pool is
         uint128[] calldata ticks,
         bytes calldata options
     ) external nonReentrant returns (uint256) {
-        /* Handle borrow accounting */
-        (uint256 repayment, bytes memory encodedLoanReceipt, bytes32 loanReceiptHash) = _borrow(
+        /* Quote repayment, admin fee, and liquidity nodes */
+        (uint256 repayment, uint256 adminFee, LiquidityLogic.NodeSource[] memory nodes, uint16 count) = _quote(
             principal,
             duration,
             collateralToken,
             collateralTokenId,
-            maxRepayment,
             ticks,
             _getOptionsData(options, BorrowOptions.CollateralWrapperContext),
             _getOptionsData(options, BorrowOptions.CollateralFilterContext),
             false
+        );
+
+        /* Handle borrow accounting */
+        (bytes memory encodedLoanReceipt, bytes32 loanReceiptHash) = _borrow(
+            principal,
+            duration,
+            collateralToken,
+            collateralTokenId,
+            repayment,
+            maxRepayment,
+            adminFee,
+            nodes,
+            count,
+            _getOptionsData(options, BorrowOptions.CollateralWrapperContext)
         );
 
         /* Handle delegate.cash option */
@@ -981,17 +983,30 @@ abstract contract Pool is
             encodedLoanReceipt
         );
 
-        /* Handle borrow accounting */
-        (uint256 newRepayment, bytes memory newEncodedLoanReceipt, bytes32 newLoanReceiptHash) = _borrow(
+        /* Quote new repayment, admin fee, and liquidity nodes */
+        (uint256 newRepayment, uint256 adminFee, LiquidityLogic.NodeSource[] memory nodes, uint16 count) = _quote(
             principal,
             duration,
             loanReceipt.collateralToken,
             loanReceipt.collateralTokenId,
-            maxRepayment,
             ticks,
             loanReceipt.collateralWrapperContext,
             encodedLoanReceipt[0:0],
             true
+        );
+
+        /* Handle borrow accounting */
+        (bytes memory newEncodedLoanReceipt, bytes32 newLoanReceiptHash) = _borrow(
+            principal,
+            duration,
+            loanReceipt.collateralToken,
+            loanReceipt.collateralTokenId,
+            newRepayment,
+            maxRepayment,
+            adminFee,
+            nodes,
+            count,
+            loanReceipt.collateralWrapperContext
         );
 
         /* Determine transfer direction */
