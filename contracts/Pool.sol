@@ -773,6 +773,32 @@ abstract contract Pool is
     }
 
     /**
+     * @dev Helper function to handle liquidate accounting
+     * @param encodedLoanReceipt Encoded loan receipt
+     * @return Decoded loan receipt, loan receipt hash
+     */
+    function _liquidate(
+        bytes calldata encodedLoanReceipt
+    ) internal returns (LoanReceipt.LoanReceiptV2 memory, bytes32) {
+        /* Compute loan receipt hash */
+        bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
+
+        /* Validate loan status is active */
+        if (_loans[loanReceiptHash] != LoanStatus.Active) revert InvalidLoanReceipt();
+
+        /* Decode loan receipt */
+        LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
+
+        /* Validate loan is expired */
+        if (block.timestamp <= loanReceipt.maturity) revert LoanNotExpired();
+
+        /* Mark loan status liquidated */
+        _loans[loanReceiptHash] = LoanStatus.Liquidated;
+
+        return (loanReceipt, loanReceiptHash);
+    }
+
+    /**
      * @dev Helper function to handle deposit accounting
      * @param tick Tick
      * @param amount Amount
@@ -1031,26 +1057,14 @@ abstract contract Pool is
      * @inheritdoc IPool
      */
     function liquidate(bytes calldata encodedLoanReceipt) external nonReentrant {
-        /* Compute loan receipt hash */
-        bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
-
-        /* Validate loan status is active */
-        if (_loans[loanReceiptHash] != LoanStatus.Active) revert InvalidLoanReceipt();
-
-        /* Decode loan receipt */
-        LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
-
-        /* Validate loan is expired */
-        if (block.timestamp <= loanReceipt.maturity) revert LoanNotExpired();
-
-        /* Approve collateral for transfer to _collateralLiquidator */
-        IERC721(loanReceipt.collateralToken).approve(address(_collateralLiquidator), loanReceipt.collateralTokenId);
-
-        /* Mark loan status liquidated */
-        _loans[loanReceiptHash] = LoanStatus.Liquidated;
+        /* Handle liquidate accounting */
+        (LoanReceipt.LoanReceiptV2 memory loanReceipt, bytes32 loanReceiptHash) = _liquidate(encodedLoanReceipt);
 
         /* Revoke delegates */
         _revokeDelegates(loanReceipt.collateralToken, loanReceipt.collateralTokenId);
+
+        /* Approve collateral for transfer to _collateralLiquidator */
+        IERC721(loanReceipt.collateralToken).approve(address(_collateralLiquidator), loanReceipt.collateralTokenId);
 
         /* Start liquidation with collateral liquidator */
         _collateralLiquidator.liquidate(
