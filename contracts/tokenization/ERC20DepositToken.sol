@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/utils/Create2.sol";
-
 import "./DepositToken.sol";
+
+import "./ERC20DepositTokenFactory.sol";
 import "./ERC20DepositTokenImplementation.sol";
-import "./ERC20DepositTokenProxy.sol";
 
 /**
  * @title ERC20 Deposit Token
@@ -68,28 +67,6 @@ contract ERC20DepositToken is DepositToken {
         }
     }
 
-    /**
-     * @notice Create deterministic proxy for tick with Create2
-     *
-     * @param tick Tick
-     * @return Proxy address
-     */
-    function _createDeterministicProxy(uint128 tick) private returns (address) {
-        /* Create init data */
-        bytes memory initData = abi.encode(
-            address(this),
-            abi.encodeWithSignature("initialize(bytes)", abi.encode(tick))
-        );
-
-        /* Create token instance */
-        return
-            Create2.deploy(
-                0,
-                bytes32(uint256(tick)),
-                abi.encodePacked(type(ERC20DepositTokenProxy).creationCode, initData)
-            );
-    }
-
     /**************************************************************************/
     /* API */
     /**************************************************************************/
@@ -114,7 +91,7 @@ contract ERC20DepositToken is DepositToken {
         if (tokenInstance != address(0)) return tokenInstance;
 
         /* Create proxied token */
-        tokenInstance = _createDeterministicProxy(tick);
+        tokenInstance = ERC20DepositTokenFactory.deploy(tick);
 
         /* Store token instance in mapping */
         _getDepositTokenStorage().tokens[tick] = tokenInstance;

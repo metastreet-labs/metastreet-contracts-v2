@@ -61,6 +61,7 @@ describe("Pool Tokenized", function () {
       "LiquidityLogic",
       "DepositLogic",
       "BorrowLogic",
+      "ERC20DepositTokenFactory",
     ]);
     const maliciousTokenFactory = await ethers.getContractFactory("TestMaliciousERC20");
 

@@ -50,6 +50,7 @@ describe("Pool Basic", function () {
       "LiquidityLogic",
       "DepositLogic",
       "BorrowLogic",
+      "ERC20DepositTokenFactory",
     ]);
 
     /* Deploy test currency token */

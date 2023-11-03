@@ -49,6 +49,7 @@ describe("Pool Ranged Collection", function () {
       "LiquidityLogic",
       "DepositLogic",
       "BorrowLogic",
+      "ERC20DepositTokenFactory",
     ]);
 
     /* Deploy test currency token */

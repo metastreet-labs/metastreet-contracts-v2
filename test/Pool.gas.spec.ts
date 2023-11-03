@@ -55,6 +55,7 @@ describe("Pool Gas", function () {
       "LiquidityLogic",
       "DepositLogic",
       "BorrowLogic",
+      "ERC20DepositTokenFactory",
     ]);
 
     /* Deploy test currency token */
@@ -816,6 +817,7 @@ describe("Pool Gas", function () {
           "LiquidityLogic",
           "DepositLogic",
           "BorrowLogic",
+          "ERC20DepositTokenFactory",
         ]);
 
         /* Deploy english auction collateral liquidator implementation */
@@ -1095,6 +1097,7 @@ describe("Pool Gas", function () {
         "LiquidityLogic",
         "DepositLogic",
         "BorrowLogic",
+        "ERC20DepositTokenFactory",
       ]);
       const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
       const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation");
@@ -1224,6 +1227,7 @@ describe("Pool Gas", function () {
         "LiquidityLogic",
         "DepositLogic",
         "BorrowLogic",
+        "ERC20DepositTokenFactory",
       ]);
       const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
       const ERC1155CollateralWrapperFactory = await ethers.getContractFactory("ERC1155CollateralWrapper");
