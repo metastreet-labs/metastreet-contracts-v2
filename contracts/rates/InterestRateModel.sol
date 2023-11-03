@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./interfaces/ILiquidity.sol";
+import "../interfaces/ILiquidity.sol";
 
 /**
  * @title Interest Rate Model API

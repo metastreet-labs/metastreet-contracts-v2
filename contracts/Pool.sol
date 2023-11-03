@@ -13,7 +13,7 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "./LoanReceipt.sol";
 import "./LiquidityLogic.sol";
 import "./filters/CollateralFilter.sol";
-import "./InterestRateModel.sol";
+import "./rates/InterestRateModel.sol";
 import "./tokenization/DepositToken.sol";
 
 import "./interfaces/IPool.sol";
