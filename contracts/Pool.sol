@@ -544,9 +544,9 @@ abstract contract Pool is
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
      * @param collateralToken Collateral token address
-     * @param collateralTokenIds List of unique collateral token ids
-     * @param collateralTokenCount Total collateral token count
+     * @param collateralTokenId Collatral token ID
      * @param ticks Liquidity node ticks
+     * @param collateralWrapperContext Collateral wrapper context
      * @param collateralFilterContext Collateral filter context
      * @param isRefinance True if called by refinance()
      * @return Repayment amount in currency tokens, admin fee in currency
@@ -556,17 +556,30 @@ abstract contract Pool is
         uint256 principal,
         uint64 duration,
         address collateralToken,
-        uint256[] memory collateralTokenIds,
-        uint256 collateralTokenCount,
+        uint256 collateralTokenId,
         uint128[] calldata ticks,
+        bytes memory collateralWrapperContext,
         bytes calldata collateralFilterContext,
         bool isRefinance
     ) internal view returns (uint256, uint256, LiquidityLogic.NodeSource[] memory, uint16) {
+        /* Get underlying collateral */
+        (
+            address underlyingCollateralToken,
+            uint256[] memory underlyingCollateralTokenIds,
+            uint256 underlyingCollateralTokenCount
+        ) = _getUnderlyingCollateral(collateralToken, collateralTokenId, collateralWrapperContext);
+
         /* Verify collateral is supported */
         if (!isRefinance) {
-            for (uint256 i; i < collateralTokenIds.length; i++) {
-                if (!_collateralSupported(collateralToken, collateralTokenIds[i], i, collateralFilterContext))
-                    revert UnsupportedCollateral(i);
+            for (uint256 i; i < underlyingCollateralTokenIds.length; i++) {
+                if (
+                    !_collateralSupported(
+                        underlyingCollateralToken,
+                        underlyingCollateralTokenIds[i],
+                        i,
+                        collateralFilterContext
+                    )
+                ) revert UnsupportedCollateral(i);
             }
         }
 
@@ -586,7 +599,7 @@ abstract contract Pool is
         (LiquidityLogic.NodeSource[] memory nodes, uint16 count) = _liquidity.source(
             principal,
             ticks,
-            collateralTokenCount,
+            underlyingCollateralTokenCount,
             durationIndex
         );
 
@@ -657,21 +670,14 @@ abstract contract Pool is
         /* Validate duration is non-zero */
         if (duration == 0) revert UnsupportedLoanDuration();
 
-        /* Get underlying collateral */
-        (
-            address underlyingCollateralToken,
-            uint256[] memory underlyingCollateralTokenIds,
-            uint256 underlyingCollateralTokenCount
-        ) = _getUnderlyingCollateral(collateralToken, collateralTokenId, collateralWrapperContext);
-
         /* Quote repayment, admin fee, and liquidity nodes */
         (uint256 repayment, uint256 adminFee, LiquidityLogic.NodeSource[] memory nodes, uint16 count) = _quote(
             principal,
             duration,
-            underlyingCollateralToken,
-            underlyingCollateralTokenIds,
-            underlyingCollateralTokenCount,
+            collateralToken,
+            collateralTokenId,
             ticks,
+            collateralWrapperContext,
             collateralFilterContext,
             isRefinance
         );
@@ -873,8 +879,7 @@ abstract contract Pool is
         uint256 principal,
         uint64 duration,
         address collateralToken,
-        uint256[] calldata collateralTokenIds,
-        uint256 collateralTokenCount,
+        uint256 collateralTokenId,
         uint128[] calldata ticks,
         bytes calldata options
     ) external view returns (uint256) {
@@ -883,9 +888,9 @@ abstract contract Pool is
             principal,
             duration,
             collateralToken,
-            collateralTokenIds,
-            collateralTokenCount,
+            collateralTokenId,
             ticks,
+            _getOptionsData(options, BorrowOptions.CollateralWrapperContext),
             _getOptionsData(options, BorrowOptions.CollateralFilterContext),
             false
         );

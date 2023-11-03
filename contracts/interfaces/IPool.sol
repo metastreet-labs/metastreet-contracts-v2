@@ -287,9 +287,8 @@ interface IPool {
      * @notice Quote repayment for a loan
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
-     * @param collateralToken Collateral token
-     * @param collateralTokenIds List of collateral token IDs
-     * @param collateralTokenCount Total tokens
+     * @param collateralToken Collateral token address
+     * @param collateralTokenId Collateral token ID
      * @param ticks Liquidity ticks
      * @param options Encoded options
      * @return repayment Repayment amount in currency tokens
@@ -298,8 +297,7 @@ interface IPool {
         uint256 principal,
         uint64 duration,
         address collateralToken,
-        uint256[] calldata collateralTokenIds,
-        uint256 collateralTokenCount,
+        uint256 collateralTokenId,
         uint128[] calldata ticks,
         bytes calldata options
     ) external view returns (uint256 repayment);

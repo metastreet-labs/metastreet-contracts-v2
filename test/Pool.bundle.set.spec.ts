@@ -280,9 +280,8 @@ describe("Pool Bundle Set Collection", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        nft1.address,
-        [123, 124, 125],
-        3,
+        bundleCollateralWrapper.address,
+        bundleTokenId,
         await sourceLiquidity(FixedPoint.from("25")),
         borrowOptions
       );
@@ -379,9 +378,8 @@ describe("Pool Bundle Set Collection", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        nft1.address,
-        [123, 124, 125],
-        3,
+        bundleCollateralWrapper.address,
+        bundleTokenId,
         await sourceLiquidity(FixedPoint.from("25")),
         borrowOptions
       );

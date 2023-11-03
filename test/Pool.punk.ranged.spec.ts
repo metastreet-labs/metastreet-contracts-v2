@@ -302,9 +302,8 @@ describe("Pool Punk Ranged Collection", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        WPUNKS_ADDRESS,
-        [PUNK_ID_1, PUNK_ID_2, PUNK_ID_3],
-        3,
+        punkCollateralWrapper.address,
+        punkTokenId,
         await sourceLiquidity(FixedPoint.from("25")),
         borrowOptions
       );
@@ -401,9 +400,8 @@ describe("Pool Punk Ranged Collection", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        WPUNKS_ADDRESS,
-        [PUNK_ID_1, PUNK_ID_2, PUNK_ID_3],
-        3,
+        punkCollateralWrapper.address,
+        punkTokenId,
         await sourceLiquidity(FixedPoint.from("25")),
         borrowOptions
       );

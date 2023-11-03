@@ -263,7 +263,7 @@ describe("Pool Bundle", function () {
 
     const ticks = await sourceLiquidity(principal);
 
-    const repayment = await pool.quote(principal, duration, nft1.address, [tokenId], 1, ticks, "0x");
+    const repayment = await pool.quote(principal, duration, nft1.address, tokenId, ticks, "0x");
 
     const borrowTx = await pool
       .connect(accountBorrower)
@@ -315,15 +315,22 @@ describe("Pool Bundle", function () {
     });
 
     it("correctly quotes repayment for bundle", async function () {
+      /* Mint bundle */
+      const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
+      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+      const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
+
       expect(
         await pool.quote(
           FixedPoint.from("10"),
           30 * 86400,
-          nft1.address,
-          [123, 124, 125],
-          3,
+          bundleCollateralWrapper.address,
+          bundleTokenId,
           await sourceLiquidity(FixedPoint.from("10")),
-          "0x"
+          ethers.utils.solidityPack(
+            ["uint16", "uint16", "bytes"],
+            [1, ethers.utils.hexDataLength(bundleData), bundleData]
+          )
         )
       ).to.equal(FixedPoint.from("10.082191780812160000"));
 
@@ -331,25 +338,34 @@ describe("Pool Bundle", function () {
         await pool.quote(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
-          [123, 124, 125],
-          3,
+          bundleCollateralWrapper.address,
+          bundleTokenId,
           await sourceLiquidity(FixedPoint.from("25")),
-          "0x"
+          ethers.utils.solidityPack(
+            ["uint16", "uint16", "bytes"],
+            [1, ethers.utils.hexDataLength(bundleData), bundleData]
+          )
         )
       ).to.equal(FixedPoint.from("25.205479451965600000"));
     });
 
     it("fails on insufficient liquidity for bundle", async function () {
+      /* Mint bundle */
+      const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
+      const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
+      const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
+
       await expect(
         pool.quote(
           FixedPoint.from("1000"),
           30 * 86400,
-          nft1.address,
-          [123, 124, 125],
-          3,
+          bundleCollateralWrapper.address,
+          bundleTokenId,
           await sourceLiquidity(FixedPoint.from("25")),
-          "0x"
+          ethers.utils.solidityPack(
+            ["uint16", "uint16", "bytes"],
+            [1, ethers.utils.hexDataLength(bundleData), bundleData]
+          )
         )
       ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
     });
@@ -370,11 +386,13 @@ describe("Pool Bundle", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        nft1.address,
-        [123, 124, 125],
-        3,
+        bundleCollateralWrapper.address,
+        bundleTokenId,
         await sourceLiquidity(FixedPoint.from("25")),
-        "0x"
+        ethers.utils.solidityPack(
+          ["uint16", "uint16", "bytes"],
+          [1, ethers.utils.hexDataLength(bundleData), bundleData]
+        )
       );
 
       /* Simulate borrow */
@@ -480,11 +498,13 @@ describe("Pool Bundle", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        nft1.address,
-        [123, 124, 125],
-        3,
+        bundleCollateralWrapper.address,
+        bundleTokenId,
         await sourceLiquidity(FixedPoint.from("25")),
-        "0x"
+        ethers.utils.solidityPack(
+          ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes20"],
+          [1, ethers.utils.hexDataLength(bundleData), bundleData, 3, 20, accountBorrower.address]
+        )
       );
 
       /* Simulate borrow */
@@ -598,11 +618,13 @@ describe("Pool Bundle", function () {
       const repayment = await pool.quote(
         FixedPoint.from("85"),
         30 * 86400,
-        nft1.address,
-        [123, 124, 125],
-        3,
+        bundleCollateralWrapper.address,
+        bundleTokenId,
         await sourceLiquidity(FixedPoint.from("85"), 3),
-        "0x"
+        ethers.utils.solidityPack(
+          ["uint16", "uint16", "bytes"],
+          [1, ethers.utils.hexDataLength(bundleData), bundleData]
+        )
       );
 
       /* Simulate borrow */
@@ -760,11 +782,13 @@ describe("Pool Bundle", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        nft1.address,
-        [124, 125],
-        2,
+        bundleCollateralWrapper.address,
+        bundleTokenId,
         await sourceLiquidity(FixedPoint.from("25")),
-        "0x"
+        ethers.utils.solidityPack(
+          ["uint16", "uint16", "bytes"],
+          [1, ethers.utils.hexDataLength(bundleData), bundleData]
+        )
       );
 
       const borrowTx = await pool

@@ -1733,7 +1733,7 @@ describe("Pool Basic", function () {
 
     const ticks = await sourceLiquidity(principal);
 
-    const repayment = await pool.quote(principal, duration, nft1.address, [tokenId], 1, ticks, "0x");
+    const repayment = await pool.quote(principal, duration, nft1.address, tokenId, ticks, "0x");
 
     const borrowTx = await pool
       .connect(accountBorrower)
@@ -1789,8 +1789,7 @@ describe("Pool Basic", function () {
           FixedPoint.from("10"),
           30 * 86400,
           nft1.address,
-          [123],
-          1,
+          123,
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
         )
@@ -1801,8 +1800,7 @@ describe("Pool Basic", function () {
           FixedPoint.from("25"),
           30 * 86400,
           nft1.address,
-          [123],
-          1,
+          123,
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         )
@@ -1812,7 +1810,7 @@ describe("Pool Basic", function () {
     it("quotes repayment from various duration and rate ticks", async function () {
       let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
 
-      expect(await pool.quote(FixedPoint.from("25"), 7 * 86400, nft1.address, [123], 1, ticks, "0x")).to.equal(
+      expect(await pool.quote(FixedPoint.from("25"), 7 * 86400, nft1.address, 123, ticks, "0x")).to.equal(
         FixedPoint.from("25.066700775725920000")
       );
     });
@@ -1823,8 +1821,7 @@ describe("Pool Basic", function () {
           FixedPoint.from("100"),
           30 * 86400,
           nft1.address,
-          [123],
-          1,
+          123,
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         )
@@ -1837,8 +1834,7 @@ describe("Pool Basic", function () {
           FixedPoint.from("10"),
           30 * 86400,
           tok1.address,
-          [123],
-          1,
+          123,
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
         )
@@ -1852,7 +1848,7 @@ describe("Pool Basic", function () {
       ticks[5] = temp;
 
       await expect(
-        pool.quote(FixedPoint.from("25"), 7 * 86400, nft1.address, [123], 1, ticks, "0x")
+        pool.quote(FixedPoint.from("25"), 7 * 86400, nft1.address, 123, ticks, "0x")
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
     });
 
@@ -1861,7 +1857,7 @@ describe("Pool Basic", function () {
       ticks[4] = ticks[5];
 
       await expect(
-        pool.quote(FixedPoint.from("35"), 7 * 86400, nft1.address, [123], 1, ticks, "0x")
+        pool.quote(FixedPoint.from("35"), 7 * 86400, nft1.address, 123, ticks, "0x")
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
     });
 
@@ -1869,7 +1865,7 @@ describe("Pool Basic", function () {
       let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
 
       await expect(
-        pool.quote(FixedPoint.from("35"), 8 * 86400, nft1.address, [123], 1, ticks, "0x")
+        pool.quote(FixedPoint.from("35"), 8 * 86400, nft1.address, 123, ticks, "0x")
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
     });
   });
@@ -1885,8 +1881,7 @@ describe("Pool Basic", function () {
         FixedPoint.from("25"),
         30 * 86400,
         nft1.address,
-        [123],
-        1,
+        123,
         await sourceLiquidity(FixedPoint.from("25")),
         "0x"
       );
@@ -1985,8 +1980,7 @@ describe("Pool Basic", function () {
         FixedPoint.from("25"),
         30 * 86400,
         nft1.address,
-        [123],
-        1,
+        123,
         await sourceLiquidity(FixedPoint.from("25")),
         "0x"
       );
@@ -2092,8 +2086,7 @@ describe("Pool Basic", function () {
         FixedPoint.from("25"),
         30 * 86400,
         nft1.address,
-        [123],
-        1,
+        123,
         await sourceLiquidity(FixedPoint.from("25")),
         "0x"
       );
@@ -3273,8 +3266,7 @@ describe("Pool Basic", function () {
         FixedPoint.from("25"),
         30 * 86400,
         nft1.address,
-        [123],
-        1,
+        123,
         await sourceLiquidity(FixedPoint.from("25")),
         "0x"
       );
@@ -3359,8 +3351,7 @@ describe("Pool Basic", function () {
         FixedPoint.from("25"),
         30 * 86400,
         nft1.address,
-        [123],
-        1,
+        123,
         await sourceLiquidity(FixedPoint.from("25")),
         "0x"
       );

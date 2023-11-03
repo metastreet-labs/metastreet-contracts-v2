@@ -312,15 +312,19 @@ describe("Pool Punks", function () {
     });
 
     it("correctly quotes repayment for punk", async function () {
+      /* Mint punk */
+      const mintTx = await punkCollateralWrapper.connect(accountBorrower).mint([PUNK_ID_1, PUNK_ID_2, PUNK_ID_3]);
+      const punkTokenId = (await extractEvent(mintTx, punkCollateralWrapper, "PunkMinted")).args.tokenId;
+      const context = ethers.utils.solidityPack(["uint256[]"], [[PUNK_ID_1, PUNK_ID_2, PUNK_ID_3]]);
+
       expect(
         await pool.quote(
           FixedPoint.from("10"),
           30 * 86400,
-          WPUNKS_ADDRESS,
-          [PUNK_ID_1, PUNK_ID_2, PUNK_ID_3],
-          3,
+          punkCollateralWrapper.address,
+          punkTokenId,
           await sourceLiquidity(FixedPoint.from("10")),
-          "0x"
+          ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, ethers.utils.hexDataLength(context), context])
         )
       ).to.equal(FixedPoint.from("10.082191780812160000"));
 
@@ -328,25 +332,28 @@ describe("Pool Punks", function () {
         await pool.quote(
           FixedPoint.from("25"),
           30 * 86400,
-          WPUNKS_ADDRESS,
-          [PUNK_ID_1, PUNK_ID_2, PUNK_ID_3],
-          3,
+          punkCollateralWrapper.address,
+          punkTokenId,
           await sourceLiquidity(FixedPoint.from("25")),
-          "0x"
+          ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, ethers.utils.hexDataLength(context), context])
         )
       ).to.equal(FixedPoint.from("25.205479451965600000"));
     });
 
     it("fails on insufficient liquidity for punk", async function () {
+      /* Mint punk */
+      const mintTx = await punkCollateralWrapper.connect(accountBorrower).mint([PUNK_ID_1, PUNK_ID_2, PUNK_ID_3]);
+      const punkTokenId = (await extractEvent(mintTx, punkCollateralWrapper, "PunkMinted")).args.tokenId;
+      const context = ethers.utils.solidityPack(["uint256[]"], [[PUNK_ID_1, PUNK_ID_2, PUNK_ID_3]]);
+
       await expect(
         pool.quote(
           FixedPoint.from("1000"),
           30 * 86400,
-          WPUNKS_ADDRESS,
-          [PUNK_ID_1, PUNK_ID_2, PUNK_ID_3],
-          3,
+          punkCollateralWrapper.address,
+          punkTokenId,
           await sourceLiquidity(FixedPoint.from("25")),
-          "0x"
+          ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, ethers.utils.hexDataLength(context), context])
         )
       ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
     });
@@ -367,11 +374,10 @@ describe("Pool Punks", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        WPUNKS_ADDRESS,
-        [PUNK_ID_1, PUNK_ID_2, PUNK_ID_3],
-        3,
+        punkCollateralWrapper.address,
+        punkTokenId,
         await sourceLiquidity(FixedPoint.from("25")),
-        "0x"
+        ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, ethers.utils.hexDataLength(context), context])
       );
 
       /* Simulate borrow */
@@ -471,11 +477,13 @@ describe("Pool Punks", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        WPUNKS_ADDRESS,
-        [PUNK_ID_1, PUNK_ID_2, PUNK_ID_3],
-        3,
+        punkCollateralWrapper.address,
+        punkTokenId,
         await sourceLiquidity(FixedPoint.from("25")),
-        "0x"
+        ethers.utils.solidityPack(
+          ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes20"],
+          [1, ethers.utils.hexDataLength(context), context, 3, 20, accountBorrower.address]
+        )
       );
 
       /* Simulate borrow */
@@ -589,11 +597,10 @@ describe("Pool Punks", function () {
       const repayment = await pool.quote(
         FixedPoint.from("85"),
         30 * 86400,
-        WPUNKS_ADDRESS,
-        [PUNK_ID_1, PUNK_ID_2, PUNK_ID_3],
-        3,
+        punkCollateralWrapper.address,
+        punkTokenId,
         await sourceLiquidity(FixedPoint.from("85"), 3),
-        "0x"
+        ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, ethers.utils.hexDataLength(context), context])
       );
 
       /* Simulate borrow */
@@ -742,11 +749,10 @@ describe("Pool Punks", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        WPUNKS_ADDRESS,
-        [124, 125],
-        2,
+        punkCollateralWrapper.address,
+        punkTokenId,
         await sourceLiquidity(FixedPoint.from("25")),
-        "0x"
+        ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, ethers.utils.hexDataLength(context), context])
       );
 
       const borrowTx = await pool

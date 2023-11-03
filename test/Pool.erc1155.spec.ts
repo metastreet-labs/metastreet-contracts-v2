@@ -294,15 +294,27 @@ describe("Pool ERC1155", function () {
     });
 
     it("correctly quotes repayment for erc1155", async function () {
+      /* Mint ERC1155Wrapper */
+      const mintTx = await ERC1155CollateralWrapper.connect(accountBorrower).mint(
+        nft1.address,
+        [123, 124, 125],
+        [1, 2, 3]
+      );
+      const ERC1155WrapperTokenId = (await extractEvent(mintTx, ERC1155CollateralWrapper, "BatchMinted")).args.tokenId;
+      const ERC1155WrapperData = (await extractEvent(mintTx, ERC1155CollateralWrapper, "BatchMinted")).args
+        .encodedBatch;
+
       expect(
         await pool.quote(
           FixedPoint.from("10"),
           30 * 86400,
-          nft1.address,
-          [123, 124, 124, 125, 125, 125],
-          6,
+          ERC1155CollateralWrapper.address,
+          ERC1155WrapperTokenId,
           await sourceLiquidity(FixedPoint.from("10")),
-          "0x"
+          ethers.utils.solidityPack(
+            ["uint16", "uint16", "bytes"],
+            [1, ethers.utils.hexDataLength(ERC1155WrapperData), ERC1155WrapperData]
+          )
         )
       ).to.equal(FixedPoint.from("10.082191780812160000"));
 
@@ -310,25 +322,39 @@ describe("Pool ERC1155", function () {
         await pool.quote(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
-          [123, 124, 124, 125, 125, 125],
-          6,
+          ERC1155CollateralWrapper.address,
+          ERC1155WrapperTokenId,
           await sourceLiquidity(FixedPoint.from("25")),
-          "0x"
+          ethers.utils.solidityPack(
+            ["uint16", "uint16", "bytes"],
+            [1, ethers.utils.hexDataLength(ERC1155WrapperData), ERC1155WrapperData]
+          )
         )
       ).to.equal(FixedPoint.from("25.205479452030400000"));
     });
 
     it("fails on insufficient liquidity for erc1155", async function () {
+      /* Mint ERC1155Wrapper */
+      const mintTx = await ERC1155CollateralWrapper.connect(accountBorrower).mint(
+        nft1.address,
+        [123, 124, 125],
+        [1, 2, 3]
+      );
+      const ERC1155WrapperTokenId = (await extractEvent(mintTx, ERC1155CollateralWrapper, "BatchMinted")).args.tokenId;
+      const ERC1155WrapperData = (await extractEvent(mintTx, ERC1155CollateralWrapper, "BatchMinted")).args
+        .encodedBatch;
+
       await expect(
         pool.quote(
           FixedPoint.from("1000"),
           30 * 86400,
-          nft1.address,
-          [123, 124, 124, 125, 125, 125],
-          6,
+          ERC1155CollateralWrapper.address,
+          ERC1155WrapperTokenId,
           await sourceLiquidity(FixedPoint.from("25")),
-          "0x"
+          ethers.utils.solidityPack(
+            ["uint16", "uint16", "bytes"],
+            [1, ethers.utils.hexDataLength(ERC1155WrapperData), ERC1155WrapperData]
+          )
         )
       ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
     });
@@ -354,11 +380,13 @@ describe("Pool ERC1155", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        nft1.address,
-        [123, 124, 124, 125, 125, 125],
-        6,
+        ERC1155CollateralWrapper.address,
+        ERC1155WrapperTokenId,
         await sourceLiquidity(FixedPoint.from("25"), 6),
-        "0x"
+        ethers.utils.solidityPack(
+          ["uint16", "uint16", "bytes"],
+          [1, ethers.utils.hexDataLength(ERC1155WrapperData), ERC1155WrapperData]
+        )
       );
 
       /* Simulate borrow */
@@ -469,11 +497,13 @@ describe("Pool ERC1155", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        nft1.address,
-        [123, 124, 124, 125, 125, 125],
-        6,
+        ERC1155CollateralWrapper.address,
+        ERC1155WrapperTokenId,
         await sourceLiquidity(FixedPoint.from("25")),
-        "0x"
+        ethers.utils.solidityPack(
+          ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes20"],
+          [1, ethers.utils.hexDataLength(ERC1155WrapperData), ERC1155WrapperData, 3, 20, accountBorrower.address]
+        )
       );
 
       /* Simulate borrow */
@@ -592,11 +622,13 @@ describe("Pool ERC1155", function () {
       const repayment = await pool.quote(
         FixedPoint.from("85"),
         30 * 86400,
-        nft1.address,
-        [123, 124, 124, 125, 125, 125],
-        6,
+        ERC1155CollateralWrapper.address,
+        ERC1155WrapperTokenId,
         await sourceLiquidity(FixedPoint.from("85"), 6),
-        "0x"
+        ethers.utils.solidityPack(
+          ["uint16", "uint16", "bytes"],
+          [1, ethers.utils.hexDataLength(ERC1155WrapperData), ERC1155WrapperData]
+        )
       );
 
       /* Simulate borrow */
@@ -765,11 +797,13 @@ describe("Pool ERC1155", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        nft1.address,
-        [124, 125, 125],
-        3,
+        ERC1155CollateralWrapper.address,
+        ERC1155WrapperTokenId,
         await sourceLiquidity(FixedPoint.from("25"), 3),
-        "0x"
+        ethers.utils.solidityPack(
+          ["uint16", "uint16", "bytes"],
+          [1, ethers.utils.hexDataLength(ERC1155WrapperData), ERC1155WrapperData]
+        )
       );
 
       const borrowTx = await pool
