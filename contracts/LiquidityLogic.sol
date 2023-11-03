@@ -44,25 +44,6 @@ library LiquidityLogic {
     uint256 private constant MAX_REDEMPTION_QUEUE_SCAN_COUNT = 150;
 
     /**************************************************************************/
-    /* Errors */
-    /**************************************************************************/
-
-    /**
-     * @notice Insufficient liquidity
-     */
-    error InsufficientLiquidity();
-
-    /**
-     * @notice Inactive liquidity
-     */
-    error InactiveLiquidity();
-
-    /**
-     * @notice Insufficient tick spacing
-     */
-    error InsufficientTickSpacing();
-
-    /**************************************************************************/
     /* Structures */
     /**************************************************************************/
 
@@ -185,7 +166,7 @@ library LiquidityLogic {
         uint128 endTick
     ) internal view returns (uint256 count) {
         /* Validate start tick has active liquidity */
-        if (liquidity.nodes[startTick].next == 0) revert InactiveLiquidity();
+        if (liquidity.nodes[startTick].next == 0) revert ILiquidity.InactiveLiquidity();
 
         /* Count nodes */
         uint256 t = startTick;
@@ -362,7 +343,7 @@ library LiquidityLogic {
         /* If node is active, do nothing */
         if (_isActive(node)) return;
         /* If node is inactive and not empty, revert */
-        if (!_isEmpty(node)) revert InactiveLiquidity();
+        if (!_isEmpty(node)) revert ILiquidity.InactiveLiquidity();
 
         /* Find prior node to new tick */
         uint128 prevTick;
@@ -381,11 +362,11 @@ library LiquidityLogic {
         if (
             newLimit != prevLimit &&
             newLimit < (prevLimit * (BASIS_POINTS_SCALE + TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
-        ) revert InsufficientTickSpacing();
+        ) revert ILiquidity.InsufficientTickSpacing();
         if (
             newLimit != nextLimit &&
             nextLimit < (newLimit * (BASIS_POINTS_SCALE + TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
-        ) revert InsufficientTickSpacing();
+        ) revert ILiquidity.InsufficientTickSpacing();
 
         /* Link new node */
         node.prev = prevTick;
@@ -507,7 +488,7 @@ library LiquidityLogic {
         Node storage node = liquidity.nodes[tick];
 
         /* If tick is reserved */
-        if (_isReserved(tick)) revert InactiveLiquidity();
+        if (_isReserved(tick)) revert ILiquidity.InactiveLiquidity();
 
         /* Instantiate node, if necessary */
         _instantiate(liquidity, node, tick);
@@ -666,7 +647,7 @@ library LiquidityLogic {
         }
 
         /* If unable to source required liquidity amount from provided ticks */
-        if (taken < amount) revert InsufficientLiquidity();
+        if (taken < amount) revert ILiquidity.InsufficientLiquidity();
 
         return (sources, count.toUint16());
     }

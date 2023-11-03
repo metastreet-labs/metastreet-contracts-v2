@@ -6,6 +6,25 @@ pragma solidity ^0.8.0;
  */
 interface ILiquidity {
     /**************************************************************************/
+    /* Errors */
+    /**************************************************************************/
+
+    /**
+     * @notice Insufficient liquidity
+     */
+    error InsufficientLiquidity();
+
+    /**
+     * @notice Inactive liquidity
+     */
+    error InactiveLiquidity();
+
+    /**
+     * @notice Insufficient tick spacing
+     */
+    error InsufficientTickSpacing();
+
+    /**************************************************************************/
     /* Structures */
     /**************************************************************************/
 
