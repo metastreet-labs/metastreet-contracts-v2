@@ -4,6 +4,7 @@ import * as helpers from "@nomicfoundation/hardhat-network-helpers";
 
 import { TestLiquidityLogic, LiquidityLogic } from "../typechain";
 
+import { getContractFactoryWithLibraries } from "./helpers/Deploy";
 import { extractEvent, expectEvent } from "./helpers/EventUtilities";
 import { FixedPoint } from "./helpers/FixedPoint";
 import { Tick } from "./helpers/Tick";
@@ -13,7 +14,7 @@ describe("LiquidityLogic", function () {
   let liquidityLogic: TestLiquidityLogic;
 
   before("deploy fixture", async () => {
-    const testLiquidityLogicFactory = await ethers.getContractFactory("TestLiquidityLogic");
+    const testLiquidityLogicFactory = await getContractFactoryWithLibraries("TestLiquidityLogic", ["LiquidityLogic"]);
     liquidityLogic = await testLiquidityLogicFactory.deploy();
   });
 

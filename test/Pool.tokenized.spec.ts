@@ -16,6 +16,7 @@ import {
   WeightedRateCollectionPool,
 } from "../typechain";
 
+import { getContractFactoryWithLibraries } from "./helpers/Deploy";
 import { extractEvent, expectEvent } from "./helpers/EventUtilities";
 import { FixedPoint } from "./helpers/FixedPoint";
 import { Tick } from "./helpers/Tick";
@@ -55,8 +56,12 @@ describe("Pool Tokenized", function () {
     const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
-    const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
     const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation");
+    const poolImplFactory = await getContractFactoryWithLibraries("WeightedRateCollectionPool", [
+      "LiquidityLogic",
+      "DepositLogic",
+      "BorrowLogic",
+    ]);
     const maliciousTokenFactory = await ethers.getContractFactory("TestMaliciousERC20");
 
     /* Deploy test currency token */

@@ -133,10 +133,7 @@ library LiquidityLogic {
      * @param tick Tick
      * @return Liquidity node
      */
-    function liquidityNode(
-        Liquidity storage liquidity,
-        uint128 tick
-    ) internal view returns (ILiquidity.NodeInfo memory) {
+    function liquidityNode(Liquidity storage liquidity, uint128 tick) public view returns (ILiquidity.NodeInfo memory) {
         Node storage node = liquidity.nodes[tick];
 
         return
@@ -164,7 +161,7 @@ library LiquidityLogic {
         Liquidity storage liquidity,
         uint128 startTick,
         uint128 endTick
-    ) internal view returns (uint256 count) {
+    ) public view returns (uint256 count) {
         /* Validate start tick has active liquidity */
         if (liquidity.nodes[startTick].next == 0) revert ILiquidity.InactiveLiquidity();
 
@@ -188,7 +185,7 @@ library LiquidityLogic {
         Liquidity storage liquidity,
         uint128 startTick,
         uint128 endTick
-    ) internal view returns (ILiquidity.NodeInfo[] memory) {
+    ) external view returns (ILiquidity.NodeInfo[] memory) {
         ILiquidity.NodeInfo[] memory nodes = new ILiquidity.NodeInfo[](
             liquidityNodesCount(liquidity, startTick, endTick)
         );
@@ -213,7 +210,7 @@ library LiquidityLogic {
     function liquidityNodeWithAccrual(
         Liquidity storage liquidity,
         uint128 tick
-    ) internal view returns (ILiquidity.NodeInfo memory, ILiquidity.AccrualInfo memory) {
+    ) external view returns (ILiquidity.NodeInfo memory, ILiquidity.AccrualInfo memory) {
         Node storage node = liquidity.nodes[tick];
 
         return (

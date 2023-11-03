@@ -14,6 +14,7 @@ import {
   Pool,
 } from "../typechain";
 
+import { getContractFactoryWithLibraries } from "./helpers/Deploy";
 import { extractEvent, expectEvent } from "./helpers/EventUtilities";
 import { FixedPoint } from "./helpers/FixedPoint";
 import { Tick } from "./helpers/Tick";
@@ -43,8 +44,12 @@ describe("Pool Ranged Collection", function () {
     const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
-    const poolImplFactory = await ethers.getContractFactory("WeightedRateRangedCollectionPool");
     const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation");
+    const poolImplFactory = await getContractFactoryWithLibraries("WeightedRateRangedCollectionPool", [
+      "LiquidityLogic",
+      "DepositLogic",
+      "BorrowLogic",
+    ]);
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;

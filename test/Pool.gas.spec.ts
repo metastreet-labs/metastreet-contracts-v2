@@ -19,6 +19,7 @@ import {
   WeightedRateCollectionPool,
 } from "../typechain";
 
+import { getContractFactoryWithLibraries } from "./helpers/Deploy";
 import { extractEvent, expectEvent } from "./helpers/EventUtilities";
 import { FixedPoint } from "./helpers/FixedPoint.ts";
 import { Tick } from "./helpers/Tick";
@@ -49,8 +50,12 @@ describe("Pool Gas", function () {
     const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
-    const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
     const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation");
+    const poolImplFactory = await getContractFactoryWithLibraries("WeightedRateCollectionPool", [
+      "LiquidityLogic",
+      "DepositLogic",
+      "BorrowLogic",
+    ]);
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("20000"))) as TestERC20;
@@ -806,8 +811,12 @@ describe("Pool Gas", function () {
         const englishAuctionCollateralLiquidatorFactory = await ethers.getContractFactory(
           "EnglishAuctionCollateralLiquidator"
         );
-        const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
         const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation");
+        const poolImplFactory = await getContractFactoryWithLibraries("WeightedRateCollectionPool", [
+          "LiquidityLogic",
+          "DepositLogic",
+          "BorrowLogic",
+        ]);
 
         /* Deploy english auction collateral liquidator implementation */
         const englishAuctionCollateralLiquidatorImpl = await englishAuctionCollateralLiquidatorFactory.deploy([
@@ -1082,7 +1091,11 @@ describe("Pool Gas", function () {
 
     beforeEach("setup pool", async function () {
       testProxyFactory = await ethers.getContractFactory("TestProxy");
-      const poolImplFactory = await ethers.getContractFactory("WeightedRateMerkleCollectionPool");
+      const poolImplFactory = await getContractFactoryWithLibraries("WeightedRateMerkleCollectionPool", [
+        "LiquidityLogic",
+        "DepositLogic",
+        "BorrowLogic",
+      ]);
       const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
       const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation");
 
@@ -1207,7 +1220,11 @@ describe("Pool Gas", function () {
 
     beforeEach("setup pool", async function () {
       testProxyFactory = await ethers.getContractFactory("TestProxy");
-      const poolImplFactory = await ethers.getContractFactory("WeightedRateSetCollectionPool");
+      const poolImplFactory = await getContractFactoryWithLibraries("WeightedRateSetCollectionPool", [
+        "LiquidityLogic",
+        "DepositLogic",
+        "BorrowLogic",
+      ]);
       const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
       const ERC1155CollateralWrapperFactory = await ethers.getContractFactory("ERC1155CollateralWrapper");
       const testERC1155Factory = await ethers.getContractFactory("TestERC1155");

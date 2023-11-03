@@ -15,6 +15,7 @@ import {
   BundleCollateralWrapper,
 } from "../typechain";
 
+import { getContractFactoryWithLibraries } from "./helpers/Deploy";
 import { FixedPoint } from "./helpers/FixedPoint.ts";
 
 describe("PoolFactory", function () {
@@ -41,8 +42,12 @@ describe("PoolFactory", function () {
     const poolFactoryImplFactory = await ethers.getContractFactory("PoolFactory");
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
-    const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
     const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation");
+    const poolImplFactory = await getContractFactoryWithLibraries("WeightedRateCollectionPool", [
+      "LiquidityLogic",
+      "DepositLogic",
+      "BorrowLogic",
+    ]);
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;

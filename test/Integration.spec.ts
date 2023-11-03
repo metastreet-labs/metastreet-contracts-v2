@@ -17,6 +17,7 @@ import {
   WeightedRateCollectionPool,
 } from "../typechain";
 
+import { getContractFactoryWithLibraries } from "./helpers/Deploy";
 import { extractEvent } from "./helpers/EventUtilities";
 import { FixedPoint } from "./helpers/FixedPoint";
 import { Tick } from "./helpers/Tick";
@@ -90,8 +91,12 @@ describe("Integration", function () {
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
-    const poolImplFactory = await ethers.getContractFactory("WeightedRateCollectionPool");
     const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation");
+    const poolImplFactory = await getContractFactoryWithLibraries("WeightedRateCollectionPool", [
+      "LiquidityLogic",
+      "DepositLogic",
+      "BorrowLogic",
+    ]);
 
     /* Deploy test currency token */
     tok1 = (await testERC20Factory.deploy(
