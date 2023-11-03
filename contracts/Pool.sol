@@ -799,6 +799,75 @@ abstract contract Pool is
     }
 
     /**
+     * @dev Helper function to handle collateral liquidation accounting
+     * @param encodedLoanReceipt Encoded loan receipt
+     * @param proceeds Proceeds amount in currency token
+     * @return Borrower surplus, decoded loan receipt, loan receipt hash
+     */
+    function _onCollateralLiquidated(
+        bytes calldata encodedLoanReceipt,
+        uint256 proceeds
+    ) internal returns (uint256, LoanReceipt.LoanReceiptV2 memory, bytes32) {
+        /* Compute loan receipt hash */
+        bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
+
+        /* Validate loan status is liquidated */
+        if (_loans[loanReceiptHash] != LoanStatus.Liquidated) revert InvalidLoanReceipt();
+
+        /* Decode loan receipt */
+        LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
+
+        /* Check if the proceeds have a surplus */
+        bool hasSurplus = proceeds > loanReceipt.repayment;
+
+        /* Compute borrower's share of liquidation surplus */
+        uint256 borrowerSurplus = hasSurplus
+            ? Math.mulDiv(
+                proceeds - loanReceipt.repayment,
+                BORROWER_SURPLUS_SPLIT_BASIS_POINTS,
+                LiquidityLogic.BASIS_POINTS_SCALE
+            )
+            : 0;
+
+        /* Compute lenders' proceeds */
+        uint256 lendersProceeds = proceeds - borrowerSurplus;
+
+        /* Compute total pending */
+        uint256 totalPending = loanReceipt.repayment - loanReceipt.adminFee;
+
+        /* Compute elapsed time since loan origination */
+        uint64 elapsed = uint64(block.timestamp + loanReceipt.duration - loanReceipt.maturity);
+
+        /* Restore liquidity nodes */
+        uint256 proceedsRemaining = lendersProceeds;
+        uint256 lastIndex = loanReceipt.nodeReceipts.length - 1;
+        for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
+            /* Compute amount to restore depending on whether there is a surplus */
+            uint256 restored = (i == lastIndex) ? proceedsRemaining : hasSurplus
+                ? Math.mulDiv(lendersProceeds, loanReceipt.nodeReceipts[i].pending, totalPending)
+                : Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining);
+
+            /* Restore node */
+            _liquidity.restore(
+                loanReceipt.nodeReceipts[i].tick,
+                loanReceipt.nodeReceipts[i].used,
+                loanReceipt.nodeReceipts[i].pending,
+                restored.toUint128(),
+                loanReceipt.duration,
+                elapsed
+            );
+
+            /* Update proceeds remaining */
+            proceedsRemaining -= restored;
+        }
+
+        /* Mark loan status collateral liquidated */
+        _loans[loanReceiptHash] = LoanStatus.CollateralLiquidated;
+
+        return (borrowerSurplus, loanReceipt, loanReceiptHash);
+    }
+
+    /**
      * @dev Helper function to handle deposit accounting
      * @param tick Tick
      * @param amount Amount
@@ -1090,61 +1159,12 @@ abstract contract Pool is
         /* Validate caller is collateral liquidator */
         if (msg.sender != address(_collateralLiquidator)) revert InvalidCaller();
 
-        /* Compute loan receipt hash */
-        bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
-
-        /* Validate loan status is liquidated */
-        if (_loans[loanReceiptHash] != LoanStatus.Liquidated) revert InvalidLoanReceipt();
-
-        /* Decode loan receipt */
-        LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
-
-        /* Check if the proceeds have a surplus */
-        bool hasSurplus = proceeds > loanReceipt.repayment;
-
-        /* Compute borrower's share of liquidation surplus */
-        uint256 borrowerSurplus = hasSurplus
-            ? Math.mulDiv(
-                proceeds - loanReceipt.repayment,
-                BORROWER_SURPLUS_SPLIT_BASIS_POINTS,
-                LiquidityLogic.BASIS_POINTS_SCALE
-            )
-            : 0;
-
-        /* Compute lenders' proceeds */
-        uint256 lendersProceeds = proceeds - borrowerSurplus;
-
-        /* Compute total pending */
-        uint256 totalPending = loanReceipt.repayment - loanReceipt.adminFee;
-
-        /* Compute elapsed time since loan origination */
-        uint64 elapsed = uint64(block.timestamp + loanReceipt.duration - loanReceipt.maturity);
-
-        /* Restore liquidity nodes */
-        uint256 proceedsRemaining = lendersProceeds;
-        uint256 lastIndex = loanReceipt.nodeReceipts.length - 1;
-        for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
-            /* Compute amount to restore depending on whether there is a surplus */
-            uint256 restored = (i == lastIndex) ? proceedsRemaining : hasSurplus
-                ? Math.mulDiv(lendersProceeds, loanReceipt.nodeReceipts[i].pending, totalPending)
-                : Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining);
-
-            /* Restore node */
-            _liquidity.restore(
-                loanReceipt.nodeReceipts[i].tick,
-                loanReceipt.nodeReceipts[i].used,
-                loanReceipt.nodeReceipts[i].pending,
-                restored.toUint128(),
-                loanReceipt.duration,
-                elapsed
-            );
-
-            /* Update proceeds remaining */
-            proceedsRemaining -= restored;
-        }
-
-        /* Mark loan status collateral liquidated */
-        _loans[loanReceiptHash] = LoanStatus.CollateralLiquidated;
+        /* Handle collateral liquidation accounting */
+        (
+            uint256 borrowerSurplus,
+            LoanReceipt.LoanReceiptV2 memory loanReceipt,
+            bytes32 loanReceiptHash
+        ) = _onCollateralLiquidated(encodedLoanReceipt, proceeds);
 
         /* Transfer surplus to borrower */
         if (borrowerSurplus != 0) IERC20(_currencyToken).safeTransfer(loanReceipt.borrower, borrowerSurplus);
