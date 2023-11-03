@@ -3,7 +3,7 @@ pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-import "../CollateralFilter.sol";
+import "./CollateralFilter.sol";
 
 /**
  * @title Merkle Collection Collateral Filter

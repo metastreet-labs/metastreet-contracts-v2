@@ -3,7 +3,7 @@ pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-import "../CollateralFilter.sol";
+import "./CollateralFilter.sol";
 
 /**
  * @title Set Collection Collateral Filter
