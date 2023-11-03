@@ -55,6 +55,11 @@ interface IPool {
      */
     error LoanNotExpired();
 
+    /**
+     * @notice Invalid parameters
+     */
+    error InvalidParameters();
+
     /**************************************************************************/
     /* Events */
     /**************************************************************************/
