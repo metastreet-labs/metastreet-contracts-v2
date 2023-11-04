@@ -45,6 +45,8 @@ class Deployment {
   poolBeacons: { [name: string]: string };
   /* Noop Pool Implementation Address */
   noopPoolImpl?: string;
+  /* ERC20 Deposit Token Implementation Address */
+  erc20DepositTokenImpl?: string;
 
   constructor(
     name?: string,
@@ -53,7 +55,8 @@ class Deployment {
     collateralLiquidators?: { [name: string]: { address: string; beacon: string } },
     collateralWrappers?: { [name: string]: string },
     poolBeacons?: { [name: string]: string },
-    noopPoolImpl?: string
+    noopPoolImpl?: string,
+    erc20DepositTokenImpl?: string
   ) {
     this.name = name;
     this.chainId = chainId;
@@ -62,6 +65,7 @@ class Deployment {
     this.collateralWrappers = collateralWrappers || {};
     this.poolBeacons = poolBeacons || {};
     this.noopPoolImpl = noopPoolImpl;
+    this.erc20DepositTokenImpl = erc20DepositTokenImpl;
   }
 
   static fromFile(path: string): Deployment {
@@ -73,7 +77,8 @@ class Deployment {
       obj.collateralLiquidators,
       obj.collateralWrappers,
       obj.poolBeacons,
-      obj.noopPoolImpl
+      obj.noopPoolImpl,
+      obj.erc20DepositTokenImpl
     );
   }
 
@@ -93,6 +98,7 @@ class Deployment {
     console.log(`Collateral Wrappers:       ${JSON.stringify(this.collateralWrappers, null, 2)}`);
     console.log(`Pool Beacons:              ${JSON.stringify(this.poolBeacons, null, 2)}`);
     console.log(`Noop Pool Implementation:  ${this.noopPoolImpl || "Not deployed"}`);
+    console.log(`ERC20 Implementation:      ${this.erc20DepositTokenImpl || "Not deployed"}`);
   }
 }
 
@@ -200,6 +206,14 @@ async function deploymentShow(deployment: Deployment) {
   console.log(`  Address: ${deployment.noopPoolImpl || "Not Deployed"}`);
   if (deployment.noopPoolImpl) {
     console.log(`  Version: ${await getImplementationVersion(deployment.noopPoolImpl)}`);
+  } else {
+    console.log(`  Version: N/A`);
+  }
+
+  console.log("\nERC20 Deposit Token Implementation");
+  console.log(`  Address: ${deployment.erc20DepositTokenImpl || "Not Deployed"}`);
+  if (deployment.erc20DepositTokenImpl) {
+    console.log(`  Version: ${await getImplementationVersion(deployment.erc20DepositTokenImpl)}`);
   } else {
     console.log(`  Version: N/A`);
   }
@@ -572,6 +586,26 @@ async function noopPoolImplementationDeploy(deployment: Deployment) {
 }
 
 /******************************************************************************/
+/* ERC20 Deposit Token Commands */
+/******************************************************************************/
+
+async function erc20DepositTokenImplementationDeploy(deployment: Deployment) {
+  if (deployment.erc20DepositTokenImpl) {
+    console.error(`ERC20 Deposit Token Implementation already deployed.`);
+    return;
+  }
+
+  const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation", signer);
+
+  /* Deploy ERC20 Deposit Token Implementation */
+  const erc20DepositTokenImpl = await erc20DepositTokenImplFactory.deploy();
+  await erc20DepositTokenImpl.deployed();
+  console.log(`ERC20 Deposit Token Implementation: ${erc20DepositTokenImpl.address}`);
+
+  deployment.erc20DepositTokenImpl = erc20DepositTokenImpl.address;
+}
+
+/******************************************************************************/
 /* Parsers for Arguments */
 /******************************************************************************/
 
@@ -729,6 +763,12 @@ async function main() {
     .command("noop-pool-deploy")
     .description("Deploy Noop Pool Implementation")
     .action(() => noopPoolImplementationDeploy(deployment));
+
+  /* ERC20 Deposit Token Implementation */
+  program
+    .command("erc20-deposit-token-deploy")
+    .description("Deploy ERC20 Deposit Token Implementation")
+    .action(() => erc20DepositTokenImplementationDeploy(deployment));
 
   /* Loan Receipt */
   program
