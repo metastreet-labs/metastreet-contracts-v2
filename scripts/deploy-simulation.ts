@@ -1,5 +1,6 @@
 import { ethers } from "hardhat";
 
+import { getContractFactoryWithLibraries } from "../test/helpers/Deploy";
 import { FixedPoint } from "../test/helpers/FixedPoint";
 import { extractEvent } from "../test/helpers/EventUtilities";
 
@@ -13,7 +14,12 @@ async function main() {
   const ERC1967Proxy = await ethers.getContractFactory("ERC1967Proxy", accounts[9]);
   const BundleCollateralWrapper = await ethers.getContractFactory("BundleCollateralWrapper", accounts[9]);
   const ExternalCollateralLiquidator = await ethers.getContractFactory("ExternalCollateralLiquidator", accounts[9]);
-  const Pool = await ethers.getContractFactory("WeightedRateCollectionPool", accounts[9]);
+  const ERC20DepositTokenImplementation = await ethers.getContractFactory("ERC20DepositTokenImplementation");
+  const Pool = await getContractFactoryWithLibraries(
+    "WeightedRateCollectionPool",
+    ["LiquidityLogic", "DepositLogic", "ERC20DepositTokenFactory"],
+    accounts[9]
+  );
   const PoolFactory = await ethers.getContractFactory("PoolFactory", accounts[9]);
 
   /* Deploy WETH */
@@ -50,10 +56,15 @@ async function main() {
 
   console.log("");
 
+  /* Deploy ERC20 Deposit Token Implementation */
+  const erc20DepositTokenImplementation = await ERC20DepositTokenImplementation.deploy();
+  await erc20DepositTokenImplementation.deployed();
+
   /* Deploy Pool implementation */
   const poolImpl = await Pool.deploy(
     externalCollateralLiquidatorProxy.address,
     ethers.constants.AddressZero,
+    erc20DepositTokenImplementation.address,
     [bundleCollateralWrapper.address],
     [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
   );
@@ -73,7 +84,10 @@ async function main() {
     poolFactoryImpl.interface.encodeFunctionData("initialize")
   );
   await poolFactoryProxy.deployed();
-  const poolFactory = (await ethers.getContractAt("PoolFactory", poolFactoryProxy.address)) as PoolFactory;
+  const poolFactory = (await ethers.getContractAt("PoolFactory", poolFactoryProxy.address, accounts[9])) as PoolFactory;
+
+  /* Add Pool implementation */
+  await poolFactory.addPoolImplementation(poolImpl.address);
 
   console.log("Pool Factory:               ", poolFactory.address);
 
