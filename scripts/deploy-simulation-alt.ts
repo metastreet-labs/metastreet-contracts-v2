@@ -1,10 +1,13 @@
 /* eslint-disable camelcase */
-import { BigNumber } from "@ethersproject/bignumber";
 import { ethers } from "hardhat";
+import { BigNumber } from "@ethersproject/bignumber";
+
+import { ERC20__factory, ERC721__factory, Pool__factory } from "../typechain";
+
+import { getContractFactoryWithLibraries } from "../test/helpers/Deploy";
 import { extractEvent } from "../test/helpers/EventUtilities";
 import { FixedPoint } from "../test/helpers/FixedPoint";
 import { Tick } from "../test/helpers/Tick";
-import { ERC20__factory, ERC721__factory, Pool__factory } from "../typechain";
 import { MerkleTree } from "../test/helpers/MerkleTree";
 
 async function main() {
@@ -13,14 +16,17 @@ async function main() {
   /**************************************************************************/
   /* Misc */
   /**************************************************************************/
+
   /* Deploy Bundle Collateral Wrapper */
   const BundleCollateralWrapper = await ethers.getContractFactory("BundleCollateralWrapper", accounts[9]);
   const bundleCollateralWrapper = await BundleCollateralWrapper.deploy();
   console.log("BundleCollateralWrapper: ", bundleCollateralWrapper.address);
+
   /* Deploy ERC1155 Collateral Wrapper */
   const ERC1155CollateralWrapper = await ethers.getContractFactory("ERC1155CollateralWrapper", accounts[9]);
   const erc1155CollateralWrapper = await ERC1155CollateralWrapper.deploy();
   console.log("ERC1155CollateralWrapper: ", erc1155CollateralWrapper.address);
+
   /* Deploy English Auction Collateral Liquidator Implementation */
   const EnglishAuctionCollateralLiquidator = await ethers.getContractFactory(
     "EnglishAuctionCollateralLiquidator",
@@ -29,6 +35,7 @@ async function main() {
   const englishAuctionCollateralLiquidatorImpl = await EnglishAuctionCollateralLiquidator.deploy([
     bundleCollateralWrapper.address,
   ]);
+
   /* Deploy English Auction Collateral Liquidator (Proxied) */
   const TestProxy = await ethers.getContractFactory("TestProxy", accounts[9]);
   const englishAuctionCollateralLiquidatorProxy = await TestProxy.deploy(
@@ -40,14 +47,18 @@ async function main() {
       ethers.BigNumber.from(199),
     ])
   );
+
   console.log("EnglishAuctionCollateralLiquidator: ", englishAuctionCollateralLiquidatorProxy.address);
+
   /**************************************************************************/
   /* PoolFactory */
   /**************************************************************************/
+
   /* Deploy Pool Factory implementation */
   const PoolFactory = await ethers.getContractFactory("PoolFactory");
   const poolFactoryImpl = await PoolFactory.deploy();
   await poolFactoryImpl.deployed();
+
   /* Deploy Pool Factory */
   const ERC1967Proxy = await ethers.getContractFactory("ERC1967Proxy", accounts[9]);
   const poolFactoryProxy = await ERC1967Proxy.deploy(
@@ -57,6 +68,7 @@ async function main() {
   await poolFactoryProxy.deployed();
   const poolFactory = await ethers.getContractAt("PoolFactory", poolFactoryProxy.address, accounts[9]);
   console.log("PoolFactory: ", poolFactory.address);
+
   /**************************************************************************/
   /* Pool implementations */
   /**************************************************************************/
@@ -66,9 +78,12 @@ async function main() {
   await testDelegationRegistry.deployed();
   console.log("TestDelegationRegistry: ", testDelegationRegistry.address);
   /* Deploy WeightedRateCollectionPool Implementation */
-  const WeightedRateCollectionPool = await ethers.getContractFactory("WeightedRateCollectionPool", accounts[9]);
+  const WeightedRateCollectionPool = await getContractFactoryWithLibraries(
+    "WeightedRateCollectionPool",
+    ["LiquidityLogic", "DepositLogic", "ERC20DepositTokenFactory"],
+    accounts[9]
+  );
   const weightedRateCollectionPoolImpl = await WeightedRateCollectionPool.deploy(
-    5000,
     englishAuctionCollateralLiquidatorProxy.address,
     testDelegationRegistry.address,
     [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
@@ -79,13 +94,14 @@ async function main() {
   );
   await weightedRateCollectionPoolImpl.deployed();
   await poolFactory.addPoolImplementation(weightedRateCollectionPoolImpl.address);
+
   /* Deploy WeightedRateRangedCollectionPool Implementation */
-  const WeightedRateRangedCollectionPool = await ethers.getContractFactory(
+  const WeightedRateRangedCollectionPool = await getContractFactoryWithLibraries(
     "WeightedRateRangedCollectionPool",
+    ["LiquidityLogic", "DepositLogic", "ERC20DepositTokenFactory"],
     accounts[9]
   );
   const weightedRateRangedCollectionPoolImpl = await WeightedRateRangedCollectionPool.deploy(
-    5000,
     englishAuctionCollateralLiquidatorProxy.address,
     testDelegationRegistry.address,
     [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
@@ -96,10 +112,14 @@ async function main() {
   );
   await weightedRateRangedCollectionPoolImpl.deployed();
   console.log("WeightedRateRangedCollectionPool Implementation: ", weightedRateRangedCollectionPoolImpl.address);
+
   /* Deploy WeightedRateSetCollectionPool Implementation */
-  const WeightedRateSetCollectionPool = await ethers.getContractFactory("WeightedRateSetCollectionPool", accounts[9]);
+  const WeightedRateSetCollectionPool = await getContractFactoryWithLibraries(
+    "WeightedRateSetCollectionPool",
+    ["LiquidityLogic", "DepositLogic", "ERC20DepositTokenFactory"],
+    accounts[9]
+  );
   const weightedRateSetCollectionPoolImpl = await WeightedRateSetCollectionPool.deploy(
-    5000,
     englishAuctionCollateralLiquidatorProxy.address,
     testDelegationRegistry.address,
     [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
@@ -112,12 +132,12 @@ async function main() {
   console.log("WeightedRateSetCollectionPool Implementation: ", weightedRateSetCollectionPoolImpl.address);
 
   /* Deploy WeightedRateMerkleCollectionPool Implementation */
-  const WeightedRateMerkleCollectionPool = await ethers.getContractFactory(
+  const WeightedRateMerkleCollectionPool = await getContractFactoryWithLibraries(
     "WeightedRateMerkleCollectionPool",
+    ["LiquidityLogic", "DepositLogic", "ERC20DepositTokenFactory"],
     accounts[9]
   );
   const weightedRateMerkleCollectionPoolImpl = await WeightedRateMerkleCollectionPool.deploy(
-    5000,
     englishAuctionCollateralLiquidatorProxy.address,
     testDelegationRegistry.address,
     [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
@@ -128,9 +148,11 @@ async function main() {
   );
   await weightedRateMerkleCollectionPoolImpl.deployed();
   console.log("WeightedRateMerkleCollectionPool Implementation: ", weightedRateMerkleCollectionPoolImpl.address);
+
   /**************************************************************************/
   /* Pool beacons */
   /**************************************************************************/
+
   const UpgradeableBeacon = await ethers.getContractFactory("UpgradeableBeacon");
 
   const weightedRateCollectionPoolBeacon = await UpgradeableBeacon.deploy(weightedRateCollectionPoolImpl.address);
@@ -156,18 +178,22 @@ async function main() {
   await weightedRateMerkleCollectionPoolBeacon.deployed();
   console.log("WeightedRateMerkleCollectionPool Beacon: ", weightedRateMerkleCollectionPoolBeacon.address);
   await poolFactory.addPoolImplementation(weightedRateMerkleCollectionPoolBeacon.address);
+
   /**************************************************************************/
   /* Currency token */
   /**************************************************************************/
+
   const TestERC20 = await ethers.getContractFactory("TestERC20");
   const wethTokenContract = await TestERC20.deploy("Wrapped ETH", "WETH", 18, ethers.utils.parseEther("10000000"));
   await wethTokenContract.deployed();
   await wethTokenContract.transfer(accounts[0].address, ethers.utils.parseEther("5000000"));
   await wethTokenContract.transfer(accounts[1].address, ethers.utils.parseEther("5000000"));
   console.log("WETH : ", wethTokenContract.address);
+
   /**************************************************************************/
   /* Mint ERC721s */
   /**************************************************************************/
+
   const tokenIds = [0, 1, 2, 3];
   const TestERC721 = await ethers.getContractFactory("TestERC721");
   const collectionNames = [
@@ -185,9 +211,11 @@ async function main() {
     await Promise.all([tokenIds.map((id) => nftContract.mint(accounts[0].address, id))]);
     console.log("%s: %s", name, nftContract.address);
   }
+
   /**************************************************************************/
   /* Mint ERC1155s */
   /**************************************************************************/
+
   const TestERC1155 = await ethers.getContractFactory("TestERC1155");
   const uri = "ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/";
   const erc1155 = await TestERC1155.deploy(uri);
@@ -200,9 +228,11 @@ async function main() {
     "0x"
   );
   collateralTokens.push(erc1155.address);
+
   /**************************************************************************/
   /* Pools */
   /**************************************************************************/
+
   const pools: string[] = [];
   const poolsTicks: Record<string, BigNumber[]> = {};
   const durations = [30 * 86400, 14 * 86400, 7 * 86400];
@@ -280,9 +310,11 @@ async function main() {
     pools.push(poolAddress);
     poolsTicks[poolAddress] = ticks;
   }
+
   /**************************************************************************/
   /* Loans */
   /**************************************************************************/
+
   {
     const collateralToken = collateralTokens[0];
     const poolAddress = pools[0];
@@ -351,9 +383,11 @@ async function main() {
       );
     }
   }
+
   /**************************************************************************/
   /* Auctions */
   /**************************************************************************/
+
   const collateralToken = collateralTokens[1];
   const poolAddress = pools[1];
   const poolTicks = poolsTicks[poolAddress];
