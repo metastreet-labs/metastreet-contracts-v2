@@ -1,4 +1,4 @@
-import { ethers } from "hardhat";
+import { ethers, artifacts } from "hardhat";
 import { Command, InvalidArgumentError } from "commander";
 import fs from "fs";
 
@@ -468,7 +468,27 @@ async function poolImplementationDeploy(deployment: Deployment, name: string, co
     return;
   }
 
-  const poolFactory = await ethers.getContractFactory(contractName, signer);
+  /* Lookup libraries for Pool implementation contract */
+  const poolImplLinkReferences = (await artifacts.readArtifact(contractName)).linkReferences;
+  const libraryEntries = Object.entries(poolImplLinkReferences).flatMap(([k, v]) =>
+    Object.keys(v).map((v) => ({ fullName: `${k}:${v}`, name: `${v}` }))
+  );
+
+  /* Deploy libraries */
+  const libraries: { [key: string]: string } = {};
+  for (const libraryEntry of libraryEntries) {
+    const libFactory = await ethers.getContractFactory(libraryEntry.fullName, signer);
+    const lib = await libFactory.deploy();
+    await lib.deployed();
+
+    console.log(`Library ${libraryEntry.name}: ${lib.address}`);
+
+    libraries[libraryEntry.fullName] = lib.address;
+  }
+  console.log();
+
+  /* Get Pool implementation and beacon factories */
+  const poolFactory = await ethers.getContractFactory(contractName, { libraries, signer });
   const upgradeableBeaconFactory = await ethers.getContractFactory("UpgradeableBeacon", signer);
 
   /* Deploy implementation contract */
