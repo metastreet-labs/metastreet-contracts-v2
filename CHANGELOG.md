@@ -1,3 +1,10 @@
+* Pool v2.3 - 11/15/2023
+    * Add ERC20 tokenization of deposit positions.
+    * Add collateral wrapper support to `quote()` API.
+    * Add `depositSharePrice()` and `redemptionSharePrice()` APIs to
+      ILiquidity.
+    * Refactor Pool logic into linked libraries.
+
 * EnglishAuctionCollateralLiquidator v1.2 - 10/27/2023
     * Add generic support for wrapped collateral.
 
