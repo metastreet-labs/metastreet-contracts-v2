@@ -1,7 +1,8 @@
-import { ethers } from "hardhat";
+import { ethers, artifacts } from "hardhat";
 import { Command, InvalidArgumentError } from "commander";
 import fs from "fs";
 
+import { ContractFactory } from "@ethersproject/contracts";
 import { BigNumber } from "@ethersproject/bignumber";
 import { Network } from "@ethersproject/networks";
 import { Signer } from "@ethersproject/abstract-signer";
@@ -462,21 +463,44 @@ async function collateralWrapperUpgrade(deployment: Deployment, contractName: st
 /* Pool Implementation Commands */
 /******************************************************************************/
 
+async function poolImplementationFactory(contractName: string): Promise<ContractFactory> {
+  /* Lookup libraries for Pool implementation contract */
+  const poolImplLinkReferences = (await artifacts.readArtifact(contractName)).linkReferences;
+  const libraryEntries = Object.entries(poolImplLinkReferences).flatMap(([k, v]) =>
+    Object.keys(v).map((v) => ({ fullName: `${k}:${v}`, name: `${v}` }))
+  );
+
+  /* Deploy libraries */
+  const libraries: { [key: string]: string } = {};
+  console.log();
+  for (const libraryEntry of libraryEntries) {
+    const libFactory = await ethers.getContractFactory(libraryEntry.fullName, signer);
+    const lib = await libFactory.deploy();
+    await lib.deployed();
+
+    console.log(`Library ${libraryEntry.name}: ${lib.address}`);
+
+    libraries[libraryEntry.fullName] = lib.address;
+  }
+  console.log();
+
+  return await ethers.getContractFactory(contractName, { libraries, signer });
+}
+
 async function poolImplementationDeploy(deployment: Deployment, name: string, contractName: string, args: string[]) {
   if (deployment.poolBeacons[name]) {
     console.error(`Pool implementation ${name} already deployed.`);
     return;
   }
 
-  const poolFactory = await ethers.getContractFactory(contractName, signer);
-  const upgradeableBeaconFactory = await ethers.getContractFactory("UpgradeableBeacon", signer);
-
   /* Deploy implementation contract */
+  const poolFactory = await poolImplementationFactory(contractName);
   const poolImpl = await poolFactory.deploy(...decodeArgs(args));
   await poolImpl.deployed();
   console.log(`Pool Implementation: ${poolImpl.address}`);
 
   /* Deploy upgradeable beacon */
+  const upgradeableBeaconFactory = await ethers.getContractFactory("UpgradeableBeacon", signer);
   const upgradeableBeacon = await upgradeableBeaconFactory.deploy(poolImpl.address);
   await upgradeableBeacon.deployed();
   console.log(`Pool Beacon:         ${upgradeableBeacon.address}`);
@@ -495,12 +519,12 @@ async function poolImplementationUpgrade(deployment: Deployment, name: string, c
     deployment.poolBeacons[name],
     signer
   )) as UpgradeableBeacon;
-  const poolFactory = await ethers.getContractFactory(contractName, signer);
 
   console.log(`Old Pool Implementation: ${await upgradeableBeacon.implementation()}`);
   console.log(`Old Pool Version:        ${await getImplementationVersion(await upgradeableBeacon.implementation())}`);
 
   /* Deploy new implementation contract */
+  const poolFactory = await poolImplementationFactory(contractName);
   const poolImpl = await poolFactory.deploy(...decodeArgs(args));
   await poolImpl.deployed();
 
