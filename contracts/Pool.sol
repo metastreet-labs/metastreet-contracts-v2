@@ -8,19 +8,15 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import "./filters/CollateralFilter.sol";
 import "./rates/InterestRateModel.sol";
 import "./tokenization/DepositToken.sol";
 
 import "./LoanReceipt.sol";
-import "./LiquidityLogic.sol";
 import "./DepositLogic.sol";
 import "./BorrowLogic.sol";
 
-import "./interfaces/IPool.sol";
-import "./interfaces/ILiquidity.sol";
 import "./interfaces/ICollateralWrapper.sol";
 import "./interfaces/ICollateralLiquidator.sol";
 import "./interfaces/ICollateralLiquidationReceiver.sol";
