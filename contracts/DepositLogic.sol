@@ -2,7 +2,6 @@
 pragma solidity 0.8.20;
 
 import "./Pool.sol";
-import "./Tick.sol";
 import "./LiquidityLogic.sol";
 
 import "./interfaces/IPool.sol";
