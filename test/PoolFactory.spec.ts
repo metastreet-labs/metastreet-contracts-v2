@@ -9,7 +9,8 @@ import {
   TestERC721,
   TestProxy,
   ExternalCollateralLiquidator,
-  TestDelegationRegistry,
+  TestDelegateRegistryV1,
+  TestDelegateRegistryV2,
   Pool,
   PoolFactory,
   BundleCollateralWrapper,
@@ -27,7 +28,8 @@ describe("PoolFactory", function () {
   let poolFactoryImpl: PoolFactory;
   let poolFactory: PoolFactory;
   let snapshotId: string;
-  let delegationRegistry: TestDelegationRegistry;
+  let delegateRegistryV1: TestDelegateRegistryV1;
+  let delegateRegistryV2: TestDelegateRegistryV2;
   let bundleCollateralWrapper: BundleCollateralWrapper;
   let erc20DepositTokenImpl: ERC20DepositTokenImplementation;
 
@@ -40,7 +42,8 @@ describe("PoolFactory", function () {
     const erc1967ProxyFactory = await ethers.getContractFactory("ERC1967Proxy");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
     const poolFactoryImplFactory = await ethers.getContractFactory("PoolFactory");
-    const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
+    const delegateRegistryV1Factory = await ethers.getContractFactory("TestDelegateRegistryV1");
+    const delegateRegistryV2Factory = await ethers.getContractFactory("TestDelegateRegistryV2");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
     const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation");
     const poolImplFactory = await getContractFactoryWithLibraries("WeightedRateCollectionPool", [
@@ -73,9 +76,13 @@ describe("PoolFactory", function () {
       proxy.address
     )) as ExternalCollateralLiquidator;
 
-    /* Deploy test delegation registry */
-    delegationRegistry = await delegationRegistryFactory.deploy();
-    await delegationRegistry.deployed();
+    /* Deploy test delegation registry v1 */
+    delegateRegistryV1 = await delegateRegistryV1Factory.deploy();
+    await delegateRegistryV1.deployed();
+
+    /* Deploy test delegation registry v2 */
+    delegateRegistryV2 = await delegateRegistryV2Factory.deploy();
+    await delegateRegistryV2.deployed();
 
     /* Deploy bundle collateral wrapper */
     bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
@@ -88,7 +95,8 @@ describe("PoolFactory", function () {
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       collateralLiquidator.address,
-      delegationRegistry.address,
+      delegateRegistryV1.address,
+      delegateRegistryV2.address,
       erc20DepositTokenImpl.address,
       [bundleCollateralWrapper.address],
       [FixedPoint.from("0.05"), FixedPoint.from("2.0")]

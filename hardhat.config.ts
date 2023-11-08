@@ -22,6 +22,18 @@ const config: HardhatUserConfig = {
           outputSelection: { "*": { "*": ["storageLayout"] } },
         },
       },
+      {
+        version: "0.8.21",
+        settings: {
+          viaIR: true,
+          optimizer: {
+            enabled: true,
+            runs: 800,
+          },
+          evmVersion: "shanghai",
+          outputSelection: { "*": { "*": ["storageLayout"] } },
+        },
+      },
     ],
   },
   networks: {

@@ -10,6 +10,8 @@ import {
   TestERC1155,
   TestProxy,
   TestLoanReceipt,
+  TestDelegateRegistryV1,
+  TestDelegateRegistryV2,
   EnglishAuctionCollateralLiquidator,
   ExternalCollateralLiquidator,
   Pool,
@@ -39,6 +41,8 @@ describe("Pool Gas", function () {
   let accountLender: SignerWithAddress;
   let accountLiquidator: SignerWithAddress;
   let bundleCollateralWrapper: BundleCollateralWrapper;
+  let delegateRegistryV1: TestDelegateRegistryV1;
+  let delegateRegistryV2: TestDelegateRegistryV2;
   let erc20DepositTokenImpl: ERC20DepositTokenImplementation;
 
   before("deploy fixture", async () => {
@@ -49,6 +53,8 @@ describe("Pool Gas", function () {
     const testLoanReceiptFactory = await ethers.getContractFactory("TestLoanReceipt");
     const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
+    const delegateRegistryV1Factory = await ethers.getContractFactory("TestDelegateRegistryV1");
+    const delegateRegistryV2Factory = await ethers.getContractFactory("TestDelegateRegistryV2");
     const bundleCollateralWrapperFactory = await ethers.getContractFactory("BundleCollateralWrapper");
     const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation");
     const poolImplFactory = await getContractFactoryWithLibraries("WeightedRateCollectionPool", [
@@ -85,6 +91,14 @@ describe("Pool Gas", function () {
       proxy.address
     )) as ExternalCollateralLiquidator;
 
+    /* Deploy test delegation registry v1 */
+    delegateRegistryV1 = await delegateRegistryV1Factory.deploy();
+    await delegateRegistryV1.deployed();
+
+    /* Deploy test delegation registry v2 */
+    delegateRegistryV2 = await delegateRegistryV2Factory.deploy();
+    await delegateRegistryV2.deployed();
+
     /* Deploy bundle collateral wrapper */
     bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
     await bundleCollateralWrapper.deployed();
@@ -96,7 +110,8 @@ describe("Pool Gas", function () {
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       externalCollateralLiquidator.address,
-      ethers.constants.AddressZero,
+      delegateRegistryV1.address,
+      delegateRegistryV2.address,
       erc20DepositTokenImpl.address,
       [bundleCollateralWrapper.address],
       [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
@@ -461,6 +476,71 @@ describe("Pool Gas", function () {
 
         expect(gasUsed).to.be.lt(maxGas - 15000);
       });
+
+      it(`borrow with v1 delegation (single, existing, ${numTicks} ticks)`, async function () {
+        /* Mint and transfer NFT to pool */
+        await nft1.mint(accountBorrower.address, 150);
+        await nft1.connect(accountBorrower).transferFrom(accountBorrower.address, pool.address, 150);
+
+        /* Source liquidity */
+        const ticks = await sourceLiquidity(pool, principal);
+        expect(ticks.length).to.equal(numTicks);
+
+        /* Borrow */
+        const borrowTx = await pool
+          .connect(accountBorrower)
+          .borrow(
+            principal,
+            30 * 86400,
+            nft1.address,
+            123,
+            principal.add(FixedPoint.from("1")),
+            ticks,
+            ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [3, 20, accountBorrower.address])
+          );
+
+        /* Validate correct number of nodes were used */
+        const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+        const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
+        expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
+
+        const gasUsed = (await borrowTx.wait()).gasUsed;
+        gasReport.push([this.test.title, gasUsed]);
+        expect(gasUsed).to.be.lt(maxGas + 257000 - 15000);
+      });
+
+      it(`borrow with v2 delegation (single, existing, ${numTicks} ticks)`, async function () {
+        /* Mint and transfer NFT to pool */
+        await nft1.mint(accountBorrower.address, 150);
+        await nft1.connect(accountBorrower).transferFrom(accountBorrower.address, pool.address, 150);
+
+        /* Source liquidity */
+        const ticks = await sourceLiquidity(pool, principal);
+        expect(ticks.length).to.equal(numTicks);
+
+        /* Borrow */
+        const borrowTx = await pool
+          .connect(accountBorrower)
+          .borrow(
+            principal,
+            30 * 86400,
+            nft1.address,
+            123,
+            principal.add(FixedPoint.from("1")),
+            ticks,
+            ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [4, 20, accountBorrower.address])
+          );
+
+        /* Validate correct number of nodes were used */
+        const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+        const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
+        expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
+
+        const gasUsed = (await borrowTx.wait()).gasUsed;
+        gasReport.push([this.test.title, gasUsed]);
+
+        expect(gasUsed).to.be.lt(maxGas + 184000 - 15000);
+      });
     }
 
     for (const [principal, numTicks, maxGas] of [
@@ -562,8 +642,8 @@ describe("Pool Gas", function () {
     });
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("15"), 10, 325000],
-      [FixedPoint.from("25"), 16, 450000],
+      [FixedPoint.from("15"), 10, 349000],
+      [FixedPoint.from("25"), 16, 474000],
     ]) {
       it(`repay (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
@@ -589,11 +669,77 @@ describe("Pool Gas", function () {
 
         expect(gasUsed).to.be.lt(maxGas);
       });
+
+      it(`repay with v1 delegation (single, ${numTicks} ticks)`, async function () {
+        /* Source liquidity */
+        const ticks = await sourceLiquidity(pool, principal);
+        expect(ticks.length).to.equal(numTicks);
+
+        /* Borrow */
+        const borrowTx = await pool
+          .connect(accountBorrower)
+          .borrow(
+            principal,
+            30 * 86400,
+            nft1.address,
+            123,
+            principal.add(FixedPoint.from("1")),
+            ticks,
+            ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [3, 20, accountBorrower.address])
+          );
+
+        /* Validate correct number of nodes were used */
+        const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+        const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
+        expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
+
+        await helpers.time.increase(15 * 86400);
+
+        const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
+
+        const gasUsed = (await repayTx.wait()).gasUsed;
+        gasReport.push([this.test.title, gasUsed]);
+
+        expect(gasUsed).to.be.lt(maxGas + 25000);
+      });
+
+      it(`repay with v2 delegation (single, ${numTicks} ticks)`, async function () {
+        /* Source liquidity */
+        const ticks = await sourceLiquidity(pool, principal);
+        expect(ticks.length).to.equal(numTicks);
+
+        /* Borrow */
+        const borrowTx = await pool
+          .connect(accountBorrower)
+          .borrow(
+            principal,
+            30 * 86400,
+            nft1.address,
+            123,
+            principal.add(FixedPoint.from("1")),
+            ticks,
+            ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [4, 20, accountBorrower.address])
+          );
+
+        /* Validate correct number of nodes were used */
+        const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+        const decodedLoanReceipt = await pool.decodeLoanReceipt(loanReceipt);
+        expect(decodedLoanReceipt.nodeReceipts.length).to.equal(numTicks);
+
+        await helpers.time.increase(15 * 86700);
+
+        const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
+
+        const gasUsed = (await repayTx.wait()).gasUsed;
+        gasReport.push([this.test.title, gasUsed]);
+
+        expect(gasUsed).to.be.lt(maxGas + 35000);
+      });
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 345000],
-      [FixedPoint.from("250"), 16, 470000],
+      [FixedPoint.from("150"), 10, 371000],
+      [FixedPoint.from("250"), 16, 496000],
     ]) {
       it(`repay (bundle of 10, ${numTicks} ticks)`, async function () {
         /* Mint bundle of 10 */
@@ -757,7 +903,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await liquidateTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(190000);
+      expect(gasUsed).to.be.lt(216000);
     });
 
     it("liquidate (bundle of 10, external, 16 ticks)", async function () {
@@ -796,7 +942,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await liquidateTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(200000);
+      expect(gasUsed).to.be.lt(223000);
     });
 
     describe("english auction collateral liquidator", async function () {
@@ -850,6 +996,7 @@ describe("Pool Gas", function () {
         /* Deploy pool implementation */
         poolEACLImpl = (await poolImplFactory.deploy(
           englishAuctionCollateralLiquidator.address,
+          ethers.constants.AddressZero,
           ethers.constants.AddressZero,
           erc20DepositTokenImpl.address,
           [bundleCollateralWrapper.address],
@@ -949,7 +1096,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await liquidateTx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
 
-        expect(gasUsed).to.be.lt(706500);
+        expect(gasUsed).to.be.lt(709000);
       });
 
       it("bid (first, english auction)", async function () {
@@ -1125,6 +1272,7 @@ describe("Pool Gas", function () {
       poolImpl = (await poolImplFactory.deploy(
         collateralLiquidator.address,
         ethers.constants.AddressZero,
+        ethers.constants.AddressZero,
         erc20DepositTokenImpl.address,
         [],
         [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
@@ -1264,6 +1412,7 @@ describe("Pool Gas", function () {
       /* Deploy pool implementation */
       poolImpl = (await poolImplFactory.deploy(
         collateralLiquidator.address,
+        ethers.constants.AddressZero,
         ethers.constants.AddressZero,
         erc20DepositTokenImpl.address,
         [ERC1155CollateralWrapper.address],
