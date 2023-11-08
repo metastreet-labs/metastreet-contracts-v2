@@ -202,10 +202,16 @@ interface IPool {
     function collateralLiquidator() external view returns (address);
 
     /**
-     * @notice Get delegation registry contract
+     * @notice Get delegation registry v1 contract
      * @return Delegation registry contract
      */
     function delegationRegistry() external view returns (address);
+
+    /**
+     * @notice Get delegation registry v2 contract
+     * @return Delegation registry contract
+     */
+    function delegationRegistryV2() external view returns (address);
 
     /**************************************************************************/
     /* Deposit API */

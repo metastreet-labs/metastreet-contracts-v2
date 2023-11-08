@@ -25,8 +25,6 @@ import "./interfaces/ICollateralWrapper.sol";
 import "./interfaces/ICollateralLiquidator.sol";
 import "./interfaces/ICollateralLiquidationReceiver.sol";
 
-import "./integrations/DelegateCash/IDelegationRegistry.sol";
-
 /**
  * @title Pool
  * @author MetaStreet Labs
@@ -89,6 +87,24 @@ abstract contract Pool is
     }
 
     /**
+     * @notice Delegate
+     * @param version Delegate version
+     * @param to Delegate address
+     */
+    struct Delegate {
+        DelegateVersion version;
+        address to;
+    }
+
+    /**
+     * @custom:storage-location erc7201:pool.delegateStorage
+     */
+    struct DelegateStorage {
+        /* Mapping of collateralToken to token ID to Delegate */
+        mapping(address => mapping(uint256 => Delegate)) delegates;
+    }
+
+    /**
      * @notice Loan status
      */
     enum LoanStatus {
@@ -106,7 +122,17 @@ abstract contract Pool is
         None,
         CollateralWrapperContext,
         CollateralFilterContext,
-        DelegateCash
+        DelegateCashV1,
+        DelegateCashV2
+    }
+
+    /**
+     * @notice Delegate version
+     */
+    enum DelegateVersion {
+        None,
+        DelegateCashV1,
+        DelegateCashV2
     }
 
     /**************************************************************************/
@@ -126,9 +152,21 @@ abstract contract Pool is
     ICollateralLiquidator internal immutable _collateralLiquidator;
 
     /**
-     * @notice Delegation registry contract
+     * @notice Delegate registry v1 contract
      */
-    IDelegationRegistry internal immutable _delegationRegistry;
+    address internal immutable _delegateRegistryV1;
+
+    /**
+     * @notice Delegate registry v2 contract
+     */
+    address internal immutable _delegateRegistryV2;
+
+    /**
+     * @notice Delegate cash storage slot
+     * @dev keccak256(abi.encode(uint256(keccak256("erc7201:pool.delegateStorage")) - 1)) & ~bytes32(uint256(0xff));
+     */
+    bytes32 internal constant DELEGATE_STORAGE_LOCATION =
+        0xf0e5094ebd597f2042580340ce53d1b15e5b64e0d8be717ecde51dd37c619300;
 
     /**************************************************************************/
     /* State */
@@ -170,14 +208,21 @@ abstract contract Pool is
     /**
      * @notice Pool constructor
      * @param collateralLiquidator_ Collateral liquidator
-     * @param delegationRegistry_ Delegation registry contract
+     * @param delegateRegistryV1_ Delegate registry v1 contract
+     * @param delegateRegistryV2_ Delegate registry v2 contract
      * @param collateralWrappers_ Collateral wrappers
      */
-    constructor(address collateralLiquidator_, address delegationRegistry_, address[] memory collateralWrappers_) {
+    constructor(
+        address collateralLiquidator_,
+        address delegateRegistryV1_,
+        address delegateRegistryV2_,
+        address[] memory collateralWrappers_
+    ) {
         if (collateralWrappers_.length > 3) revert InvalidParameters();
 
         _collateralLiquidator = ICollateralLiquidator(collateralLiquidator_);
-        _delegationRegistry = IDelegationRegistry(delegationRegistry_);
+        _delegateRegistryV1 = delegateRegistryV1_;
+        _delegateRegistryV2 = delegateRegistryV2_;
         _collateralWrapper1 = (collateralWrappers_.length > 0) ? collateralWrappers_[0] : address(0);
         _collateralWrapper2 = (collateralWrappers_.length > 1) ? collateralWrappers_[1] : address(0);
         _collateralWrapper3 = (collateralWrappers_.length > 2) ? collateralWrappers_[2] : address(0);
@@ -302,7 +347,14 @@ abstract contract Pool is
      * @inheritdoc IPool
      */
     function delegationRegistry() external view returns (address) {
-        return address(_delegationRegistry);
+        return address(_delegateRegistryV1);
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
+    function delegationRegistryV2() external view returns (address) {
+        return address(_delegateRegistryV2);
     }
 
     /**
@@ -430,49 +482,12 @@ abstract contract Pool is
     }
 
     /**
-     * @notice Helper function that calls delegate.cash registry to delegate
-     * token
-     * @param collateralToken Collateral token
-     * @param collateralTokenId Collateral token ID
-     * @param options Options data
+     * @notice Get reference to ERC-7201 delegate storage
+     * @return $ Reference to delegate storage
      */
-    function _optionDelegateCash(address collateralToken, uint256 collateralTokenId, bytes calldata options) internal {
-        /* Find delegate.cash tagged data in options */
-        bytes calldata delegateData = BorrowLogic._getOptionsData(options, BorrowOptions.DelegateCash);
-
-        if (delegateData.length != 0) {
-            if (address(_delegationRegistry) == address(0)) revert InvalidBorrowOptions();
-            if (delegateData.length != 20) revert InvalidBorrowOptions();
-
-            /* Delegate token */
-            _delegationRegistry.delegateForToken(
-                address(uint160(bytes20(delegateData))),
-                collateralToken,
-                collateralTokenId,
-                true
-            );
-        }
-    }
-
-    /**
-     * @dev Helper function to revoke token delegate
-     * @param collateralToken Contract address of token that delegation is being removed from
-     * @param collateralTokenId Token id of token that delegation is being removed from
-     */
-    function _revokeDelegates(address collateralToken, uint256 collateralTokenId) internal {
-        /* No operation if _delegationRegistry not set */
-        if (address(_delegationRegistry) == address(0)) return;
-
-        /* Get delegates for collateral token and id */
-        address[] memory delegates = _delegationRegistry.getDelegatesForToken(
-            address(this),
-            collateralToken,
-            collateralTokenId
-        );
-
-        for (uint256 i; i < delegates.length; i++) {
-            /* Revoke by setting value to false */
-            _delegationRegistry.delegateForToken(delegates[i], collateralToken, collateralTokenId, false);
+    function _getDelegateStorage() private pure returns (DelegateStorage storage $) {
+        assembly {
+            $.slot := DELEGATE_STORAGE_LOCATION
         }
     }
 
@@ -627,7 +642,14 @@ abstract contract Pool is
         );
 
         /* Handle delegate.cash option */
-        _optionDelegateCash(collateralToken, collateralTokenId, options);
+        BorrowLogic._optionDelegateCash(
+            _getDelegateStorage(),
+            collateralToken,
+            collateralTokenId,
+            _delegateRegistryV1,
+            _delegateRegistryV2,
+            options
+        );
 
         /* Transfer collateral from borrower to pool */
         IERC721(collateralToken).transferFrom(msg.sender, address(this), collateralTokenId);
@@ -652,7 +674,13 @@ abstract contract Pool is
         );
 
         /* Revoke delegates */
-        _revokeDelegates(loanReceipt.collateralToken, loanReceipt.collateralTokenId);
+        BorrowLogic._revokeDelegates(
+            _getDelegateStorage(),
+            loanReceipt.collateralToken,
+            loanReceipt.collateralTokenId,
+            _delegateRegistryV1,
+            _delegateRegistryV2
+        );
 
         /* Transfer repayment from borrower to pool */
         _storage.currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), repayment);
@@ -742,7 +770,13 @@ abstract contract Pool is
         );
 
         /* Revoke delegates */
-        _revokeDelegates(loanReceipt.collateralToken, loanReceipt.collateralTokenId);
+        BorrowLogic._revokeDelegates(
+            _getDelegateStorage(),
+            loanReceipt.collateralToken,
+            loanReceipt.collateralTokenId,
+            _delegateRegistryV1,
+            _delegateRegistryV2
+        );
 
         /* Approve collateral for transfer to _collateralLiquidator */
         IERC721(loanReceipt.collateralToken).approve(address(_collateralLiquidator), loanReceipt.collateralTokenId);

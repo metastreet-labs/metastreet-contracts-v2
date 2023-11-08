@@ -74,11 +74,24 @@ async function main() {
   /**************************************************************************/
   /* Pool implementations */
   /**************************************************************************/
-  /* Deploy Test Delegation Registry */
-  const TestDelegationRegistry = await ethers.getContractFactory("TestDelegationRegistry", accounts[9]);
-  const testDelegationRegistry = await TestDelegationRegistry.deploy();
-  await testDelegationRegistry.deployed();
-  console.log("TestDelegationRegistry: ", testDelegationRegistry.address);
+
+  /* Deploy Test Delegate Registry V1 */
+  const TestDelegateRegistryV1 = await ethers.getContractFactory("TestDelegateRegistryV1", accounts[9]);
+  const testDelegateRegistryV1 = await TestDelegateRegistryV1.deploy();
+  await testDelegateRegistryV1.deployed();
+  console.log("TestDelegateV1Registry: ", testDelegateRegistryV1.address);
+
+  /* Deploy Test Delegate Registry V2 */
+  const TestDelegateRegistryV2 = await ethers.getContractFactory("TestDelegateRegistryV2", accounts[9]);
+  const testDelegateRegistryV2 = await TestDelegateRegistryV2.deploy();
+  await testDelegateRegistryV2.deployed();
+  console.log("TestDelegateV2Registry: ", testDelegateRegistryV2.address);
+
+  /* Deploy ERC20 Deposit Token Implementation */
+  const ERC20DepositTokenImplementation = await ethers.getContractFactory("ERC20DepositTokenImplementation");
+  const erc20DepositTokenImplementation = await ERC20DepositTokenImplementation.deploy();
+  await erc20DepositTokenImplementation.deployed();
+
   /* Deploy WeightedRateCollectionPool Implementation */
   const WeightedRateCollectionPool = await getContractFactoryWithLibraries(
     "WeightedRateCollectionPool",
@@ -87,7 +100,8 @@ async function main() {
   );
   const weightedRateCollectionPoolImpl = await WeightedRateCollectionPool.deploy(
     englishAuctionCollateralLiquidatorProxy.address,
-    testDelegationRegistry.address,
+    testDelegateRegistryV1.address,
+    testDelegateRegistryV2.address,
     erc20DepositTokenImplementation.address,
     [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
     {
@@ -106,7 +120,8 @@ async function main() {
   );
   const weightedRateRangedCollectionPoolImpl = await WeightedRateRangedCollectionPool.deploy(
     englishAuctionCollateralLiquidatorProxy.address,
-    testDelegationRegistry.address,
+    testDelegateRegistryV1.address,
+    testDelegateRegistryV2.address,
     erc20DepositTokenImplementation.address,
     [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
     {
@@ -125,7 +140,8 @@ async function main() {
   );
   const weightedRateSetCollectionPoolImpl = await WeightedRateSetCollectionPool.deploy(
     englishAuctionCollateralLiquidatorProxy.address,
-    testDelegationRegistry.address,
+    testDelegateRegistryV1.address,
+    testDelegateRegistryV2.address,
     erc20DepositTokenImplementation.address,
     [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
     {
@@ -144,7 +160,8 @@ async function main() {
   );
   const weightedRateMerkleCollectionPoolImpl = await WeightedRateMerkleCollectionPool.deploy(
     englishAuctionCollateralLiquidatorProxy.address,
-    testDelegationRegistry.address,
+    testDelegateRegistryV1.address,
+    testDelegateRegistryV2.address,
     erc20DepositTokenImplementation.address,
     [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
     {
