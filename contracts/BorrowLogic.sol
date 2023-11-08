@@ -9,6 +9,8 @@ import "./LoanReceipt.sol";
 import "./LiquidityLogic.sol";
 
 import "./interfaces/IPool.sol";
+import "./integrations/DelegateCash/IDelegateRegistryV1.sol";
+import "./integrations/DelegateCash/IDelegateRegistryV2.sol";
 
 /**
  * @title Borrow Logic
@@ -79,6 +81,114 @@ library BorrowLogic {
 
         /* Return empty slice if no tag is found */
         return options[0:0];
+    }
+
+    /**
+     * @notice Helper function that calls delegate.cash registry to delegate token
+     *
+     * @param delegations Delegate storage
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
+     * @param delegateRegistryV1 Delegate registry v1 address
+     * @param delegateRegistryV2 Delegate registry v2 address
+     * @param options Options data
+     */
+    function _optionDelegateCash(
+        Pool.DelegateStorage storage delegations,
+        address collateralToken,
+        uint256 collateralTokenId,
+        address delegateRegistryV1,
+        address delegateRegistryV2,
+        bytes calldata options
+    ) internal {
+        /* Find delegate.cash v2 tagged data in options */
+        bytes calldata delegateDataV2 = _getOptionsData(options, Pool.BorrowOptions.DelegateCashV2);
+
+        if (delegateDataV2.length != 0) {
+            if (delegateRegistryV2 == address(0)) revert IPool.InvalidBorrowOptions();
+            if (delegateDataV2.length != 20) revert IPool.InvalidBorrowOptions();
+
+            /* Store delegate in mapping */
+            delegations.delegates[collateralToken][collateralTokenId] = Pool.Delegate({
+                version: Pool.DelegateVersion.DelegateCashV2,
+                to: address(uint160(bytes20(delegateDataV2)))
+            });
+
+            /* Delegate token */
+            IDelegateRegistryV2(delegateRegistryV2).delegateERC721(
+                address(uint160(bytes20(delegateDataV2))),
+                collateralToken,
+                collateralTokenId,
+                "",
+                true
+            );
+
+            /* Return if found, skip additional search */
+            return;
+        }
+
+        /* Find delegate.cash v1 tagged data in options, if v2 data is empty */
+        bytes calldata delegateDataV1 = _getOptionsData(options, Pool.BorrowOptions.DelegateCashV1);
+
+        if (delegateDataV1.length != 0) {
+            if (delegateRegistryV1 == address(0)) revert IPool.InvalidBorrowOptions();
+            if (delegateDataV1.length != 20) revert IPool.InvalidBorrowOptions();
+
+            /* Store delegate in mapping */
+            delegations.delegates[collateralToken][collateralTokenId] = Pool.Delegate({
+                version: Pool.DelegateVersion.DelegateCashV1,
+                to: address(uint160(bytes20(delegateDataV1)))
+            });
+
+            /* Delegate token */
+            IDelegateRegistryV1(delegateRegistryV1).delegateForToken(
+                address(uint160(bytes20(delegateDataV1))),
+                collateralToken,
+                collateralTokenId,
+                true
+            );
+        }
+    }
+
+    /**
+     * @notice Helper function to revoke token delegate
+     *
+     * @param delegations Delegate storage
+     * @param collateralToken Contract address of token that delegation is being removed from
+     * @param collateralTokenId Token id of token that delegation is being removed from
+     * @param delegateRegistryV1 Delegate registry v1 address
+     * @param delegateRegistryV2 Delegate registry v2 address
+     */
+    function _revokeDelegates(
+        Pool.DelegateStorage storage delegations,
+        address collateralToken,
+        uint256 collateralTokenId,
+        address delegateRegistryV1,
+        address delegateRegistryV2
+    ) internal {
+        Pool.Delegate memory delegate = delegations.delegates[collateralToken][collateralTokenId];
+
+        if (delegate.version == Pool.DelegateVersion.None) {
+            return;
+        } else if (delegate.version == Pool.DelegateVersion.DelegateCashV2) {
+            IDelegateRegistryV2(delegateRegistryV2).delegateERC721(
+                delegate.to,
+                collateralToken,
+                collateralTokenId,
+                "",
+                false
+            );
+        } else if (delegate.version == Pool.DelegateVersion.DelegateCashV1) {
+            IDelegateRegistryV1(delegateRegistryV1).delegateForToken(
+                delegate.to,
+                collateralToken,
+                collateralTokenId,
+                false
+            );
+        }
+
+        /* Remove delegate from mapping */
+        delete delegations.delegates[collateralToken][collateralTokenId];
     }
 
     /**

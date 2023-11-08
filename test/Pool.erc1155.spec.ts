@@ -9,7 +9,8 @@ import {
   TestERC1155,
   TestProxy,
   TestLoanReceipt,
-  TestDelegationRegistry,
+  TestDelegateRegistryV1,
+  TestDelegateRegistryV2,
   ExternalCollateralLiquidator,
   Pool,
   ERC1155CollateralWrapper,
@@ -34,7 +35,8 @@ describe("Pool ERC1155", function () {
   let accountBorrower: SignerWithAddress;
   let accountLender: SignerWithAddress;
   let accountLiquidator: SignerWithAddress;
-  let delegationRegistry: TestDelegationRegistry;
+  let delegateRegistryV1: TestDelegateRegistryV1;
+  let delegateRegistryV2: TestDelegateRegistryV2;
   let ERC1155CollateralWrapper: ERC1155CollateralWrapper;
   let erc20DepositTokenImpl: ERC20DepositTokenImplementation;
 
@@ -46,7 +48,8 @@ describe("Pool ERC1155", function () {
     const testLoanReceiptFactory = await ethers.getContractFactory("TestLoanReceipt");
     const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
-    const delegationRegistryFactory = await ethers.getContractFactory("TestDelegationRegistry");
+    const delegateRegistryV1Factory = await ethers.getContractFactory("TestDelegateRegistryV1");
+    const delegateRegistryV2Factory = await ethers.getContractFactory("TestDelegateRegistryV2");
     const ERC1155CollateralWrapperFactory = await ethers.getContractFactory("ERC1155CollateralWrapper");
     const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation");
     const poolImplFactory = await getContractFactoryWithLibraries("WeightedRateCollectionPool", [
@@ -83,9 +86,13 @@ describe("Pool ERC1155", function () {
       proxy.address
     )) as ExternalCollateralLiquidator;
 
-    /* Deploy test delegation registry */
-    delegationRegistry = await delegationRegistryFactory.deploy();
-    await delegationRegistry.deployed();
+    /* Deploy test delegation registry v1 */
+    delegateRegistryV1 = await delegateRegistryV1Factory.deploy();
+    await delegateRegistryV1.deployed();
+
+    /* Deploy test delegation registry v2 */
+    delegateRegistryV2 = await delegateRegistryV2Factory.deploy();
+    await delegateRegistryV2.deployed();
 
     /* Deploy ERC1155 collateral wrapper */
     ERC1155CollateralWrapper = await ERC1155CollateralWrapperFactory.deploy();
@@ -98,7 +105,8 @@ describe("Pool ERC1155", function () {
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       collateralLiquidator.address,
-      delegationRegistry.address,
+      delegateRegistryV1.address,
+      delegateRegistryV2.address,
       erc20DepositTokenImpl.address,
       [ERC1155CollateralWrapper.address],
       [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
@@ -192,20 +200,28 @@ describe("Pool ERC1155", function () {
     it("returns expected currency token", async function () {
       expect(await pool.currencyToken()).to.equal(tok1.address);
     });
+
     it("returns expected admin fee rate", async function () {
       expect(await pool.adminFeeRate()).to.equal(0);
     });
+
     it("returns expected collateral wrappers", async function () {
       const collateralWrappers = await pool.collateralWrappers();
       expect(collateralWrappers[0]).to.equal(ERC1155CollateralWrapper.address);
       expect(collateralWrappers[1]).to.equal(ethers.constants.AddressZero);
       expect(collateralWrappers[2]).to.equal(ethers.constants.AddressZero);
     });
+
     it("returns expected collateral liquidator", async function () {
       expect(await pool.collateralLiquidator()).to.equal(collateralLiquidator.address);
     });
-    it("returns expected delegation registry", async function () {
-      expect(await pool.delegationRegistry()).to.equal(delegationRegistry.address);
+
+    it("returns expected delegation registry v1", async function () {
+      expect(await pool.delegationRegistry()).to.equal(delegateRegistryV1.address);
+    });
+
+    it("returns expected delegation registry v2", async function () {
+      expect(await pool.delegationRegistryV2()).to.equal(delegateRegistryV2.address);
     });
   });
 
@@ -566,7 +582,7 @@ describe("Pool ERC1155", function () {
         value: FixedPoint.from("25"),
       });
 
-      await expectEvent(borrowTx, delegationRegistry, "DelegateForToken", {
+      await expectEvent(borrowTx, delegateRegistryV1, "DelegateForToken", {
         vault: pool.address,
         delegate: accountBorrower.address,
         contract_: ERC1155CollateralWrapper.address,
