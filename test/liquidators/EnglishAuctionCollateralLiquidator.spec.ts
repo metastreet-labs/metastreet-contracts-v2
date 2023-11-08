@@ -319,7 +319,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
         .withArgs(liquidationHash, testCollateralLiquidatorJig.address, loanReceiptHash, tok1.address, nft1.address, 1);
       await expect(liquidateTx)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, nft1.address, 122);
+        .withArgs(liquidationHash, nft1.address, 122, 1);
 
       /* Validate state */
       const liquidation = await collateralLiquidator.liquidations(liquidationHash);
@@ -381,11 +381,11 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       }
       await expect(liquidateTx)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, nft1.address, tokenIds[0])
+        .withArgs(liquidationHash, nft1.address, tokenIds[0], 1)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, nft1.address, tokenIds[1])
+        .withArgs(liquidationHash, nft1.address, tokenIds[1], 1)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, nft1.address, tokenIds[2]);
+        .withArgs(liquidationHash, nft1.address, tokenIds[2], 1);
 
       /* Validate state */
       for (const [index, tokenId] of tokenIds.entries()) {
@@ -437,7 +437,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
         );
       await expect(liquidateTx)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, bundleCollateralWrapperFake.address, bundleTokenIdFake);
+        .withArgs(liquidationHash, bundleCollateralWrapperFake.address, bundleTokenIdFake, 1);
 
       /* Validate state */
       const liquidation = await collateralLiquidator.liquidations(liquidationHash);
@@ -507,11 +507,11 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       }
       await expect(liquidateTx)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, erc1155.address, tokenIds[0])
+        .withArgs(liquidationHash, erc1155.address, tokenIds[0], 1)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, erc1155.address, tokenIds[1])
+        .withArgs(liquidationHash, erc1155.address, tokenIds[1], 2)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, erc1155.address, tokenIds[2]);
+        .withArgs(liquidationHash, erc1155.address, tokenIds[2], 3);
 
       /* Validate state */
       for (const [index, tokenId] of tokenIds.entries()) {

@@ -949,7 +949,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await liquidateTx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
 
-        expect(gasUsed).to.be.lt(705000);
+        expect(gasUsed).to.be.lt(706500);
       });
 
       it("bid (first, english auction)", async function () {

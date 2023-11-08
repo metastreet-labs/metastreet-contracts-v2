@@ -133,11 +133,13 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      * @param liquidationHash Liquidation hash
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
+     * @param quantity Quantity of collateral token
      */
     event AuctionCreated(
         bytes32 indexed liquidationHash,
         address indexed collateralToken,
-        uint256 indexed collateralTokenId
+        uint256 indexed collateralTokenId,
+        uint256 quantity
     );
 
     /**
@@ -422,7 +424,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         });
 
         /* Emit AuctionCreated */
-        emit AuctionCreated(liquidationHash, collateralToken, collateralTokenId);
+        emit AuctionCreated(liquidationHash, collateralToken, collateralTokenId, quantity);
     }
 
     /**

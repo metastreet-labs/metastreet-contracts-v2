@@ -273,11 +273,11 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       }
       await expect(liquidateTx)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, WPUNKS_ADDRESS, tokenIds[0])
+        .withArgs(liquidationHash, WPUNKS_ADDRESS, tokenIds[0], 1)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, WPUNKS_ADDRESS, tokenIds[1])
+        .withArgs(liquidationHash, WPUNKS_ADDRESS, tokenIds[1], 1)
         .to.emit(collateralLiquidator, "AuctionCreated")
-        .withArgs(liquidationHash, WPUNKS_ADDRESS, tokenIds[2]);
+        .withArgs(liquidationHash, WPUNKS_ADDRESS, tokenIds[2], 1);
 
       /* Validate state */
       for (const [index, tokenId] of tokenIds.entries()) {
