@@ -4,20 +4,22 @@ pragma solidity 0.8.20;
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
 import "../LoanReceipt.sol";
 
 import "../interfaces/ICollateralLiquidator.sol";
 import "../interfaces/ICollateralLiquidationReceiver.sol";
+import "../interfaces/ICollateralBidder.sol";
 
 /**
  * @title Testing Jig for Collateral Liquidators
  * @author MetaStreet Labs
  */
-contract TestCollateralLiquidatorJig is ERC165, ERC721Holder, ICollateralLiquidationReceiver {
+contract TestCollateralLiquidatorJig is ERC165, IERC721Receiver, IERC1155Receiver, ICollateralLiquidationReceiver {
     using SafeERC20 for IERC20;
 
     /**************************************************************************/
@@ -53,6 +55,11 @@ contract TestCollateralLiquidatorJig is ERC165, ERC721Holder, ICollateralLiquida
      */
     address private _collateralLiquidator;
 
+    /**
+     * @dev Force revert flag
+     */
+    bool private _forceRevert = false;
+
     /**************************************************************************/
     /* Constructor */
     /**************************************************************************/
@@ -83,6 +90,46 @@ contract TestCollateralLiquidatorJig is ERC165, ERC721Holder, ICollateralLiquida
      */
     function collateralLiquidator() external view returns (address) {
         return address(_collateralLiquidator);
+    }
+
+    /**************************************************************************/
+    /* Hooks */
+    /**************************************************************************/
+
+    function onERC721Received(address, address, uint256, bytes memory) public virtual override returns (bytes4) {
+        if (_forceRevert) {
+            revert ForceRevert();
+        }
+
+        return this.onERC721Received.selector;
+    }
+
+    function onERC1155Received(
+        address,
+        address,
+        uint256,
+        uint256,
+        bytes memory
+    ) public virtual override returns (bytes4) {
+        if (_forceRevert) {
+            revert ForceRevert();
+        }
+
+        return this.onERC1155Received.selector;
+    }
+
+    function onERC1155BatchReceived(
+        address,
+        address,
+        uint256[] memory,
+        uint256[] memory,
+        bytes memory
+    ) public virtual override returns (bytes4) {
+        if (_forceRevert) {
+            revert ForceRevert();
+        }
+
+        return this.onERC1155BatchReceived.selector;
     }
 
     /**************************************************************************/
@@ -124,6 +171,66 @@ contract TestCollateralLiquidatorJig is ERC165, ERC721Holder, ICollateralLiquida
         emit CollateralLiquidated(proceeds);
     }
 
+    /**
+     * @notice Bid on an auction
+     * @param liquidationHash Liquidation hash
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
+     * @param amount Bid amount
+     */
+    function bid(bytes32 liquidationHash, address collateralToken, uint256 collateralTokenId, uint256 amount) external {
+        /* Approve bid amount */
+        _currencyToken.approve(_collateralLiquidator, amount);
+
+        /* Bid on collateral */
+        ICollateralBidder(_collateralLiquidator).bid(liquidationHash, collateralToken, collateralTokenId, amount);
+    }
+
+    /**
+     * @notice Claim collateral and liquidate if possible
+     * @param liquidationHash Liquidation hash
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
+     * @param liquidationContext Liquidation context
+     * @param forceRevert Force revert
+     */
+    function claim(
+        bytes32 liquidationHash,
+        address collateralToken,
+        uint256 collateralTokenId,
+        bytes calldata liquidationContext,
+        bool forceRevert
+    ) external {
+        _forceRevert = forceRevert;
+
+        /* Claim collateral */
+        ICollateralBidder(_collateralLiquidator).claim(
+            liquidationHash,
+            collateralToken,
+            collateralTokenId,
+            liquidationContext
+        );
+    }
+
+    /**
+     * @notice Retry claim collateral after liquidation has been processed
+     * @param liquidationHash Liquidation hash
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
+     * @param forceRevert Force revert
+     */
+    function claimRetry(
+        bytes32 liquidationHash,
+        address collateralToken,
+        uint256 collateralTokenId,
+        bool forceRevert
+    ) external {
+        _forceRevert = forceRevert;
+
+        /* Claim collateral */
+        ICollateralBidder(_collateralLiquidator).claimRetry(liquidationHash, collateralToken, collateralTokenId);
+    }
+
     /******************************************************/
     /* ERC165 interface */
     /******************************************************/
@@ -131,7 +238,7 @@ contract TestCollateralLiquidatorJig is ERC165, ERC721Holder, ICollateralLiquida
     /**
      * @inheritdoc IERC165
      */
-    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view override(ERC165, IERC165) returns (bool) {
         return interfaceId == type(ICollateralLiquidationReceiver).interfaceId || super.supportsInterface(interfaceId);
     }
 }

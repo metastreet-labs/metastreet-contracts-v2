@@ -444,7 +444,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         Liquidation memory liquidation_ = _liquidations[liquidationHash];
 
         /* Validate liquidation exists */
-        if (liquidation_.source == address(0)) revert InvalidClaim();
+        if (liquidation_.auctionCount == 0) revert InvalidClaim();
 
         /* Validate liquidation context */
         if (liquidation_.liquidationContextHash != _liquidationContextHash(liquidationContext)) revert InvalidClaim();
@@ -463,8 +463,8 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
                 ERC165Checker.supportsInterface(liquidation_.source, type(ICollateralLiquidationReceiver).interfaceId)
             ) ICollateralLiquidationReceiver(liquidation_.source).onCollateralLiquidated(liquidationContext, proceeds);
 
-            /* Delete liquidation since all auctions are completed */
-            delete _liquidations[liquidationHash];
+            /* Update auction count to 0 since all auctions are completed */
+            _liquidations[liquidationHash].auctionCount = 0;
 
             /* Emit LiquidationEnded */
             emit LiquidationEnded(liquidationHash, proceeds);
@@ -477,6 +477,53 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         }
 
         return liquidation_.collateralToken;
+    }
+
+    /**
+     * @notice Helper function to transfer collateral to winner if possible
+     * @param auction_ Auction
+     * @param liquidationHash Liquidation hash
+     * @param liquidationCollateralToken Liquidation collateral token
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
+     */
+    function _claimCollateral(
+        Auction memory auction_,
+        bytes32 liquidationHash,
+        address liquidationCollateralToken,
+        address collateralToken,
+        uint256 collateralTokenId
+    ) internal {
+        /* Declare transfer success boolean */
+        bool success;
+
+        /* Transfer collateral from contract to auction winner */
+        if (_isCollateralWrapper(liquidationCollateralToken)) {
+            /* Get transfer call target and calldata */
+            (address target, bytes memory data) = ICollateralWrapper(liquidationCollateralToken).transferCalldata(
+                collateralToken,
+                address(this),
+                auction_.highestBidder,
+                collateralTokenId,
+                auction_.quantity
+            );
+
+            /* Transfer underlying collateral */
+            (success, ) = target.call(data);
+        } else {
+            /* Transfer ERC721 collateral */
+            (success, ) = address(collateralToken).call(
+                abi.encodeWithSignature(
+                    "safeTransferFrom(address,address,uint256)",
+                    address(this),
+                    auction_.highestBidder,
+                    collateralTokenId
+                )
+            );
+        }
+
+        /* Delete auction if transfer success */
+        if (success) delete _auctions[liquidationHash][collateralToken][collateralTokenId];
     }
 
     /**************************************************************************/
@@ -507,7 +554,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         bytes32 liquidationHash = _liquidationHash(collateralToken, collateralTokenId);
 
         /* Validate liquidation does not exist */
-        if (_liquidations[liquidationHash].source != address(0)) revert InvalidLiquidation();
+        if (_liquidations[liquidationHash].auctionCount != 0) revert InvalidLiquidation();
 
         /* Declare underlying collateral token address and IDs */
         address underlyingCollateralToken;
@@ -596,7 +643,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         Liquidation memory liquidation_ = _liquidations[liquidationHash];
 
         /* Validate liquidation exists */
-        if (liquidation_.source == address(0)) revert InvalidAuction();
+        if (liquidation_.auctionCount == 0) revert InvalidAuction();
 
         /* Validate that auction exists */
         if (auction_.quantity == 0) revert InvalidAuction();
@@ -679,30 +726,10 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         if (uint64(block.timestamp) <= auction_.endTime) revert InvalidClaim();
 
         /* Process liquidation proceeds */
-        address collateralToken_ = _processLiquidation(auction_, liquidationHash, liquidationContext);
+        address liquidationCollateralToken = _processLiquidation(auction_, liquidationHash, liquidationContext);
 
-        /* Delete auction */
-        delete _auctions[liquidationHash][collateralToken][collateralTokenId];
-
-        /* Transfer collateral from contract to auction winner */
-        if (_isCollateralWrapper(collateralToken_)) {
-            /* Get transfer call target and calldata */
-            (address target, bytes memory data) = ICollateralWrapper(collateralToken_).transferCalldata(
-                collateralToken,
-                address(this),
-                auction_.highestBidder,
-                collateralTokenId,
-                auction_.quantity
-            );
-
-            /* Transfer collateral */
-            (bool success, ) = target.call(data);
-
-            /* Validate call success */
-            if (!success) revert InvalidClaim();
-        } else {
-            IERC721(collateralToken).transferFrom(address(this), auction_.highestBidder, collateralTokenId);
-        }
+        /* Transfer collateral token to highest bidder */
+        _claimCollateral(auction_, liquidationHash, liquidationCollateralToken, collateralToken, collateralTokenId);
 
         /* Emit AuctionEnded */
         emit AuctionEnded(
@@ -712,5 +739,32 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
             auction_.highestBidder,
             auction_.highestBid
         );
+    }
+
+    /**
+     * @notice Retry claim collateral after process liquidation completed
+     * @param liquidationHash Liquidation hash
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
+     */
+    function claimRetry(
+        bytes32 liquidationHash,
+        address collateralToken,
+        uint256 collateralTokenId
+    ) external nonReentrant {
+        /* Get liquidation */
+        Liquidation memory liquidation_ = _liquidations[liquidationHash];
+
+        /* Validate process liquidations completed */
+        if (liquidation_.auctionCount != 0) revert InvalidClaim();
+
+        /* Get auction */
+        Auction memory auction_ = _auctions[liquidationHash][collateralToken][collateralTokenId];
+
+        /* Validate auction exists */
+        if (auction_.quantity == 0) revert InvalidAuction();
+
+        /* Transfer collateral token to highest bidder */
+        _claimCollateral(auction_, liquidationHash, liquidation_.collateralToken, collateralToken, collateralTokenId);
     }
 }
