@@ -176,7 +176,7 @@ contract BundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard 
         uint256 tokenId,
         uint256
     ) external pure returns (address, bytes memory) {
-        return (token, abi.encodeWithSelector(IERC721.transferFrom.selector, from, to, tokenId));
+        return (token, abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", from, to, tokenId));
     }
 
     /**************************************************************************/

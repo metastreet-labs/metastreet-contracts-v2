@@ -174,6 +174,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
     await nft1.mint(testCollateralLiquidatorJigTruncated.address, 131);
 
     /* Transfer token to liquidator account and bidder accounts */
+    await tok1.transfer(testCollateralLiquidatorJig.address, ethers.utils.parseEther("200"));
     await tok1.transfer(accountLiquidator.address, ethers.utils.parseEther("200"));
     await tok1.transfer(accountBidder1.address, ethers.utils.parseEther("200"));
     await tok1.transfer(accountBidder2.address, ethers.utils.parseEther("200"));
@@ -910,11 +911,12 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expect(auction.endTime).to.equal(ethers.constants.Zero);
 
       const liquidation = await collateralLiquidator.liquidations(liquidationHash);
-      await expect(liquidation.source).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation.proceeds).to.equal(ethers.constants.Zero);
+      await expect(liquidation.proceeds).to.equal(0);
       await expect(liquidation.auctionCount).to.equal(ethers.constants.Zero);
-      await expect(liquidation.currencyToken).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation.liquidationContextHash).to.equal(ethers.constants.HashZero);
+      await expect(liquidation.source).to.equal(testCollateralLiquidatorJig.address);
+      await expect(liquidation.currencyToken).to.equal(tok1.address);
+      await expect(liquidation.collateralToken).to.equal(nft1.address);
+      await expect(liquidation.liquidationContextHash).to.equal(loanReceiptHash);
     });
 
     it("claims bundled collateral", async function () {
@@ -1071,17 +1073,23 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expect(auction3.endTime).to.equal(ethers.constants.Zero);
 
       const liquidation3 = await collateralLiquidator.liquidations(liquidationHash);
-      await expect(liquidation3.source).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation3.proceeds).to.equal(ethers.constants.Zero);
-      await expect(liquidation3.auctionCount).to.equal(0);
-      await expect(liquidation3.currencyToken).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation3.collateralToken).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation3.liquidationContextHash).to.equal(ethers.constants.HashZero);
+      await expect(liquidation3.source).to.equal(testCollateralLiquidatorJig.address);
+      await expect(liquidation3.proceeds).to.equal(ethers.utils.parseEther("3"));
+      await expect(liquidation3.auctionCount).to.equal(ethers.constants.Zero);
+      await expect(liquidation3.currencyToken).to.equal(tok1.address);
+      await expect(liquidation3.collateralToken).to.equal(bundleCollateralWrapper.address);
+      await expect(liquidation3.liquidationContextHash).to.equal(loanReceiptHash);
     });
 
     it("claims as non-winner", async function () {
       /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
+
+      /* Construct loan receipt hash */
+      const loanReceiptHash = ethers.utils.solidityKeccak256(
+        ["bytes"],
+        [ethers.utils.solidityPack(["uint256", "bytes"], [network.config.chainId, loanReceipt])]
+      );
 
       /* Calling liquidate() */
       const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
@@ -1127,17 +1135,23 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expect(auction.endTime).to.equal(ethers.constants.Zero);
 
       const liquidation = await collateralLiquidator.liquidations(liquidationHash);
-      await expect(liquidation.source).to.equal(ethers.constants.AddressZero);
+      await expect(liquidation.source).to.equal(testCollateralLiquidatorJig.address);
       await expect(liquidation.proceeds).to.equal(ethers.constants.Zero);
-      await expect(liquidation.auctionCount).to.equal(0);
-      await expect(liquidation.currencyToken).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation.collateralToken).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation.liquidationContextHash).to.equal(ethers.constants.HashZero);
+      await expect(liquidation.auctionCount).to.equal(ethers.constants.Zero);
+      await expect(liquidation.currencyToken).to.equal(tok1.address);
+      await expect(liquidation.collateralToken).to.equal(nft1.address);
+      await expect(liquidation.liquidationContextHash).to.equal(loanReceiptHash);
     });
 
     it("claims collateral liquidated by EOA", async function () {
       /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 129, 0, "0x"));
+
+      /* Construct loan receipt hash */
+      const loanReceiptHash = ethers.utils.solidityKeccak256(
+        ["bytes"],
+        [ethers.utils.solidityPack(["uint256", "bytes"], [network.config.chainId, loanReceipt])]
+      );
 
       /* Calling liquidate() */
       const liquidateTx = await collateralLiquidator
@@ -1187,17 +1201,23 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expect(auction.endTime).to.equal(ethers.constants.Zero);
 
       const liquidation = await collateralLiquidator.liquidations(liquidationHash);
-      await expect(liquidation.source).to.equal(ethers.constants.AddressZero);
+      await expect(liquidation.source).to.equal(accountBidder1.address);
       await expect(liquidation.proceeds).to.equal(ethers.constants.Zero);
       await expect(liquidation.auctionCount).to.equal(ethers.constants.Zero);
-      await expect(liquidation.currencyToken).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation.collateralToken).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation.liquidationContextHash).to.equal(ethers.constants.HashZero);
+      await expect(liquidation.currencyToken).to.equal(tok1.address);
+      await expect(liquidation.collateralToken).to.equal(nft1.address);
+      await expect(liquidation.liquidationContextHash).to.equal(loanReceiptHash);
     });
 
     it("partial successful claim originating from a contract that does not implement onCollateralLiquidate", async function () {
       /* Construct loan receipt */
       const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 131, 0, "0x"));
+
+      /* Construct loan receipt hash */
+      const loanReceiptHash = ethers.utils.solidityKeccak256(
+        ["bytes"],
+        [ethers.utils.solidityPack(["uint256", "bytes"], [network.config.chainId, loanReceipt])]
+      );
 
       /* Calling liquidate() */
       const liquidateTx = await testCollateralLiquidatorJigTruncated.liquidate(loanReceipt);
@@ -1245,12 +1265,12 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expect(auction.endTime).to.equal(ethers.constants.Zero);
 
       const liquidation = await collateralLiquidator.liquidations(liquidationHash);
-      await expect(liquidation.source).to.equal(ethers.constants.AddressZero);
+      await expect(liquidation.source).to.equal(testCollateralLiquidatorJigTruncated.address);
       await expect(liquidation.proceeds).to.equal(ethers.constants.Zero);
-      await expect(liquidation.auctionCount).to.equal(ethers.constants.Zero);
-      await expect(liquidation.currencyToken).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation.collateralToken).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation.liquidationContextHash).to.equal(ethers.constants.HashZero);
+      await expect(liquidation.auctionCount).to.equal(0);
+      await expect(liquidation.currencyToken).to.equal(tok1.address);
+      await expect(liquidation.collateralToken).to.equal(nft1.address);
+      await expect(liquidation.liquidationContextHash).to.equal(loanReceiptHash);
     });
 
     it("claims erc155 collateral", async function () {
@@ -1422,12 +1442,12 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expect(auction3.endTime).to.equal(ethers.constants.Zero);
 
       const liquidation3 = await collateralLiquidator.liquidations(liquidationHash);
-      await expect(liquidation3.source).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation3.proceeds).to.equal(ethers.constants.Zero);
-      await expect(liquidation3.auctionCount).to.equal(0);
-      await expect(liquidation3.currencyToken).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation3.collateralToken).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation3.liquidationContextHash).to.equal(ethers.constants.HashZero);
+      await expect(liquidation3.source).to.equal(testCollateralLiquidatorJig.address);
+      await expect(liquidation3.proceeds).to.equal(ethers.utils.parseEther("3"));
+      await expect(liquidation3.auctionCount).to.equal(ethers.constants.Zero);
+      await expect(liquidation3.currencyToken).to.equal(tok1.address);
+      await expect(liquidation3.collateralToken).to.equal(erc1155CollateralWrapper.address);
+      await expect(liquidation3.liquidationContextHash).to.equal(loanReceiptHash);
 
       const accountBidder3Balance = await erc1155.balanceOf(accountBidder3.address, 125);
       await expect(accountBidder3Balance).to.equal(3);
@@ -1555,6 +1575,255 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       /* Claim with accountBidder1 */
       await expect(
         collateralLiquidator.connect(accountBidder1).claim(liquidationHash, nft1.address, 122, loanReceipt)
+      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidAuction");
+    });
+  });
+
+  describe("#claimRetry", async function () {
+    it("success with single collateral", async function () {
+      /* Construct loan receipt */
+      const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
+
+      /* Construct loan receipt hash */
+      const loanReceiptHash = ethers.utils.solidityKeccak256(
+        ["bytes"],
+        [ethers.utils.solidityPack(["uint256", "bytes"], [network.config.chainId, loanReceipt])]
+      );
+
+      /* Calling liquidate() */
+      const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
+
+      /* Get liquidationHash */
+      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "LiquidationStarted")).args[0];
+
+      /* Bid with testCollateralLiquidatorJig */
+      const bidTx = await testCollateralLiquidatorJig
+        .connect(accountBidder1)
+        .bid(liquidationHash, nft1.address, 122, ethers.utils.parseEther("2"));
+
+      /* Fast forward to 1 second after end time */
+      const transactionTime = await getBlockTimestamp(bidTx.blockNumber);
+      await helpers.time.increaseTo(transactionTime + 86400 + 1);
+
+      /* Claim with testCollateralLiquidatorJig with force revert */
+      const claimTx = await testCollateralLiquidatorJig
+        .connect(accountBidder1)
+        .claim(liquidationHash, nft1.address, 122, loanReceipt, true);
+
+      /* Validate event */
+      await expect(claimTx)
+        .to.emit(collateralLiquidator, "AuctionEnded")
+        .withArgs(
+          liquidationHash,
+          nft1.address,
+          122,
+          testCollateralLiquidatorJig.address,
+          ethers.utils.parseEther("2")
+        );
+
+      await expect(claimTx)
+        .to.emit(collateralLiquidator, "LiquidationEnded")
+        .withArgs(liquidationHash, ethers.utils.parseEther("2"));
+
+      await expect(claimTx)
+        .to.emit(testCollateralLiquidatorJig, "CollateralLiquidated")
+        .withArgs(ethers.utils.parseEther("2"));
+
+      await expectEvent(claimTx, tok1, "Transfer", {
+        from: collateralLiquidator.address,
+        to: testCollateralLiquidatorJig.address,
+        value: ethers.utils.parseEther("2"),
+      });
+
+      /* Validate state */
+      let auction = await collateralLiquidator.auctions(liquidationHash, nft1.address, 122);
+      await expect(auction.quantity).to.equal(1);
+      await expect(auction.highestBid).to.equal(ethers.utils.parseEther("2"));
+      await expect(auction.highestBidder).to.equal(testCollateralLiquidatorJig.address);
+
+      let liquidation = await collateralLiquidator.liquidations(liquidationHash);
+      await expect(liquidation.proceeds).to.equal(0);
+      await expect(liquidation.auctionCount).to.equal(ethers.constants.Zero);
+      await expect(liquidation.source).to.equal(testCollateralLiquidatorJig.address);
+      await expect(liquidation.currencyToken).to.equal(tok1.address);
+      await expect(liquidation.collateralToken).to.equal(nft1.address);
+      await expect(liquidation.liquidationContextHash).to.equal(loanReceiptHash);
+
+      /* Claim retry with testCollateralLiquidatorJig with force revert */
+      await testCollateralLiquidatorJig.connect(accountBidder1).claimRetry(liquidationHash, nft1.address, 122, true);
+
+      /* Validate state */
+      auction = await collateralLiquidator.auctions(liquidationHash, nft1.address, 122);
+      await expect(auction.quantity).to.equal(1);
+      await expect(auction.highestBid).to.equal(ethers.utils.parseEther("2"));
+      await expect(auction.highestBidder).to.equal(testCollateralLiquidatorJig.address);
+
+      liquidation = await collateralLiquidator.liquidations(liquidationHash);
+      await expect(liquidation.proceeds).to.equal(0);
+      await expect(liquidation.auctionCount).to.equal(ethers.constants.Zero);
+      await expect(liquidation.source).to.equal(testCollateralLiquidatorJig.address);
+      await expect(liquidation.currencyToken).to.equal(tok1.address);
+      await expect(liquidation.collateralToken).to.equal(nft1.address);
+      await expect(liquidation.liquidationContextHash).to.equal(loanReceiptHash);
+
+      /* Claim retry with testCollateralLiquidatorJig without force revert */
+      const claimRetryTx = await testCollateralLiquidatorJig
+        .connect(accountBidder1)
+        .claimRetry(liquidationHash, nft1.address, 122, false);
+
+      /* Validate events */
+      await expectEvent(claimRetryTx, nft1, "Transfer", {
+        from: collateralLiquidator.address,
+        to: testCollateralLiquidatorJig.address,
+        tokenId: 122,
+      });
+    });
+
+    it("success with ERC1155 collateral", async function () {
+      /* Underlying collateral token IDs */
+      const tokenIds = [123, 124, 125];
+      const tokenIdQuantities = [1, 2, 3];
+
+      /* Construct collateral wrapper context */
+      const collateralWrapperContext = ethers.utils.defaultAbiCoder.encode(
+        ["address", "uint256", "uint256", "uint256[]", "uint256[]"],
+        [erc1155.address, 0, 6, tokenIds, tokenIdQuantities]
+      );
+
+      /* Construct loan receipt */
+      const loanReceipt = await loanReceiptLibrary.encode(
+        makeLoanReceipt(
+          erc1155CollateralWrapper.address,
+          erc1155TokenId,
+          ethers.utils.arrayify(collateralWrapperContext).length,
+          collateralWrapperContext
+        )
+      );
+
+      /* Construct loan receipt hash */
+      const loanReceiptHash = ethers.utils.solidityKeccak256(
+        ["bytes"],
+        [ethers.utils.solidityPack(["uint256", "bytes"], [network.config.chainId, loanReceipt])]
+      );
+
+      /* Calling liquidate() */
+      const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
+
+      /* Validate events */
+      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "LiquidationStarted")).args[0];
+
+      /* Bid with accountBidder1 */
+      const bidTx = await collateralLiquidator
+        .connect(accountBidder1)
+        .bid(liquidationHash, erc1155.address, 123, ethers.utils.parseEther("2"));
+
+      /* Bid with testCollateralLiquidatorJig */
+      await testCollateralLiquidatorJig
+        .connect(accountBidder2)
+        .bid(liquidationHash, erc1155.address, 124, ethers.utils.parseEther("2"));
+
+      /* Bid with accountBidder3 */
+      await testCollateralLiquidatorJig
+        .connect(accountBidder3)
+        .bid(liquidationHash, erc1155.address, 125, ethers.utils.parseEther("2"));
+
+      /* Fast forward to 1 second after end time */
+      const transactionTime = await getBlockTimestamp(bidTx.blockNumber);
+      await helpers.time.increaseTo(transactionTime + 86400 + 1);
+
+      /* Claim with accountBidder1 */
+      await collateralLiquidator.connect(accountBidder1).claim(liquidationHash, erc1155.address, 123, loanReceipt);
+
+      /* Claim with accountBidder3 */
+      await collateralLiquidator.connect(accountBidder3).claim(liquidationHash, erc1155.address, 125, loanReceipt);
+
+      /* Claim with testCollateralLiquidatorJig with force revert */
+      const claimTx = await testCollateralLiquidatorJig
+        .connect(accountBidder2)
+        .claim(liquidationHash, erc1155.address, 124, loanReceipt, true);
+
+      /* Validate event */
+      await expect(claimTx)
+        .to.emit(collateralLiquidator, "AuctionEnded")
+        .withArgs(
+          liquidationHash,
+          erc1155.address,
+          124,
+          testCollateralLiquidatorJig.address,
+          ethers.utils.parseEther("2")
+        );
+
+      await expectEvent(claimTx, tok1, "Transfer", {
+        from: collateralLiquidator.address,
+        to: testCollateralLiquidatorJig.address,
+        value: ethers.utils.parseEther("6"),
+      });
+
+      /* Claim retry with testCollateralLiquidatorJig without force revert */
+      const claimRetryTx = await testCollateralLiquidatorJig
+        .connect(accountBidder1)
+        .claimRetry(liquidationHash, erc1155.address, 124, false);
+
+      /* Validate state */
+      const auction = await collateralLiquidator.auctions(liquidationHash, erc1155.address, 124);
+      await expect(auction.quantity).to.equal(ethers.constants.Zero);
+      await expect(auction.highestBid).to.equal(ethers.constants.Zero);
+      await expect(auction.highestBidder).to.equal(ethers.constants.AddressZero);
+
+      const liquidation = await collateralLiquidator.liquidations(liquidationHash);
+      await expect(liquidation.proceeds).to.equal(ethers.utils.parseEther("4"));
+      await expect(liquidation.auctionCount).to.equal(ethers.constants.Zero);
+      await expect(liquidation.source).to.equal(testCollateralLiquidatorJig.address);
+      await expect(liquidation.currencyToken).to.equal(tok1.address);
+      await expect(liquidation.collateralToken).to.equal(erc1155CollateralWrapper.address);
+      await expect(liquidation.liquidationContextHash).to.equal(loanReceiptHash);
+
+      /* Validate events */
+      await expectEvent(claimRetryTx, erc1155, "TransferSingle", {
+        operator: collateralLiquidator.address,
+        from: collateralLiquidator.address,
+        to: testCollateralLiquidatorJig.address,
+        id: 124,
+        value: 2,
+      });
+    });
+
+    it("fail with claim retry after successful claim retry", async function () {
+      /* Construct loan receipt */
+      const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
+
+      /* Construct loan receipt hash */
+      const loanReceiptHash = ethers.utils.solidityKeccak256(
+        ["bytes"],
+        [ethers.utils.solidityPack(["uint256", "bytes"], [network.config.chainId, loanReceipt])]
+      );
+
+      /* Calling liquidate() */
+      const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
+
+      /* Get liquidationHash */
+      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "LiquidationStarted")).args[0];
+
+      /* Bid with testCollateralLiquidatorJig */
+      const bidTx = await testCollateralLiquidatorJig
+        .connect(accountBidder1)
+        .bid(liquidationHash, nft1.address, 122, ethers.utils.parseEther("2"));
+
+      /* Fast forward to 1 second after end time */
+      const transactionTime = await getBlockTimestamp(bidTx.blockNumber);
+      await helpers.time.increaseTo(transactionTime + 86400 + 1);
+
+      /* Claim with testCollateralLiquidatorJig with force revert */
+      const claimTx = await testCollateralLiquidatorJig
+        .connect(accountBidder1)
+        .claim(liquidationHash, nft1.address, 122, loanReceipt, true);
+
+      /* Claim retry with testCollateralLiquidatorJig without force revert */
+      await testCollateralLiquidatorJig.connect(accountBidder1).claimRetry(liquidationHash, nft1.address, 122, false);
+
+      /* Fail second claim retry with testCollateralLiquidatorJig without force revert */
+      await expect(
+        testCollateralLiquidatorJig.connect(accountBidder1).claimRetry(liquidationHash, nft1.address, 122, false)
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidAuction");
     });
   });

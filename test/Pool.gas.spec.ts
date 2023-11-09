@@ -1012,7 +1012,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await claimTx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
 
-        expect(gasUsed).to.be.lt(500000);
+        expect(gasUsed).to.be.lt(506200);
       });
 
       it("claim (first / middle / last of bundle, english auction)", async function () {
@@ -1047,8 +1047,8 @@ describe("Pool Gas", function () {
         gasReport.push([`claim (last of bundle, english auction)`, gasUsed[9]]);
 
         expect(gasUsed[0]).to.be.lt(128000);
-        expect(gasUsed[4]).to.be.lt(93100);
-        expect(gasUsed[9]).to.be.lt(490000);
+        expect(gasUsed[4]).to.be.lt(93400);
+        expect(gasUsed[9]).to.be.lt(499000);
       });
     });
   });

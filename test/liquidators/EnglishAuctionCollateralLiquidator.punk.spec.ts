@@ -432,12 +432,12 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expect(auction3.endTime).to.equal(ethers.constants.Zero);
 
       const liquidation3 = await collateralLiquidator.liquidations(liquidationHash);
-      await expect(liquidation3.source).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation3.proceeds).to.equal(ethers.constants.Zero);
+      await expect(liquidation3.source).to.equal(testCollateralLiquidatorJig.address);
+      await expect(liquidation3.proceeds).to.equal(ethers.utils.parseEther("3"));
       await expect(liquidation3.auctionCount).to.equal(0);
-      await expect(liquidation3.currencyToken).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation3.collateralToken).to.equal(ethers.constants.AddressZero);
-      await expect(liquidation3.liquidationContextHash).to.equal(ethers.constants.HashZero);
+      await expect(liquidation3.currencyToken).to.equal(tok1.address);
+      await expect(liquidation3.collateralToken).to.equal(punkCollateralWrapper.address);
+      await expect(liquidation3.liquidationContextHash).to.equal(loanReceiptHash);
 
       const ownerOfPunk3 = await cryptoPunksMarket.punkIndexToAddress(PUNK_ID_3);
       await expect(ownerOfPunk3).to.equal(accountBidder3.address);
