@@ -268,6 +268,22 @@ contract ERC20DepositTokenImplementation is IERC20Metadata {
         return _pool.currencyToken();
     }
 
+    /**
+     * @notice Deposit share price
+     * @return Deposit share price
+     */
+    function depositSharePrice() external view returns (uint256) {
+        return _pool.depositSharePrice(_tick);
+    }
+
+    /**
+     * @notice Redemption share price
+     * @return Redemption share price
+     */
+    function redemptionSharePrice() external view returns (uint256) {
+        return _pool.redemptionSharePrice(_tick);
+    }
+
     /**************************************************************************/
     /* Internal Helpers */
     /**************************************************************************/

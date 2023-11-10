@@ -412,6 +412,177 @@ describe("Pool Tokenized", function () {
       });
     });
 
+    describe("#depositSharePrice", async function () {
+      let erc20Token10: ERC20DepositTokenImplementation;
+
+      beforeEach("deposit into new tick", async () => {
+        const depTx = await _depositAndTokenizeMulticall(accountDepositors[0], TICK10, ONE_ETHER);
+        const tokenInstance = (await extractEvent(depTx, pool, "TokenCreated")).args.instance;
+        erc20Token10 = (await ethers.getContractAt(
+          "ERC20DepositTokenImplementation",
+          tokenInstance
+        )) as ERC20DepositTokenImplementation;
+      });
+
+      it("returns correct share price", async function () {
+        expect(await erc20Token10.depositSharePrice()).to.equal(ONE_ETHER);
+      });
+
+      it("returns correct share price after borrow", async function () {
+        await createActiveLoan(ONE_ETHER);
+
+        /* Fast forward one day */
+        await helpers.time.increase(84600);
+
+        /* Cache expected deposit price */
+        const expectedDepositPrice = await erc20Token10.depositSharePrice();
+
+        /* Deposit */
+        const shares = await pool.connect(accountDepositors[1]).callStatic.deposit(TICK10, ONE_ETHER, 0);
+
+        /* Get actual deposit price */
+        const actualDepositPrice = ONE_ETHER.mul(FixedPoint.from("1")).div(shares);
+
+        expect(expectedDepositPrice).to.equal(actualDepositPrice);
+      });
+
+      it("returns correct share price after borrow + repayment", async function () {
+        const [loanReceipt] = await createActiveLoan(ONE_ETHER);
+
+        /* Fast forward one day */
+        await helpers.time.increase(84600);
+
+        /* Repay loan */
+        await pool.connect(accountBorrower).repay(loanReceipt);
+
+        /* Cache expected deposit price */
+        const expectedDepositPrice = await erc20Token10.depositSharePrice();
+
+        /* Deposit */
+        const shares = await pool.connect(accountDepositors[1]).callStatic.deposit(TICK10, ONE_ETHER, 0);
+
+        /* Get actual deposit price */
+        const actualDepositPrice = ONE_ETHER.mul(FixedPoint.from("1")).div(shares);
+
+        expect(expectedDepositPrice).to.equal(actualDepositPrice);
+      });
+
+      it("returns correct share price after multiple deposits + borrow", async function () {
+        /* Next deposit */
+        pool.connect(accountDepositors[2]).deposit(TICK10, ONE_ETHER, 0);
+
+        await createActiveLoan(ONE_ETHER);
+
+        /* Fast forward one day */
+        await helpers.time.increase(84600);
+
+        /* Cache expected deposit price */
+        const expectedDepositPrice = await erc20Token10.depositSharePrice();
+
+        /* Deposit */
+        const shares = await pool.connect(accountDepositors[1]).callStatic.deposit(TICK10, ONE_ETHER, 0);
+
+        /* Get actual deposit price */
+        const actualDepositPrice = ONE_ETHER.mul(FixedPoint.from("1")).div(shares);
+
+        expect(expectedDepositPrice).to.equal(actualDepositPrice);
+      });
+
+      it("returns correct share price after multiple deposits, multiple borrows and multiple repayments", async function () {
+        /* Next deposit */
+        pool.connect(accountDepositors[2]).deposit(TICK10, ONE_ETHER, 0);
+
+        const [loanReceipt1] = await createActiveLoan(ONE_ETHER);
+
+        /* Fast forward one day */
+        await helpers.time.increase(84600);
+
+        /* Repay loan */
+        await pool.connect(accountBorrower).repay(loanReceipt1);
+
+        /* Next borrow */
+        const [loanReceipt2] = await createActiveLoan(ONE_ETHER);
+
+        /* Fast forward one day */
+        await helpers.time.increase(84600);
+
+        /* Repay loan */
+        await pool.connect(accountBorrower).repay(loanReceipt2);
+
+        /* Cache expected deposit price */
+        const expectedDepositPrice = await erc20Token10.depositSharePrice();
+
+        /* Deposit */
+        const shares = await pool.connect(accountDepositors[1]).callStatic.deposit(TICK10, ONE_ETHER, 0);
+
+        /* Get actual deposit price */
+        const actualDepositPrice = ONE_ETHER.mul(FixedPoint.from("1")).div(shares);
+
+        expect(expectedDepositPrice).to.equal(actualDepositPrice);
+      });
+    });
+
+    describe("#redemptionSharePrice", async function () {
+      let erc20Token10: ERC20DepositTokenImplementation;
+
+      beforeEach("deposit into new tick", async () => {
+        const depTx = await _depositAndTokenizeMulticall(accountDepositors[0], TICK10, ONE_ETHER);
+        const tokenInstance = (await extractEvent(depTx, pool, "TokenCreated")).args.instance;
+        erc20Token10 = (await ethers.getContractAt(
+          "ERC20DepositTokenImplementation",
+          tokenInstance
+        )) as ERC20DepositTokenImplementation;
+      });
+
+      it("returns correct redemption share price", async function () {
+        expect(await erc20Token10.redemptionSharePrice()).to.equal(ONE_ETHER);
+      });
+
+      it("returns correct redemption share price after borrow", async function () {
+        await createActiveLoan(ONE_ETHER);
+
+        /* Fast forward one day */
+        await helpers.time.increase(84600);
+
+        /* Cache expected deposit price */
+        const expectedRedemptionPrice = await erc20Token10.redemptionSharePrice();
+
+        /* Deposit */
+        const redemptionTx = await pool.connect(accountDepositors[0]).redeem(TICK10, ONE_ETHER);
+        const redemptionShares = (await extractEvent(redemptionTx, pool, "Redeemed")).args.shares;
+
+        /* Get actual redemption price */
+        const actualRedemptionPrice = ONE_ETHER.mul(FixedPoint.from("1")).div(redemptionShares);
+
+        expect(expectedRedemptionPrice).to.equal(actualRedemptionPrice);
+      });
+
+      it("returns correct redemption share price after borrow + repay", async function () {
+        const [loanReceipt] = await createActiveLoan(ONE_ETHER);
+
+        /* Fast forward one day */
+        await helpers.time.increase(84600);
+
+        /* Repay loan */
+        await pool.connect(accountBorrower).repay(loanReceipt);
+
+        /* Cache expected deposit price */
+        const expectedRedemptionPrice = await erc20Token10.redemptionSharePrice();
+
+        /* Deposit */
+        const redemptionTx = await pool.connect(accountDepositors[0]).redeem(TICK10, ONE_ETHER);
+        const redemptionId = (await extractEvent(redemptionTx, pool, "Redeemed")).args.redemptionId;
+
+        /* Withdraw */
+        const [shares, amount] = await pool.connect(accountDepositors[0]).callStatic.withdraw(TICK10, redemptionId);
+
+        /* Get actual redemption price */
+        const actualRedemptionPrice = amount.mul(FixedPoint.from("1")).div(shares);
+
+        expect(expectedRedemptionPrice).to.equal(actualRedemptionPrice);
+      });
+    });
+
     describe("#onExternalTransfer", async function () {
       it("reverts when called by non-pool contract", async function () {
         /* Deposit */
