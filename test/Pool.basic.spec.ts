@@ -199,6 +199,177 @@ describe("Pool Basic", function () {
     it("returns expected delegation registry", async function () {
       expect(await pool.delegationRegistry()).to.equal(delegationRegistry.address);
     });
+
+    describe("#depositSharePrice", async function () {
+      it("returns correct share price", async function () {
+        await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+        expect(await pool.depositSharePrice(Tick.encode("10"))).to.equal(FixedPoint.from("1"));
+      });
+
+      it("returns correct share price after borrow", async function () {
+        await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+
+        await createActiveLoan(FixedPoint.from("1"));
+
+        /* Fast forward one day */
+        await helpers.time.increase(84600);
+
+        /* Cache expected deposit price */
+        const expectedDepositPrice = await pool.depositSharePrice(Tick.encode("10"));
+
+        /* Deposit */
+        const shares = await pool
+          .connect(accountDepositors[1])
+          .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+
+        /* Get actual deposit price */
+        const actualDepositPrice = FixedPoint.from("1").mul(FixedPoint.from("1")).div(shares);
+
+        expect(expectedDepositPrice).to.equal(actualDepositPrice);
+      });
+
+      it("returns correct share price after borrow + repayment", async function () {
+        await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+
+        const [loanReceipt] = await createActiveLoan(FixedPoint.from("1"));
+
+        /* Fast forward one day */
+        await helpers.time.increase(84600);
+
+        /* Repay loan */
+        await pool.connect(accountBorrower).repay(loanReceipt);
+
+        /* Cache expected deposit price */
+        const expectedDepositPrice = await pool.depositSharePrice(Tick.encode("10"));
+
+        /* Deposit */
+        const shares = await pool
+          .connect(accountDepositors[1])
+          .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+
+        /* Get actual deposit price */
+        const actualDepositPrice = FixedPoint.from("1").mul(FixedPoint.from("1")).div(shares);
+
+        expect(expectedDepositPrice).to.equal(actualDepositPrice);
+      });
+
+      it("returns correct share price after multiple deposits + borrow", async function () {
+        await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+
+        /* Next deposit */
+        pool.connect(accountDepositors[2]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+
+        await createActiveLoan(FixedPoint.from("1"));
+
+        /* Fast forward one day */
+        await helpers.time.increase(84600);
+
+        /* Cache expected deposit price */
+        const expectedDepositPrice = await pool.depositSharePrice(Tick.encode("10"));
+
+        /* Deposit */
+        const shares = await pool
+          .connect(accountDepositors[1])
+          .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+
+        /* Get actual deposit price */
+        const actualDepositPrice = FixedPoint.from("1").mul(FixedPoint.from("1")).div(shares);
+
+        expect(expectedDepositPrice).to.equal(actualDepositPrice);
+      });
+
+      it("returns correct share price after multiple deposits, multiple borrows and multiple repayments", async function () {
+        await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+
+        /* Next deposit */
+        pool.connect(accountDepositors[2]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+
+        const [loanReceipt1] = await createActiveLoan(FixedPoint.from("1"));
+
+        /* Fast forward one day */
+        await helpers.time.increase(84600);
+
+        /* Repay loan */
+        await pool.connect(accountBorrower).repay(loanReceipt1);
+
+        /* Next borrow */
+        const [loanReceipt2] = await createActiveLoan(FixedPoint.from("1"));
+
+        /* Fast forward one day */
+        await helpers.time.increase(84600);
+
+        /* Repay loan */
+        await pool.connect(accountBorrower).repay(loanReceipt2);
+
+        /* Cache expected deposit price */
+        const expectedDepositPrice = await pool.depositSharePrice(Tick.encode("10"));
+
+        /* Deposit */
+        const shares = await pool
+          .connect(accountDepositors[1])
+          .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+
+        /* Get actual deposit price */
+        const actualDepositPrice = FixedPoint.from("1").mul(FixedPoint.from("1")).div(shares);
+
+        expect(expectedDepositPrice).to.equal(actualDepositPrice);
+      });
+    });
+
+    describe("#redemptionSharePrice", async function () {
+      it("returns correct redemption share price", async function () {
+        await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+        expect(await pool.redemptionSharePrice(Tick.encode("10"))).to.equal(FixedPoint.from("1"));
+      });
+
+      it("returns correct redemption share price after borrow", async function () {
+        await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+        await createActiveLoan(FixedPoint.from("1"));
+
+        /* Fast forward one day */
+        await helpers.time.increase(84600);
+
+        /* Cache expected deposit price */
+        const expectedRedemptionPrice = await pool.redemptionSharePrice(Tick.encode("10"));
+
+        /* Deposit */
+        const redemptionTx = await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1"));
+        const redemptionShares = (await extractEvent(redemptionTx, pool, "Redeemed")).args.shares;
+
+        /* Get actual redemption price */
+        const actualRedemptionPrice = FixedPoint.from("1").mul(FixedPoint.from("1")).div(redemptionShares);
+
+        expect(expectedRedemptionPrice).to.equal(actualRedemptionPrice);
+      });
+
+      it("returns correct redemption share price after borrow + repay", async function () {
+        await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+        const [loanReceipt] = await createActiveLoan(FixedPoint.from("1"));
+
+        /* Fast forward one day */
+        await helpers.time.increase(84600);
+
+        /* Repay loan */
+        await pool.connect(accountBorrower).repay(loanReceipt);
+
+        /* Cache expected deposit price */
+        const expectedRedemptionPrice = await pool.redemptionSharePrice(Tick.encode("10"));
+
+        /* Deposit */
+        const redemptionTx = await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1"));
+        const redemptionId = (await extractEvent(redemptionTx, pool, "Redeemed")).args.redemptionId;
+
+        /* Withdraw */
+        const [shares, amount] = await pool
+          .connect(accountDepositors[0])
+          .callStatic.withdraw(Tick.encode("10"), redemptionId);
+
+        /* Get actual redemption price */
+        const actualRedemptionPrice = amount.mul(FixedPoint.from("1")).div(shares);
+
+        expect(expectedRedemptionPrice).to.equal(actualRedemptionPrice);
+      });
+    });
   });
 
   /****************************************************************************/

@@ -362,6 +362,20 @@ abstract contract Pool is
         return _storage.liquidity.liquidityNodeWithAccrual(tick);
     }
 
+    /**
+     * @inheritdoc ILiquidity
+     */
+    function depositSharePrice(uint128 tick) external view returns (uint256) {
+        return _storage.liquidity.depositSharePrice(tick);
+    }
+
+    /**
+     * @inheritdoc ILiquidity
+     */
+    function redemptionSharePrice(uint128 tick) external view returns (uint256) {
+        return _storage.liquidity.redemptionSharePrice(tick);
+    }
+
     /**************************************************************************/
     /* Loan Receipt External Helpers */
     /**************************************************************************/
