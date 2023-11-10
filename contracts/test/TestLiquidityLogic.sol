@@ -72,6 +72,20 @@ contract TestLiquidityLogic is ILiquidity {
         return _liquidity.liquidityNodeWithAccrual(tick);
     }
 
+    /**
+     * @inheritdoc ILiquidity
+     */
+    function depositSharePrice(uint128 tick) external view returns (uint256) {
+        return _liquidity.depositSharePrice(tick);
+    }
+
+    /**
+     * @inheritdoc ILiquidity
+     */
+    function redemptionSharePrice(uint128 tick) external view returns (uint256) {
+        return _liquidity.redemptionSharePrice(tick);
+    }
+
     /**************************************************************************/
     /* Wrapper for Primary API */
     /**************************************************************************/

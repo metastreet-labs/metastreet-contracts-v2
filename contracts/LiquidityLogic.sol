@@ -290,6 +290,41 @@ library LiquidityLogic {
         }
     }
 
+    /**
+     * @notice Get deposit share price
+     * @param liquidity Liquidity state
+     * @param tick Tick
+     * @return Deposit share price
+     */
+    function depositSharePrice(Liquidity storage liquidity, uint128 tick) external view returns (uint256) {
+        Node storage node = liquidity.nodes[tick];
+
+        /* Simulate accrual */
+        uint128 accrued = node.accrual.accrued + node.accrual.rate * uint128(block.timestamp - node.accrual.timestamp);
+
+        /* Return deposit price */
+        return
+            node.shares == 0
+                ? FIXED_POINT_SCALE
+                : (Math.min(node.value + accrued, node.available + node.pending) * FIXED_POINT_SCALE) / node.shares;
+    }
+
+    /**
+     * @notice Get redemption share price
+     * @param liquidity Liquidity state
+     * @param tick Tick
+     * @return Redemption share price
+     */
+    function redemptionSharePrice(Liquidity storage liquidity, uint128 tick) external view returns (uint256) {
+        Node storage node = liquidity.nodes[tick];
+
+        /* Revert if node is empty */
+        if (node.value == 0 || node.shares == 0) revert ILiquidity.InactiveLiquidity();
+
+        /* Return redemption price */
+        return (node.value * FIXED_POINT_SCALE) / node.shares;
+    }
+
     /**************************************************************************/
     /* Internal Helpers */
     /**************************************************************************/

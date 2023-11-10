@@ -87,4 +87,18 @@ interface ILiquidity {
      * @return Liquidity node, Accrual info
      */
     function liquidityNodeWithAccrual(uint128 tick) external view returns (NodeInfo memory, AccrualInfo memory);
+
+    /**
+     * @notice Get deposit share price
+     * @param tick Tick
+     * @return Deposit share price
+     */
+    function depositSharePrice(uint128 tick) external view returns (uint256);
+
+    /**
+     * @notice Get redemption share price
+     * @param tick Tick
+     * @return Redemption share price
+     */
+    function redemptionSharePrice(uint128 tick) external view returns (uint256);
 }
