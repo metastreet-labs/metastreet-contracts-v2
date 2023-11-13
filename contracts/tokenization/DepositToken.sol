@@ -22,7 +22,7 @@ abstract contract DepositToken {
     /**************************************************************************/
 
     /**
-     * @notice Get tdeposit token address for tick
+     * @notice Get the deposit token address for tick
      *
      * @param tick Tick
      * @return Deposit token address

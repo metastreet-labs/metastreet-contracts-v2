@@ -541,7 +541,7 @@ library LiquidityLogic {
      * @param pending Pending amount
      * @param restored Restored amount
      * @param duration Duration
-     * @param elapsed Elapsed time since origination
+     * @param elapsed Elapsed time since loan origination
      */
     function restore(
         Liquidity storage liquidity,

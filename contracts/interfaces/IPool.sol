@@ -101,7 +101,7 @@ interface IPool {
     /**
      * @notice Emitted when deposit shares are transferred
      * @param from Source account
-     * @param to Destination acount
+     * @param to Destination account
      * @param tick Tick
      * @param shares Amount of shares transferred
      */

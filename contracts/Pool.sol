@@ -467,7 +467,7 @@ abstract contract Pool is
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
      * @param collateralToken Collateral token address
-     * @param collateralTokenId Collatral token ID
+     * @param collateralTokenId Collateral token ID
      * @param ticks Liquidity node ticks
      * @param collateralWrapperContext Collateral wrapper context
      * @param collateralFilterContext Collateral filter context
