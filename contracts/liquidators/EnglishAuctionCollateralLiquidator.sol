@@ -678,15 +678,15 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         if (uint64(block.timestamp) <= auction_.endTime) revert InvalidClaim();
 
         /* Process liquidation proceeds */
-        address collateralToken_ = _processLiquidation(auction_, liquidationHash, liquidationContext);
+        address wrappedCollateralToken = _processLiquidation(auction_, liquidationHash, liquidationContext);
 
         /* Delete auction */
         delete _auctions[liquidationHash][collateralToken][collateralTokenId];
 
         /* Transfer collateral from contract to auction winner */
-        if (_isCollateralWrapper(collateralToken_)) {
+        if (_isCollateralWrapper(wrappedCollateralToken)) {
             /* Get transfer call target and calldata */
-            (address target, bytes memory data) = ICollateralWrapper(collateralToken_).transferCalldata(
+            (address target, bytes memory data) = ICollateralWrapper(wrappedCollateralToken).transferCalldata(
                 collateralToken,
                 address(this),
                 auction_.highestBidder,
