@@ -211,9 +211,8 @@ describe("Storage Layout", function () {
       expect(lookupVariableStorage(contractName, "_initialized")).to.be.eql({ slot: "0", offset: 0 });
       expect(lookupVariableStorage(contractName, "_pool")).to.be.eql({ slot: "0", offset: 1 });
       expect(lookupVariableStorage(contractName, "_tick")).to.be.eql({ slot: "1", offset: 0 });
-      expect(lookupVariableStorage(contractName, "_currencyToken")).to.be.eql({ slot: "2", offset: 0 });
-      expect(lookupVariableStorage(contractName, "_allowances")).to.be.eql({ slot: "3", offset: 0 });
-      expect(computeLinearStorageSize(contractName)).to.be.eql(128);
+      expect(lookupVariableStorage(contractName, "_allowances")).to.be.eql({ slot: "2", offset: 0 });
+      expect(computeLinearStorageSize(contractName)).to.be.eql(96);
     });
   });
 

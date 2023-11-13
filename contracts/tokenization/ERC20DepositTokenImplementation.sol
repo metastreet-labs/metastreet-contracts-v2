@@ -104,11 +104,6 @@ contract ERC20DepositTokenImplementation is IERC20Metadata {
     uint128 internal _tick;
 
     /**
-     * @notice Currency token
-     */
-    IERC20 internal _currencyToken;
-
-    /**
      * @notice Owner => operator => allowance
      */
     mapping(address => mapping(address => uint256)) private _allowances;
@@ -142,7 +137,6 @@ contract ERC20DepositTokenImplementation is IERC20Metadata {
 
         _pool = Pool(msg.sender);
         _tick = tick_;
-        _currencyToken = IERC20(Pool(msg.sender).currencyToken());
     }
 
     /**************************************************************************/
@@ -264,6 +258,14 @@ contract ERC20DepositTokenImplementation is IERC20Metadata {
     function rate() external view returns (uint64) {
         (, , uint256 rateIndex, ) = _tick.decode();
         return _pool.rates()[rateIndex];
+    }
+
+    /**
+     * @notice Currency token
+     * @return Address of currency token
+     */
+    function currencyToken() external view returns (address) {
+        return _pool.currencyToken();
     }
 
     /**************************************************************************/

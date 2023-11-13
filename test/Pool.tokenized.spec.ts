@@ -406,6 +406,10 @@ describe("Pool Tokenized", function () {
       it("returns correct rate", async function () {
         expect(await erc20Token10.rate()).to.equal(FixedPoint.normalizeRate("0.10"));
       });
+
+      it("returns correct currency token", async function () {
+        expect(await erc20Token10.currencyToken()).to.equal(tok1.address);
+      });
     });
 
     describe("#onExternalTransfer", async function () {
