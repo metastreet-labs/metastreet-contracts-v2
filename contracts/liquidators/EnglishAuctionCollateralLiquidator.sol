@@ -450,7 +450,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         if (liquidation_.liquidationContextHash != _liquidationContextHash(liquidationContext)) revert InvalidClaim();
 
         /* Liquidate if all auctions for the liquidation are completed */
-        if (liquidation_.auctionCount - 1 == 0) {
+        if (liquidation_.auctionCount == 1) {
             /* Compute total proceeds */
             uint256 proceeds = liquidation_.proceeds + auction_.highestBid;
 
