@@ -357,6 +357,7 @@ interface IPool {
      * @param duration Duration in seconds
      * @param maxRepayment Maximum repayment amount in currency tokens
      * @param ticks Liquidity ticks
+     * @param options Encoded options
      * @return repayment Repayment amount in currency tokens
      */
     function refinance(
@@ -364,7 +365,8 @@ interface IPool {
         uint256 principal,
         uint64 duration,
         uint256 maxRepayment,
-        uint128[] calldata ticks
+        uint128[] calldata ticks,
+        bytes calldata options
     ) external returns (uint256 repayment);
 
     /**
