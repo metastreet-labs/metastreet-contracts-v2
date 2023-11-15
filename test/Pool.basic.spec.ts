@@ -110,10 +110,11 @@ describe("Pool Basic", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address[]", "address", "uint64[]", "uint64[]"],
+          ["address[]", "address", "address", "uint64[]", "uint64[]"],
           [
             [nft1.address],
             tok1.address,
+            ethers.constants.AddressZero,
             [30 * 86400, 14 * 86400, 7 * 86400],
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
           ]
@@ -509,10 +510,10 @@ describe("Pool Basic", function () {
         pool.connect(accountDepositors[0]).deposit(Tick.encode("10", 0, 5), FixedPoint.from("1"), 0)
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
 
-      /* Out of bounds reserved field */
+      /* Out of bounds limit type field */
       await expect(
         pool.connect(accountDepositors[0]).deposit(Tick.encode("10", 0, 0).add(2), FixedPoint.from("1"), 0)
-      ).to.be.revertedWithCustomError(pool, "InvalidTick");
+      ).to.be.revertedWithPanic("0x21");
 
       /* Zero limit */
       await expect(
@@ -1726,10 +1727,10 @@ describe("Pool Basic", function () {
         pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15", 0, 5), 0, 0)
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
 
-      /* Out of bounds reserved field */
+      /* Out of bounds limit type field */
       await expect(
         pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15", 0, 0).add(2), 0, 0)
-      ).to.be.revertedWithCustomError(pool, "InvalidTick");
+      ).to.be.revertedWithPanic("0x21");
     });
 
     it("fails on insufficient shares", async function () {
@@ -1816,7 +1817,7 @@ describe("Pool Basic", function () {
 
   async function setupLiquidity(): Promise<void> {
     const NUM_LIMITS = 35;
-    const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.TICK_LIMIT_SPACING_BASIS_POINTS();
+    const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.ABSOLUTE_TICK_LIMIT_SPACING_BASIS_POINTS();
 
     let limit = FixedPoint.from("6.5");
     for (let i = 0; i < NUM_LIMITS; i++) {
@@ -3035,7 +3036,8 @@ describe("Pool Basic", function () {
           decodedLoanReceipt.principal,
           15 * 86400,
           FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"))
+          await sourceLiquidity(FixedPoint.from("25")),
+          "0x"
         );
       const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
@@ -3099,7 +3101,8 @@ describe("Pool Basic", function () {
           decodedLoanReceipt.principal.sub(FixedPoint.from("1")),
           15 * 86400,
           FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"))
+          await sourceLiquidity(FixedPoint.from("25")),
+          "0x"
         );
       const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
@@ -3163,7 +3166,8 @@ describe("Pool Basic", function () {
           decodedLoanReceipt.principal.add(FixedPoint.from("1")),
           15 * 86400,
           FixedPoint.from("27"),
-          await sourceLiquidity(FixedPoint.from("25"))
+          await sourceLiquidity(FixedPoint.from("25")),
+          "0x"
         );
       const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
@@ -3226,6 +3230,7 @@ describe("Pool Basic", function () {
               1,
               FixedPoint.from("26"),
               await sourceLiquidity(FixedPoint.from("25")),
+              "0x",
             ]),
             pool.interface.encodeFunctionData("refinance", [
               loanReceipt,
@@ -3233,6 +3238,7 @@ describe("Pool Basic", function () {
               1,
               FixedPoint.from("26"),
               await sourceLiquidity(FixedPoint.from("25")),
+              "0x",
             ]),
           ])
       ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
@@ -3305,6 +3311,7 @@ describe("Pool Basic", function () {
               1,
               FixedPoint.from("2"),
               await sourceLiquidity(FixedPoint.from("1")),
+              "0x",
             ]),
           ])
       ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
@@ -3325,7 +3332,8 @@ describe("Pool Basic", function () {
             FixedPoint.from("25"),
             15 * 86400,
             FixedPoint.from("26"),
-            await sourceLiquidity(FixedPoint.from("1"))
+            await sourceLiquidity(FixedPoint.from("1")),
+            "0x"
           )
       ).to.be.revertedWithCustomError(pool, "InvalidCaller");
     });
@@ -3345,7 +3353,8 @@ describe("Pool Basic", function () {
             FixedPoint.from("25"),
             15 * 86400,
             FixedPoint.from("26"),
-            await sourceLiquidity(FixedPoint.from("25"))
+            await sourceLiquidity(FixedPoint.from("25")),
+            "0x"
           )
       ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
     });
@@ -3366,7 +3375,8 @@ describe("Pool Basic", function () {
             FixedPoint.from("25"),
             15 * 86400,
             FixedPoint.from("26"),
-            await sourceLiquidity(FixedPoint.from("25"))
+            await sourceLiquidity(FixedPoint.from("25")),
+            "0x"
           )
       ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
     });
@@ -3394,7 +3404,8 @@ describe("Pool Basic", function () {
             FixedPoint.from("25"),
             15 * 86400,
             FixedPoint.from("26"),
-            await sourceLiquidity(FixedPoint.from("25"))
+            await sourceLiquidity(FixedPoint.from("25")),
+            "0x"
           )
       ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
     });

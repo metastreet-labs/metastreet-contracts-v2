@@ -151,13 +151,14 @@ describe("Pool Bundle Merkle", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address", "bytes32", "uint32", "string", "address", "uint64[]", "uint64[]"],
+          ["address", "bytes32", "uint32", "string", "address", "address", "uint64[]", "uint64[]"],
           [
             nft1.address,
             merkleTree.root /* Merkle root */,
             nodeCount,
             "https://api.example.com/v2/",
             tok1.address,
+            ethers.constants.AddressZero,
             [30 * 86400, 14 * 86400, 7 * 86400],
             rates,
           ]
@@ -246,7 +247,7 @@ describe("Pool Bundle Merkle", function () {
 
   async function setupLiquidity(): Promise<void> {
     const NUM_LIMITS = 20;
-    const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.TICK_LIMIT_SPACING_BASIS_POINTS();
+    const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.ABSOLUTE_TICK_LIMIT_SPACING_BASIS_POINTS();
 
     let limit = FixedPoint.from("6.5");
     for (let i = 0; i < NUM_LIMITS; i++) {
@@ -577,7 +578,7 @@ describe("Pool Bundle Merkle", function () {
       await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
       const refinanceTx = await pool
         .connect(accountBorrower)
-        .refinance(loanReceipt, decodedLoanReceipt.principal, 15 * 86400, FixedPoint.from("26"), ticks);
+        .refinance(loanReceipt, decodedLoanReceipt.principal, 15 * 86400, FixedPoint.from("26"), ticks, "0x");
       const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
 

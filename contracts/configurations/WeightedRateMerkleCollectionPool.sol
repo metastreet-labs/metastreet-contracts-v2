@@ -7,6 +7,7 @@ import "../Pool.sol";
 import "../rates/WeightedInterestRateModel.sol";
 import "../filters/MerkleCollectionCollateralFilter.sol";
 import "../tokenization/ERC20DepositToken.sol";
+import "../oracle/ExternalPriceOracle.sol";
 
 /**
  * @title Pool Configuration with a Weighted Interest Rate Model and Ranged Collection
@@ -17,7 +18,8 @@ contract WeightedRateMerkleCollectionPool is
     Pool,
     WeightedInterestRateModel,
     MerkleCollectionCollateralFilter,
-    ERC20DepositToken
+    ERC20DepositToken,
+    ExternalPriceOracle
 {
     /**************************************************************************/
     /* Constructor */
@@ -41,6 +43,7 @@ contract WeightedRateMerkleCollectionPool is
         Pool(collateralLiquidator, delegateRegistryV1, delegateRegistryV2, collateralWrappers)
         WeightedInterestRateModel()
         ERC20DepositToken(erc20DepositTokenImplementation)
+        ExternalPriceOracle()
     {
         /* Disable initialization of implementation contract */
         _storage.currencyToken = IERC20(address(1));
@@ -60,12 +63,16 @@ contract WeightedRateMerkleCollectionPool is
             uint32 nodeCount_,
             string memory metadataURI_,
             address currencyToken_,
+            address priceOracle_,
             uint64[] memory durations_,
             uint64[] memory rates_
-        ) = abi.decode(params, (address, bytes32, uint32, string, address, uint64[], uint64[]));
+        ) = abi.decode(params, (address, bytes32, uint32, string, address, address, uint64[], uint64[]));
 
         /* Initialize Collateral Filter */
         MerkleCollectionCollateralFilter._initialize(collateralToken_, merkleRoot_, nodeCount_, metadataURI_);
+
+        /* Initialize External Price Oracle */
+        ExternalPriceOracle.__initialize(priceOracle_);
 
         /* Initialize Pool */
         Pool._initialize(currencyToken_, durations_, rates_);
