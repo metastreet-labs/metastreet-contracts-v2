@@ -7,13 +7,20 @@ import "../Pool.sol";
 import "../rates/WeightedInterestRateModel.sol";
 import "../filters/CollectionCollateralFilter.sol";
 import "../tokenization/ERC20DepositToken.sol";
+import "../oracle/ExternalPriceOracle.sol";
 
 /**
  * @title Pool Configuration with a Weighted Interest Rate Model and Collection
  * Collateral Filter
  * @author MetaStreet Labs
  */
-contract WeightedRateCollectionPool is Pool, WeightedInterestRateModel, CollectionCollateralFilter, ERC20DepositToken {
+contract WeightedRateCollectionPool is
+    Pool,
+    WeightedInterestRateModel,
+    CollectionCollateralFilter,
+    ERC20DepositToken,
+    ExternalPriceOracle
+{
     /**************************************************************************/
     /* Constructor */
     /**************************************************************************/
@@ -36,6 +43,7 @@ contract WeightedRateCollectionPool is Pool, WeightedInterestRateModel, Collecti
         Pool(collateralLiquidator, delegateRegistryV1, delegateRegistryV2, collateralWrappers)
         WeightedInterestRateModel()
         ERC20DepositToken(erc20DepositTokenImplementation)
+        ExternalPriceOracle()
     {
         /* Disable initialization of implementation contract */
         _storage.currencyToken = IERC20(address(1));
@@ -57,12 +65,16 @@ contract WeightedRateCollectionPool is Pool, WeightedInterestRateModel, Collecti
         (
             address[] memory collateralTokens_,
             address currencyToken_,
+            address priceOracle_,
             uint64[] memory durations_,
             uint64[] memory rates_
-        ) = abi.decode(params, (address[], address, uint64[], uint64[]));
+        ) = abi.decode(params, (address[], address, address, uint64[], uint64[]));
 
         /* Initialize Collateral Filter */
         CollectionCollateralFilter._initialize(collateralTokens_);
+
+        /* Initialize External Price Oracle */
+        ExternalPriceOracle.__initialize(priceOracle_);
 
         /* Initialize Pool */
         Pool._initialize(currencyToken_, durations_, rates_);

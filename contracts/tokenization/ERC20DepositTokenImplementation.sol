@@ -147,14 +147,27 @@ contract ERC20DepositTokenImplementation is IERC20Metadata {
      * @notice Helper function to get rounded loan limit for name() and symbol()
      *
      * @dev Solely utilized to generate rounded number in name() and symbol() getters.
-     *      Loan limits > 1 ETH are rounded to the nearest whole number. Under 1 ETH
-     *      are rounded to the nearest hundredth place.
+     *      For absolute limit type, loan limits > 1 ETH are rounded to the nearest
+     *      whole number. Under 1 ETH are rounded to the nearest hundredth place.
+     *      For ratio limit type, loan limits are expressed as either a whole number
+     *      percentage or as a 2 d.p percentage.
      *
      * @param loanLimit_ Loan limit as uint256
      *
      * @return Loan limit as string
      */
-    function _getLoanLimit(uint256 loanLimit_) internal pure returns (string memory) {
+    function _getLoanLimit(Tick.LimitType limitType_, uint256 loanLimit_) internal pure returns (string memory) {
+        /* If limit type is ratio, express loan limit as a percentage  */
+        if (limitType_ == Tick.LimitType.Ratio) {
+            /* Compute integer and decimals */
+            string memory integer = Strings.toString(loanLimit_ / 100);
+            uint256 decimals_ = loanLimit_ % 100;
+            return
+                decimals_ == 0
+                    ? string.concat(integer, "%")
+                    : string.concat(integer, ".", Strings.toString(decimals_), "%");
+        }
+
         /* Handle loan limits > 1 ETH */
         if (loanLimit_ >= FIXED_POINT_SCALE) {
             return Strings.toString((loanLimit_ + (FIXED_POINT_SCALE / 2)) / FIXED_POINT_SCALE);
@@ -182,7 +195,7 @@ contract ERC20DepositTokenImplementation is IERC20Metadata {
      * @inheritdoc IERC20Metadata
      */
     function name() public view returns (string memory) {
-        (uint256 limit_, , , ) = _tick.decode();
+        (uint256 limit_, , , Tick.LimitType limitType_) = _tick.decode(Tick.BASIS_POINTS_SCALE);
         return
             string.concat(
                 "MetaStreet V2 Deposit: ",
@@ -190,7 +203,7 @@ contract ERC20DepositTokenImplementation is IERC20Metadata {
                 "-",
                 IERC20Metadata(_pool.currencyToken()).symbol(),
                 ":",
-                _getLoanLimit(limit_)
+                _getLoanLimit(limitType_, limit_)
             );
     }
 
@@ -198,7 +211,7 @@ contract ERC20DepositTokenImplementation is IERC20Metadata {
      * @inheritdoc IERC20Metadata
      */
     function symbol() public view returns (string memory) {
-        (uint256 limit_, , , ) = _tick.decode();
+        (uint256 limit_, , , Tick.LimitType limitType_) = _tick.decode(Tick.BASIS_POINTS_SCALE);
         return
             string.concat(
                 "m",
@@ -206,7 +219,7 @@ contract ERC20DepositTokenImplementation is IERC20Metadata {
                 "-",
                 IERC721Metadata(_pool.collateralToken()).symbol(),
                 ":",
-                _getLoanLimit(limit_)
+                _getLoanLimit(limitType_, limit_)
             );
     }
 
@@ -238,7 +251,7 @@ contract ERC20DepositTokenImplementation is IERC20Metadata {
      * @return Loan limit in currency tokens
      */
     function limit() external view returns (uint128) {
-        (uint256 limit_, , , ) = _tick.decode();
+        (uint256 limit_, , , ) = _tick.decode(Tick.BASIS_POINTS_SCALE);
         return limit_.toUint128();
     }
 
@@ -247,7 +260,7 @@ contract ERC20DepositTokenImplementation is IERC20Metadata {
      * @return Duration in seconds
      */
     function duration() external view returns (uint64) {
-        (, uint256 durationIndex, , ) = _tick.decode();
+        (, uint256 durationIndex, , ) = _tick.decode(Tick.BASIS_POINTS_SCALE);
         return _pool.durations()[durationIndex];
     }
 
@@ -256,7 +269,7 @@ contract ERC20DepositTokenImplementation is IERC20Metadata {
      * @return Rate in interest per second
      */
     function rate() external view returns (uint64) {
-        (, , uint256 rateIndex, ) = _tick.decode();
+        (, , uint256 rateIndex, ) = _tick.decode(Tick.BASIS_POINTS_SCALE);
         return _pool.rates()[rateIndex];
     }
 

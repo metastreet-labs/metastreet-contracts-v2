@@ -12,16 +12,22 @@ contract TestTick {
      * @dev External wrapper function for Tick.decode()
      */
     function decode(
-        uint128 tick
-    ) external pure returns (uint256 limit, uint256 duration, uint256 rate, uint256 reserved) {
-        return Tick.decode(tick);
+        uint128 tick,
+        uint256 oraclePrice
+    ) external pure returns (uint256 limit, uint256 duration, uint256 rate, Tick.LimitType limitType) {
+        return Tick.decode(tick, oraclePrice);
     }
 
     /**
      * @dev External wrapper function for Tick.validate()
      */
-    function validate(uint128 tick, uint256 minLimit, uint256 minDurationIndex) external pure returns (uint256) {
-        return Tick.validate(tick, minLimit, minDurationIndex);
+    function validate(
+        uint128 tick,
+        uint128 prevTick,
+        uint256 minDurationIndex,
+        uint256 oraclePrice
+    ) external pure returns (uint256) {
+        return Tick.validate(tick, prevTick, minDurationIndex, oraclePrice);
     }
 
     /**

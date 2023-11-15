@@ -18,9 +18,11 @@ import "./LoanReceipt.sol";
 import "./LiquidityLogic.sol";
 import "./DepositLogic.sol";
 import "./BorrowLogic.sol";
+import "./oracle/PriceOracle.sol";
 
 import "./interfaces/IPool.sol";
 import "./interfaces/ILiquidity.sol";
+import "./interfaces/IPriceOracle.sol";
 import "./interfaces/ICollateralWrapper.sol";
 import "./interfaces/ICollateralLiquidator.sol";
 import "./interfaces/ICollateralLiquidationReceiver.sol";
@@ -36,6 +38,7 @@ abstract contract Pool is
     CollateralFilter,
     InterestRateModel,
     DepositToken,
+    PriceOracle,
     IPool,
     ILiquidity,
     ICollateralLiquidationReceiver
@@ -49,9 +52,16 @@ abstract contract Pool is
     /**************************************************************************/
 
     /**
-     * @notice Tick spacing basis points
+     * @notice Tick spacing basis points for absolute type
      */
-    uint256 public constant TICK_LIMIT_SPACING_BASIS_POINTS = LiquidityLogic.TICK_LIMIT_SPACING_BASIS_POINTS;
+    uint256 public constant ABSOLUTE_TICK_LIMIT_SPACING_BASIS_POINTS =
+        LiquidityLogic.ABSOLUTE_TICK_LIMIT_SPACING_BASIS_POINTS;
+
+    /**
+     * @notice Tick spacing basis points for ratio type
+     */
+    uint256 public constant RATIO_TICK_LIMIT_SPACING_BASIS_POINTS =
+        LiquidityLogic.RATIO_TICK_LIMIT_SPACING_BASIS_POINTS;
 
     /**************************************************************************/
     /* Structures */
@@ -118,7 +128,8 @@ abstract contract Pool is
         CollateralWrapperContext,
         CollateralFilterContext,
         DelegateCashV1,
-        DelegateCashV2
+        DelegateCashV2,
+        OracleContext
     }
 
     /**
@@ -448,31 +459,38 @@ abstract contract Pool is
      * @param collateralWrapperContext Collateral wrapper context
      * @return token Underlying collateral token
      * @return tokenIds Underlying collateral token IDs (unique)
+     * @return tokenIdQuantities Underlying collateral token ID quantities
      * @return tokenCount Underlying total token count
      */
     function _getUnderlyingCollateral(
         address collateralToken,
         uint256 collateralTokenId,
         bytes memory collateralWrapperContext
-    ) internal view returns (address token, uint256[] memory tokenIds, uint256 tokenCount) {
+    )
+        internal
+        view
+        returns (address token, uint256[] memory tokenIds, uint256[] memory tokenIdQuantities, uint256 tokenCount)
+    {
         /* Enumerate if collateral token is a collateral wrapper */
         if (
             collateralToken == _collateralWrapper1 ||
             collateralToken == _collateralWrapper2 ||
             collateralToken == _collateralWrapper3
         ) {
-            (token, tokenIds) = ICollateralWrapper(collateralToken).enumerate(
+            (token, tokenIds, tokenIdQuantities) = ICollateralWrapper(collateralToken).enumerateWithQuantities(
                 collateralTokenId,
                 collateralWrapperContext
             );
             tokenCount = ICollateralWrapper(collateralToken).count(collateralTokenId, collateralWrapperContext);
-            return (token, tokenIds, tokenCount);
+            return (token, tokenIds, tokenIdQuantities, tokenCount);
         }
 
         /* If single asset, convert to length one token ID array */
         token = collateralToken;
         tokenIds = new uint256[](1);
         tokenIds[0] = collateralTokenId;
+        tokenIdQuantities = new uint256[](1);
+        tokenIdQuantities[0] = 1;
         tokenCount = 1;
     }
 
@@ -490,11 +508,12 @@ abstract contract Pool is
      * @dev Helper function to quote a loan
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
-     * @param collateralToken Collateral token address
+     * @param collateralToken_ Collateral token address
      * @param collateralTokenId Collateral token ID
      * @param ticks Liquidity node ticks
      * @param collateralWrapperContext Collateral wrapper context
      * @param collateralFilterContext Collateral filter context
+     * @param oracleContext Oracle context
      * @param isRefinance True if called by refinance()
      * @return Repayment amount in currency tokens, admin fee in currency
      * tokens, liquidity nodes, liquidity node count
@@ -502,19 +521,21 @@ abstract contract Pool is
     function _quote(
         uint256 principal,
         uint64 duration,
-        address collateralToken,
+        address collateralToken_,
         uint256 collateralTokenId,
         uint128[] calldata ticks,
         bytes memory collateralWrapperContext,
         bytes calldata collateralFilterContext,
+        bytes calldata oracleContext,
         bool isRefinance
     ) internal view returns (uint256, uint256, LiquidityLogic.NodeSource[] memory, uint16) {
         /* Get underlying collateral */
         (
             address underlyingCollateralToken,
             uint256[] memory underlyingCollateralTokenIds,
+            uint256[] memory underlyingQuantities,
             uint256 underlyingCollateralTokenCount
-        ) = _getUnderlyingCollateral(collateralToken, collateralTokenId, collateralWrapperContext);
+        ) = _getUnderlyingCollateral(collateralToken_, collateralTokenId, collateralWrapperContext);
 
         /* Verify collateral is supported */
         if (!isRefinance) {
@@ -542,12 +563,22 @@ abstract contract Pool is
             if (duration <= durations_[durationIndex]) break;
         }
 
+        /* Get oracle price if price oracle and oracle context exist, else 0 */
+        uint256 oraclePrice = price(
+            collateralToken(),
+            address(_storage.currencyToken),
+            underlyingCollateralTokenIds,
+            underlyingQuantities,
+            oracleContext
+        );
+
         /* Source liquidity nodes */
         (LiquidityLogic.NodeSource[] memory nodes, uint16 count) = _storage.liquidity.source(
             principal,
             ticks,
             underlyingCollateralTokenCount,
-            durationIndex
+            durationIndex,
+            oraclePrice
         );
 
         /* Price interest for liquidity nodes */
@@ -616,6 +647,7 @@ abstract contract Pool is
             ticks,
             BorrowLogic._getOptionsData(options, BorrowOptions.CollateralWrapperContext),
             BorrowLogic._getOptionsData(options, BorrowOptions.CollateralFilterContext),
+            BorrowLogic._getOptionsData(options, BorrowOptions.OracleContext),
             false
         );
 
@@ -645,6 +677,7 @@ abstract contract Pool is
             ticks,
             BorrowLogic._getOptionsData(options, BorrowOptions.CollateralWrapperContext),
             BorrowLogic._getOptionsData(options, BorrowOptions.CollateralFilterContext),
+            BorrowLogic._getOptionsData(options, BorrowOptions.OracleContext),
             false
         );
 
@@ -729,7 +762,8 @@ abstract contract Pool is
         uint256 principal,
         uint64 duration,
         uint256 maxRepayment,
-        uint128[] calldata ticks
+        uint128[] calldata ticks,
+        bytes calldata options
     ) external nonReentrant returns (uint256) {
         uint256 scaledPrincipal = _scale(principal);
 
@@ -749,6 +783,7 @@ abstract contract Pool is
             ticks,
             loanReceipt.collateralWrapperContext,
             encodedLoanReceipt[0:0],
+            BorrowLogic._getOptionsData(options, BorrowOptions.OracleContext),
             true
         );
 
