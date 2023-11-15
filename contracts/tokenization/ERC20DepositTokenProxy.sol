@@ -18,7 +18,7 @@ contract ERC20DepositTokenProxy is Proxy {
     /**
      * @notice Beacon address (ERC20DepositToken)
      */
-    address immutable _beacon;
+    address internal immutable _beacon;
 
     /**************************************************************************/
     /* Constructor */
