@@ -122,10 +122,11 @@ describe("Pool Gas", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address[]", "address", "uint64[]", "uint64[]"],
+          ["address[]", "address", "address", "uint64[]", "uint64[]"],
           [
             [nft1.address],
             tok1.address,
+            ethers.constants.AddressZero,
             [30 * 86400, 14 * 86400, 7 * 86400],
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
           ]
@@ -205,7 +206,7 @@ describe("Pool Gas", function () {
 
   async function setupLiquidity(pool: Pool): Promise<void> {
     const NUM_TICKS = 16;
-    const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.TICK_LIMIT_SPACING_BASIS_POINTS();
+    const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.ABSOLUTE_TICK_LIMIT_SPACING_BASIS_POINTS();
 
     let limit = FixedPoint.from("6.5");
     for (let i = 0; i < NUM_TICKS; i++) {
@@ -276,7 +277,7 @@ describe("Pool Gas", function () {
 
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
-      expect(gasUsed).to.be.lt(247000);
+      expect(gasUsed).to.be.lt(248000);
     });
 
     it("deposit (existing tick)", async function () {
@@ -325,7 +326,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await depositTx.wait()).gasUsed;
 
       gasReport.push([this.test.title, gasUsed]);
-      expect(gasUsed).to.be.lt(121000);
+      expect(gasUsed).to.be.lt(122000);
     });
 
     it("deposit (existing deposit, tokenized)", async function () {
@@ -427,8 +428,8 @@ describe("Pool Gas", function () {
     });
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("15"), 10, 347000],
-      [FixedPoint.from("25"), 16, 470000],
+      [FixedPoint.from("15"), 10, 356000],
+      [FixedPoint.from("25"), 16, 481000],
     ]) {
       it(`borrow (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
@@ -543,8 +544,8 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 370000],
-      [FixedPoint.from("250"), 16, 495000],
+      [FixedPoint.from("150"), 10, 380000],
+      [FixedPoint.from("250"), 16, 512000],
     ]) {
       it(`borrow (bundle of 10, ${numTicks} ticks)`, async function () {
         /* Mint bundle of 10 */
@@ -791,8 +792,8 @@ describe("Pool Gas", function () {
     });
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("15"), 10, 462000],
-      [FixedPoint.from("25"), 16, 670000],
+      [FixedPoint.from("15"), 10, 471000],
+      [FixedPoint.from("25"), 16, 683000],
     ]) {
       it(`refinance (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
@@ -812,7 +813,7 @@ describe("Pool Gas", function () {
 
         const refinanceTx = await pool
           .connect(accountBorrower)
-          .refinance(loanReceipt, principal, 30 * 86400, principal.add(FixedPoint.from("1")), ticks);
+          .refinance(loanReceipt, principal, 30 * 86400, principal.add(FixedPoint.from("1")), ticks, "0x");
 
         const gasUsed = (await refinanceTx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
@@ -822,8 +823,8 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 492000],
-      [FixedPoint.from("250"), 16, 700000],
+      [FixedPoint.from("150"), 10, 504000],
+      [FixedPoint.from("250"), 16, 716000],
     ]) {
       it(`refinance (bundle of 10, ${numTicks} ticks)`, async function () {
         /* Mint bundle of 10 */
@@ -862,7 +863,7 @@ describe("Pool Gas", function () {
 
         const refinanceTx = await pool
           .connect(accountBorrower)
-          .refinance(loanReceipt, principal, 30 * 86400, principal.add(FixedPoint.from("10")), ticks);
+          .refinance(loanReceipt, principal, 30 * 86400, principal.add(FixedPoint.from("10")), ticks, "0x");
 
         const gasUsed = (await refinanceTx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
@@ -1007,10 +1008,11 @@ describe("Pool Gas", function () {
           poolEACLImpl.address,
           poolEACLImpl.interface.encodeFunctionData("initialize", [
             ethers.utils.defaultAbiCoder.encode(
-              ["address[]", "address", "uint64[]", "uint64[]"],
+              ["address[]", "address", "address", "uint64[]", "uint64[]"],
               [
                 [nft1.address],
                 tok1.address,
+                ethers.constants.AddressZero,
                 [30 * 86400, 14 * 86400, 7 * 86400],
                 [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
               ]
@@ -1277,12 +1279,12 @@ describe("Pool Gas", function () {
       await poolImpl.deployed();
     });
     for (const [count, principal, numTicks, maxGas] of [
-      [10, FixedPoint.from("15"), 10, 357000],
-      [10, FixedPoint.from("25"), 16, 481000],
-      [100, FixedPoint.from("15"), 10, 360000],
-      [100, FixedPoint.from("25"), 16, 485000],
-      [1000, FixedPoint.from("15"), 10, 365000],
-      [1000, FixedPoint.from("25"), 16, 490000],
+      [10, FixedPoint.from("15"), 10, 364000],
+      [10, FixedPoint.from("25"), 16, 491000],
+      [100, FixedPoint.from("15"), 10, 368000],
+      [100, FixedPoint.from("25"), 16, 495000],
+      [1000, FixedPoint.from("15"), 10, 372000],
+      [1000, FixedPoint.from("25"), 16, 499000],
     ]) {
       it(`merkle borrow (single, ${numTicks} ticks, ${count} token ids)`, async function () {
         /* Build merkle tree */
@@ -1295,13 +1297,14 @@ describe("Pool Gas", function () {
           poolImpl.address,
           poolImpl.interface.encodeFunctionData("initialize", [
             ethers.utils.defaultAbiCoder.encode(
-              ["address", "bytes32", "uint32", "string", "address", "uint64[]", "uint64[]"],
+              ["address", "bytes32", "uint32", "string", "address", "address", "uint64[]", "uint64[]"],
               [
                 nft1.address,
                 merkleTree.root,
                 nodeCount,
                 "https://api.example.com/v2/",
                 tok1.address,
+                ethers.constants.AddressZero,
                 [30 * 86400, 14 * 86400, 7 * 86400],
                 [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
               ]
@@ -1420,10 +1423,10 @@ describe("Pool Gas", function () {
       await nft2.connect(accountBorrower).setApprovalForAll(ERC1155CollateralWrapper.address, true);
     });
     for (const [principal, numTicks, totalTokenIds, maxGas] of [
-      [FixedPoint.from("245"), 10, 16, 445000],
-      [FixedPoint.from("434"), 16, 16, 570000],
-      [FixedPoint.from("490"), 10, 32, 530000],
-      [FixedPoint.from("868"), 16, 32, 655000],
+      [FixedPoint.from("245"), 10, 16, 452000],
+      [FixedPoint.from("434"), 16, 16, 579000],
+      [FixedPoint.from("490"), 10, 32, 539000],
+      [FixedPoint.from("868"), 16, 32, 666000],
     ]) {
       it(`erc1155 borrow (total token IDs ${totalTokenIds}, ${numTicks} tick)`, async function () {
         /* Mint NFT to borrower */
@@ -1445,11 +1448,12 @@ describe("Pool Gas", function () {
           poolImpl.address,
           poolImpl.interface.encodeFunctionData("initialize", [
             ethers.utils.defaultAbiCoder.encode(
-              ["address", "uint256[]", "address", "uint64[]", "uint64[]"],
+              ["address", "uint256[]", "address", "address", "uint64[]", "uint64[]"],
               [
                 nft2.address,
                 tokenIds,
                 tok1.address,
+                ethers.constants.AddressZero,
                 [30 * 86400, 14 * 86400, 7 * 86400],
                 [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
               ]

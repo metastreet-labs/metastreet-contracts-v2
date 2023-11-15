@@ -12,6 +12,22 @@ import "./Tick.sol";
  * @author MetaStreet Labs
  */
 library LiquidityLogic {
+    /*
+     * Liquidity nodes are arranged in a linked-list that starts with a zero
+     * sentinel and ends with an end sentinel. There are two types of ticks, namely,
+     * ratio ticks and absolute ticks (see more in Tick.sol). In the linked-list,
+     * ratio ticks are ordered before absolute ticks. Within the types, they are
+     * ordered in ascending order of their tick values.
+     *
+     * +--------------------------------------------------------------------+
+     * |                         Linked-List Layout                         |
+     * +----------------------------------|------------------|--------------+
+     * |       0       | (Limit Type = 1) | (Limit Type = 0) | Max. uint128 |
+     * | Zero Sentinel |   Ratio Ticks    |  Absolute Ticks  | End Sentinel |
+     * +--------------------------------------------------------------------+
+     *
+     */
+
     using SafeCast for uint256;
 
     /**************************************************************************/
@@ -19,9 +35,14 @@ library LiquidityLogic {
     /**************************************************************************/
 
     /**
-     * @notice Tick limit spacing basis points (10%)
+     * @notice Tick limit spacing basis points for absolute type (10%)
      */
-    uint256 internal constant TICK_LIMIT_SPACING_BASIS_POINTS = 1000;
+    uint256 internal constant ABSOLUTE_TICK_LIMIT_SPACING_BASIS_POINTS = 1000;
+
+    /**
+     * @notice Tick limit spacing basis points for ratio type (5%)
+     */
+    uint256 internal constant RATIO_TICK_LIMIT_SPACING_BASIS_POINTS = 500;
 
     /**
      * @notice Fixed point scale
@@ -382,28 +403,57 @@ library LiquidityLogic {
         /* If node is inactive and not empty, revert */
         if (!_isEmpty(node)) revert ILiquidity.InactiveLiquidity();
 
-        /* Find prior node to new tick */
+        /* Instantiate previous tick and previous node */
         uint128 prevTick;
         Node storage prevNode = liquidity.nodes[prevTick];
-        while (prevNode.next < tick) {
+
+        /* Decode limit and limit type from new tick and next tick */
+        (uint256 newLimit, , , Tick.LimitType newLimitType) = Tick.decode(tick, BASIS_POINTS_SCALE);
+        (uint256 nextLimit, , , Tick.LimitType nextLimitType) = Tick.decode(prevNode.next, BASIS_POINTS_SCALE);
+
+        /* Find prior node to new tick */
+        bool isAbsoluteType = newLimitType == Tick.LimitType.Absolute;
+        while (nextLimitType == newLimitType ? nextLimit < newLimit : isAbsoluteType) {
             prevTick = prevNode.next;
             prevNode = liquidity.nodes[prevTick];
+
+            /* Decode limit and limit type from next tick */
+            (nextLimit, , , nextLimitType) = Tick.decode(prevNode.next, BASIS_POINTS_SCALE);
         }
 
-        /* Decode limits from previous tick, new tick, and next tick */
-        (uint256 prevLimit, , , ) = Tick.decode(prevTick);
-        (uint256 newLimit, , , ) = Tick.decode(tick);
-        (uint256 nextLimit, , , ) = Tick.decode(prevNode.next);
+        /* Decode limit and limit type from prev tick */
+        (uint256 prevLimit, , , Tick.LimitType prevLimitType) = Tick.decode(prevTick, BASIS_POINTS_SCALE);
 
         /* Validate tick limit spacing */
-        if (
-            newLimit != prevLimit &&
-            newLimit < (prevLimit * (BASIS_POINTS_SCALE + TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
-        ) revert ILiquidity.InsufficientTickSpacing();
-        if (
-            newLimit != nextLimit &&
-            nextLimit < (newLimit * (BASIS_POINTS_SCALE + TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
-        ) revert ILiquidity.InsufficientTickSpacing();
+        if (isAbsoluteType) {
+            /* Validate new absolute limit */
+            if (
+                newLimit != prevLimit &&
+                prevLimitType == Tick.LimitType.Absolute &&
+                newLimit <
+                (prevLimit * (BASIS_POINTS_SCALE + ABSOLUTE_TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
+            ) revert ILiquidity.InsufficientTickSpacing();
+            if (
+                newLimit != nextLimit &&
+                nextLimitType == Tick.LimitType.Absolute &&
+                nextLimit <
+                (newLimit * (BASIS_POINTS_SCALE + ABSOLUTE_TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
+            ) revert ILiquidity.InsufficientTickSpacing();
+        } else {
+            /* Validate new ratio limit */
+            if (
+                newLimit != prevLimit &&
+                prevLimitType == Tick.LimitType.Ratio &&
+                newLimit <
+                (prevLimit * (BASIS_POINTS_SCALE + RATIO_TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
+            ) revert ILiquidity.InsufficientTickSpacing();
+            if (
+                newLimit != nextLimit &&
+                nextLimitType == Tick.LimitType.Ratio &&
+                nextLimit <
+                (newLimit * (BASIS_POINTS_SCALE + RATIO_TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
+            ) revert ILiquidity.InsufficientTickSpacing();
+        }
 
         /* Link new node */
         node.prev = prevTick;
@@ -650,6 +700,7 @@ library LiquidityLogic {
      * @param ticks Ticks to source from
      * @param multiplier Multiplier for amount
      * @param durationIndex Duration index for amount
+     * @param oraclePrice Collateral token price from price oracle, if any
      * @return Sourced liquidity nodes, count of nodes
      */
     function source(
@@ -657,18 +708,19 @@ library LiquidityLogic {
         uint256 amount,
         uint128[] calldata ticks,
         uint256 multiplier,
-        uint256 durationIndex
+        uint256 durationIndex,
+        uint256 oraclePrice
     ) internal view returns (NodeSource[] memory, uint16) {
         NodeSource[] memory sources = new NodeSource[](ticks.length);
 
-        uint256 prevTick;
+        uint128 prevTick;
         uint256 taken;
         uint256 count;
         for (; count < ticks.length && taken != amount; count++) {
             uint128 tick = ticks[count];
 
             /* Validate tick and decode limit */
-            uint256 limit = Tick.validate(tick, prevTick, durationIndex);
+            uint256 limit = Tick.validate(tick, prevTick, durationIndex, oraclePrice);
 
             /* Look up liquidity node */
             Node storage node = liquidity.nodes[tick];

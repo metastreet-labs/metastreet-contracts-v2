@@ -53,33 +53,67 @@ describe("LiquidityLogic", function () {
   /****************************************************************************/
 
   describe("#instantiate", async function () {
-    it("instantiates a new liquidity node", async function () {
+    it("instantiates a new liquidity node with absolute limit first", async function () {
       /* Instantiate one node */
-      await liquidityLogic.instantiate(Tick.encode("1"));
+      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(4000)));
 
       /* Validate nodes */
       let nodes = await liquidityLogic.liquidityNodes(ethers.constants.Zero, MaxUint128);
       expect(nodes.length).to.equal(2);
       expect(nodes[0].prev).to.equal(0);
-      expect(nodes[0].next).to.equal(Tick.encode("1"));
+      expect(nodes[0].next).to.equal(Tick.encode(ethers.BigNumber.from(4000)));
       expect(nodes[1].prev).to.equal(0);
       expect(nodes[1].next).to.equal(MaxUint128);
 
-      /* Instantiate two additional nodes */
-      await liquidityLogic.instantiate(Tick.encode("10"));
+      /* Instantiate three additional nodes */
+      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(4001), 0, 0, 18, 1));
       await liquidityLogic.instantiate(Tick.encode("50"));
+      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(6000), 0, 0, 18, 1));
 
       /* Validate nodes */
       nodes = await liquidityLogic.liquidityNodes(ethers.constants.Zero, MaxUint128);
-      expect(nodes.length).to.equal(4);
+      expect(nodes.length).to.equal(5);
       expect(nodes[0].prev).to.equal(0);
-      expect(nodes[0].next).to.equal(Tick.encode("1"));
+      expect(nodes[0].next).to.equal(Tick.encode(ethers.BigNumber.from(4001), 0, 0, 18, 1));
       expect(nodes[1].prev).to.equal(0);
-      expect(nodes[1].next).to.equal(Tick.encode("10"));
-      expect(nodes[2].prev).to.equal(Tick.encode("1"));
-      expect(nodes[2].next).to.equal(Tick.encode("50"));
-      expect(nodes[3].prev).to.equal(Tick.encode("10"));
-      expect(nodes[3].next).to.equal(MaxUint128);
+      expect(nodes[1].next).to.equal(Tick.encode(ethers.BigNumber.from(6000), 0, 0, 18, 1));
+      expect(nodes[2].prev).to.equal(Tick.encode(ethers.BigNumber.from(4001), 0, 0, 18, 1));
+      expect(nodes[2].next).to.equal(Tick.encode(ethers.BigNumber.from(4000)));
+      expect(nodes[3].prev).to.equal(Tick.encode(ethers.BigNumber.from(6000), 0, 0, 18, 1));
+      expect(nodes[3].next).to.equal(Tick.encode("50"));
+      expect(nodes[4].prev).to.equal(Tick.encode(ethers.BigNumber.from(4000)));
+      expect(nodes[4].next).to.equal(MaxUint128);
+    });
+    it("instantiates a new liquidity node with ratio limit first", async function () {
+      /* Instantiate one node */
+      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+
+      /* Validate nodes */
+      let nodes = await liquidityLogic.liquidityNodes(ethers.constants.Zero, MaxUint128);
+      expect(nodes.length).to.equal(2);
+      expect(nodes[0].prev).to.equal(0);
+      expect(nodes[0].next).to.equal(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+      expect(nodes[1].prev).to.equal(0);
+      expect(nodes[1].next).to.equal(MaxUint128);
+
+      /* Instantiate three additional nodes */
+      await liquidityLogic.instantiate(Tick.encode("50"));
+      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(4000)));
+      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(6000), 0, 0, 18, 1));
+
+      /* Validate nodes */
+      nodes = await liquidityLogic.liquidityNodes(ethers.constants.Zero, MaxUint128);
+      expect(nodes.length).to.equal(5);
+      expect(nodes[0].prev).to.equal(0);
+      expect(nodes[0].next).to.equal(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+      expect(nodes[1].prev).to.equal(0);
+      expect(nodes[1].next).to.equal(Tick.encode(ethers.BigNumber.from(6000), 0, 0, 18, 1));
+      expect(nodes[2].prev).to.equal(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+      expect(nodes[2].next).to.equal(Tick.encode(ethers.BigNumber.from(4000)));
+      expect(nodes[3].prev).to.equal(Tick.encode(ethers.BigNumber.from(6000), 0, 0, 18, 1));
+      expect(nodes[3].next).to.equal(Tick.encode("50"));
+      expect(nodes[4].prev).to.equal(Tick.encode(ethers.BigNumber.from(4000)));
+      expect(nodes[4].next).to.equal(MaxUint128);
     });
     it("no-op on existing node", async function () {
       /* Instantiate one node */
@@ -103,28 +137,73 @@ describe("LiquidityLogic", function () {
       expect(nodes[0].next).to.equal(Tick.encode("1"));
       expect(nodes[1].prev).to.equal(0);
       expect(nodes[1].next).to.equal(MaxUint128);
+
+      /* Instantiate another node */
+      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+
+      /* Validate nodes */
+      nodes = await liquidityLogic.liquidityNodes(ethers.constants.Zero, MaxUint128);
+      expect(nodes.length).to.equal(3);
+      expect(nodes[0].prev).to.equal(0);
+      expect(nodes[0].next).to.equal(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+      expect(nodes[1].prev).to.equal(0);
+      expect(nodes[1].next).to.equal(Tick.encode("1"));
+      expect(nodes[2].prev).to.equal(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+      expect(nodes[2].next).to.equal(MaxUint128);
+
+      /* Instantiate same node again */
+      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+
+      /* Validate nodes */
+      nodes = await liquidityLogic.liquidityNodes(ethers.constants.Zero, MaxUint128);
+      expect(nodes.length).to.equal(3);
+      expect(nodes[0].prev).to.equal(0);
+      expect(nodes[0].next).to.equal(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+      expect(nodes[1].prev).to.equal(0);
+      expect(nodes[1].next).to.equal(Tick.encode("1"));
+      expect(nodes[2].prev).to.equal(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+      expect(nodes[2].next).to.equal(MaxUint128);
     });
     it("fails on insufficient tick spacing", async function () {
-      /* Instantiate one node */
+      /* Instantiate one node with absolute limit */
       await liquidityLogic.instantiate(Tick.encode("1"));
 
-      /* Try to instantiate another node that is 5% higher */
+      /* Try to instantiate another node with absolute limit that is 5% higher */
       await expect(liquidityLogic.instantiate(Tick.encode("1.05"))).to.be.revertedWithCustomError(
         liquidityLogic,
         "InsufficientTickSpacing"
       );
-      /* Try to instantiate another node that is 5% lower */
+      /* Try to instantiate another node with absolute limit that is 5% lower */
       await expect(liquidityLogic.instantiate(Tick.encode("0.95"))).to.be.revertedWithCustomError(
         liquidityLogic,
         "InsufficientTickSpacing"
       );
+
+      /* Instantiate another node with ltv limit */
+      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(1000), 0, 0, 18, 1));
+
+      /* Try to instantiate another node with ltv limit that is 2.5% higher */
+      await expect(
+        liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(1025), 0, 0, 18, 1))
+      ).to.be.revertedWithCustomError(liquidityLogic, "InsufficientTickSpacing");
+      /* Try to instantiate another node with ltv limit that is 2.5% lower */
+      await expect(
+        liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(975), 0, 0, 18, 1))
+      ).to.be.revertedWithCustomError(liquidityLogic, "InsufficientTickSpacing");
+    });
+    it("fails on invalid limit type", async function () {
+      /* Reverted with panic code 0x21 (Tried to convert a value into an enum */
+      /* but the value was too big or negative) */
+      await expect(
+        liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 2))
+      ).to.be.revertedWithPanic("0x21");
     });
   });
 
   describe("#deposit", async function () {
-    it("deposits into active node", async function () {
-      /* Deposit */
-      const depositTx = await liquidityLogic.deposit(Tick.encode("3"), FixedPoint.from("5"));
+    it("deposits into active nodes", async function () {
+      /* Deposit absolute limit node */
+      let depositTx = await liquidityLogic.deposit(Tick.encode("3"), FixedPoint.from("5"));
 
       /* Validate shares created */
       await expectEvent(depositTx, liquidityLogic, "Deposited", {
@@ -132,7 +211,30 @@ describe("LiquidityLogic", function () {
       });
 
       /* Validate node */
-      const [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(Tick.encode("3"));
+      let [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(Tick.encode("3"));
+      expect(node.value).to.equal(FixedPoint.from("5"));
+      expect(node.shares).to.equal(FixedPoint.from("5"));
+      expect(node.available).to.equal(FixedPoint.from("5"));
+      expect(node.pending).to.equal(ethers.constants.Zero);
+      expect(node.redemptions).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(ethers.constants.Zero);
+
+      /* Deposit ltv limit node */
+      depositTx = await liquidityLogic.deposit(
+        Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1),
+        FixedPoint.from("5")
+      );
+
+      /* Validate shares created */
+      await expectEvent(depositTx, liquidityLogic, "Deposited", {
+        shares: FixedPoint.from("5"),
+      });
+
+      /* Validate node */
+      [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(
+        Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1)
+      );
       expect(node.value).to.equal(FixedPoint.from("5"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(FixedPoint.from("5"));
@@ -1063,7 +1165,7 @@ describe("LiquidityLogic", function () {
       await setupLiquidity();
     });
     it("sources required liquidity with 1 token", async function () {
-      let [nodes, count] = await liquidityLogic.source(FixedPoint.from("15"), ticks, 1, 0);
+      let [nodes, count] = await liquidityLogic.source(FixedPoint.from("15"), ticks, 1, 0, 0);
 
       /* Validate nodes */
       expect(count).to.equal(2);
@@ -1072,7 +1174,7 @@ describe("LiquidityLogic", function () {
       expect(nodes[1].tick).to.equal(Tick.encode("20"));
       expect(nodes[1].used).to.equal(FixedPoint.from("5"));
 
-      [nodes, count] = await liquidityLogic.source(FixedPoint.from("35"), ticks, 1, 0);
+      [nodes, count] = await liquidityLogic.source(FixedPoint.from("35"), ticks, 1, 0, 0);
 
       /* Validate nodes */
       expect(count).to.equal(4);
@@ -1086,14 +1188,14 @@ describe("LiquidityLogic", function () {
       expect(nodes[3].used).to.equal(FixedPoint.from("5"));
     });
     it("sources required liquidity with 3 tokens", async function () {
-      let [nodes, count] = await liquidityLogic.source(FixedPoint.from("15"), ticks, 3, 0);
+      let [nodes, count] = await liquidityLogic.source(FixedPoint.from("15"), ticks, 3, 0, 0);
 
       /* Validate nodes */
       expect(count).to.equal(1);
       expect(nodes[0].tick).to.equal(Tick.encode("10"));
       expect(nodes[0].used).to.equal(FixedPoint.from("15"));
 
-      [nodes, count] = await liquidityLogic.source(FixedPoint.from("35"), ticks, 3, 0);
+      [nodes, count] = await liquidityLogic.source(FixedPoint.from("35"), ticks, 3, 0, 0);
 
       /* Validate nodes */
       expect(count).to.equal(2);
@@ -1102,7 +1204,7 @@ describe("LiquidityLogic", function () {
       expect(nodes[1].tick).to.equal(Tick.encode("20"));
       expect(nodes[1].used).to.equal(FixedPoint.from("5"));
 
-      [nodes, count] = await liquidityLogic.source(FixedPoint.from("120"), ticks, 3, 0);
+      [nodes, count] = await liquidityLogic.source(FixedPoint.from("120"), ticks, 3, 0, 0);
 
       /* Validate nodes */
       expect(count).to.equal(4);
@@ -1116,21 +1218,21 @@ describe("LiquidityLogic", function () {
       expect(nodes[3].used).to.equal(FixedPoint.from("30"));
     });
     it("sources required liquidity with 10 tokens", async function () {
-      let [nodes, count] = await liquidityLogic.source(FixedPoint.from("15"), ticks, 10, 0);
+      let [nodes, count] = await liquidityLogic.source(FixedPoint.from("15"), ticks, 10, 0, 0);
 
       /* Validate nodes */
       expect(count).to.equal(1);
       expect(nodes[0].tick).to.equal(Tick.encode("10"));
       expect(nodes[0].used).to.equal(FixedPoint.from("15"));
 
-      [nodes, count] = await liquidityLogic.source(FixedPoint.from("35"), ticks, 10, 0);
+      [nodes, count] = await liquidityLogic.source(FixedPoint.from("35"), ticks, 10, 0, 0);
 
       /* Validate nodes */
       expect(count).to.equal(1);
       expect(nodes[0].tick).to.equal(Tick.encode("10"));
       expect(nodes[0].used).to.equal(FixedPoint.from("35"));
 
-      [nodes, count] = await liquidityLogic.source(FixedPoint.from("120"), ticks, 10, 0);
+      [nodes, count] = await liquidityLogic.source(FixedPoint.from("120"), ticks, 10, 0, 0);
 
       /* Validate nodes */
       expect(count).to.equal(3);
@@ -1141,7 +1243,7 @@ describe("LiquidityLogic", function () {
       expect(nodes[2].tick).to.equal(Tick.encode("30"));
       expect(nodes[2].used).to.equal(FixedPoint.from("20"));
 
-      [nodes, count] = await liquidityLogic.source(FixedPoint.from("200"), ticks, 10, 0);
+      [nodes, count] = await liquidityLogic.source(FixedPoint.from("200"), ticks, 10, 0, 0);
 
       /* Validate nodes */
       expect(count).to.equal(4);
@@ -1159,7 +1261,8 @@ describe("LiquidityLogic", function () {
         FixedPoint.from("35"),
         [Tick.encode("10", 2, 0), Tick.encode("20", 1, 1), Tick.encode("30", 1, 2), Tick.encode("40", 0, 2)],
         1,
-        2
+        2,
+        0
       );
 
       /* Validate nodes */
@@ -1174,19 +1277,18 @@ describe("LiquidityLogic", function () {
       expect(nodes[3].used).to.equal(FixedPoint.from("5"));
     });
     it("fails on insufficient liquidity", async function () {
-      await expect(liquidityLogic.source(FixedPoint.from("25"), ticks.slice(0, 2), 1, 0)).to.be.revertedWithCustomError(
+      await expect(
+        liquidityLogic.source(FixedPoint.from("25"), ticks.slice(0, 2), 1, 0, 0)
+      ).to.be.revertedWithCustomError(liquidityLogic, "InsufficientLiquidity");
+      await expect(liquidityLogic.source(FixedPoint.from("45"), ticks, 1, 0, 0)).to.be.revertedWithCustomError(
         liquidityLogic,
         "InsufficientLiquidity"
       );
-      await expect(liquidityLogic.source(FixedPoint.from("45"), ticks, 1, 0)).to.be.revertedWithCustomError(
+      await expect(liquidityLogic.source(FixedPoint.from("121"), ticks, 3, 0, 0)).to.be.revertedWithCustomError(
         liquidityLogic,
         "InsufficientLiquidity"
       );
-      await expect(liquidityLogic.source(FixedPoint.from("121"), ticks, 3, 0)).to.be.revertedWithCustomError(
-        liquidityLogic,
-        "InsufficientLiquidity"
-      );
-      await expect(liquidityLogic.source(FixedPoint.from("201"), ticks, 10, 0)).to.be.revertedWithCustomError(
+      await expect(liquidityLogic.source(FixedPoint.from("201"), ticks, 10, 0, 0)).to.be.revertedWithCustomError(
         liquidityLogic,
         "InsufficientLiquidity"
       );
@@ -1197,6 +1299,7 @@ describe("LiquidityLogic", function () {
           FixedPoint.from("35"),
           [Tick.encode("10"), Tick.encode("30"), Tick.encode("20"), Tick.encode("40")],
           1,
+          0,
           0
         )
       ).to.be.revertedWithCustomError(liquidityLogic, "InvalidTick");
@@ -1207,6 +1310,7 @@ describe("LiquidityLogic", function () {
           FixedPoint.from("25"),
           [Tick.encode("10"), Tick.encode("20"), Tick.encode("20"), Tick.encode("40")],
           1,
+          0,
           0
         )
       ).to.be.revertedWithCustomError(liquidityLogic, "InvalidTick");
@@ -1220,14 +1324,14 @@ describe("LiquidityLogic", function () {
         limit = limit.mul(2);
       }
 
-      await expect(liquidityLogic.source(FixedPoint.from("30"), ticks2, 0, 0)).to.be.revertedWithCustomError(
+      await expect(liquidityLogic.source(FixedPoint.from("30"), ticks2, 0, 0, 0)).to.be.revertedWithCustomError(
         liquidityLogic,
         "InsufficientLiquidity"
       );
     });
     it("fails on low duration ticks", async function () {
       await expect(
-        liquidityLogic.source(FixedPoint.from("15"), [Tick.encode("10", 2, 0), Tick.encode("20", 0, 1)], 1, 1)
+        liquidityLogic.source(FixedPoint.from("15"), [Tick.encode("10", 2, 0), Tick.encode("20", 0, 1)], 1, 1, 0)
       ).to.be.revertedWithCustomError(liquidityLogic, "InvalidTick");
     });
   });

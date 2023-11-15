@@ -58,7 +58,7 @@ contract WeightedInterestRateModel is InterestRateModel {
         uint256 normalization;
         for (uint256 i; i < count; i++) {
             /* Compute tick repayment */
-            (, , uint256 rateIndex, ) = Tick.decode(nodes[i].tick);
+            (, , uint256 rateIndex, ) = Tick.decode(nodes[i].tick, LiquidityLogic.BASIS_POINTS_SCALE);
             uint256 pending = nodes[i].used +
                 Math.mulDiv(nodes[i].used, rates[rateIndex] * duration, LiquidityLogic.FIXED_POINT_SCALE);
 
