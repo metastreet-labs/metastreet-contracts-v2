@@ -64,7 +64,7 @@ contract CollectionCollateralFilter is CollateralFilter {
     /**
      * @inheritdoc CollateralFilter
      */
-    function collateralToken() external view override returns (address) {
+    function collateralToken() public view override returns (address) {
         return _token;
     }
 

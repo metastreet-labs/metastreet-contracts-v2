@@ -35,7 +35,7 @@ abstract contract CollateralFilter {
      * @notice Get collateral token
      * @return Collateral token contract
      */
-    function collateralToken() external view virtual returns (address);
+    function collateralToken() public view virtual returns (address);
 
     /**
      * @notice Get collateral tokens

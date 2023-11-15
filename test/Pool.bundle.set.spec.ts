@@ -118,11 +118,12 @@ describe("Pool Bundle Set Collection", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address", "uint256[]", "address", "uint64[]", "uint64[]"],
+          ["address", "uint256[]", "address", "address", "uint64[]", "uint64[]"],
           [
             nft1.address,
             [123, 124, 125],
             tok1.address,
+            ethers.constants.AddressZero,
             [30 * 86400, 14 * 86400, 7 * 86400],
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
           ]
@@ -246,7 +247,7 @@ describe("Pool Bundle Set Collection", function () {
 
   async function setupLiquidity(): Promise<void> {
     const NUM_LIMITS = 20;
-    const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.TICK_LIMIT_SPACING_BASIS_POINTS();
+    const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.ABSOLUTE_TICK_LIMIT_SPACING_BASIS_POINTS();
 
     let limit = FixedPoint.from("6.5");
     for (let i = 0; i < NUM_LIMITS; i++) {
@@ -536,7 +537,8 @@ describe("Pool Bundle Set Collection", function () {
           decodedLoanReceipt.principal,
           15 * 86400,
           FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"))
+          await sourceLiquidity(FixedPoint.from("25")),
+          "0x"
         );
       const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
