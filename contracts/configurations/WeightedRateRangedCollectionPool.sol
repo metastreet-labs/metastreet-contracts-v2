@@ -5,6 +5,7 @@ import "../Pool.sol";
 import "../rates/WeightedInterestRateModel.sol";
 import "../filters/RangedCollectionCollateralFilter.sol";
 import "../tokenization/ERC20DepositToken.sol";
+import "../oracle/ExternalPriceOracle.sol";
 
 /**
  * @title Pool Configuration with a Weighted Interest Rate Model and Ranged Collection
@@ -15,7 +16,8 @@ contract WeightedRateRangedCollectionPool is
     Pool,
     WeightedInterestRateModel,
     RangedCollectionCollateralFilter,
-    ERC20DepositToken
+    ERC20DepositToken,
+    ExternalPriceOracle
 {
     /**************************************************************************/
     /* State */
@@ -48,6 +50,7 @@ contract WeightedRateRangedCollectionPool is
         Pool(collateralLiquidator, delegateRegistryV1, delegateRegistryV2, collateralWrappers)
         WeightedInterestRateModel()
         ERC20DepositToken(erc20DepositTokenImplementation)
+        ExternalPriceOracle()
     {
         /* Disable initialization of implementation contract */
         _initialized = true;
@@ -73,12 +76,16 @@ contract WeightedRateRangedCollectionPool is
             uint256 startTokenId_,
             uint256 endTokenId_,
             address currencyToken_,
+            address priceOracle_,
             uint64[] memory durations_,
             uint64[] memory rates_
-        ) = abi.decode(params, (address, uint256, uint256, address, uint64[], uint64[]));
+        ) = abi.decode(params, (address, uint256, uint256, address, address, uint64[], uint64[]));
 
         /* Initialize Collateral Filter */
         RangedCollectionCollateralFilter._initialize(collateralToken_, startTokenId_, endTokenId_);
+
+        /* Initialize External Price Oracle */
+        ExternalPriceOracle.__initialize(priceOracle_);
 
         /* Initialize Pool */
         Pool._initialize(currencyToken_, durations_, rates_);

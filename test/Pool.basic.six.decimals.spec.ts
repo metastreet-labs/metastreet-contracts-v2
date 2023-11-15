@@ -112,10 +112,11 @@ describe("Pool Basic (6 Decimals)", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address", "address", "uint64[]", "uint64[]"],
+          ["address", "address", "address", "uint64[]", "uint64[]"],
           [
             nft1.address,
             tok1.address,
+            ethers.constants.AddressZero,
             [30 * 86400, 14 * 86400, 7 * 86400],
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
           ]
@@ -526,11 +527,6 @@ describe("Pool Basic (6 Decimals)", function () {
       /* Out of bounds rate */
       await expect(
         pool.connect(accountDepositors[0]).deposit(Tick.encode("1", 0, 5), FixedPoint.from("1", 6), 0)
-      ).to.be.revertedWithCustomError(pool, "InvalidTick");
-
-      /* Out of bounds reserved field */
-      await expect(
-        pool.connect(accountDepositors[0]).deposit(Tick.encode("1", 0, 0).add(2), FixedPoint.from("1", 6), 0)
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
 
       /* Zero limit */
@@ -1756,11 +1752,6 @@ describe("Pool Basic (6 Decimals)", function () {
       await expect(
         pool.connect(accountDepositors[0]).rebalance(scaleTickEncode("1", 6), Tick.encode("15", 0, 5), 0, 0)
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
-
-      /* Out of bounds reserved field */
-      await expect(
-        pool.connect(accountDepositors[0]).rebalance(scaleTickEncode("1", 6), Tick.encode("15", 0, 0).add(2), 0, 0)
-      ).to.be.revertedWithCustomError(pool, "InvalidTick");
     });
 
     it("fails on insufficient shares", async function () {
@@ -1851,7 +1842,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
   async function setupLiquidity(): Promise<void> {
     const NUM_LIMITS = 35;
-    const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.TICK_LIMIT_SPACING_BASIS_POINTS();
+    const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.ABSOLUTE_TICK_LIMIT_SPACING_BASIS_POINTS();
 
     let limit = FixedPoint.from("6.5", 6);
     for (let i = 0; i < NUM_LIMITS; i++) {
@@ -3077,7 +3068,8 @@ describe("Pool Basic (6 Decimals)", function () {
           decodedLoanReceipt.principal.div(SCALE),
           15 * 86400,
           FixedPoint.from("26", 6),
-          await sourceLiquidity(FixedPoint.from("25", 6))
+          await sourceLiquidity(FixedPoint.from("25", 6)),
+          "0x"
         );
       const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
@@ -3141,7 +3133,8 @@ describe("Pool Basic (6 Decimals)", function () {
           decodedLoanReceipt.principal.sub(FixedPoint.from("1")).div(SCALE),
           15 * 86400,
           FixedPoint.from("26", 6),
-          await sourceLiquidity(FixedPoint.from("25", 6))
+          await sourceLiquidity(FixedPoint.from("25", 6)),
+          "0x"
         );
       const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
@@ -3205,7 +3198,8 @@ describe("Pool Basic (6 Decimals)", function () {
           decodedLoanReceipt.principal.add(FixedPoint.from("1")).div(SCALE),
           15 * 86400,
           FixedPoint.from("27", 6),
-          await sourceLiquidity(FixedPoint.from("25", 6))
+          await sourceLiquidity(FixedPoint.from("25", 6)),
+          "0x"
         );
       const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
@@ -3268,6 +3262,7 @@ describe("Pool Basic (6 Decimals)", function () {
               1,
               FixedPoint.from("26", 6),
               await sourceLiquidity(FixedPoint.from("25", 6)),
+              "0x",
             ]),
             pool.interface.encodeFunctionData("refinance", [
               loanReceipt,
@@ -3275,6 +3270,7 @@ describe("Pool Basic (6 Decimals)", function () {
               1,
               FixedPoint.from("26", 6),
               await sourceLiquidity(FixedPoint.from("25", 6)),
+              "0x",
             ]),
           ])
       ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
@@ -3347,6 +3343,7 @@ describe("Pool Basic (6 Decimals)", function () {
               1,
               FixedPoint.from("2", 6),
               await sourceLiquidity(FixedPoint.from("1", 6)),
+              "0x",
             ]),
           ])
       ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
@@ -3367,7 +3364,8 @@ describe("Pool Basic (6 Decimals)", function () {
             FixedPoint.from("25", 6),
             15 * 86400,
             FixedPoint.from("26", 6),
-            await sourceLiquidity(FixedPoint.from("1", 6))
+            await sourceLiquidity(FixedPoint.from("1", 6)),
+            "0x"
           )
       ).to.be.revertedWithCustomError(pool, "InvalidCaller");
     });
@@ -3387,7 +3385,8 @@ describe("Pool Basic (6 Decimals)", function () {
             FixedPoint.from("25", 6),
             15 * 86400,
             FixedPoint.from("26", 6),
-            await sourceLiquidity(FixedPoint.from("25", 6))
+            await sourceLiquidity(FixedPoint.from("25", 6)),
+            "0x"
           )
       ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
     });
@@ -3408,7 +3407,8 @@ describe("Pool Basic (6 Decimals)", function () {
             FixedPoint.from("25", 6),
             15 * 86400,
             FixedPoint.from("26", 6),
-            await sourceLiquidity(FixedPoint.from("25", 6))
+            await sourceLiquidity(FixedPoint.from("25", 6)),
+            "0x"
           )
       ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
     });
@@ -3436,7 +3436,8 @@ describe("Pool Basic (6 Decimals)", function () {
             FixedPoint.from("25", 6),
             15 * 86400,
             FixedPoint.from("26", 6),
-            await sourceLiquidity(FixedPoint.from("25", 6))
+            await sourceLiquidity(FixedPoint.from("25", 6)),
+            "0x"
           )
       ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
     });

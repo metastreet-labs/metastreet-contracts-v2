@@ -68,7 +68,7 @@ contract SetCollectionCollateralFilter is CollateralFilter {
      * @notice Get collateral token
      * @return Collateral token contract
      */
-    function collateralToken() external view override returns (address) {
+    function collateralToken() public view override returns (address) {
         return _token;
     }
 

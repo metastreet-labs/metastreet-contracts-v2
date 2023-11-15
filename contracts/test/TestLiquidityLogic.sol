@@ -155,8 +155,9 @@ contract TestLiquidityLogic is ILiquidity {
         uint256 amount,
         uint128[] calldata ticks,
         uint256 multiplier,
-        uint256 durationIndex
+        uint256 durationIndex,
+        uint256 oraclePrice
     ) external view returns (LiquidityLogic.NodeSource[] memory, uint16 count) {
-        return _liquidity.source(amount, ticks, multiplier, durationIndex);
+        return _liquidity.source(amount, ticks, multiplier, durationIndex, oraclePrice);
     }
 }

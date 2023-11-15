@@ -5,6 +5,7 @@ import "../Pool.sol";
 import "../rates/WeightedInterestRateModel.sol";
 import "../filters/SetCollectionCollateralFilter.sol";
 import "../tokenization/ERC20DepositToken.sol";
+import "../oracle/ExternalPriceOracle.sol";
 
 /**
  * @title Pool Configuration with a Weighted Interest Rate Model and Set Collection
@@ -15,7 +16,8 @@ contract WeightedRateSetCollectionPool is
     Pool,
     WeightedInterestRateModel,
     SetCollectionCollateralFilter,
-    ERC20DepositToken
+    ERC20DepositToken,
+    ExternalPriceOracle
 {
     /**************************************************************************/
     /* State */
@@ -48,6 +50,7 @@ contract WeightedRateSetCollectionPool is
         Pool(collateralLiquidator, delegateRegistryV1, delegateRegistryV2, collateralWrappers)
         WeightedInterestRateModel()
         ERC20DepositToken(erc20DepositTokenImplementation)
+        ExternalPriceOracle()
     {
         /* Disable initialization of implementation contract */
         _initialized = true;
@@ -72,12 +75,16 @@ contract WeightedRateSetCollectionPool is
             address collateralToken_,
             uint256[] memory tokenIds_,
             address currencyToken_,
+            address priceOracle_,
             uint64[] memory durations_,
             uint64[] memory rates_
-        ) = abi.decode(params, (address, uint256[], address, uint64[], uint64[]));
+        ) = abi.decode(params, (address, uint256[], address, address, uint64[], uint64[]));
 
         /* Initialize Collateral Filter */
         SetCollectionCollateralFilter._initialize(collateralToken_, tokenIds_);
+
+        /* Initialize External Price Oracle */
+        ExternalPriceOracle.__initialize(priceOracle_);
 
         /* Initialize Pool */
         Pool._initialize(currencyToken_, durations_, rates_);

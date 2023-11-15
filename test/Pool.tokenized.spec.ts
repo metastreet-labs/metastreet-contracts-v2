@@ -44,6 +44,9 @@ describe("Pool Tokenized", function () {
   /* CONSTANTS */
   const TICK10 = Tick.encode("10");
   const TICK15 = Tick.encode("15");
+  const TICKLTV1000 = Tick.encode(ethers.BigNumber.from("1000"), 0, 0, 18, 1);
+  const TICKLTV1111 = Tick.encode(ethers.BigNumber.from("1111"), 0, 0, 18, 1);
+  const TICKLTV2220 = Tick.encode(ethers.BigNumber.from("2220"), 0, 0, 18, 1);
 
   const ZERO_ETHER = FixedPoint.from("0");
   const ONE_ETHER = FixedPoint.from("1");
@@ -122,10 +125,11 @@ describe("Pool Tokenized", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address", "address", "uint64[]", "uint64[]"],
+          ["address", "address", "address", "uint64[]", "uint64[]"],
           [
             nft1.address,
             tok1.address,
+            ethers.constants.AddressZero,
             [30 * 86400, 14 * 86400, 7 * 86400],
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
           ]
@@ -404,22 +408,52 @@ describe("Pool Tokenized", function () {
   describe("ERC20DepositTokenImplementation", async function () {
     describe("getters", async function () {
       let erc20Token10: ERC20DepositTokenImplementation;
+      let erc20TokenLTV1000: ERC20DepositTokenImplementation;
+      let erc20TokenLTV1111: ERC20DepositTokenImplementation;
+      let erc20TokenLTV2220: ERC20DepositTokenImplementation;
 
       beforeEach("deposit into new tick", async () => {
-        const depTx = await _depositAndTokenizeMulticall(accountDepositors[0], TICK10, ONE_ETHER);
-        const tokenInstance = (await extractEvent(depTx, pool, "TokenCreated")).args.instance;
+        const depTx1 = await _depositAndTokenizeMulticall(accountDepositors[0], TICK10, ONE_ETHER);
+        const tokenInstance1 = (await extractEvent(depTx1, pool, "TokenCreated")).args.instance;
         erc20Token10 = (await ethers.getContractAt(
           "ERC20DepositTokenImplementation",
-          tokenInstance
+          tokenInstance1
+        )) as ERC20DepositTokenImplementation;
+
+        const depTx2 = await _depositAndTokenizeMulticall(accountDepositors[0], TICKLTV1000, ONE_ETHER);
+        const tokenInstance2 = (await extractEvent(depTx2, pool, "TokenCreated")).args.instance;
+        erc20TokenLTV1000 = (await ethers.getContractAt(
+          "ERC20DepositTokenImplementation",
+          tokenInstance2
+        )) as ERC20DepositTokenImplementation;
+
+        const depTx3 = await _depositAndTokenizeMulticall(accountDepositors[0], TICKLTV1111, ONE_ETHER);
+        const tokenInstance3 = (await extractEvent(depTx3, pool, "TokenCreated")).args.instance;
+        erc20TokenLTV1111 = (await ethers.getContractAt(
+          "ERC20DepositTokenImplementation",
+          tokenInstance3
+        )) as ERC20DepositTokenImplementation;
+
+        const depTx4 = await _depositAndTokenizeMulticall(accountDepositors[0], TICKLTV2220, ONE_ETHER);
+        const tokenInstance4 = (await extractEvent(depTx4, pool, "TokenCreated")).args.instance;
+        erc20TokenLTV2220 = (await ethers.getContractAt(
+          "ERC20DepositTokenImplementation",
+          tokenInstance4
         )) as ERC20DepositTokenImplementation;
       });
 
       it("returns correct name", async function () {
         expect(await erc20Token10.name()).to.equal("MetaStreet V2 Deposit: NFT1-TOK1:10");
+        expect(await erc20TokenLTV1000.name()).to.equal("MetaStreet V2 Deposit: NFT1-TOK1:10%");
+        expect(await erc20TokenLTV1111.name()).to.equal("MetaStreet V2 Deposit: NFT1-TOK1:11.11%");
+        expect(await erc20TokenLTV2220.name()).to.equal("MetaStreet V2 Deposit: NFT1-TOK1:22.20%");
       });
 
       it("returns correct symbol", async function () {
         expect(await erc20Token10.symbol()).to.equal("mTOK1-NFT1:10");
+        expect(await erc20TokenLTV1000.symbol()).to.equal("mTOK1-NFT1:10%");
+        expect(await erc20TokenLTV1111.symbol()).to.equal("mTOK1-NFT1:11.11%");
+        expect(await erc20TokenLTV2220.symbol()).to.equal("mTOK1-NFT1:22.20%");
       });
 
       it("returns correct decimals", async function () {

@@ -163,8 +163,8 @@ describe("Integration", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address", "address", "uint64[]", "uint64[]"],
-          [nft1.address, tok1.address, CONFIG.tickDurations, CONFIG.tickRates]
+          ["address", "address", "address", "uint64[]", "uint64[]"],
+          [nft1.address, tok1.address, ethers.constants.AddressZero, CONFIG.tickDurations, CONFIG.tickRates]
         ),
       ])
     );
@@ -757,12 +757,12 @@ describe("Integration", function () {
       consoleLog(`Params => principal: ${principal}, duration: ${duration}, maxRepayment: ${maxRepayment}`);
       const repayment = await pool
         .connect(borrower)
-        .callStatic.refinance(encodedLoanReceipt, principal, duration, maxRepayment, _ticks);
+        .callStatic.refinance(encodedLoanReceipt, principal, duration, maxRepayment, _ticks, "0x");
 
       /* Execute repay() on Pool */
       const refinanceTx = await pool
         .connect(borrower)
-        .refinance(encodedLoanReceipt, principal, duration, maxRepayment, _ticks);
+        .refinance(encodedLoanReceipt, principal, duration, maxRepayment, _ticks, "0x");
       const [value, available, pending] = await liquidityNodes();
 
       /* Get block timestamp of borrow transaction */
