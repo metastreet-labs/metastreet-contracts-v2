@@ -75,7 +75,7 @@ contract PunkCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard {
     ICryptoPunksMarket internal immutable _punksMarket;
 
     /**
-     * @notice Crypto Punks Token (returned by enumerate)
+     * @notice Crypto Punks Token (returned by enumerate API)
      */
     address internal immutable _punksToken;
 
@@ -85,6 +85,13 @@ contract PunkCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard {
 
     /**
      * @notice PunkCollateralWrapper constructor
+     * @param punksMarket Native Crypto Punks token address
+     * @param punksToken Crypto Punks token address returned by enumerate API
+     *
+     * @dev This collateral wrapper is deployed with punksToken set to WPUNKS,
+     * which is returned by the enumerate API, for backwards compatibility with
+     * existing Crypto Punks pools. Frontends may need special handling for
+     * dealing with the underlying native Crypto Punks tokens.
      */
     constructor(address punksMarket, address punksToken) ERC721("MetaStreet Punk Collateral Wrapper", "MSPCW") {
         _punksMarket = ICryptoPunksMarket(punksMarket);
