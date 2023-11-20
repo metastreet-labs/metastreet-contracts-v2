@@ -536,6 +536,16 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         /* Compute liquidation context hash */
         bytes32 liquidationContextHash = _liquidationContextHash(liquidationContext);
 
+        /* Emit LiquidationStarted */
+        emit LiquidationStarted(
+            liquidationHash,
+            msg.sender,
+            liquidationContextHash,
+            currencyToken,
+            collateralToken,
+            uint16(underlyingCollateralTokenIds.length)
+        );
+
         /* Iterate through underlying collaterals to create an auction for each underlying collateral */
         for (uint16 i = 0; i < underlyingCollateralTokenIds.length; i++) {
             _createAuction(
@@ -555,16 +565,6 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
             liquidationContextHash: liquidationContextHash,
             proceeds: 0
         });
-
-        /* Emit LiquidationStarted */
-        emit LiquidationStarted(
-            liquidationHash,
-            msg.sender,
-            liquidationContextHash,
-            currencyToken,
-            collateralToken,
-            uint16(underlyingCollateralTokenIds.length)
-        );
 
         /* Transfer collateral token from source to this contract */
         IERC721(collateralToken).transferFrom(msg.sender, address(this), collateralTokenId);
