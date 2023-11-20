@@ -1,14 +1,12 @@
 /* eslint-disable camelcase */
-import { ethers } from "hardhat";
 import { BigNumber } from "@ethersproject/bignumber";
-
-import { ERC20__factory, ERC721__factory, Pool__factory } from "../typechain";
-
+import { ethers } from "hardhat";
 import { getContractFactoryWithLibraries } from "../test/helpers/Deploy";
 import { extractEvent } from "../test/helpers/EventUtilities";
 import { FixedPoint } from "../test/helpers/FixedPoint";
-import { Tick } from "../test/helpers/Tick";
 import { MerkleTree } from "../test/helpers/MerkleTree";
+import { Tick } from "../test/helpers/Tick";
+import { ERC20__factory, ERC721__factory, Pool__factory } from "../typechain";
 
 async function main() {
   const accounts = await ethers.getSigners();
@@ -50,6 +48,10 @@ async function main() {
 
   console.log("EnglishAuctionCollateralLiquidator: ", englishAuctionCollateralLiquidatorProxy.address);
 
+  const ERC20DepositTokenImplementation = await ethers.getContractFactory("ERC20DepositTokenImplementation");
+  const erc20DepositTokenImplementation = await ERC20DepositTokenImplementation.deploy();
+  await erc20DepositTokenImplementation.deployed();
+
   /**************************************************************************/
   /* PoolFactory */
   /**************************************************************************/
@@ -80,12 +82,13 @@ async function main() {
   /* Deploy WeightedRateCollectionPool Implementation */
   const WeightedRateCollectionPool = await getContractFactoryWithLibraries(
     "WeightedRateCollectionPool",
-    ["LiquidityLogic", "DepositLogic", "ERC20DepositTokenFactory"],
+    ["LiquidityLogic", "DepositLogic", "BorrowLogic", "ERC20DepositTokenFactory"],
     accounts[9]
   );
   const weightedRateCollectionPoolImpl = await WeightedRateCollectionPool.deploy(
     englishAuctionCollateralLiquidatorProxy.address,
     testDelegationRegistry.address,
+    erc20DepositTokenImplementation.address,
     [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
     {
       tickThreshold: FixedPoint.from("0.05"),
@@ -98,12 +101,13 @@ async function main() {
   /* Deploy WeightedRateRangedCollectionPool Implementation */
   const WeightedRateRangedCollectionPool = await getContractFactoryWithLibraries(
     "WeightedRateRangedCollectionPool",
-    ["LiquidityLogic", "DepositLogic", "ERC20DepositTokenFactory"],
+    ["LiquidityLogic", "DepositLogic", "BorrowLogic", "ERC20DepositTokenFactory"],
     accounts[9]
   );
   const weightedRateRangedCollectionPoolImpl = await WeightedRateRangedCollectionPool.deploy(
     englishAuctionCollateralLiquidatorProxy.address,
     testDelegationRegistry.address,
+    erc20DepositTokenImplementation.address,
     [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
     {
       tickThreshold: FixedPoint.from("0.05"),
@@ -116,12 +120,13 @@ async function main() {
   /* Deploy WeightedRateSetCollectionPool Implementation */
   const WeightedRateSetCollectionPool = await getContractFactoryWithLibraries(
     "WeightedRateSetCollectionPool",
-    ["LiquidityLogic", "DepositLogic", "ERC20DepositTokenFactory"],
+    ["LiquidityLogic", "DepositLogic", "BorrowLogic", "ERC20DepositTokenFactory"],
     accounts[9]
   );
   const weightedRateSetCollectionPoolImpl = await WeightedRateSetCollectionPool.deploy(
     englishAuctionCollateralLiquidatorProxy.address,
     testDelegationRegistry.address,
+    erc20DepositTokenImplementation.address,
     [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
     {
       tickThreshold: FixedPoint.from("0.05"),
@@ -134,12 +139,13 @@ async function main() {
   /* Deploy WeightedRateMerkleCollectionPool Implementation */
   const WeightedRateMerkleCollectionPool = await getContractFactoryWithLibraries(
     "WeightedRateMerkleCollectionPool",
-    ["LiquidityLogic", "DepositLogic", "ERC20DepositTokenFactory"],
+    ["LiquidityLogic", "DepositLogic", "BorrowLogic", "ERC20DepositTokenFactory"],
     accounts[9]
   );
   const weightedRateMerkleCollectionPoolImpl = await WeightedRateMerkleCollectionPool.deploy(
     englishAuctionCollateralLiquidatorProxy.address,
     testDelegationRegistry.address,
+    erc20DepositTokenImplementation.address,
     [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
     {
       tickThreshold: FixedPoint.from("0.05"),
