@@ -23,11 +23,11 @@ import {
   AdminFeeRateUpdated as AdminFeeRateUpdatedEvent,
   CollateralLiquidated as CollateralLiquidatedEvent,
   Deposited as DepositedEvent,
+  Pool__liquidityNodeResultValue0Struct as LiquidityNode,
   LoanLiquidated as LoanLiquidatedEvent,
   LoanOriginated as LoanOriginatedEvent,
   LoanRepaid as LoanRepaidEvent,
   Pool__decodeLoanReceiptResultValue0NodeReceiptsStruct as NodeReceipt,
-  Pool__liquidityNodeResultValue0Struct as LiquidityNode,
   Pool as PoolContract,
   Redeemed as RedeemedEvent,
   Withdrawn as WithdrawnEvent,
@@ -37,12 +37,6 @@ import {
   Redeemed as RedeemedEventV1,
   Withdrawn as WithdrawnEventV1,
 } from "../generated/templates/Pool/PoolV1";
-import {
-  handleAuctionCreated,
-  handleLiquidationStarted,
-  manufactureAuctionCreatedEvent,
-  manufactureLiquidationStartedEvent,
-} from "./englishAuctionCollateralLiquidator";
 import { FixedPoint } from "./utils/FixedPoint";
 import { decodeLogData } from "./utils/decodeLogData";
 import { bytesFromBigInt } from "./utils/misc";
@@ -620,22 +614,6 @@ export function handleLoanLiquidated(event: LoanLiquidatedEvent): void {
   const loanLiquidatedEntity = new LoanLiquidatedEntity(poolEventId);
   loanLiquidatedEntity.loan = loanEntity.id;
   loanLiquidatedEntity.save();
-
-  const transactionReceipt = event.receipt;
-  if (transactionReceipt) {
-    const LIQUIDATION_STARTED_TOPIC = "0xb147b2c3b3dced11f6425f7709a14fc2fdac9121a4bc63cde3bd3d6d4d8066b0";
-    const AUCTION_CREATED_TOPIC = "0x15271099786b82529b8cdd3fb785da93c0460a55d76f84d4c6dbce07f11c70e8";
-    for (let i = 0; i < transactionReceipt.logs.length; i++) {
-      const firstTopic = transactionReceipt.logs[i].topics[0].toHexString();
-      if (firstTopic == LIQUIDATION_STARTED_TOPIC) {
-        const liquidationStartedEvent = manufactureLiquidationStartedEvent(event, i);
-        if (liquidationStartedEvent) handleLiquidationStarted(liquidationStartedEvent);
-      } else if (firstTopic == AUCTION_CREATED_TOPIC) {
-        const auctionCreatedEvent = manufactureAuctionCreatedEvent(event, i);
-        if (auctionCreatedEvent) handleAuctionCreated(auctionCreatedEvent);
-      }
-    }
-  }
 }
 
 export function handleCollateralLiquidated(event: CollateralLiquidatedEvent): void {
