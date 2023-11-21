@@ -386,7 +386,7 @@ abstract contract Pool is
      * @return Decoded loan receipt
      */
     function decodeLoanReceipt(bytes calldata loanReceipt) external pure returns (LoanReceipt.LoanReceiptV2 memory) {
-        return LoanReceipt.decode(loanReceipt);
+        return BorrowLogic._decodeLoanReceipt(loanReceipt);
     }
 
     /**************************************************************************/

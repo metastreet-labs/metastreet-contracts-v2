@@ -104,6 +104,15 @@ library BorrowLogic {
     }
 
     /**
+     * @dev Helper function to decode a loan receipt
+     * @param loanReceipt Loan receipt
+     * @return Decoded loan receipt
+     */
+    function _decodeLoanReceipt(bytes calldata loanReceipt) external pure returns (LoanReceipt.LoanReceiptV2 memory) {
+        return LoanReceipt.decode(loanReceipt);
+    }
+
+    /**
      * @dev Helper function to handle borrow accounting
      * @param self Pool storage
      * @param principal Principal amount in currency tokens
