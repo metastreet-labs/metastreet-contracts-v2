@@ -295,6 +295,7 @@ type Auction @entity {
   collateralToken: CollateralToken
   currencyToken: CurrencyToken!
   collateralTokenId: BigInt! # uint256
+  quantity: BigInt!
   highestBid: Bid
   bidsCount: Int!
   endTime: BigInt! # uint64

@@ -55,7 +55,12 @@ function createLiquidationEntity(source: Address, liquidationHash: Bytes, liquid
   liquidationEntity.save();
 }
 
-function createAuctionEntity(liquidationHash: Bytes, collateralToken: Address, collateralTokenId: BigInt): void {
+function createAuctionEntity(
+  liquidationHash: Bytes,
+  collateralToken: Address,
+  collateralTokenId: BigInt,
+  quantity: BigInt
+): void {
   const liquidationEntity = LiquidationEntity.load(liquidationHash);
   if (!liquidationEntity) return;
 
@@ -64,6 +69,7 @@ function createAuctionEntity(liquidationHash: Bytes, collateralToken: Address, c
   auctionEntity.collateralToken = liquidationEntity.collateralToken;
   auctionEntity.currencyToken = liquidationEntity.currencyToken;
   auctionEntity.collateralTokenId = collateralTokenId;
+  auctionEntity.quantity = quantity;
   auctionEntity.endTime = BigInt.fromI32(2).pow(64).minus(BigInt.fromI32(1)); // MAX_UINT64
   auctionEntity.bidsCount = 0;
   auctionEntity.status = AuctionStatus.Created;
@@ -82,11 +88,21 @@ export function handleLiquidationStartedV1(event: LiquidationStartedEventV1): vo
 }
 
 export function handleAuctionCreated(event: AuctionCreatedEvent): void {
-  createAuctionEntity(event.params.liquidationHash, event.params.collateralToken, event.params.collateralTokenId);
+  createAuctionEntity(
+    event.params.liquidationHash,
+    event.params.collateralToken,
+    event.params.collateralTokenId,
+    event.params.quantity
+  );
 }
 
 export function handleAuctionCreatedV1(event: AuctionCreatedEventV1): void {
-  createAuctionEntity(event.params.liquidationHash, event.params.collateralToken, event.params.collateralTokenId);
+  createAuctionEntity(
+    event.params.liquidationHash,
+    event.params.collateralToken,
+    event.params.collateralTokenId,
+    BigInt.fromU32(1)
+  );
 }
 
 export function handleAuctionStarted(event: AuctionStartedEvent): void {
