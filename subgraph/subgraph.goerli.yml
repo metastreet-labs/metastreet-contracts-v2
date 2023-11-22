@@ -96,8 +96,8 @@ dataSources:
         - Pool
         - CollateralToken
       abis:
-        - name: EnglishAuctionCollateralLiquidator
-          file: ../artifacts/contracts/liquidators/EnglishAuctionCollateralLiquidator.sol/EnglishAuctionCollateralLiquidator.json
+        - name: EnglishAuctionCollateralLiquidatorV1
+          file: ./abis/EnglishAuctionCollateralLiquidatorV1.json
       eventHandlers:
         - event: LiquidationStarted(indexed bytes32,indexed address,indexed bytes32,address,uint16)
           handler: handleLiquidationStarted
