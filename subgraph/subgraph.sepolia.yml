@@ -79,6 +79,32 @@ dataSources:
           handler: handleTransfer
       file: src/erc1155CollateralWrapper.ts
   - kind: ethereum/contract
+    name: EnglishAuctionCollateralLiquidatorV1
+    network: sepolia
+    source:
+      address: "0xC29a8D5AE1Deb4B5985125C63e457b682e1E8Dd4"
+      abi: EnglishAuctionCollateralLiquidatorV1
+      startBlock: 3702836
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.8
+      language: wasm/assemblyscript
+      entities:
+        - Liquidation
+        - Auction
+        - Bid
+        - Pool
+        - CollateralToken
+      abis:
+        - name: EnglishAuctionCollateralLiquidatorV1
+          file: ./abis/EnglishAuctionCollateralLiquidatorV1.json
+      eventHandlers:
+        - event: LiquidationStarted(indexed bytes32,indexed address,indexed bytes32,address,uint16)
+          handler: handleLiquidationStartedV1
+        - event: AuctionCreated(indexed bytes32,indexed address,indexed uint256)
+          handler: handleAuctionCreatedV1
+      file: ./src/englishAuctionCollateralLiquidator.ts
+  - kind: ethereum/contract
     name: EnglishAuctionCollateralLiquidator
     network: sepolia
     source:
@@ -99,11 +125,11 @@ dataSources:
         - name: EnglishAuctionCollateralLiquidator
           file: ../artifacts/contracts/liquidators/EnglishAuctionCollateralLiquidator.sol/EnglishAuctionCollateralLiquidator.json
       eventHandlers:
-        - event: LiquidationStarted(indexed bytes32,indexed address,indexed bytes32,address,uint16)
+        - event: LiquidationStarted(indexed bytes32,indexed address,indexed bytes32,address,address,uint16)
           handler: handleLiquidationStarted
         - event: AuctionBid(indexed bytes32,indexed address,indexed uint256,address,uint256)
           handler: handleAuctionBid
-        - event: AuctionCreated(indexed bytes32,indexed address,indexed uint256)
+        - event: AuctionCreated(indexed bytes32,indexed address,indexed uint256,uint256)
           handler: handleAuctionCreated
         - event: AuctionEnded(indexed bytes32,indexed address,indexed uint256,address,uint256)
           handler: handleAuctionEnded
