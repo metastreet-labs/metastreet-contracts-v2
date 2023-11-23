@@ -1,4 +1,4 @@
-specVersion: 0.0.4
+specVersion: 0.0.5
 schema:
   file: ./schema.graphql
 dataSources:
@@ -11,7 +11,7 @@ dataSources:
       startBlock: 17497132
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.7
+      apiVersion: 0.0.8
       language: wasm/assemblyscript
       entities:
         - Pool
@@ -43,7 +43,7 @@ dataSources:
       startBlock: 17497140
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.7
+      apiVersion: 0.0.8
       language: wasm/assemblyscript
       entities:
         - Bundle
@@ -65,7 +65,7 @@ dataSources:
       startBlock: 18039647
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.7
+      apiVersion: 0.0.8
       language: wasm/assemblyscript
       entities:
         - Batch
@@ -87,7 +87,7 @@ dataSources:
       startBlock: 17497152
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.7
+      apiVersion: 0.0.8
       language: wasm/assemblyscript
       entities:
         - Liquidation
@@ -120,7 +120,7 @@ templates:
       abi: PoolV1
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.7
+      apiVersion: 0.0.8
       language: wasm/assemblyscript
       entities:
         - Pool
@@ -172,7 +172,7 @@ templates:
       abi: Pool
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.7
+      apiVersion: 0.0.8
       language: wasm/assemblyscript
       entities:
         - Pool
