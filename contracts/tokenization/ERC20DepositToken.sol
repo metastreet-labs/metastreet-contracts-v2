@@ -96,7 +96,7 @@ contract ERC20DepositToken is DepositToken {
         /* Store token instance in mapping */
         _getDepositTokenStorage().tokens[tick] = tokenInstance;
 
-        emit TokenCreated(tokenInstance, _implementation);
+        emit TokenCreated(tokenInstance, _implementation, tick);
 
         return tokenInstance;
     }

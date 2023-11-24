@@ -254,6 +254,14 @@ describe("Pool Tokenized", function () {
           tokenInstance
         )) as ERC20DepositTokenImplementation;
 
+        const predictedDeterministicAddress = await _computeDeterministicAddress(TICK10);
+
+        expectEvent(depTx, pool, "TokenCreated", {
+          instance: predictedDeterministicAddress,
+          implementation: erc20DepositTokenImpl.address,
+          tick: TICK10,
+        });
+
         /* Validate token balance */
         expect(await erc20Token10.balanceOf(accountDepositors[0].address)).to.equal(ONE_ETHER);
 
@@ -303,6 +311,7 @@ describe("Pool Tokenized", function () {
         expectEvent(depTx, pool, "TokenCreated", {
           instance: predictedDeterministicAddress,
           implementation: erc20DepositTokenImpl.address,
+          tick: TICK10,
         });
 
         expect(tokenInstance).to.equal(predictedDeterministicAddress);
@@ -320,6 +329,7 @@ describe("Pool Tokenized", function () {
         expectEvent(depTx, pool, "TokenCreated", {
           instance: predictedDeterministicAddress,
           implementation: erc20DepositTokenImpl.address,
+          tick: TICK10,
         });
 
         expect(tokenInstance).to.equal(predictedDeterministicAddress);
@@ -339,6 +349,7 @@ describe("Pool Tokenized", function () {
         expectEvent(depTx, pool, "TokenCreated", {
           instance: predictedDeterministicAddress,
           implementation: erc20DepositTokenImpl.address,
+          tick: TICK10,
         });
 
         expect(tokenInstance).to.equal(predictedDeterministicAddress);
@@ -354,6 +365,7 @@ describe("Pool Tokenized", function () {
         expectEvent(depTx2, pool, "TokenCreated", {
           instance: predictedDeterministicAddress2,
           implementation: erc20DepositTokenImpl.address,
+          tick: TICK15,
         });
 
         expect(tokenInstance2).to.equal(predictedDeterministicAddress2);
