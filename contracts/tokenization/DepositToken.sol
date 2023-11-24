@@ -14,8 +14,9 @@ abstract contract DepositToken {
      * @notice Emitted when deposit token created
      * @param instance Instance address
      * @param implementation Implementation address
+     * @param tick Tick
      */
-    event TokenCreated(address indexed instance, address indexed implementation);
+    event TokenCreated(address indexed instance, address indexed implementation, uint128 indexed tick);
 
     /**************************************************************************/
     /* API */

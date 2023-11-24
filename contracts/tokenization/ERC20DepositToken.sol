@@ -88,7 +88,11 @@ contract ERC20DepositToken is DepositToken {
     function tokenize(uint128 tick) external returns (address) {
         /* Return token if it already exists */
         address tokenInstance = depositToken(tick);
-        if (tokenInstance != address(0)) return tokenInstance;
+        if (tokenInstance != address(0)) {
+            emit TokenCreated(tokenInstance, _implementation, tick);
+
+            return tokenInstance;
+        }
 
         /* Create proxied token */
         tokenInstance = ERC20DepositTokenFactory.deploy(tick);
@@ -96,7 +100,7 @@ contract ERC20DepositToken is DepositToken {
         /* Store token instance in mapping */
         _getDepositTokenStorage().tokens[tick] = tokenInstance;
 
-        emit TokenCreated(tokenInstance, _implementation);
+        emit TokenCreated(tokenInstance, _implementation, tick);
 
         return tokenInstance;
     }
