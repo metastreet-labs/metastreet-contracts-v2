@@ -1,3 +1,7 @@
+* Pool v2.4 - UNRELEASED
+    * Add support for Delegate v2.
+    * Add tick parameter to TokenCreated event in ERC20 tokenization.
+
 * EnglishAuctionCollateralLiquidator v2.0 - 11/30/2023
     * Add `collateralTokenId` to `LiquidationStarted` event.
     * Add `collateralWrappers()` getter.
