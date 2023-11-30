@@ -116,6 +116,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      * @param liquidationContextHash Liquidation context hash
      * @param currencyToken Currency token
      * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
      * @param auctionCount Auction count
      */
     event LiquidationStarted(
@@ -124,6 +125,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         bytes32 indexed liquidationContextHash,
         address currencyToken,
         address collateralToken,
+        uint256 collateralTokenId,
         uint16 auctionCount
     );
 
@@ -543,6 +545,7 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
             liquidationContextHash,
             currencyToken,
             collateralToken,
+            collateralTokenId,
             uint16(underlyingCollateralTokenIds.length)
         );
 
