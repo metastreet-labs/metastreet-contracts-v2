@@ -455,6 +455,9 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
             /* Compute total proceeds */
             uint256 proceeds = liquidation_.proceeds + auction_.highestBid;
 
+            /* Delete liquidation since all auctions are completed */
+            delete _liquidations[liquidationHash];
+
             /* Transfer proceeds from this contract to source */
             IERC20(liquidation_.currencyToken).safeTransfer(liquidation_.source, proceeds);
 
@@ -463,9 +466,6 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
                 Address.isContract(liquidation_.source) &&
                 ERC165Checker.supportsInterface(liquidation_.source, type(ICollateralLiquidationReceiver).interfaceId)
             ) ICollateralLiquidationReceiver(liquidation_.source).onCollateralLiquidated(liquidationContext, proceeds);
-
-            /* Delete liquidation since all auctions are completed */
-            delete _liquidations[liquidationHash];
 
             /* Emit LiquidationEnded */
             emit LiquidationEnded(liquidationHash, proceeds);
