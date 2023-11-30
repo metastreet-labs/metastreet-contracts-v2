@@ -265,6 +265,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
           loanReceiptHash,
           tok1.address,
           punkCollateralWrapper.address,
+          punkTokenId,
           3
         );
       for (const [index, tokenId] of tokenIds.entries()) {
@@ -327,6 +328,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
           loanReceiptHash,
           tok1.address,
           punkCollateralWrapper.address,
+          punkTokenId,
           3
         );
       for (const [index, tokenId] of tokenIds.entries()) {

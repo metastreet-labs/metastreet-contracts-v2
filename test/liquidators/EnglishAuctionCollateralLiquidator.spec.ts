@@ -316,7 +316,15 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "LiquidationStarted")).args[0];
       await expect(liquidateTx)
         .to.emit(collateralLiquidator, "LiquidationStarted")
-        .withArgs(liquidationHash, testCollateralLiquidatorJig.address, loanReceiptHash, tok1.address, nft1.address, 1);
+        .withArgs(
+          liquidationHash,
+          testCollateralLiquidatorJig.address,
+          loanReceiptHash,
+          tok1.address,
+          nft1.address,
+          122,
+          1
+        );
       await expect(liquidateTx)
         .to.emit(collateralLiquidator, "AuctionCreated")
         .withArgs(liquidationHash, nft1.address, 122, 1);
@@ -373,6 +381,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
           loanReceiptHash,
           tok1.address,
           bundleCollateralWrapper.address,
+          bundleTokenId,
           3
         );
       for (const [index, tokenId] of tokenIds.entries()) {
@@ -433,6 +442,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
           loanReceiptHash,
           tok1.address,
           bundleCollateralWrapperFake.address,
+          bundleTokenIdFake,
           1
         );
       await expect(liquidateTx)
@@ -499,6 +509,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
           loanReceiptHash,
           tok1.address,
           erc1155CollateralWrapper.address,
+          erc1155TokenId,
           3
         );
       for (const [index, tokenId] of tokenIds.entries()) {
@@ -953,6 +964,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
           loanReceiptHash,
           tok1.address,
           bundleCollateralWrapper.address,
+          bundleTokenId,
           3
         );
 
@@ -1293,6 +1305,7 @@ describe("EnglishAuctionCollateralLiquidator", function () {
           loanReceiptHash,
           tok1.address,
           erc1155CollateralWrapper.address,
+          erc1155TokenId,
           3
         );
       for (const [index, tokenId] of tokenIds.entries()) {
