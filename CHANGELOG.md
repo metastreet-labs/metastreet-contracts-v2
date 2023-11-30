@@ -1,3 +1,8 @@
+* EnglishAuctionCollateralLiquidator v2.0 - 11/30/2023
+    * Add `collateralTokenId` parameter to `LiquidationStarted` event.
+    * Add `collateralWrappers()` API.
+    * Bump major version to reflect breaking API and ABI changes.
+
 * ERC20DepositTokenImplementation v1.0 - 11/15/2023
     * Initial release.
 
@@ -8,7 +13,7 @@
       ILiquidity.
     * Refactor Pool logic into linked libraries.
 
-* EnglishAuctionCollateralLiquidator v1.2 - 10/27/2023
+* EnglishAuctionCollateralLiquidator v1.2 (Pre-release) - 10/27/2023
     * Add generic support for wrapped collateral.
 
 * PunkCollateralWrapper v1.0 - 10/27/2023
