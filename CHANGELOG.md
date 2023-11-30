@@ -1,3 +1,8 @@
+* EnglishAuctionCollateralLiquidator v2.0 - 11/30/2023
+    * Add `collateralTokenId` to `LiquidationStarted` event.
+    * Add `collateralWrappers()` getter.
+    * Bump major version to reflect breaking API and ABI changes.
+
 * Pool v2.3 - 11/15/2023
     * Add ERC20 tokenization of deposit positions.
     * Add collateral wrapper support to `quote()` API.
