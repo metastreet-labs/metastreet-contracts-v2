@@ -311,6 +311,20 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
     /**************************************************************************/
 
     /**
+     * @notice Get collateral wrappers
+     * @return Collateral wrappers
+     */
+    function collateralWrappers() external view returns (address[] memory) {
+        address[] memory collateralWrappers_ = new address[](5);
+        collateralWrappers_[0] = _collateralWrapper1;
+        collateralWrappers_[1] = _collateralWrapper2;
+        collateralWrappers_[2] = _collateralWrapper3;
+        collateralWrappers_[3] = _collateralWrapper4;
+        collateralWrappers_[4] = _collateralWrapper5;
+        return collateralWrappers_;
+    }
+
+    /**
      * @notice Get auction duration
      * @return Auction duration
      */

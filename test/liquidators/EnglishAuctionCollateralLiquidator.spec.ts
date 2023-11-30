@@ -280,6 +280,14 @@ describe("EnglishAuctionCollateralLiquidator", function () {
   /****************************************************************************/
 
   describe("getters", async function () {
+    it("returns collateral wrappers", async function () {
+      const collateralWrappers = await collateralLiquidator.collateralWrappers();
+      expect(collateralWrappers[0]).to.equal(bundleCollateralWrapper.address);
+      expect(collateralWrappers[1]).to.equal(erc1155CollateralWrapper.address);
+      expect(collateralWrappers[2]).to.equal(ethers.constants.AddressZero);
+      expect(collateralWrappers[3]).to.equal(ethers.constants.AddressZero);
+      expect(collateralWrappers[4]).to.equal(ethers.constants.AddressZero);
+    });
     it("returns auction duration", async function () {
       expect(await collateralLiquidator.auctionDuration()).to.equal(ethers.BigNumber.from(86400));
     });
