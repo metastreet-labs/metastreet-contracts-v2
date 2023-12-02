@@ -661,6 +661,46 @@ async function erc20DepositTokenImplementationDeploy(deployment: Deployment) {
 }
 
 /******************************************************************************/
+/* Ownership Commands */
+/******************************************************************************/
+
+async function transferOwnership(proxy: string, account: string) {
+  /* Look up owner and proxy type */
+  let owner: string | undefined = undefined;
+  let proxyType: "Ownable" | "Transparent";
+  try {
+    owner = await getOwner(proxy);
+    proxyType = "Ownable";
+  } catch {
+    owner = await getTransparentProxyAdmin(proxy);
+    proxyType = "Transparent";
+  }
+
+  /* Validate signer is owner */
+  if ((await signer!.getAddress()) != owner) {
+    console.error(`Current signer is not owner of proxy.`);
+    return;
+  }
+
+  console.log(`Old Owner: ${owner}`);
+
+  /* Transfer ownership */
+  if (proxyType === "Ownable") {
+    const proxyContract = (await ethers.getContractAt("Ownable", proxy, signer)) as Ownable;
+    await proxyContract.transferOwnership(account);
+  } else if (proxyType === "Transparent") {
+    const proxyContract = (await ethers.getContractAt(
+      "ITransparentUpgradeableProxy",
+      proxy,
+      signer
+    )) as ITransparentUpgradeableProxy;
+    await proxyContract.changeAdmin(account);
+  }
+
+  console.log(`New Owner: ${account}`);
+}
+
+/******************************************************************************/
 /* Parsers for Arguments */
 /******************************************************************************/
 
@@ -734,6 +774,14 @@ async function main() {
     .command("show-address")
     .description("Show address of signer")
     .action(async () => console.log(await signer!.getAddress()));
+
+  /* Ownership */
+  program
+    .command("transfer-ownership")
+    .description("Transfer proxy ownership")
+    .argument("proxy", "Proxy address", parseAddress)
+    .argument("account", "New owner account", parseAddress)
+    .action((proxy, account) => transferOwnership(proxy, account));
 
   /* Pool Factory */
   program
