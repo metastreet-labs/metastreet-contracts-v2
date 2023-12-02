@@ -297,13 +297,18 @@ async function poolFactoryUpgrade(deployment: Deployment) {
   const poolFactoryImpl = await poolFactoryFactory.deploy();
   await poolFactoryImpl.deployed();
 
-  /* Upgrade Pool Factory implementation */
-  await poolFactory.upgradeToAndCall(poolFactoryImpl.address, "0x");
+  console.log(`New Pool Factory Implementation: ${poolFactoryImpl.address}`);
+  console.log(`New Pool Factory Version:        ${await getImplementationVersion(poolFactoryImpl.address)}`);
 
-  console.log(`New Pool Factory Implementation: ${await poolFactory.getImplementation()}`);
-  console.log(
-    `New Pool Factory Version:        ${await getImplementationVersion(await poolFactory.getImplementation())}`
-  );
+  /* Upgrade Pool Factory implementation */
+  if ((await signer!.getAddress()) === (await getOwner(poolFactory.address))) {
+    await poolFactory.upgradeToAndCall(poolFactoryImpl.address, "0x");
+  } else {
+    const calldata = (await poolFactory.populateTransaction.upgradeToAndCall(poolFactoryImpl.address, "0x")).data;
+    console.log(`\nUpgrade Calldata`);
+    console.log(`  Target:   ${poolFactory.address}`);
+    console.log(`  Calldata: ${calldata}`);
+  }
 }
 
 async function poolFactoryList(deployment: Deployment) {
@@ -346,7 +351,14 @@ async function poolFactoryAddImplementation(deployment: Deployment, implementati
 
   const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
 
-  await poolFactory.addPoolImplementation(implementation);
+  if ((await signer!.getAddress()) === (await getOwner(poolFactory.address))) {
+    await poolFactory.addPoolImplementation(implementation);
+  } else {
+    const calldata = (await poolFactory.populateTransaction.addPoolImplementation(implementation)).data;
+    console.log(`Add Pool Implementation Calldata`);
+    console.log(`  Target:   ${poolFactory.address}`);
+    console.log(`  Calldata: ${calldata}`);
+  }
 }
 
 async function poolFactoryRemoveImplementation(deployment: Deployment, implementation: string) {
@@ -357,7 +369,14 @@ async function poolFactoryRemoveImplementation(deployment: Deployment, implement
 
   const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
 
-  await poolFactory.removePoolImplementation(implementation);
+  if ((await signer!.getAddress()) === (await getOwner(poolFactory.address))) {
+    await poolFactory.removePoolImplementation(implementation);
+  } else {
+    const calldata = (await poolFactory.populateTransaction.removePoolImplementation(implementation)).data;
+    console.log(`Remove Pool Implementation Calldata`);
+    console.log(`  Target:   ${poolFactory.address}`);
+    console.log(`  Calldata: ${calldata}`);
+  }
 }
 
 /******************************************************************************/
@@ -424,15 +443,20 @@ async function collateralLiquidatorUpgrade(deployment: Deployment, contractName:
   const collateralLiquidatorImpl = await collateralLiquidatorFactory.deploy(...decodeArgs(args));
   await collateralLiquidatorImpl.deployed();
 
-  /* Upgrade beacon */
-  await upgradeableBeacon.upgradeTo(collateralLiquidatorImpl.address);
-
-  console.log(`New Collateral Liquidator Implementation: ${await upgradeableBeacon.implementation()}`);
+  console.log(`New Collateral Liquidator Implementation: ${collateralLiquidatorImpl.address}`);
   console.log(
-    `New Collateral Liquidator Version:        ${await getImplementationVersion(
-      await upgradeableBeacon.implementation()
-    )}`
+    `New Collateral Liquidator Version:        ${await getImplementationVersion(collateralLiquidatorImpl.address)}`
   );
+
+  /* Upgrade beacon */
+  if ((await signer!.getAddress()) === (await getOwner(upgradeableBeacon.address))) {
+    await upgradeableBeacon.upgradeTo(collateralLiquidatorImpl.address);
+  } else {
+    const calldata = (await upgradeableBeacon.populateTransaction.upgradeTo(collateralLiquidatorImpl.address)).data;
+    console.log(`\nUpgrade Calldata`);
+    console.log(`  Target:   ${upgradeableBeacon.address}`);
+    console.log(`  Calldata: ${calldata}`);
+  }
 }
 
 /******************************************************************************/
@@ -478,16 +502,25 @@ async function collateralWrapperUpgrade(deployment: Deployment, contractName: st
   )) as ITransparentUpgradeableProxy;
   const collateralWrapperFactory = await ethers.getContractFactory(contractName, signer);
 
-  console.log(`Old Collateral Wrapper Implementation: ${await collateralWrapperProxy.callStatic.implementation()}`);
+  console.log(
+    `Old Collateral Wrapper Implementation: ${await getTransparentProxyImplementation(collateralWrapperProxy.address)}`
+  );
 
   /* Deploy new implementation contract */
   const collateralWrapperImpl = await collateralWrapperFactory.deploy(...decodeArgs(args));
   await collateralWrapperImpl.deployed();
 
-  /* Upgrade proxy */
-  await collateralWrapperProxy.upgradeTo(collateralWrapperImpl.address);
+  console.log(`New Collateral Wrapper Implementation: ${collateralWrapperImpl.address}`);
 
-  console.log(`New Collateral Wrapper Implementation: ${await collateralWrapperProxy.callStatic.implementation()}`);
+  /* Upgrade proxy */
+  if ((await signer!.getAddress()) === (await getTransparentProxyAdmin(collateralWrapperProxy.address))) {
+    await collateralWrapperProxy.upgradeTo(collateralWrapperImpl.address);
+  } else {
+    const calldata = (await collateralWrapperProxy.populateTransaction.upgradeTo(collateralWrapperImpl.address)).data;
+    console.log(`\nUpgrade Calldata`);
+    console.log(`  Target:   ${collateralWrapperProxy.address}`);
+    console.log(`  Calldata: ${calldata}`);
+  }
 }
 
 /******************************************************************************/
@@ -570,11 +603,18 @@ async function poolImplementationUpgrade(deployment: Deployment, name: string, c
     return;
   }
 
-  /* Upgrade beacon */
-  await upgradeableBeacon.upgradeTo(poolImpl.address);
+  console.log(`New Pool Implementation: ${poolImpl.address}`);
+  console.log(`New Pool Version:        ${await getImplementationVersion(poolImpl.address)}`);
 
-  console.log(`New Pool Implementation: ${await upgradeableBeacon.implementation()}`);
-  console.log(`New Pool Version:        ${await getImplementationVersion(await upgradeableBeacon.implementation())}`);
+  /* Upgrade beacon */
+  if ((await signer!.getAddress()) === (await getOwner(upgradeableBeacon.address))) {
+    await upgradeableBeacon.upgradeTo(poolImpl.address);
+  } else {
+    const calldata = (await upgradeableBeacon.populateTransaction.upgradeTo(poolImpl.address)).data;
+    console.log(`\nUpgrade Calldata`);
+    console.log(`  Target:   ${upgradeableBeacon.address}`);
+    console.log(`  Calldata: ${calldata}`);
+  }
 }
 
 async function poolImplementationPause(deployment: Deployment, name: string) {
@@ -597,11 +637,18 @@ async function poolImplementationPause(deployment: Deployment, name: string) {
   console.log(`Old Pool Implementation: ${await upgradeableBeacon.implementation()}`);
   console.log(`Old Pool Version:        ${await getImplementationVersion(await upgradeableBeacon.implementation())}`);
 
-  /* Upgrade beacon to noop pool */
-  await upgradeableBeacon.upgradeTo(deployment.noopPoolImpl);
+  console.log(`New Pool Implementation: ${deployment.noopPoolImpl}`);
+  console.log(`New Pool Version:        ${await getImplementationVersion(deployment.noopPoolImpl)}`);
 
-  console.log(`New Pool Implementation: ${await upgradeableBeacon.implementation()}`);
-  console.log(`New Pool Version:        ${await getImplementationVersion(await upgradeableBeacon.implementation())}`);
+  /* Upgrade beacon to noop pool */
+  if ((await signer!.getAddress()) === (await getOwner(upgradeableBeacon.address))) {
+    await upgradeableBeacon.upgradeTo(deployment.noopPoolImpl);
+  } else {
+    const calldata = (await upgradeableBeacon.populateTransaction.upgradeTo(deployment.noopPoolImpl)).data;
+    console.log(`\nUpgrade Calldata`);
+    console.log(`  Target:   ${upgradeableBeacon.address}`);
+    console.log(`  Calldata: ${calldata}`);
+  }
 }
 
 /******************************************************************************/
