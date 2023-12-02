@@ -19,6 +19,18 @@ abstract contract DepositToken {
     event TokenCreated(address indexed instance, address indexed implementation, uint128 indexed tick);
 
     /**************************************************************************/
+    /* Internal */
+    /**************************************************************************/
+
+    /**
+     * @notice Tokenize a tick
+     *
+     * @param tick Tick
+     * @return Deposit token address
+     */
+    function _tokenize(uint128 tick) internal virtual returns (address);
+
+    /**************************************************************************/
     /* API */
     /**************************************************************************/
 

@@ -53,7 +53,7 @@ contract ERC20DepositToken is DepositToken {
     }
 
     /**************************************************************************/
-    /* Internal Helpers */
+    /* Internal */
     /**************************************************************************/
 
     /**
@@ -67,25 +67,12 @@ contract ERC20DepositToken is DepositToken {
         }
     }
 
-    /**************************************************************************/
-    /* API */
-    /**************************************************************************/
-
-    /**
-     * @notice Get ERC20 Deposit Token implementation address
-     *
-     * @return ERC20 Deposit Token implementation address
-     */
-    function getERC20DepositTokenImplementation() external view returns (address) {
-        return _implementation;
-    }
-
     /**
      * @notice Tokenize a tick
      *
      * @param tick Tick
      */
-    function tokenize(uint128 tick) external returns (address) {
+    function _tokenize(uint128 tick) internal override returns (address) {
         /* Return token if it already exists */
         address tokenInstance = depositToken(tick);
         if (tokenInstance != address(0)) return tokenInstance;
@@ -99,6 +86,19 @@ contract ERC20DepositToken is DepositToken {
         emit TokenCreated(tokenInstance, _implementation, tick);
 
         return tokenInstance;
+    }
+
+    /**************************************************************************/
+    /* API */
+    /**************************************************************************/
+
+    /**
+     * @notice Get ERC20 Deposit Token implementation address
+     *
+     * @return ERC20 Deposit Token implementation address
+     */
+    function getERC20DepositTokenImplementation() external view returns (address) {
+        return _implementation;
     }
 
     /**

@@ -931,6 +931,19 @@ abstract contract Pool is
         emit Transferred(from, to, tick, shares);
     }
 
+    /**
+     * @notice Tokenize tick
+     *
+     * @param tick Tick
+     * @return Deposit token address
+     */
+    function tokenize(uint128 tick) public returns (address) {
+        /* Validate tick */
+        Tick.validate(tick, 0, 0, _storage.durations.length - 1, 0, _storage.rates.length - 1);
+
+        return _tokenize(tick);
+    }
+
     /**************************************************************************/
     /* Admin Fees API */
     /**************************************************************************/
