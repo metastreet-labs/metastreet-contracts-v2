@@ -8,7 +8,7 @@ import { Network } from "@ethersproject/networks";
 import { Signer } from "@ethersproject/abstract-signer";
 import { LedgerSigner } from "@anders-t/ethers-ledger";
 
-import { PoolFactory, UpgradeableBeacon, ITransparentUpgradeableProxy } from "../typechain";
+import { PoolFactory, UpgradeableBeacon, ITransparentUpgradeableProxy, Ownable } from "../typechain";
 
 interface LoanReceipt {
   version: number;
@@ -112,6 +112,11 @@ async function getImplementationVersion(address: string): Promise<string> {
   return await contract.IMPLEMENTATION_VERSION();
 }
 
+async function getOwner(address: string): Promise<string> {
+  const ownableContract = (await ethers.getContractAt("Ownable", address)) as Ownable;
+  return await ownableContract.owner();
+}
+
 async function getBeaconImplementation(address: string): Promise<string> {
   const upgradeableBeacon = (await ethers.getContractAt("UpgradeableBeacon", address)) as UpgradeableBeacon;
   return await upgradeableBeacon.implementation();
@@ -123,6 +128,12 @@ async function getTransparentProxyImplementation(address: string): Promise<strin
   return ethers.utils.getAddress(ethers.utils.hexDataSlice(implementationSlotData, 12));
 }
 
+async function getTransparentProxyAdmin(address: string): Promise<string> {
+  const adminSlot = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
+  const adminSlotData = await ethers.provider.getStorageAt(address, adminSlot);
+  return ethers.utils.getAddress(ethers.utils.hexDataSlice(adminSlotData, 12));
+}
+
 async function getCollateralWrappers(address: string): Promise<string[]> {
   const contract = await ethers.getContractAt(["function collateralWrappers() view returns (address[])"], address);
   return (await contract.collateralWrappers()).filter((e: string) => e !== ethers.constants.AddressZero);
@@ -131,6 +142,10 @@ async function getCollateralWrappers(address: string): Promise<string[]> {
 async function getCollateralWrapperName(address: string): Promise<string> {
   const contract = await ethers.getContractAt(["function name() view returns (string)"], address);
   return await contract.name();
+}
+
+async function getAddressType(address: string): Promise<"EOA" | "Contract"> {
+  return (await ethers.provider.getCode(address)) === "0x" ? "EOA" : "Contract";
 }
 
 function decodeArgs(args: string[]): (string | string[])[] {
@@ -157,10 +172,12 @@ async function deploymentShow(deployment: Deployment) {
     const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory)) as PoolFactory;
     const impl = await poolFactory.getImplementation();
     const version = await getImplementationVersion(impl);
-    console.log(`     Impl: ${impl}`);
+    const owner = await getOwner(poolFactory.address);
+    console.log(`  Impl:    ${impl}`);
     console.log(`  Version: ${version}`);
+    console.log(`  Owner:   ${owner} (${await getAddressType(owner)})`);
   } else {
-    console.log(`     Impl: N/A`);
+    console.log(`  Impl:    N/A`);
     console.log(`  Version: N/A`);
   }
 
@@ -169,12 +186,14 @@ async function deploymentShow(deployment: Deployment) {
     const collateralLiquidator = deployment.collateralLiquidators[contractName];
     const impl = await getBeaconImplementation(collateralLiquidator.beacon);
     const version = await getImplementationVersion(impl);
+    const owner = await getOwner(collateralLiquidator.beacon);
 
     console.log(`  ${contractName}`);
     console.log(`      Address: ${collateralLiquidator.address}`);
     console.log(`      Beacon:  ${collateralLiquidator.beacon}`);
     console.log(`      Impl:    ${impl}`);
     console.log(`      Version: ${version}`);
+    console.log(`      Owner:   ${owner} (${await getAddressType(owner)})`);
     console.log("");
   }
 
@@ -183,11 +202,13 @@ async function deploymentShow(deployment: Deployment) {
     const collateralWrapper = deployment.collateralWrappers[contractName];
     const impl = await getTransparentProxyImplementation(collateralWrapper);
     const version = await getImplementationVersion(impl);
+    const owner = await getTransparentProxyAdmin(collateralWrapper);
 
     console.log(`  ${contractName}`);
     console.log(`      Address: ${collateralWrapper}`);
     console.log(`      Impl:    ${impl}`);
     console.log(`      Version: ${version}`);
+    console.log(`      Owner:   ${owner} (${await getAddressType(owner)})`);
     console.log("");
   }
 
@@ -196,11 +217,13 @@ async function deploymentShow(deployment: Deployment) {
     const poolImplementation = deployment.poolBeacons[name];
     const impl = await getBeaconImplementation(poolImplementation);
     const version = await getImplementationVersion(impl);
+    const owner = await getOwner(poolImplementation);
 
     console.log(`  ${name}`);
     console.log(`      Beacon:  ${poolImplementation}`);
     console.log(`      Impl:    ${impl}`);
     console.log(`      Version: ${version}`);
+    console.log(`      Owner:   ${owner} (${await getAddressType(owner)})`);
     console.log(`      Collateral Wrappers:`);
     for (const collateralWrapper of await getCollateralWrappers(impl)) {
       const impl = await getTransparentProxyImplementation(collateralWrapper);
