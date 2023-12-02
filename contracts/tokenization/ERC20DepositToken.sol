@@ -85,7 +85,7 @@ contract ERC20DepositToken is DepositToken {
      *
      * @param tick Tick
      */
-    function tokenize(uint128 tick) external returns (address) {
+    function _tokenize(uint128 tick) internal override returns (address) {
         /* Return token if it already exists */
         address tokenInstance = depositToken(tick);
         if (tokenInstance != address(0)) {

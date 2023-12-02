@@ -31,6 +31,14 @@ abstract contract DepositToken {
     function depositToken(uint128 tick) public view virtual returns (address);
 
     /**
+     * @notice Tokenize a tick
+     *
+     * @param tick Tick
+     * @return Deposit token address
+     */
+    function _tokenize(uint128 tick) internal virtual returns (address);
+
+    /**
      * @notice Hook called by Pool on token transfers
      *
      * @param from From

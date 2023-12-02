@@ -296,6 +296,26 @@ describe("Pool Tokenized", function () {
         const [shares2] = await pool.deposits(accountDepositors[1].address, TICK10);
         expect(shares2).to.equal(ONE_ETHER);
       });
+
+      it("tokenizing invalid tick reverts - out of bounds duration", async function () {
+        /* Tokenize invalid tick */
+        const invalidTick = Tick.encode("15", 3, 0);
+
+        await expect(pool.connect(accountDepositors[1]).tokenize(invalidTick)).to.be.revertedWithCustomError(
+          pool,
+          "InvalidTick"
+        );
+      });
+
+      it("tokenizing invalid tick reverts - out of bounds rate", async function () {
+        /* Tokenize invalid tick */
+        const invalidTick = Tick.encode("15", 0, 3);
+
+        await expect(pool.connect(accountDepositors[1]).tokenize(invalidTick)).to.be.revertedWithCustomError(
+          pool,
+          "InvalidTick"
+        );
+      });
     });
 
     describe("#_createDeterministicProxy", async function () {
