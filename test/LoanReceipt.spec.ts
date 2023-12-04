@@ -98,13 +98,13 @@ describe("LoanReceipt", function () {
   describe("#hash", async function () {
     it("matches expected hash", async function () {
       expect(await loanReceiptLibrary.hash(await loanReceiptLibrary.encode(loanReceipt))).to.equal(
-        "0x9414e95a13dc6b76244efa189e4ecd940485a3ee1d20b95ab87648604fa4dc25"
+        "0xf362e216e56f126f29871b85ccdb42ed7e0248527820b9e565933ed9a0434086"
       );
     });
 
     it("matches expected hash - bundle loan", async function () {
       expect(await loanReceiptLibrary.hash(await loanReceiptLibrary.encode(bundleLoanReceipt))).to.equal(
-        "0x929968409fc1e4b14936d36298a142626c9cc5ee00b2cd22362ddfd4eb4be3c9"
+        "0x1a6523d7bd51c729e4db4777ef6da844492df918a1406a8cd077df1bbeec4c1a"
       );
     });
   });
