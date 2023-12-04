@@ -239,4 +239,6 @@ templates:
           handler: handleAdminFeeRateUpdated
         - event: TokenCreated(indexed address,indexed address,indexed uint128)
           handler: handleTokenCreated
+        - event: Transferred(indexed address,indexed address,indexed uint128,uint256)
+          handler: handleTransferred
       file: src/pool.ts

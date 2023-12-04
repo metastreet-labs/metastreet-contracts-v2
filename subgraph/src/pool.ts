@@ -33,6 +33,7 @@ import {
   Pool as PoolContract,
   Redeemed as RedeemedEvent,
   TokenCreated as TokenCreatedEvent,
+  Transferred as TransferredEvent,
   Withdrawn as WithdrawnEvent,
 } from "../generated/templates/Pool/Pool";
 import {
@@ -102,6 +103,12 @@ function decodeTick(encodedTick: BigInt): DecodedTick {
 
 function getTickId(encodedTick: BigInt): Bytes {
   return poolAddress.concat(bytesFromBigInt(encodedTick));
+}
+
+function loadTickOrThrow(encodedTick: BigInt): TickEntity {
+  const tickEntity = TickEntity.load(getTickId(encodedTick));
+  if (!tickEntity) throw new Error("Tick entity not found");
+  return tickEntity;
 }
 
 /**************************************************************************/
@@ -451,9 +458,7 @@ function _handleRedeemed(
   redemptionId: BigInt,
   shares: BigInt
 ): void {
-  const tickId = getTickId(tick);
-  const oldTickEntity = TickEntity.load(tickId);
-  if (!oldTickEntity) throw new Error("Tick entity doesn't exist");
+  const oldTickEntity = loadTickOrThrow(tick);
 
   updatePoolEntity(event);
   updateTickEntity(tick, ZERO, ZERO);
@@ -664,4 +669,37 @@ export function handleTokenCreated(event: TokenCreatedEvent): void {
   const tickEntity = updateTickEntity(event.params.tick, ZERO, ZERO);
   tickEntity.token = token;
   tickEntity.save();
+}
+
+export function handleTransferred(event: TransferredEvent): void {
+  const tick = loadTickOrThrow(event.params.tick);
+
+  if (tick.accrued && tick.accrualRate && tick.accrualTimestamp) {
+    const accrued = changetype<BigInt>(tick.accrued);
+    const accrualRate = changetype<BigInt>(tick.accrualRate);
+    const accrualTimestamp = changetype<BigInt>(tick.accrualTimestamp);
+
+    let depositSharePrice = BigInt.fromU32(10).pow(18);
+    if (tick.shares.gt(ZERO)) {
+      depositSharePrice = FixedPoint.div(
+        tick.value.plus(accrued).plus(accrualRate.times(event.block.timestamp.minus(accrualTimestamp))),
+        tick.shares
+      );
+    }
+
+    const estimatedAmount = FixedPoint.mul(event.params.shares, depositSharePrice);
+
+    if (event.params.from.notEqual(Address.zero())) {
+      updateDepositEntity(
+        event.params.from,
+        event.params.tick,
+        event.block.timestamp,
+        estimatedAmount.times(BigInt.fromI32(-1))
+      );
+    }
+
+    if (event.params.to.notEqual(Address.zero())) {
+      updateDepositEntity(event.params.to, event.params.tick, event.block.timestamp, estimatedAmount);
+    }
+  }
 }
