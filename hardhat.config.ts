@@ -45,6 +45,7 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       allowUnlimitedContractSize: true,
+      chainId: 1,
     },
     mainnet: {
       url: process.env.MAINNET_URL || "",
