@@ -104,6 +104,8 @@ type Tick @entity {
   # for calculating apr and net earnings
   principalWeightedDuration: BigInt! # uint128
   interestWeightedMaturity: BigInt! # uint128
+  # token instance, null if tick is not tokenized
+  token: CurrencyToken
 }
 
 ################################################################################

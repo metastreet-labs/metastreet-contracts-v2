@@ -216,4 +216,6 @@ templates:
           handler: handleCollateralLiquidated
         - event: AdminFeeRateUpdated(uint256)
           handler: handleAdminFeeRateUpdated
+        - event: TokenCreated(indexed address,indexed address,indexed uint128)
+          handler: handleTokenCreated
       file: src/pool.ts

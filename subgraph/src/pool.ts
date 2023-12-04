@@ -1,8 +1,10 @@
 import { Address, BigInt, Bytes, dataSource, ethereum, store } from "@graphprotocol/graph-ts";
+import { ERC20 as ERC20Contract } from "../generated/PoolFactory/ERC20";
 import {
   Batch as BatchEntity,
   Bundle as BundleEntity,
   CollateralLiquidated as CollateralLiquidatedEntity,
+  CurrencyToken as CurrencyTokenEntity,
   Deposit as DepositEntity,
   Deposited as DepositedEntity,
   Loan as LoanEntity,
@@ -30,6 +32,7 @@ import {
   Pool__decodeLoanReceiptResultValue0NodeReceiptsStruct as NodeReceipt,
   Pool as PoolContract,
   Redeemed as RedeemedEvent,
+  TokenCreated as TokenCreatedEvent,
   Withdrawn as WithdrawnEvent,
 } from "../generated/templates/Pool/Pool";
 import {
@@ -173,7 +176,7 @@ function updateTickEntity(
   encodedTick: BigInt,
   principalWeightedDurationUpdate: BigInt,
   interestWeightedMaturityUpdate: BigInt
-): void {
+): TickEntity {
   const nodeWithAccrual = poolContract.try_liquidityNodeWithAccrual(encodedTick);
   const node = !nodeWithAccrual.reverted
     ? changetype<LiquidityNode>(nodeWithAccrual.value.value0)
@@ -215,6 +218,8 @@ function updateTickEntity(
   tickEntity.interestWeightedMaturity = tickEntity.interestWeightedMaturity.plus(interestWeightedMaturityUpdate);
 
   tickEntity.save();
+
+  return tickEntity;
 }
 
 function updateTickEntitiesFromLoanEntity(loanEntity: LoanEntity, factor: i8): void {
@@ -645,4 +650,18 @@ export function handleAdminFeeRateUpdated(event: AdminFeeRateUpdatedEvent): void
 
   poolEntity.adminFeeRate = event.params.rate;
   poolEntity.save();
+}
+
+export function handleTokenCreated(event: TokenCreatedEvent): void {
+  const token = event.params.instance;
+  const tokenContract = ERC20Contract.bind(token);
+
+  const currencyTokenEntity = new CurrencyTokenEntity(token);
+  currencyTokenEntity.name = tokenContract.name();
+  currencyTokenEntity.symbol = tokenContract.symbol();
+  currencyTokenEntity.save();
+
+  const tickEntity = updateTickEntity(event.params.tick, ZERO, ZERO);
+  tickEntity.token = token;
+  tickEntity.save();
 }
