@@ -115,7 +115,7 @@ contract ERC20DepositToken is DepositToken {
     /**
      * @inheritdoc DepositToken
      */
-    function onExternalTransfer(address from, address to, uint128 tick, uint256 shares) internal override {
+    function _onExternalTransfer(address from, address to, uint128 tick, uint256 shares) internal override {
         /* No operation if token does not exist */
         if (depositToken(tick) == address(0)) return;
 

@@ -38,5 +38,5 @@ abstract contract DepositToken {
      * @param tick Tick
      * @param shares Shares
      */
-    function onExternalTransfer(address from, address to, uint128 tick, uint256 shares) internal virtual;
+    function _onExternalTransfer(address from, address to, uint128 tick, uint256 shares) internal virtual;
 }

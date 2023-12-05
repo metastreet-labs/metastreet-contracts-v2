@@ -794,7 +794,7 @@ abstract contract Pool is
         uint128 shares = DepositLogic._deposit(_storage, tick, amount.toUint128(), minShares.toUint128());
 
         /* Call token hook */
-        onExternalTransfer(address(0), msg.sender, tick, shares);
+        _onExternalTransfer(address(0), msg.sender, tick, shares);
 
         /* Transfer deposit amount */
         _storage.currencyToken.safeTransferFrom(msg.sender, address(this), amount);
@@ -813,7 +813,7 @@ abstract contract Pool is
         uint128 redemptionId = DepositLogic._redeem(_storage, tick, shares.toUint128());
 
         /* Call token hook */
-        onExternalTransfer(msg.sender, address(0), tick, shares);
+        _onExternalTransfer(msg.sender, address(0), tick, shares);
 
         /* Emit Redeemed event */
         emit Redeemed(msg.sender, tick, redemptionId, shares);
@@ -865,7 +865,7 @@ abstract contract Pool is
         uint128 newShares = DepositLogic._deposit(_storage, dstTick, amount, minShares.toUint128());
 
         /* Call token hook */
-        onExternalTransfer(address(0), msg.sender, dstTick, newShares);
+        _onExternalTransfer(address(0), msg.sender, dstTick, newShares);
 
         /* Emit Withdrawn */
         emit Withdrawn(msg.sender, srcTick, redemptionId, oldShares, amount);
