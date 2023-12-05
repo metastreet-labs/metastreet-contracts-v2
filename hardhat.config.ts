@@ -1,4 +1,5 @@
 import * as dotenv from "dotenv";
+import fs from "fs";
 
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
@@ -23,6 +24,23 @@ const config: HardhatUserConfig = {
         },
       },
     ],
+    overrides: Object.fromEntries(
+      fs.readdirSync("contracts/configurations").map((filename) => [
+        `contracts/configurations/${filename}`,
+        {
+          version: "0.8.20",
+          settings: {
+            viaIR: true,
+            optimizer: {
+              enabled: true,
+              runs: 400,
+            },
+            evmVersion: "shanghai",
+            outputSelection: { "*": { "*": ["storageLayout"] } },
+          },
+        },
+      ])
+    ),
   },
   networks: {
     hardhat: {
