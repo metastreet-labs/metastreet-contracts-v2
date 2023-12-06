@@ -79,6 +79,32 @@ dataSources:
           handler: handleTransfer
       file: src/erc1155CollateralWrapper.ts
   - kind: ethereum/contract
+    name: EnglishAuctionCollateralLiquidatorV1
+    network: goerli
+    source:
+      address: "0x3fa2E78429646cEB37d9895947D0611589327035"
+      abi: EnglishAuctionCollateralLiquidatorV1
+      startBlock: 9649671
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.8
+      language: wasm/assemblyscript
+      entities:
+        - Liquidation
+        - Auction
+        - Bid
+        - Pool
+        - CollateralToken
+      abis:
+        - name: EnglishAuctionCollateralLiquidatorV1
+          file: ./abis/EnglishAuctionCollateralLiquidatorV1.json
+      eventHandlers:
+        - event: LiquidationStarted(indexed bytes32,indexed address,indexed bytes32,address,uint16)
+          handler: handleLiquidationStartedV1
+        - event: AuctionCreated(indexed bytes32,indexed address,indexed uint256)
+          handler: handleAuctionCreatedV1
+      file: ./src/englishAuctionCollateralLiquidator.ts
+  - kind: ethereum/contract
     name: EnglishAuctionCollateralLiquidator
     network: goerli
     source:
@@ -96,14 +122,14 @@ dataSources:
         - Pool
         - CollateralToken
       abis:
-        - name: EnglishAuctionCollateralLiquidatorV1
-          file: ./abis/EnglishAuctionCollateralLiquidatorV1.json
+        - name: EnglishAuctionCollateralLiquidator
+          file: ../artifacts/contracts/liquidators/EnglishAuctionCollateralLiquidator.sol/EnglishAuctionCollateralLiquidator.json
       eventHandlers:
-        - event: LiquidationStarted(indexed bytes32,indexed address,indexed bytes32,address,uint16)
+        - event: LiquidationStarted(indexed bytes32,indexed address,indexed bytes32,address,address,uint256,uint16)
           handler: handleLiquidationStarted
         - event: AuctionBid(indexed bytes32,indexed address,indexed uint256,address,uint256)
           handler: handleAuctionBid
-        - event: AuctionCreated(indexed bytes32,indexed address,indexed uint256)
+        - event: AuctionCreated(indexed bytes32,indexed address,indexed uint256,uint256)
           handler: handleAuctionCreated
         - event: AuctionEnded(indexed bytes32,indexed address,indexed uint256,address,uint256)
           handler: handleAuctionEnded
