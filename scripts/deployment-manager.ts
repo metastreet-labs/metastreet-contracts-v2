@@ -135,7 +135,15 @@ async function getCollateralWrapperName(address: string): Promise<string> {
 
 function decodeArgs(args: string[]): (string | string[])[] {
   /* FIXME hack to handle arrays */
-  return args.map((arg) => (arg.startsWith("[") && arg.endsWith("]") ? arg.slice(1, -1).split(",") : arg));
+  return args.map((arg) =>
+    arg.startsWith("[") && arg.endsWith("]")
+      ? arg
+          .slice(1, -1)
+          .split(",")
+          .map(x => x.trim())
+          .filter((x) => x !== "")
+      : arg
+  );
 }
 
 /******************************************************************************/
