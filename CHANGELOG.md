@@ -1,3 +1,6 @@
+* ERC20DepositTokenImplementation v1.0 - 11/15/2023
+    * Initial release.
+
 * Pool v2.3 - 11/15/2023
     * Add ERC20 tokenization of deposit positions.
     * Add collateral wrapper support to `quote()` API.
