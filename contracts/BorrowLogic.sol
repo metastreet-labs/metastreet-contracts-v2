@@ -263,7 +263,7 @@ library BorrowLogic {
             repayment: repayment,
             adminFee: adminFee,
             borrower: msg.sender,
-            maturity: uint64(block.timestamp + duration),
+            maturity: (block.timestamp + duration).toUint64(),
             duration: duration,
             collateralToken: collateralToken,
             collateralTokenId: collateralTokenId,
