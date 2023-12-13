@@ -62,7 +62,6 @@ describe("Integration", function () {
     liquidationProceedsRatio: [0, 50, 100, 300] /* 0%, 50%, 100%, 300% of repayment */,
     isSharesRedeemAmountRandomized: false,
     adminFeeRate: 45 /* 0.45% */,
-    tickThreshold: FixedPoint.from("0.05"),
     tickExponential: FixedPoint.from("2.0"),
   };
 
@@ -157,7 +156,7 @@ describe("Integration", function () {
       delegateRegistryV2.address,
       erc20DepositTokenImpl.address,
       [bundleCollateralWrapper.address],
-      [CONFIG.tickThreshold, CONFIG.tickExponential]
+      [CONFIG.tickExponential]
     )) as Pool;
     await poolImpl.deployed();
 
@@ -208,7 +207,6 @@ describe("Integration", function () {
 
     /* Instantiate Pool Model class */
     poolModel = new PoolModel(ethers.BigNumber.from(CONFIG.adminFeeRate), "fixed", [
-      CONFIG.tickThreshold,
       CONFIG.tickExponential,
     ]);
 

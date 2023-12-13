@@ -24,11 +24,6 @@ contract WeightedInterestRateModel is InterestRateModel {
     uint256 internal constant FIXED_POINT_SCALE = 1e18;
 
     /**
-     * @notice Maximum tick threshold (0.5)
-     */
-    uint256 internal constant MAX_TICK_THRESHOLD = 0.5 * 1e18;
-
-    /**
      * @notice Minimum tick exponential (0.25)
      */
     uint256 internal constant MIN_TICK_EXPONENTIAL = 0.25 * 1e18;
@@ -44,11 +39,9 @@ contract WeightedInterestRateModel is InterestRateModel {
 
     /**
      * @notice Parameters
-     * @param tickThreshold Tick interest threshold
      * @param tickExponential Tick exponential base
      */
     struct Parameters {
-        uint64 tickThreshold;
         uint64 tickExponential;
     }
 
@@ -66,11 +59,6 @@ contract WeightedInterestRateModel is InterestRateModel {
     /**************************************************************************/
 
     /**
-     * @notice Tick interest threshold
-     */
-    uint64 internal immutable _tickThreshold;
-
-    /**
      * @notice Tick exponential base
      */
     uint64 internal immutable _tickExponential;
@@ -83,11 +71,9 @@ contract WeightedInterestRateModel is InterestRateModel {
      * @notice WeightedInterestRateModel constructor
      */
     constructor(Parameters memory parameters) {
-        if (parameters.tickThreshold > MAX_TICK_THRESHOLD) revert InvalidInterestRateModelParameters();
         if (parameters.tickExponential < MIN_TICK_EXPONENTIAL) revert InvalidInterestRateModelParameters();
         if (parameters.tickExponential > MAX_TICK_EXPONENTIAL) revert InvalidInterestRateModelParameters();
 
-        _tickThreshold = parameters.tickThreshold;
         _tickExponential = parameters.tickExponential;
     }
 
@@ -139,9 +125,6 @@ contract WeightedInterestRateModel is InterestRateModel {
         LiquidityLogic.NodeSource[] memory nodes,
         uint16 count
     ) internal view override {
-        /* Interest threshold for tick to receive interest */
-        uint256 threshold = Math.mulDiv(_tickThreshold, amount, FIXED_POINT_SCALE);
-
         /* Interest weight starting at final tick */
         uint256 base = _tickExponential;
         uint256 weight = (FIXED_POINT_SCALE * FIXED_POINT_SCALE) / base;
@@ -149,10 +132,9 @@ contract WeightedInterestRateModel is InterestRateModel {
         /* Assign weighted interest to ticks backwards */
         uint128[] memory interests = new uint128[](count);
         uint256 normalization;
-        uint256 index = count;
         for (uint256 i; i < count; i++) {
-            /* Skip tick if it's below threshold */
-            if (nodes[--index].used <= threshold) continue;
+            /* Compute index */
+            uint256 index = count - i - 1;
 
             /* Compute scaled weight */
             uint256 scaledWeight = Math.mulDiv(weight, nodes[index].used, amount);

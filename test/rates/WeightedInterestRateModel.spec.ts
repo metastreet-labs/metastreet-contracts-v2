@@ -7,9 +7,8 @@ import { FixedPoint } from "../helpers/FixedPoint";
 import { Tick } from "../helpers/Tick";
 
 describe("WeightedInterestRateModel", function () {
-  const PARAMETERS_1 = [FixedPoint.from("0") /* tick threshold: 0 */, FixedPoint.from("2") /* tick exp base: 2.0 */];
+  const PARAMETERS_1 = [FixedPoint.from("2") /* tick exp base: 2.0 */];
   const PARAMETERS_2 = [
-    FixedPoint.from("0.05") /* tick threshold: 0.05 */,
     FixedPoint.from("1.5") /* tick exp base: 1.5 */,
   ];
   const RATES = [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")];
@@ -217,7 +216,7 @@ describe("WeightedInterestRateModel", function () {
     });
   });
 
-  describe("#distribute (base 1.5, threshold 0.05)", async function () {
+  describe("#distribute (base 1.5)", async function () {
     it("distributes interest to one node", async function () {
       const pending = await interestRateModel2.distribute(
         FixedPoint.from("10"),
@@ -249,11 +248,11 @@ describe("WeightedInterestRateModel", function () {
         sources5.length
       );
       expect(pending.length).to.equal(5);
-      expect(pending[0]).to.equal(sources5[0].used.add(FixedPoint.from("0.079999999999999999")));
-      expect(pending[1]).to.equal(sources5[1].used.add(FixedPoint.from("0.480000000000000000")));
-      expect(pending[2]).to.equal(sources5[2].used.add(FixedPoint.from("0.900000000000000001")));
+      expect(pending[0]).to.equal(sources5[0].used.add(FixedPoint.from("0.070484581497797354")));
+      expect(pending[1]).to.equal(sources5[1].used.add(FixedPoint.from("0.422907488986784138")));
+      expect(pending[2]).to.equal(sources5[2].used.add(FixedPoint.from("0.792951541850220267")));
       expect(pending[3]).to.equal(sources5[3].used);
-      expect(pending[4]).to.equal(sources5[4].used.add(FixedPoint.from("0.540000000000000000")));
+      expect(pending[4]).to.equal(sources5[4].used.add(FixedPoint.from("0.713656387665198241")));
     });
   });
 });

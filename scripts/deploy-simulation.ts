@@ -66,7 +66,7 @@ async function main() {
     ethers.constants.AddressZero,
     erc20DepositTokenImplementation.address,
     [bundleCollateralWrapper.address],
-    [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
+    [FixedPoint.from("2.0")]
   );
   await poolImpl.deployed();
   console.log("Pool Implementation:        ", poolImpl.address);

@@ -105,7 +105,6 @@ async function main() {
     erc20DepositTokenImplementation.address,
     [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
     {
-      tickThreshold: FixedPoint.from("0.05"),
       tickExponential: FixedPoint.from("1.5"),
     }
   );
@@ -125,7 +124,6 @@ async function main() {
     erc20DepositTokenImplementation.address,
     [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
     {
-      tickThreshold: FixedPoint.from("0.05"),
       tickExponential: FixedPoint.from("1.5"),
     }
   );
@@ -145,7 +143,6 @@ async function main() {
     erc20DepositTokenImplementation.address,
     [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
     {
-      tickThreshold: FixedPoint.from("0.05"),
       tickExponential: FixedPoint.from("1.5"),
     }
   );
@@ -165,7 +162,6 @@ async function main() {
     erc20DepositTokenImplementation.address,
     [bundleCollateralWrapper.address, erc1155CollateralWrapper.address],
     {
-      tickThreshold: FixedPoint.from("0.05"),
       tickExponential: FixedPoint.from("1.5"),
     }
   );

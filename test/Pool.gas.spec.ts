@@ -114,7 +114,7 @@ describe("Pool Gas", function () {
       delegateRegistryV2.address,
       erc20DepositTokenImpl.address,
       [bundleCollateralWrapper.address],
-      [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
+      [FixedPoint.from("2.0")]
     )) as Pool;
     await poolImpl.deployed();
 
@@ -1000,7 +1000,7 @@ describe("Pool Gas", function () {
           ethers.constants.AddressZero,
           erc20DepositTokenImpl.address,
           [bundleCollateralWrapper.address],
-          [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
+          [FixedPoint.from("2.0")]
         )) as Pool;
         await poolEACLImpl.deployed();
 
@@ -1275,7 +1275,7 @@ describe("Pool Gas", function () {
         ethers.constants.AddressZero,
         erc20DepositTokenImpl.address,
         [],
-        [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
+        [FixedPoint.from("2.0")]
       )) as Pool;
       await poolImpl.deployed();
     });
@@ -1416,7 +1416,7 @@ describe("Pool Gas", function () {
         ethers.constants.AddressZero,
         erc20DepositTokenImpl.address,
         [ERC1155CollateralWrapper.address],
-        [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
+        [FixedPoint.from("2.0")]
       )) as Pool;
       await poolImpl.deployed();
 

@@ -110,7 +110,7 @@ describe("Pool ERC1155 Ranged Collection", function () {
       delegateRegistryV2.address,
       erc20DepositTokenImpl.address,
       [ERC1155CollateralWrapper.address],
-      [FixedPoint.from("0.05"), FixedPoint.from("2.0")]
+      [FixedPoint.from("2.0")]
     )) as Pool;
     await poolImpl.deployed();
 
