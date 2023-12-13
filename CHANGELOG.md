@@ -1,3 +1,8 @@
+* Pool v2.5 - 12/13/2023
+    * Remove tick threshold from WeightedInterestRateModel.
+    * Limit number of ticks sourced for a loan in LiquidityManager.
+    * Use safe cast for loan maturity in BorrowLogic.
+
 * Pool v2.4 - 12/06/2023
     * Add support for Delegate v2.
     * Add check for invalid ticks in `tokenize()`.
