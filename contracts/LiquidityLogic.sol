@@ -39,6 +39,11 @@ library LiquidityLogic {
     uint256 internal constant IMPAIRED_PRICE_THRESHOLD = 0.05 * 1e18;
 
     /**
+     * @notice Max ticks used count
+     */
+    uint256 private constant MAX_TICKS_USED_COUNT = 32;
+
+    /**
      * @notice Max redemption queue scan count
      */
     uint256 private constant MAX_REDEMPTION_QUEUE_SCAN_COUNT = 150;
@@ -680,6 +685,9 @@ library LiquidityLogic {
 
         /* If unable to source required liquidity amount from provided ticks */
         if (taken < amount) revert ILiquidity.InsufficientLiquidity();
+
+        /* If count exceeds max number of ticks */
+        if (count > MAX_TICKS_USED_COUNT) revert ILiquidity.InsufficientLiquidity();
 
         return (sources, count.toUint16());
     }

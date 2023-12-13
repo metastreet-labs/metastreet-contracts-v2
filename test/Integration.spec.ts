@@ -206,9 +206,7 @@ describe("Integration", function () {
     await tok1.connect(accountLiquidator).approve(collateralLiquidator.address, ethers.constants.MaxUint256);
 
     /* Instantiate Pool Model class */
-    poolModel = new PoolModel(ethers.BigNumber.from(CONFIG.adminFeeRate), "fixed", [
-      CONFIG.tickExponential,
-    ]);
+    poolModel = new PoolModel(ethers.BigNumber.from(CONFIG.adminFeeRate), "fixed", [CONFIG.tickExponential]);
 
     /* Create call sequence */
     callSequence = await generateCallSequence();

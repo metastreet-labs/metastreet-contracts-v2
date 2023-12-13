@@ -1211,6 +1211,20 @@ describe("LiquidityLogic", function () {
         )
       ).to.be.revertedWithCustomError(liquidityLogic, "InvalidTick");
     });
+    it("fails on excessive ticks", async function () {
+      const ticks2 = [];
+      let limit = FixedPoint.from("60");
+      for (let i = 0; i < 35; i++) {
+        await liquidityLogic.deposit(Tick.encode(limit), FixedPoint.from("1"));
+        ticks2.push(Tick.encode(limit));
+        limit = limit.mul(2);
+      }
+
+      await expect(liquidityLogic.source(FixedPoint.from("30"), ticks2, 0, 0)).to.be.revertedWithCustomError(
+        liquidityLogic,
+        "InsufficientLiquidity"
+      );
+    });
     it("fails on low duration ticks", async function () {
       await expect(
         liquidityLogic.source(FixedPoint.from("15"), [Tick.encode("10", 2, 0), Tick.encode("20", 0, 1)], 1, 1)

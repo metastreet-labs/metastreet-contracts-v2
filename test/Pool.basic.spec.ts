@@ -1816,7 +1816,7 @@ describe("Pool Basic", function () {
   const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
 
   async function setupLiquidity(): Promise<void> {
-    const NUM_LIMITS = 20;
+    const NUM_LIMITS = 35;
     const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.TICK_LIMIT_SPACING_BASIS_POINTS();
 
     let limit = FixedPoint.from("6.5");
@@ -2569,6 +2569,22 @@ describe("Pool Basic", function () {
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
     });
 
+    it("fails with excessive ticks", async function () {
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .borrow(
+            FixedPoint.from("150"),
+            30 * 86400,
+            nft1.address,
+            123,
+            FixedPoint.from("151"),
+            await sourceLiquidity(FixedPoint.from("150")),
+            "0x"
+          )
+      ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
+    });
+
     it("fails with low duration ticks", async function () {
       let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
 
@@ -3296,9 +3312,10 @@ describe("Pool Basic", function () {
     });
 
     it("fails on invalid caller", async function () {
-      /* setup liquidity and borrow */
-      await setupLiquidity();
+      /* Set Admin Fee */
       pool.setAdminFeeRate(500);
+
+      /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
 
       await expect(
@@ -3315,9 +3332,10 @@ describe("Pool Basic", function () {
     });
 
     it("fails on invalid loan receipt", async function () {
-      /* setup liquidity and borrow */
-      await setupLiquidity();
+      /* Set Admin Fee */
       pool.setAdminFeeRate(500);
+
+      /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
 
       await expect(
@@ -3334,9 +3352,10 @@ describe("Pool Basic", function () {
     });
 
     it("fails on repaid loan", async function () {
-      /* setup liquidity and borrow */
-      await setupLiquidity();
+      /* Set Admin Fee */
       pool.setAdminFeeRate(500);
+
+      /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
 
       await pool.connect(accountBorrower).repay(loanReceipt);

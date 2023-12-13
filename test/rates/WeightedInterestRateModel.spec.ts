@@ -8,9 +8,7 @@ import { Tick } from "../helpers/Tick";
 
 describe("WeightedInterestRateModel", function () {
   const PARAMETERS_1 = [FixedPoint.from("2") /* tick exp base: 2.0 */];
-  const PARAMETERS_2 = [
-    FixedPoint.from("1.5") /* tick exp base: 1.5 */,
-  ];
+  const PARAMETERS_2 = [FixedPoint.from("1.5") /* tick exp base: 1.5 */];
   const RATES = [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")];
 
   let interestRateModel1: WeightedInterestRateModel;
