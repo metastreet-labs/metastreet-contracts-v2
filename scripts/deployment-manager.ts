@@ -155,7 +155,7 @@ function decodeArgs(args: string[]): (string | string[])[] {
       ? arg
           .slice(1, -1)
           .split(",")
-          .map(x => x.trim())
+          .map((x) => x.trim())
           .filter((x) => x !== "")
       : arg
   );
