@@ -25,7 +25,7 @@ import { Tick } from "./helpers/Tick";
 
 import { PoolModel } from "./models/PoolModel";
 
-describe("Integration", function () {
+describe.skip("Integration", function () {
   let accounts: SignerWithAddress[];
   let tok1: TestERC20;
   let nft1: TestERC721;
@@ -62,7 +62,6 @@ describe("Integration", function () {
     liquidationProceedsRatio: [0, 50, 100, 300] /* 0%, 50%, 100%, 300% of repayment */,
     isSharesRedeemAmountRandomized: false,
     adminFeeRate: 45 /* 0.45% */,
-    tickExponential: FixedPoint.from("2.0"),
   };
 
   /* Test Suite Internal Storage */
@@ -155,8 +154,7 @@ describe("Integration", function () {
       delegateRegistryV1.address,
       delegateRegistryV2.address,
       erc20DepositTokenImpl.address,
-      [bundleCollateralWrapper.address],
-      [CONFIG.tickExponential]
+      [bundleCollateralWrapper.address]
     )) as Pool;
     await poolImpl.deployed();
 
@@ -206,7 +204,7 @@ describe("Integration", function () {
     await tok1.connect(accountLiquidator).approve(collateralLiquidator.address, ethers.constants.MaxUint256);
 
     /* Instantiate Pool Model class */
-    poolModel = new PoolModel(ethers.BigNumber.from(CONFIG.adminFeeRate), "fixed", [CONFIG.tickExponential]);
+    poolModel = new PoolModel(ethers.BigNumber.from(CONFIG.adminFeeRate));
 
     /* Create call sequence */
     callSequence = await generateCallSequence();

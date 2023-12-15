@@ -128,8 +128,7 @@ describe("Pool Punks", function () {
       delegateRegistryV1.address,
       delegateRegistryV2.address,
       erc20DepositTokenImpl.address,
-      [punkCollateralWrapper.address],
-      [FixedPoint.from("2.0")]
+      [punkCollateralWrapper.address]
     )) as Pool;
     await poolImpl.deployed();
 
@@ -359,7 +358,7 @@ describe("Pool Punks", function () {
           await sourceLiquidity(FixedPoint.from("25")),
           ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, ethers.utils.hexDataLength(context), context])
         )
-      ).to.equal(FixedPoint.from("25.205479451965600000"));
+      ).to.equal(FixedPoint.from("25.205479452030400000"));
     });
 
     it("fails on insufficient liquidity for punk", async function () {

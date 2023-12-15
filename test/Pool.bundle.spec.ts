@@ -108,8 +108,7 @@ describe("Pool Bundle", function () {
       delegateRegistryV1.address,
       delegateRegistryV2.address,
       erc20DepositTokenImpl.address,
-      [bundleCollateralWrapper.address],
-      [FixedPoint.from("2.0")]
+      [bundleCollateralWrapper.address]
     )) as Pool;
     await poolImpl.deployed();
 

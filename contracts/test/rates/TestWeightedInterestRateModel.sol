@@ -9,42 +9,24 @@ import "../../rates/WeightedInterestRateModel.sol";
  */
 contract TestWeightedInterestRateModel is WeightedInterestRateModel {
     /**************************************************************************/
-    /* Constructor */
-    /**************************************************************************/
-
-    constructor(WeightedInterestRateModel.Parameters memory parameters) WeightedInterestRateModel(parameters) {}
-
-    /**************************************************************************/
     /* Wrapper for Primary API */
     /**************************************************************************/
-
-    /**
-     * @dev External wrapper function for _rate()
-     */
-    function rate(
-        uint256 amount,
-        uint64[] memory rates,
-        LiquidityLogic.NodeSource[] memory nodes,
-        uint16 count
-    ) external pure returns (uint256) {
-        return _rate(amount, rates, nodes, count);
-    }
 
     /**
      * @dev External wrapper function for _distribute()
      */
     function distribute(
-        uint256 amount,
-        uint256 interest,
-        LiquidityLogic.NodeSource[] memory nodes,
-        uint16 count
-    ) external view returns (uint128[] memory) {
-        _distribute(amount, interest, nodes, count);
+        uint64 duration,
+        uint32 adminFeeRate,
+        uint64[] memory rates,
+        LiquidityLogic.NodeSource[] memory nodes
+    ) external pure returns (uint128[] memory, uint256, uint256) {
+        (uint256 repayment, uint256 adminFee) = _distribute(duration, adminFeeRate, rates, nodes);
 
-        uint128[] memory pending = new uint128[](count);
-        for (uint256 i; i < count; i++) {
+        uint128[] memory pending = new uint128[](nodes.length);
+        for (uint256 i; i < nodes.length; i++) {
             pending[i] = nodes[i].pending;
         }
-        return pending;
+        return (pending, repayment, adminFee);
     }
 }

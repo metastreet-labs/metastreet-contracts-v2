@@ -555,19 +555,8 @@ abstract contract Pool is
             durationIndex
         );
 
-        /* Calculate repayment from principal, rate, and duration */
-        uint256 repayment = (principal *
-            (LiquidityLogic.FIXED_POINT_SCALE + (_rate(principal, _storage.rates, nodes, count) * duration))) /
-            LiquidityLogic.FIXED_POINT_SCALE;
-
-        /* Compute total fee */
-        uint256 totalFee = repayment - principal;
-
-        /* Compute admin fee */
-        uint256 adminFee = (_storage.adminFeeRate * totalFee) / LiquidityLogic.BASIS_POINTS_SCALE;
-
-        /* Distribute interest */
-        _distribute(principal, totalFee - adminFee, nodes, count);
+        /* Distribute pending to nodes, and calculate repayment & admin fee */
+        (uint256 repayment, uint256 adminFee) = _distribute(duration, _storage.adminFeeRate, _storage.rates, nodes);
 
         return (repayment, adminFee, nodes, count);
     }

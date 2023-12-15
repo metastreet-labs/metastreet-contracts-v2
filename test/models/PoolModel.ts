@@ -34,7 +34,7 @@ export class PoolModel {
   /* Variables to be initialized */
   public _adminFeeRate: ethers.BigNumber;
 
-  constructor(_adminFeeRate: ethers.BigNumber, _interestRateModelType: string, _interestRateModelParams: any) {
+  constructor(_adminFeeRate: ethers.BigNumber) {
     this._adminFeeRate = _adminFeeRate;
   }
 

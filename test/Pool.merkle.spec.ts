@@ -105,8 +105,7 @@ describe("Pool Merkle", function () {
       delegateRegistryV1.address,
       delegateRegistryV2.address,
       erc20DepositTokenImpl.address,
-      [],
-      [FixedPoint.from("2.0")]
+      []
     )) as Pool;
     await poolImpl.deployed();
 
