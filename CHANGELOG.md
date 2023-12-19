@@ -1,3 +1,8 @@
+* Pool v2.6 - 12/21/2023
+    * Refactor internal API in InterestRateModel.
+    * Migrate to interest weighting based on cumulative repayment in
+      WeightedInterestRateModel.
+
 * Pool v2.5 - 12/13/2023
     * Remove tick threshold from WeightedInterestRateModel.
     * Limit number of ticks sourced for a loan in LiquidityManager.
