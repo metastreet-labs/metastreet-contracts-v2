@@ -62,7 +62,6 @@ describe("Integration", function () {
     liquidationProceedsRatio: [0, 50, 100, 300] /* 0%, 50%, 100%, 300% of repayment */,
     isSharesRedeemAmountRandomized: false,
     adminFeeRate: 45 /* 0.45% */,
-    tickExponential: FixedPoint.from("2.0"),
   };
 
   /* Test Suite Internal Storage */
@@ -155,8 +154,7 @@ describe("Integration", function () {
       delegateRegistryV1.address,
       delegateRegistryV2.address,
       erc20DepositTokenImpl.address,
-      [bundleCollateralWrapper.address],
-      [CONFIG.tickExponential]
+      [bundleCollateralWrapper.address]
     )) as Pool;
     await poolImpl.deployed();
 
@@ -206,7 +204,7 @@ describe("Integration", function () {
     await tok1.connect(accountLiquidator).approve(collateralLiquidator.address, ethers.constants.MaxUint256);
 
     /* Instantiate Pool Model class */
-    poolModel = new PoolModel(ethers.BigNumber.from(CONFIG.adminFeeRate), "fixed", [CONFIG.tickExponential]);
+    poolModel = new PoolModel(ethers.BigNumber.from(CONFIG.adminFeeRate), "fixed");
 
     /* Create call sequence */
     callSequence = await generateCallSequence();

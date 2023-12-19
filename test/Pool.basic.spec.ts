@@ -101,8 +101,7 @@ describe("Pool Basic", function () {
       delegateRegistryV1.address,
       delegateRegistryV2.address,
       erc20DepositTokenImpl.address,
-      [],
-      [FixedPoint.from("2.0")]
+      []
     )) as Pool;
     await poolImpl.deployed();
 
@@ -1986,7 +1985,7 @@ describe("Pool Basic", function () {
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("10.082191780786240000"));
+      ).to.equal(FixedPoint.from("10.082191780812159999"));
 
       expect(
         await pool.quote(
@@ -1997,14 +1996,14 @@ describe("Pool Basic", function () {
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("25.205479451965600000"));
+      ).to.equal(FixedPoint.from("25.205479452030399994"));
     });
 
     it("quotes repayment from various duration and rate ticks", async function () {
       let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
 
       expect(await pool.quote(FixedPoint.from("25"), 7 * 86400, nft1.address, 123, ticks, "0x")).to.equal(
-        FixedPoint.from("25.066700775725920000")
+        FixedPoint.from("25.066700775731730214")
       );
     });
 

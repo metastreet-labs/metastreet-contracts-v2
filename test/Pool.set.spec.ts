@@ -99,8 +99,7 @@ describe("Pool Set Collection", function () {
       delegateRegistryV1.address,
       delegateRegistryV2.address,
       erc20DepositTokenImpl.address,
-      [],
-      [FixedPoint.from("2.0")]
+      []
     )) as Pool;
     await poolImpl.deployed();
 
@@ -278,7 +277,7 @@ describe("Pool Set Collection", function () {
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("10.082191780786240000"));
+      ).to.equal(FixedPoint.from("10.082191780812159999"));
 
       expect(
         await pool.quote(
@@ -289,7 +288,7 @@ describe("Pool Set Collection", function () {
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("25.205479451965600000"));
+      ).to.equal(FixedPoint.from("25.205479452030399994"));
     });
 
     it("fails on unsupported collateral with set collection filter", async function () {

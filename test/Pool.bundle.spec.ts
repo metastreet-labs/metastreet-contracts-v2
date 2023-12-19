@@ -108,8 +108,7 @@ describe("Pool Bundle", function () {
       delegateRegistryV1.address,
       delegateRegistryV2.address,
       erc20DepositTokenImpl.address,
-      [bundleCollateralWrapper.address],
-      [FixedPoint.from("2.0")]
+      [bundleCollateralWrapper.address]
     )) as Pool;
     await poolImpl.deployed();
 
@@ -368,7 +367,7 @@ describe("Pool Bundle", function () {
             [1, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         )
-      ).to.equal(FixedPoint.from("25.205479451965600000"));
+      ).to.equal(FixedPoint.from("25.205479452030400000"));
     });
 
     it("fails on insufficient liquidity for bundle", async function () {

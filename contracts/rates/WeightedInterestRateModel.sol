@@ -15,67 +15,13 @@ contract WeightedInterestRateModel is InterestRateModel {
     using SafeCast for uint256;
 
     /**************************************************************************/
-    /* Constants */
-    /**************************************************************************/
-
-    /**
-     * @notice Fixed point scale
-     */
-    uint256 internal constant FIXED_POINT_SCALE = 1e18;
-
-    /**
-     * @notice Minimum tick exponential (0.25)
-     */
-    uint256 internal constant MIN_TICK_EXPONENTIAL = 0.25 * 1e18;
-
-    /**
-     * @notice Maximum tick exponential (4.0)
-     */
-    uint256 internal constant MAX_TICK_EXPONENTIAL = 4.0 * 1e18;
-
-    /**************************************************************************/
-    /* Structures */
-    /**************************************************************************/
-
-    /**
-     * @notice Parameters
-     * @param tickExponential Tick exponential base
-     */
-    struct Parameters {
-        uint64 tickExponential;
-    }
-
-    /**************************************************************************/
-    /* Errors */
-    /**************************************************************************/
-
-    /**
-     * @notice Insufficient utilization
-     */
-    error InsufficientUtilization();
-
-    /**************************************************************************/
-    /* Immutable State */
-    /**************************************************************************/
-
-    /**
-     * @notice Tick exponential base
-     */
-    uint64 internal immutable _tickExponential;
-
-    /**************************************************************************/
     /* Constructor */
     /**************************************************************************/
 
     /**
      * @notice WeightedInterestRateModel constructor
      */
-    constructor(Parameters memory parameters) {
-        if (parameters.tickExponential < MIN_TICK_EXPONENTIAL) revert InvalidInterestRateModelParameters();
-        if (parameters.tickExponential > MAX_TICK_EXPONENTIAL) revert InvalidInterestRateModelParameters();
-
-        _tickExponential = parameters.tickExponential;
-    }
+    constructor() {}
 
     /**************************************************************************/
     /* Implementation */
@@ -105,103 +51,50 @@ contract WeightedInterestRateModel is InterestRateModel {
         uint16 count,
         uint64[] memory rates,
         uint32 adminFeeRate
-    ) internal view override returns (uint256, uint256) {
-        /* Calculate repayment from principal, rate, and duration */
-        uint256 repayment = (principal *
-            (LiquidityLogic.FIXED_POINT_SCALE + (_rate(principal, rates, nodes, count) * duration))) /
-            LiquidityLogic.FIXED_POINT_SCALE;
-
-        /* Compute total fee */
-        uint256 totalFee = repayment - principal;
-
-        /* Compute admin fee */
-        uint256 adminFee = (adminFeeRate * totalFee) / LiquidityLogic.BASIS_POINTS_SCALE;
-
-        /* Distribute interest */
-        _distribute(principal, totalFee - adminFee, nodes, count);
-
-        return (repayment, adminFee);
-    }
-
-    /**
-     * Get interest rate for liquidity
-     * @param amount Liquidity amount
-     * @param rates Rates
-     * @param nodes Liquidity nodes
-     * @param count Liquidity node count
-     * @return Interest per second
-     */
-    function _rate(
-        uint256 amount,
-        uint64[] memory rates,
-        LiquidityLogic.NodeSource[] memory nodes,
-        uint16 count
-    ) internal pure returns (uint256) {
-        uint256 weightedRate;
-
-        /* Accumulate weighted rate */
-        for (uint256 i; i < count; i++) {
-            (, , uint256 rateIndex, ) = Tick.decode(nodes[i].tick);
-            weightedRate += (uint256(nodes[i].used) * rates[rateIndex]) / FIXED_POINT_SCALE;
-        }
-
-        /* Return normalized weighted rate */
-        return Math.mulDiv(weightedRate, FIXED_POINT_SCALE, amount);
-    }
-
-    /**
-     * Distribute interest to liquidity
-     * @param amount Liquidity amount
-     * @param interest Interest to distribute
-     * @param nodes Liquidity nodes
-     * @param count Liquidity node count
-     */
-    function _distribute(
-        uint256 amount,
-        uint256 interest,
-        LiquidityLogic.NodeSource[] memory nodes,
-        uint16 count
-    ) internal view {
-        /* Interest weight starting at final tick */
-        uint256 base = _tickExponential;
-        uint256 weight = (FIXED_POINT_SCALE * FIXED_POINT_SCALE) / base;
-
-        /* Assign weighted interest to ticks backwards */
-        uint128[] memory interests = new uint128[](count);
+    ) internal pure override returns (uint256, uint256) {
+        /* First pass to compute repayment and weights */
+        uint256[] memory weights = new uint256[](count);
+        uint256 repayment;
         uint256 normalization;
         for (uint256 i; i < count; i++) {
-            /* Compute index */
-            uint256 index = count - i - 1;
+            /* Compute tick repayment */
+            (, , uint256 rateIndex, ) = Tick.decode(nodes[i].tick);
+            uint256 pending = nodes[i].used +
+                Math.mulDiv(nodes[i].used, rates[rateIndex] * duration, LiquidityLogic.FIXED_POINT_SCALE);
 
-            /* Compute scaled weight */
-            uint256 scaledWeight = Math.mulDiv(weight, nodes[index].used, amount);
+            /* Update cumulative repayment */
+            repayment += pending;
 
-            /* Assign weighted interest */
-            interests[index] = Math.mulDiv(scaledWeight, interest, FIXED_POINT_SCALE).toUint128();
+            /* Compute tick weight */
+            weights[i] = Math.mulDiv(repayment, pending, principal);
 
-            /* Accumulate scaled weight for later normalization */
-            normalization += scaledWeight;
-
-            /* Adjust interest weight for next tick */
-            weight = Math.mulDiv(weight, FIXED_POINT_SCALE, base);
+            /* Accumulate weight for normalization */
+            normalization += weights[i];
         }
 
-        /* Validate normalization is non-zero */
-        if (normalization == 0) revert InsufficientUtilization();
+        /* Compute interest and admin fee */
+        uint256 interest = repayment - principal;
+        uint256 adminFee = (interest * adminFeeRate) / LiquidityLogic.BASIS_POINTS_SCALE;
 
-        /* Normalize weighted interest */
+        /* Deduct admin fee from interest */
+        interest -= adminFee;
+
+        /* Second pass to assign weighted interest to ticks */
+        uint256 interestRemaining = interest;
         for (uint256 i; i < count; i++) {
-            /* Calculate normalized interest to tick */
-            uint256 normalizedInterest = (interests[i] * FIXED_POINT_SCALE) / normalization;
+            /* Compute weighted interest to tick */
+            uint256 weightedInterest = Math.mulDiv(interest, weights[i], normalization);
 
             /* Assign node pending amount */
-            nodes[i].pending = nodes[i].used + normalizedInterest.toUint128();
+            nodes[i].pending = nodes[i].used + weightedInterest.toUint128();
 
             /* Track remaining interest */
-            interest -= normalizedInterest;
+            interestRemaining -= weightedInterest;
         }
 
-        /* Drop off remaining dust at lowest tick */
-        nodes[0].pending += interest.toUint128();
+        /* Drop off remaining interest dust at lowest node */
+        if (interestRemaining != 0) nodes[0].pending += interestRemaining.toUint128();
+
+        return (repayment, adminFee);
     }
 }

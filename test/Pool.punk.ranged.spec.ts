@@ -130,8 +130,7 @@ describe("Pool Punk Ranged Collection", function () {
       delegateRegistryV1.address,
       delegateRegistryV2.address,
       erc20DepositTokenImpl.address,
-      [punkCollateralWrapper.address],
-      [FixedPoint.from("2.0")]
+      [punkCollateralWrapper.address]
     )) as Pool;
     await poolImpl.deployed();
 

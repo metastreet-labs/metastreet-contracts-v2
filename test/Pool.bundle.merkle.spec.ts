@@ -115,8 +115,7 @@ describe("Pool Bundle Merkle", function () {
       delegateRegistryV1.address,
       delegateRegistryV2.address,
       erc20DepositTokenImpl.address,
-      [bundleCollateralWrapper.address],
-      [FixedPoint.from("2.0")]
+      [bundleCollateralWrapper.address]
     )) as Pool;
     await poolImpl.deployed();
 
@@ -291,22 +290,13 @@ describe("Pool Bundle Merkle", function () {
     used: ethers.BigNumber[],
     rates: ethers.BigNumber[]
   ): ethers.BigNumber {
-    /* Accumulate weighted rate */
-    let weightedRate = ethers.constants.Zero;
+    let interest = ethers.constants.Zero;
     for (let i = 0; i < ticks.length; i++) {
       const rateIndex = Tick.decode(ticks[i]).rateIndex;
-      weightedRate = weightedRate.add(used[i].mul(rates[rateIndex]).div(FixedPointScale));
+      interest = interest.add(used[i].mul(rates[rateIndex]).mul(duration).div(FixedPointScale));
     }
 
-    /* Normalize weighted rate by amount */
-    weightedRate = weightedRate.mul(FixedPointScale).div(amount);
-
-    /* Calculate repayment */
-    const repayment = amount
-      .mul(FixedPointScale.add(weightedRate.mul(ethers.BigNumber.from(duration))))
-      .div(FixedPointScale);
-
-    return repayment;
+    return amount.add(interest);
   }
 
   /****************************************************************************/
