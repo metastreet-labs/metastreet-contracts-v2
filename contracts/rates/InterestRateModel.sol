@@ -34,31 +34,22 @@ abstract contract InterestRateModel {
     function INTEREST_RATE_MODEL_VERSION() external view virtual returns (string memory);
 
     /**
-     * Get interest rate for liquidity
-     * @param amount Liquidity amount
-     * @param rates Rates
+     * @notice Price interest for liquidity
+     * @param principal Principal
+     * @param duration Duration
      * @param nodes Liquidity nodes
      * @param count Liquidity node count
-     * @return Interest per second
+     * @param rates Interest rates
+     * @param adminFeeRate Admin fee rate
+     * @return repayment Repayment
+     * @return adminFee Admin fee
      */
-    function _rate(
-        uint256 amount,
+    function _price(
+        uint256 principal,
+        uint64 duration,
+        LiquidityLogic.NodeSource[] memory nodes,
+        uint16 count,
         uint64[] memory rates,
-        LiquidityLogic.NodeSource[] memory nodes,
-        uint16 count
-    ) internal view virtual returns (uint256);
-
-    /**
-     * Distribute interest to liquidity
-     * @param amount Liquidity amount
-     * @param interest Interest to distribute
-     * @param nodes Liquidity nodes
-     * @param count Liquidity node count
-     */
-    function _distribute(
-        uint256 amount,
-        uint256 interest,
-        LiquidityLogic.NodeSource[] memory nodes,
-        uint16 count
-    ) internal view virtual;
+        uint32 adminFeeRate
+    ) internal view virtual returns (uint256 repayment, uint256 adminFee);
 }

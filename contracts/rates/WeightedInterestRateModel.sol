@@ -98,12 +98,45 @@ contract WeightedInterestRateModel is InterestRateModel {
     /**
      * @inheritdoc InterestRateModel
      */
+    function _price(
+        uint256 principal,
+        uint64 duration,
+        LiquidityLogic.NodeSource[] memory nodes,
+        uint16 count,
+        uint64[] memory rates,
+        uint32 adminFeeRate
+    ) internal view override returns (uint256, uint256) {
+        /* Calculate repayment from principal, rate, and duration */
+        uint256 repayment = (principal *
+            (LiquidityLogic.FIXED_POINT_SCALE + (_rate(principal, rates, nodes, count) * duration))) /
+            LiquidityLogic.FIXED_POINT_SCALE;
+
+        /* Compute total fee */
+        uint256 totalFee = repayment - principal;
+
+        /* Compute admin fee */
+        uint256 adminFee = (adminFeeRate * totalFee) / LiquidityLogic.BASIS_POINTS_SCALE;
+
+        /* Distribute interest */
+        _distribute(principal, totalFee - adminFee, nodes, count);
+
+        return (repayment, adminFee);
+    }
+
+    /**
+     * Get interest rate for liquidity
+     * @param amount Liquidity amount
+     * @param rates Rates
+     * @param nodes Liquidity nodes
+     * @param count Liquidity node count
+     * @return Interest per second
+     */
     function _rate(
         uint256 amount,
         uint64[] memory rates,
         LiquidityLogic.NodeSource[] memory nodes,
         uint16 count
-    ) internal pure override returns (uint256) {
+    ) internal pure returns (uint256) {
         uint256 weightedRate;
 
         /* Accumulate weighted rate */
@@ -117,14 +150,18 @@ contract WeightedInterestRateModel is InterestRateModel {
     }
 
     /**
-     * @inheritdoc InterestRateModel
+     * Distribute interest to liquidity
+     * @param amount Liquidity amount
+     * @param interest Interest to distribute
+     * @param nodes Liquidity nodes
+     * @param count Liquidity node count
      */
     function _distribute(
         uint256 amount,
         uint256 interest,
         LiquidityLogic.NodeSource[] memory nodes,
         uint16 count
-    ) internal view override {
+    ) internal view {
         /* Interest weight starting at final tick */
         uint256 base = _tickExponential;
         uint256 weight = (FIXED_POINT_SCALE * FIXED_POINT_SCALE) / base;
