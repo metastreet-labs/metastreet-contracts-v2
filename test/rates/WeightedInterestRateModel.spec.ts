@@ -36,7 +36,7 @@ describe("WeightedInterestRateModel", function () {
       expect(await interestRateModel.INTEREST_RATE_MODEL_NAME()).to.equal("WeightedInterestRateModel");
     });
     it("matches expected implementation version", async function () {
-      expect(await interestRateModel.INTEREST_RATE_MODEL_VERSION()).to.equal("1.1");
+      expect(await interestRateModel.INTEREST_RATE_MODEL_VERSION()).to.equal("2.0");
     });
   });
 
