@@ -17,6 +17,7 @@ import {
   Redeemed as RedeemedEntity,
   Redemption as RedemptionEntity,
   Tick as TickEntity,
+  TokenCreated as TokenCreatedEntity,
   Withdrawn as WithdrawnEntity,
 } from "../generated/schema";
 import { ERC721 as ERC721Contract } from "../generated/templates/Pool/ERC721";
@@ -65,6 +66,7 @@ class PoolEventType {
   static Deposited: string = "Deposited";
   static Redeemed: string = "Redeemed";
   static Withdrawn: string = "Withdrawn";
+  static TokenCreated: string = "TokenCreated";
 }
 
 class LoanStatus {
@@ -268,6 +270,7 @@ function createPoolEventEntity(
   else if (type == PoolEventType.Deposited) eventEntity.deposited = id;
   else if (type == PoolEventType.Redeemed) eventEntity.redeemed = id;
   else if (type == PoolEventType.Withdrawn) eventEntity.withdrawn = id;
+  else if (type == PoolEventType.TokenCreated) eventEntity.tokenCreated = id;
   eventEntity.save();
   return id;
 }
@@ -658,17 +661,26 @@ export function handleAdminFeeRateUpdated(event: AdminFeeRateUpdatedEvent): void
 }
 
 export function handleTokenCreated(event: TokenCreatedEvent): void {
-  const token = event.params.instance;
-  const tokenContract = ERC20Contract.bind(token);
-
-  const currencyTokenEntity = new CurrencyTokenEntity(token);
-  currencyTokenEntity.name = tokenContract.name();
-  currencyTokenEntity.symbol = tokenContract.symbol();
-  currencyTokenEntity.save();
-
   const tickEntity = updateTickEntity(event.params.tick, ZERO, ZERO);
-  tickEntity.token = token;
-  tickEntity.save();
+
+  if (!tickEntity.token) {
+    const token = event.params.instance;
+    const tokenContract = ERC20Contract.bind(token);
+
+    const currencyTokenEntity = new CurrencyTokenEntity(token);
+    currencyTokenEntity.name = tokenContract.name();
+    currencyTokenEntity.symbol = tokenContract.symbol();
+    currencyTokenEntity.save();
+
+    tickEntity.token = token;
+    tickEntity.save();
+
+    const poolEventId = createPoolEventEntity(event, PoolEventType.TokenCreated, event.transaction.from, null);
+    const tokenCreatedEntity = new TokenCreatedEntity(poolEventId);
+    tokenCreatedEntity.tick = tickEntity.id;
+    tokenCreatedEntity.token = token;
+    tokenCreatedEntity.save();
+  }
 }
 
 export function handleTransferred(event: TransferredEvent): void {
