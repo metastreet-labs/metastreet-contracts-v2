@@ -232,8 +232,7 @@ describe("Storage Layout", function () {
       expect(lookupStructFieldStorage(contractName, "_storage", "deposits")).to.be.eql({ slot: "7", offset: 0 });
       expect(lookupStructFieldStorage(contractName, "_storage", "loans")).to.be.eql({ slot: "8", offset: 0 });
       expect(lookupVariableStorage(contractName, "_token")).to.be.eql({ slot: "9", offset: 0 });
-      expect(lookupVariableStorage(contractName, "_initialized")).to.be.eql({ slot: "9", offset: 20 });
-      expect(computeLinearStorageSize(contractName)).to.be.eql(309);
+      expect(computeLinearStorageSize(contractName)).to.be.eql(308);
     });
 
     it("WeightedRateRangedCollectionPool storage layout", async function () {
@@ -253,8 +252,7 @@ describe("Storage Layout", function () {
       expect(lookupVariableStorage(contractName, "_token")).to.be.eql({ slot: "9", offset: 0 });
       expect(lookupVariableStorage(contractName, "_startTokenId")).to.be.eql({ slot: "10", offset: 0 });
       expect(lookupVariableStorage(contractName, "_endTokenId")).to.be.eql({ slot: "11", offset: 0 });
-      expect(lookupVariableStorage(contractName, "_initialized")).to.be.eql({ slot: "12", offset: 0 });
-      expect(computeLinearStorageSize(contractName)).to.be.eql(385);
+      expect(computeLinearStorageSize(contractName)).to.be.eql(384);
     });
 
     it("WeightedRateSetCollectionPool storage layout", async function () {
@@ -273,8 +271,7 @@ describe("Storage Layout", function () {
       expect(lookupStructFieldStorage(contractName, "_storage", "loans")).to.be.eql({ slot: "8", offset: 0 });
       expect(lookupVariableStorage(contractName, "_token")).to.be.eql({ slot: "9", offset: 0 });
       expect(lookupVariableStorage(contractName, "_tokenIds")).to.be.eql({ slot: "10", offset: 0 });
-      expect(lookupVariableStorage(contractName, "_initialized")).to.be.eql({ slot: "12", offset: 0 });
-      expect(computeLinearStorageSize(contractName)).to.be.eql(385);
+      expect(computeLinearStorageSize(contractName)).to.be.eql(384);
     });
 
     it("WeightedRateMerklePool storage layout", async function () {
@@ -295,8 +292,7 @@ describe("Storage Layout", function () {
       expect(lookupVariableStorage(contractName, "_proofLength")).to.be.eql({ slot: "9", offset: 20 });
       expect(lookupVariableStorage(contractName, "_root")).to.be.eql({ slot: "10", offset: 0 });
       expect(lookupVariableStorage(contractName, "_metadataURI")).to.be.eql({ slot: "11", offset: 0 });
-      expect(lookupVariableStorage(contractName, "_initialized")).to.be.eql({ slot: "12", offset: 0 });
-      expect(computeLinearStorageSize(contractName)).to.be.eql(385);
+      expect(computeLinearStorageSize(contractName)).to.be.eql(384);
     });
   });
 
