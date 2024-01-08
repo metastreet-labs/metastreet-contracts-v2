@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.20;
 
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import "../Pool.sol";
 import "../rates/WeightedInterestRateModel.sol";
 import "../filters/MerkleCollectionCollateralFilter.sol";
@@ -17,15 +19,6 @@ contract WeightedRateMerkleCollectionPool is
     MerkleCollectionCollateralFilter,
     ERC20DepositToken
 {
-    /**************************************************************************/
-    /* State */
-    /**************************************************************************/
-
-    /**
-     * @notice Initialized boolean
-     */
-    bool private _initialized;
-
     /**************************************************************************/
     /* Constructor */
     /**************************************************************************/
@@ -50,7 +43,7 @@ contract WeightedRateMerkleCollectionPool is
         ERC20DepositToken(erc20DepositTokenImplementation)
     {
         /* Disable initialization of implementation contract */
-        _initialized = true;
+        _storage.currencyToken = IERC20(address(1));
     }
 
     /**************************************************************************/
@@ -58,9 +51,7 @@ contract WeightedRateMerkleCollectionPool is
     /**************************************************************************/
 
     function initialize(bytes memory params) external {
-        require(!_initialized, "Already initialized");
-
-        _initialized = true;
+        require(address(_storage.currencyToken) == address(0), "Already initialized");
 
         /* Decode parameters */
         (
