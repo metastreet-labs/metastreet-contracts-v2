@@ -22,6 +22,11 @@ contract CollectionCollateralFilter is CollateralFilter {
     address private _token;
 
     /**
+     * @notice Requires migration boolean
+     */
+    bool private _requiresMigration;
+
+    /**
      * @notice Set of supported aliases
      */
     EnumerableSet.AddressSet private _aliases;
@@ -96,5 +101,23 @@ contract CollectionCollateralFilter is CollateralFilter {
         bytes calldata
     ) internal view override returns (bool) {
         return token == _token || _aliases.contains(token);
+    }
+
+    /**************************************************************************/
+    /* Migration */
+    /**************************************************************************/
+
+    /**
+     * @notice Add Ͼ721 to WPUNKS collateral filter alias set and
+     * set _requiresMigration, previously _initialized, to false
+     * @dev This function is to be removed after migration
+     */
+    function migrate() external {
+        require(_requiresMigration, "Already migrated");
+
+        if (_token == 0xb7F7F6C52F2e2fdb1963Eab30438024864c313F6)
+            _aliases.add(0x00000000000000343662D3FAD10D154530C0d4F1);
+
+        _requiresMigration = false;
     }
 }
