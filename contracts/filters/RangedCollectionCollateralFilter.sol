@@ -27,6 +27,11 @@ contract RangedCollectionCollateralFilter is CollateralFilter {
      */
     uint256 private _endTokenId;
 
+    /**
+     * @notice Requires migration boolean
+     */
+    bool private _requiresMigration;
+
     /**************************************************************************/
     /* Initializer */
     /**************************************************************************/
@@ -96,5 +101,19 @@ contract RangedCollectionCollateralFilter is CollateralFilter {
         bytes calldata
     ) internal view override returns (bool) {
         return token == _token && tokenId >= _startTokenId && tokenId <= _endTokenId;
+    }
+
+    /**************************************************************************/
+    /* Migration */
+    /**************************************************************************/
+
+    /**
+     * @notice Set _requiresMigration, previously _initialized, to false
+     * @dev This function is to be removed after migration
+     */
+    function migrate() external {
+        require(_requiresMigration, "Already migrated");
+
+        _requiresMigration = false;
     }
 }
