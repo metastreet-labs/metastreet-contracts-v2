@@ -43,6 +43,11 @@ contract MerkleCollectionCollateralFilter is CollateralFilter {
      */
     string private _metadataURI;
 
+    /**
+     * @notice Requires migration boolean
+     */
+    bool private _requiresMigration;
+
     /**************************************************************************/
     /* Initializer */
     /**************************************************************************/
@@ -168,5 +173,19 @@ contract MerkleCollectionCollateralFilter is CollateralFilter {
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(tokenId))));
 
         return MerkleProof.verify(_extractProof(context[proofOffset:proofOffset + proofLength]), _root, leaf);
+    }
+
+    /**************************************************************************/
+    /* Migration */
+    /**************************************************************************/
+
+    /**
+     * @notice Set _requiresMigration, previously _initialized, to false
+     * @dev This function is to be removed after migration
+     */
+    function migrate() external {
+        require(_requiresMigration, "Already migrated");
+
+        _requiresMigration = false;
     }
 }
