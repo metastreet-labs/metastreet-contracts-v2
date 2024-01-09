@@ -12,8 +12,8 @@ contract TestCollectionCollateralFilter is CollectionCollateralFilter {
     /* Constructor */
     /**************************************************************************/
 
-    constructor(address token) {
-        _initialize(token);
+    constructor(address[] memory tokens) {
+        _initialize(tokens);
     }
 
     /**************************************************************************/
