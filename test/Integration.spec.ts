@@ -163,8 +163,8 @@ describe("Integration", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address", "address", "uint64[]", "uint64[]"],
-          [nft1.address, tok1.address, CONFIG.tickDurations, CONFIG.tickRates]
+          ["address[]", "address", "uint64[]", "uint64[]"],
+          [[nft1.address], tok1.address, CONFIG.tickDurations, CONFIG.tickRates]
         ),
       ])
     );
