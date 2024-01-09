@@ -144,9 +144,9 @@ describe("PoolFactory", function () {
 
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint64[]", "uint64[]"],
+        ["address[]", "address", "uint64[]", "uint64[]"],
         [
-          nft1.address,
+          [nft1.address],
           tok1.address,
           [30 * 86400, 14 * 86400, 7 * 86400],
           [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
@@ -173,9 +173,9 @@ describe("PoolFactory", function () {
 
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint64[]", "uint64[]"],
+        ["address[]", "address", "uint64[]", "uint64[]"],
         [
-          nft1.address,
+          [nft1.address],
           tok1.address,
           [30 * 86400, 14 * 86400, 7 * 86400],
           [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
@@ -211,9 +211,9 @@ describe("PoolFactory", function () {
 
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint64[]", "uint64[]"],
+        ["address[]", "address", "uint64[]", "uint64[]"],
         [
-          nft1.address,
+          [nft1.address],
           tok2.address,
           [30 * 86400, 14 * 86400, 7 * 86400],
           [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
@@ -238,9 +238,9 @@ describe("PoolFactory", function () {
 
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint64[]", "uint64[]"],
+        ["address[]", "address", "uint64[]", "uint64[]"],
         [
-          nft1.address,
+          [nft1.address],
           tok1.address,
           [30 * 86400, 14 * 86400, 7 * 86400],
           [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
@@ -267,9 +267,9 @@ describe("PoolFactory", function () {
 
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint64[]", "uint64[]"],
+        ["address[]", "address", "uint64[]", "uint64[]"],
         [
-          nft1.address,
+          [nft1.address],
           tok1.address,
           [30 * 86400, 14 * 86400, 7 * 86400],
           [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
@@ -286,9 +286,9 @@ describe("PoolFactory", function () {
 
       /* Create a pool */
       const params = ethers.utils.defaultAbiCoder.encode(
-        ["address", "address", "uint64"],
+        ["address[]", "address", "uint64"],
         [
-          nft1.address,
+          [nft1.address],
           tok1.address,
           30 * 86400,
           /* Missing interest rate model params */
@@ -305,9 +305,9 @@ describe("PoolFactory", function () {
   /* Helper function to create a pool */
   async function createPool(): Promise<string> {
     const params = ethers.utils.defaultAbiCoder.encode(
-      ["address", "address", "uint64[]", "uint64[]"],
+      ["address[]", "address", "uint64[]", "uint64[]"],
       [
-        nft1.address,
+        [nft1.address],
         tok1.address,
         [30 * 86400, 14 * 86400, 7 * 86400],
         [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],

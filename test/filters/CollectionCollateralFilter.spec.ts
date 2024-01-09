@@ -10,7 +10,10 @@ describe("CollectionCollateralFilter", function () {
   before("deploy fixture", async () => {
     const collectionCollateralFilterFactory = await ethers.getContractFactory("TestCollectionCollateralFilter");
 
-    collateralFilter = await collectionCollateralFilterFactory.deploy("0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b");
+    collateralFilter = await collectionCollateralFilterFactory.deploy([
+      "0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b",
+      "0xb7F7F6C52F2e2fdb1963Eab30438024864c313F6",
+    ]);
     await collateralFilter.deployed();
   });
 
@@ -53,6 +56,9 @@ describe("CollectionCollateralFilter", function () {
     it("matches supported token", async function () {
       expect(
         await collateralFilter.collateralSupported("0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b", 123, 0, "0x")
+      ).to.equal(true);
+      expect(
+        await collateralFilter.collateralSupported("0xb7F7F6C52F2e2fdb1963Eab30438024864c313F6", 123, 0, "0x")
       ).to.equal(true);
       expect(
         await collateralFilter.collateralSupported("0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b", 456, 0, "0x")
