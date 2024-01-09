@@ -73,6 +73,16 @@ contract SetCollectionCollateralFilter is CollateralFilter {
     }
 
     /**
+     * @inheritdoc CollateralFilter
+     */
+    function collateralTokens() external view override returns (address[] memory) {
+        address[] memory tokens = new address[](1);
+        tokens[0] = _token;
+
+        return tokens;
+    }
+
+    /**
      * @notice Get collateral token IDs
      * @return Collateral token IDs
      */
