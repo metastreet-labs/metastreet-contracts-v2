@@ -46,6 +46,12 @@ describe("CollectionCollateralFilter", function () {
     it("matches expected collateral token", async function () {
       expect(await collateralFilter.collateralToken()).to.equal("0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b");
     });
+    it("matches expected collateral tokens", async function () {
+      expect(await collateralFilter.collateralTokens()).to.be.eql([
+        "0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b",
+        "0xb7F7F6C52F2e2fdb1963Eab30438024864c313F6",
+      ]);
+    });
   });
 
   /****************************************************************************/
