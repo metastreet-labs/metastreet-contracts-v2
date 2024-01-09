@@ -259,8 +259,8 @@ async function main() {
 
   async function createCollectionPool(i: number) {
     const params = ethers.utils.defaultAbiCoder.encode(
-      ["address", "address", "uint64[]", "uint64[]"],
-      [collateralTokens[i], wethTokenContract.address, durations, rates]
+      ["address[]", "address", "uint64[]", "uint64[]"],
+      [[collateralTokens[i]], wethTokenContract.address, durations, rates]
     );
     const createPoolTx = await poolFactory.createProxied(weightedRateCollectionPoolBeacon.address, params);
     console.log("DEPLOYED COLLECTION POOL");
