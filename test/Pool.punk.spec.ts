@@ -137,9 +137,9 @@ describe("Pool Punks", function () {
       poolImpl.address,
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.utils.defaultAbiCoder.encode(
-          ["address", "address", "uint64[]", "uint64[]"],
+          ["address[]", "address", "uint64[]", "uint64[]"],
           [
-            WPUNKS_ADDRESS,
+            [WPUNKS_ADDRESS],
             tok1.address,
             [30 * 86400, 14 * 86400, 7 * 86400],
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],

@@ -169,7 +169,8 @@ describe("Storage Layout", function () {
       const contractName = "CollectionCollateralFilter";
 
       expect(lookupVariableStorage(contractName, "_token")).to.be.eql({ slot: "0", offset: 0 });
-      expect(computeLinearStorageSize(contractName)).to.be.eql(20);
+      expect(lookupVariableStorage(contractName, "_aliases")).to.be.eql({ slot: "1", offset: 0 });
+      expect(computeLinearStorageSize(contractName)).to.be.eql(96);
     });
 
     it("MerkleCollectionCollateralFilter storage layout", async function () {
@@ -232,7 +233,8 @@ describe("Storage Layout", function () {
       expect(lookupStructFieldStorage(contractName, "_storage", "deposits")).to.be.eql({ slot: "7", offset: 0 });
       expect(lookupStructFieldStorage(contractName, "_storage", "loans")).to.be.eql({ slot: "8", offset: 0 });
       expect(lookupVariableStorage(contractName, "_token")).to.be.eql({ slot: "9", offset: 0 });
-      expect(computeLinearStorageSize(contractName)).to.be.eql(308);
+      expect(lookupVariableStorage(contractName, "_aliases")).to.be.eql({ slot: "10", offset: 0 });
+      expect(computeLinearStorageSize(contractName)).to.be.eql(384);
     });
 
     it("WeightedRateRangedCollectionPool storage layout", async function () {

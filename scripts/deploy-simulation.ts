@@ -95,9 +95,9 @@ async function main() {
 
   /* Create WETH Pool */
   const params = ethers.utils.defaultAbiCoder.encode(
-    ["address", "address", "uint64[]", "uint64[]"],
+    ["address[]", "address", "uint64[]", "uint64[]"],
     [
-      baycTokenContract.address,
+      [baycTokenContract.address],
       wethTokenContract.address,
       [30 * 86400, 14 * 86400, 7 * 86400],
       [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
