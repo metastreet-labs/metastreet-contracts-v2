@@ -38,6 +38,12 @@ abstract contract CollateralFilter {
     function collateralToken() external view virtual returns (address);
 
     /**
+     * @notice Get collateral tokens
+     * @return Collateral token contract
+     */
+    function collateralTokens() external view virtual returns (address[] memory);
+
+    /**
      * Query if collateral token is supported
      * @param token Collateral token contract
      * @param tokenId Collateral Token ID
