@@ -71,6 +71,24 @@ contract CollectionCollateralFilter is CollateralFilter {
     /**
      * @inheritdoc CollateralFilter
      */
+    function collateralTokens() external view override returns (address[] memory) {
+        address[] memory aliases = _aliases.values();
+        address[] memory tokens = new address[](1 + aliases.length);
+
+        /* Assign collateral token to first index in array */
+        tokens[0] = _token;
+
+        /* Fill the array with aliases */
+        for (uint256 i; i < aliases.length; i++) {
+            tokens[i + 1] = aliases[i];
+        }
+
+        return tokens;
+    }
+
+    /**
+     * @inheritdoc CollateralFilter
+     */
     function _collateralSupported(
         address token,
         uint256,
