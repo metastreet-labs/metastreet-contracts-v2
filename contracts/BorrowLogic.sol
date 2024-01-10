@@ -406,10 +406,10 @@ library BorrowLogic {
         LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
         /* Check if the proceeds have a surplus */
-        bool hasSurplus = proceeds > loanReceipt.repayment;
+        bool hasSurplus = proceeds > loanReceipt.repayment - loanReceipt.adminFee;
 
         /* Compute borrower's share of liquidation surplus */
-        uint256 borrowerSurplus = hasSurplus
+        uint256 borrowerSurplus = proceeds > loanReceipt.repayment
             ? Math.mulDiv(
                 proceeds - loanReceipt.repayment,
                 BORROWER_SURPLUS_SPLIT_BASIS_POINTS,
