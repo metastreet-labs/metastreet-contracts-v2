@@ -405,11 +405,8 @@ library BorrowLogic {
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
-        /* Check if the proceeds have a surplus */
-        bool hasSurplus = proceeds > loanReceipt.repayment;
-
         /* Compute borrower's share of liquidation surplus */
-        uint256 borrowerSurplus = hasSurplus
+        uint256 borrowerSurplus = proceeds > loanReceipt.repayment
             ? Math.mulDiv(
                 proceeds - loanReceipt.repayment,
                 BORROWER_SURPLUS_SPLIT_BASIS_POINTS,
@@ -420,8 +417,11 @@ library BorrowLogic {
         /* Compute lenders' proceeds */
         uint256 lendersProceeds = proceeds - borrowerSurplus;
 
-        /* Compute total pending */
-        uint256 totalPending = loanReceipt.repayment - loanReceipt.adminFee;
+        /* Compute lenders' pending */
+        uint256 lendersPending = loanReceipt.repayment - loanReceipt.adminFee;
+
+        /* Check if lenders have a surplus */
+        bool hasSurplus = lendersProceeds > lendersPending;
 
         /* Compute elapsed time since loan origination */
         uint64 elapsed = uint64(block.timestamp + loanReceipt.duration - loanReceipt.maturity);
@@ -432,7 +432,7 @@ library BorrowLogic {
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
             /* Compute amount to restore depending on whether there is a surplus */
             uint256 restored = (i == lastIndex) ? proceedsRemaining : hasSurplus
-                ? Math.mulDiv(lendersProceeds, loanReceipt.nodeReceipts[i].pending, totalPending)
+                ? Math.mulDiv(lendersProceeds, loanReceipt.nodeReceipts[i].pending, lendersPending)
                 : Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining);
 
             /* Restore node */
