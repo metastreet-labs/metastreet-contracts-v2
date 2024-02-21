@@ -7,8 +7,9 @@ import { FixedPoint } from "./FixedPoint";
 export class Tick {
   static Zero = ethers.constants.Zero;
 
-  static encode(limit: string | BigNumber, durationIndex?: number = 0, rateIndex?: number = 0) {
+  static encode(limit: string | BigNumber, durationIndex?: number = 0, rateIndex?: number = 0, decimals?: number = 18) {
     return (typeof limit === "string" ? FixedPoint.from(limit) : limit)
+      .mul(10 ** (18 - decimals))
       .mask(120)
       .mul(256)
       .add(ethers.BigNumber.from(durationIndex).mask(3).mul(32))
