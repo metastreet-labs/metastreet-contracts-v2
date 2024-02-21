@@ -5,13 +5,15 @@ import { BigNumber } from "@ethersproject/bignumber";
 export class FixedPoint {
   static Zero = ethers.constants.Zero;
 
-  static from(x: string | number | BigNumber): BigNumber {
+  static from(x: string | number | BigNumber, decimals?: number = 18): BigNumber {
     if (typeof x === "string") {
-      return ethers.utils.parseEther(x);
+      return ethers.utils.parseEther(x).div(10 ** (18 - decimals));
     } else if (typeof x === "number") {
-      return ethers.BigNumber.from(x).mul(ethers.constants.WeiPerEther);
+      return ethers.BigNumber.from(x)
+        .mul(ethers.constants.WeiPerEther)
+        .div(10 ** (18 - decimals));
     } else {
-      return x.mul(ethers.constants.WeiPerEther);
+      return x.mul(ethers.constants.WeiPerEther).div(10 ** (18 - decimals));
     }
   }
 
