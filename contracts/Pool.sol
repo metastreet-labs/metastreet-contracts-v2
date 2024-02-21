@@ -235,7 +235,7 @@ abstract contract Pool is
      * @param rates_ Interest rate tiers
      */
     function _initialize(address currencyToken_, uint64[] memory durations_, uint64[] memory rates_) internal {
-        if (IERC20Metadata(currencyToken_).decimals() != 18) revert InvalidParameters();
+        if (IERC20Metadata(currencyToken_).decimals() > 18) revert InvalidParameters();
 
         _storage.currencyToken = IERC20(currencyToken_);
         _storage.admin = msg.sender;
@@ -317,7 +317,7 @@ abstract contract Pool is
      * @inheritdoc IPool
      */
     function adminFeeBalance() external view returns (uint256) {
-        return _storage.adminFeeBalance;
+        return _unscale(_storage.adminFeeBalance, false);
     }
 
     /**
@@ -413,14 +413,14 @@ abstract contract Pool is
      * @inheritdoc ILiquidity
      */
     function depositSharePrice(uint128 tick) external view returns (uint256) {
-        return _storage.liquidity.depositSharePrice(tick);
+        return _unscale(_storage.liquidity.depositSharePrice(tick), false);
     }
 
     /**
      * @inheritdoc ILiquidity
      */
     function redemptionSharePrice(uint128 tick) external view returns (uint256) {
-        return _storage.liquidity.redemptionSharePrice(tick);
+        return _unscale(_storage.liquidity.redemptionSharePrice(tick), false);
     }
 
     /**************************************************************************/
@@ -563,6 +563,35 @@ abstract contract Pool is
         return (repayment, adminFee, nodes, count);
     }
 
+    /**
+     * @dev Helper function to get currency token scaling factor
+     * @return Factor
+     */
+    function _scaleFactor() internal view returns (uint256) {
+        return 10 ** (18 - IERC20Metadata(address(_storage.currencyToken)).decimals());
+    }
+
+    /**
+     * @dev Helper function to scale up a value
+     * @param value Value
+     * @return Scaled value
+     */
+    function _scale(uint256 value) internal view returns (uint256) {
+        return value * _scaleFactor();
+    }
+
+    /**
+     * @dev Helper function to scale down a value
+     * @param value Value
+     * @param isRoundUp Round up if true
+     * @return Unscaled value
+     */
+    function _unscale(uint256 value, bool isRoundUp) internal view returns (uint256) {
+        uint256 factor = _scaleFactor();
+
+        return (value % factor == 0 || !isRoundUp) ? value / factor : value / factor + 1;
+    }
+
     /**************************************************************************/
     /* Lend API */
     /**************************************************************************/
@@ -580,7 +609,7 @@ abstract contract Pool is
     ) external view returns (uint256) {
         /* Quote repayment */
         (uint256 repayment, , , ) = _quote(
-            principal,
+            _scale(principal),
             duration,
             collateralToken,
             collateralTokenId,
@@ -590,7 +619,7 @@ abstract contract Pool is
             false
         );
 
-        return repayment;
+        return _unscale(repayment, true);
     }
 
     /**
@@ -605,9 +634,11 @@ abstract contract Pool is
         uint128[] calldata ticks,
         bytes calldata options
     ) external nonReentrant returns (uint256) {
+        uint256 scaledPrincipal = _scale(principal);
+
         /* Quote repayment, admin fee, and liquidity nodes */
         (uint256 repayment, uint256 adminFee, LiquidityLogic.NodeSource[] memory nodes, uint16 count) = _quote(
-            principal,
+            scaledPrincipal,
             duration,
             collateralToken,
             collateralTokenId,
@@ -620,12 +651,12 @@ abstract contract Pool is
         /* Handle borrow accounting */
         (bytes memory encodedLoanReceipt, bytes32 loanReceiptHash) = BorrowLogic._borrow(
             _storage,
-            principal,
+            scaledPrincipal,
             duration,
             collateralToken,
             collateralTokenId,
             repayment,
-            maxRepayment,
+            _scale(maxRepayment),
             adminFee,
             nodes,
             count,
@@ -651,7 +682,7 @@ abstract contract Pool is
         /* Emit LoanOriginated */
         emit LoanOriginated(loanReceiptHash, encodedLoanReceipt);
 
-        return repayment;
+        return _unscale(repayment, true);
     }
 
     /**
@@ -663,6 +694,7 @@ abstract contract Pool is
             _storage,
             encodedLoanReceipt
         );
+        uint256 unscaledRepayment = _unscale(repayment, true);
 
         /* Revoke delegates */
         BorrowLogic._revokeDelegates(
@@ -674,7 +706,7 @@ abstract contract Pool is
         );
 
         /* Transfer repayment from borrower to pool */
-        _storage.currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), repayment);
+        _storage.currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), unscaledRepayment);
 
         /* Transfer collateral from pool to borrower */
         IERC721(loanReceipt.collateralToken).transferFrom(
@@ -684,9 +716,9 @@ abstract contract Pool is
         );
 
         /* Emit Loan Repaid */
-        emit LoanRepaid(loanReceiptHash, repayment);
+        emit LoanRepaid(loanReceiptHash, unscaledRepayment);
 
-        return repayment;
+        return unscaledRepayment;
     }
 
     /**
@@ -699,15 +731,18 @@ abstract contract Pool is
         uint256 maxRepayment,
         uint128[] calldata ticks
     ) external nonReentrant returns (uint256) {
+        uint256 scaledPrincipal = _scale(principal);
+
         /* Handle repay accounting */
         (uint256 repayment, LoanReceipt.LoanReceiptV2 memory loanReceipt, bytes32 loanReceiptHash) = BorrowLogic._repay(
             _storage,
             encodedLoanReceipt
         );
+        uint256 unscaledRepayment = _unscale(repayment, true);
 
         /* Quote new repayment, admin fee, and liquidity nodes */
         (uint256 newRepayment, uint256 adminFee, LiquidityLogic.NodeSource[] memory nodes, uint16 count) = _quote(
-            principal,
+            scaledPrincipal,
             duration,
             loanReceipt.collateralToken,
             loanReceipt.collateralTokenId,
@@ -720,12 +755,12 @@ abstract contract Pool is
         /* Handle borrow accounting */
         (bytes memory newEncodedLoanReceipt, bytes32 newLoanReceiptHash) = BorrowLogic._borrow(
             _storage,
-            principal,
+            scaledPrincipal,
             duration,
             loanReceipt.collateralToken,
             loanReceipt.collateralTokenId,
             newRepayment,
-            maxRepayment,
+            _scale(maxRepayment),
             adminFee,
             nodes,
             count,
@@ -733,21 +768,21 @@ abstract contract Pool is
         );
 
         /* Determine transfer direction */
-        if (principal < repayment) {
+        if (principal < unscaledRepayment) {
             /* Transfer prorated repayment less principal from borrower to pool */
-            _storage.currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), repayment - principal);
+            _storage.currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), unscaledRepayment - principal);
         } else {
             /* Transfer principal less prorated repayment from pool to borrower */
-            _storage.currencyToken.safeTransfer(msg.sender, principal - repayment);
+            _storage.currencyToken.safeTransfer(msg.sender, principal - unscaledRepayment);
         }
 
         /* Emit Loan Repaid */
-        emit LoanRepaid(loanReceiptHash, repayment);
+        emit LoanRepaid(loanReceiptHash, unscaledRepayment);
 
         /* Emit LoanOriginated */
         emit LoanOriginated(newLoanReceiptHash, newEncodedLoanReceipt);
 
-        return newRepayment;
+        return _unscale(newRepayment, true);
     }
 
     /**
@@ -798,13 +833,15 @@ abstract contract Pool is
 
         /* Handle collateral liquidation accounting */
         (uint256 borrowerSurplus, LoanReceipt.LoanReceiptV2 memory loanReceipt, bytes32 loanReceiptHash) = BorrowLogic
-            ._onCollateralLiquidated(_storage, encodedLoanReceipt, proceeds);
+            ._onCollateralLiquidated(_storage, encodedLoanReceipt, _scale(proceeds));
+        uint256 unscaledBorrowerSurplus = _unscale(borrowerSurplus, false);
 
         /* Transfer surplus to borrower */
-        if (borrowerSurplus != 0) IERC20(_storage.currencyToken).safeTransfer(loanReceipt.borrower, borrowerSurplus);
+        if (unscaledBorrowerSurplus != 0)
+            IERC20(_storage.currencyToken).safeTransfer(loanReceipt.borrower, unscaledBorrowerSurplus);
 
         /* Emit Collateral Liquidated */
-        emit CollateralLiquidated(loanReceiptHash, proceeds, borrowerSurplus);
+        emit CollateralLiquidated(loanReceiptHash, proceeds, unscaledBorrowerSurplus);
     }
 
     /**************************************************************************/
@@ -816,7 +853,7 @@ abstract contract Pool is
      */
     function deposit(uint128 tick, uint256 amount, uint256 minShares) external nonReentrant returns (uint256) {
         /* Handle deposit accounting and compute shares */
-        uint128 shares = DepositLogic._deposit(_storage, tick, amount.toUint128(), minShares.toUint128());
+        uint128 shares = DepositLogic._deposit(_storage, tick, _scale(amount).toUint128(), minShares.toUint128());
 
         /* Call token hook */
         _onExternalTransfer(address(0), msg.sender, tick, shares);
@@ -853,9 +890,16 @@ abstract contract Pool is
         address account,
         uint128 tick,
         uint128 redemptionId
-    ) external view returns (uint256 shares, uint256 amount, uint256 sharesAhead) {
+    ) external view returns (uint256, uint256, uint256) {
         /* Handle redemption available accounting */
-        return DepositLogic._redemptionAvailable(_storage, account, tick, redemptionId);
+        (uint256 shares, uint256 amount, uint256 sharesAhead) = DepositLogic._redemptionAvailable(
+            _storage,
+            account,
+            tick,
+            redemptionId
+        );
+
+        return (shares, _unscale(amount, false), sharesAhead);
     }
 
     /**
@@ -864,14 +908,15 @@ abstract contract Pool is
     function withdraw(uint128 tick, uint128 redemptionId) external nonReentrant returns (uint256, uint256) {
         /* Handle withdraw accounting and compute both shares and amount */
         (uint128 shares, uint128 amount) = DepositLogic._withdraw(_storage, tick, redemptionId);
+        uint256 unscaledAmount = _unscale(amount, false);
 
         /* Transfer withdrawal amount */
-        if (amount != 0) _storage.currencyToken.safeTransfer(msg.sender, amount);
+        if (unscaledAmount != 0) _storage.currencyToken.safeTransfer(msg.sender, unscaledAmount);
 
         /* Emit Withdrawn */
-        emit Withdrawn(msg.sender, tick, redemptionId, shares, amount);
+        emit Withdrawn(msg.sender, tick, redemptionId, shares, unscaledAmount);
 
-        return (shares, amount);
+        return (shares, unscaledAmount);
     }
 
     /**
@@ -889,16 +934,18 @@ abstract contract Pool is
         /* Handle deposit accounting and compute new shares */
         uint128 newShares = DepositLogic._deposit(_storage, dstTick, amount, minShares.toUint128());
 
+        uint256 unscaledAmount = _unscale(amount, false);
+
         /* Call token hook */
         _onExternalTransfer(address(0), msg.sender, dstTick, newShares);
 
         /* Emit Withdrawn */
-        emit Withdrawn(msg.sender, srcTick, redemptionId, oldShares, amount);
+        emit Withdrawn(msg.sender, srcTick, redemptionId, oldShares, unscaledAmount);
 
         /* Emit Deposited */
-        emit Deposited(msg.sender, dstTick, amount, newShares);
+        emit Deposited(msg.sender, dstTick, unscaledAmount, newShares);
 
-        return (oldShares, newShares, amount);
+        return (oldShares, newShares, unscaledAmount);
     }
 
     /**
@@ -964,11 +1011,13 @@ abstract contract Pool is
      * @param amount Amount to withdraw
      */
     function withdrawAdminFees(address recipient, uint256 amount) external nonReentrant {
+        uint256 scaledAmount = _scale(amount);
+
         if (msg.sender != _storage.admin) revert InvalidCaller();
-        if (recipient == address(0) || amount > _storage.adminFeeBalance) revert InvalidParameters();
+        if (recipient == address(0) || scaledAmount > _storage.adminFeeBalance) revert InvalidParameters();
 
         /* Update admin fees balance */
-        _storage.adminFeeBalance -= amount;
+        _storage.adminFeeBalance -= scaledAmount;
 
         /* Transfer cash from Pool to recipient */
         _storage.currencyToken.safeTransfer(recipient, amount);
