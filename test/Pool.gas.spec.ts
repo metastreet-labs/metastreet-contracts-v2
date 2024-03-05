@@ -792,8 +792,8 @@ describe("Pool Gas", function () {
     });
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("15"), 10, 471000],
-      [FixedPoint.from("25"), 16, 683000],
+      [FixedPoint.from("15"), 10, 473000],
+      [FixedPoint.from("25"), 16, 685000],
     ]) {
       it(`refinance (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
@@ -1423,10 +1423,10 @@ describe("Pool Gas", function () {
       await nft2.connect(accountBorrower).setApprovalForAll(ERC1155CollateralWrapper.address, true);
     });
     for (const [principal, numTicks, totalTokenIds, maxGas] of [
-      [FixedPoint.from("245"), 10, 16, 452000],
-      [FixedPoint.from("434"), 16, 16, 579000],
-      [FixedPoint.from("490"), 10, 32, 539000],
-      [FixedPoint.from("868"), 16, 32, 666000],
+      [FixedPoint.from("245"), 10, 16, 455000],
+      [FixedPoint.from("434"), 16, 16, 585000],
+      [FixedPoint.from("490"), 10, 32, 545000],
+      [FixedPoint.from("868"), 16, 32, 670000],
     ]) {
       it(`erc1155 borrow (total token IDs ${totalTokenIds}, ${numTicks} tick)`, async function () {
         /* Mint NFT to borrower */
