@@ -1,3 +1,12 @@
+* Pool v2.7 - 03/06/2024
+    * Remove lender surplus from collateral liquidation.
+    * Validate principal is non-zero for borrows.
+    * Add support for aliases to CollectionCollateralFilter.
+    * Add migration for CryptoPunks collection pools to add the Yuga Labs
+      CryptoPunks 721 Wrapper as an alias.
+    * Remove `_initialized` storage variable in Pool configurations and replace
+      it with an equivalent check.
+
 * Pool v2.6 - 12/21/2023
     * Refactor internal API in InterestRateModel.
     * Migrate to interest weighting based on cumulative repayment in
