@@ -1034,10 +1034,7 @@ abstract contract Pool is
      * @param rate Rate is the admin fee in basis points
      */
     function setAdminFeeRate(uint32 rate) external {
-        if (msg.sender != _storage.admin) revert InvalidCaller();
-        if (rate >= LiquidityLogic.BASIS_POINTS_SCALE) revert InvalidParameters();
-
-        _storage.adminFeeRate = rate;
+        BorrowLogic._setAdminFeeRate(_storage, rate);
 
         emit AdminFeeRateUpdated(rate);
     }
@@ -1051,13 +1048,7 @@ abstract contract Pool is
      * @param amount Amount to withdraw
      */
     function withdrawAdminFees(address recipient, uint256 amount) external nonReentrant {
-        uint256 scaledAmount = _scale(amount);
-
-        if (msg.sender != _storage.admin) revert InvalidCaller();
-        if (recipient == address(0) || scaledAmount > _storage.adminFeeBalance) revert InvalidParameters();
-
-        /* Update admin fees balance */
-        _storage.adminFeeBalance -= scaledAmount;
+        BorrowLogic._withdrawAdminFees(_storage, recipient, _scale(amount));
 
         /* Transfer cash from Pool to recipient */
         _storage.currencyToken.safeTransfer(recipient, amount);
