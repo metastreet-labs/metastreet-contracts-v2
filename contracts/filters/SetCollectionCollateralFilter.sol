@@ -26,11 +26,6 @@ contract SetCollectionCollateralFilter is CollateralFilter {
      */
     EnumerableSet.UintSet private _tokenIds;
 
-    /**
-     * @notice Requires migration boolean
-     */
-    bool private _requiresMigration;
-
     /**************************************************************************/
     /* Initializer */
     /**************************************************************************/
@@ -113,19 +108,5 @@ contract SetCollectionCollateralFilter is CollateralFilter {
 
         /* Validate token ID is in set of token IDs */
         return _tokenIds.contains(tokenId);
-    }
-
-    /**************************************************************************/
-    /* Migration */
-    /**************************************************************************/
-
-    /**
-     * @notice Set _requiresMigration, previously _initialized, to false
-     * @dev This function is to be removed after migration
-     */
-    function migrate() external {
-        require(_requiresMigration, "Already migrated");
-
-        _requiresMigration = false;
     }
 }
