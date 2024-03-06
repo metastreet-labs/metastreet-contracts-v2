@@ -437,4 +437,30 @@ library BorrowLogic {
 
         return (borrowerSurplus, loanReceipt, loanReceiptHash);
     }
+
+    /**
+     * @dev Helper function to set admin fee rate
+     * @param self Pool storage
+     * @param rate Rate is the admin fee in basis points
+     */
+    function _setAdminFeeRate(Pool.PoolStorage storage self, uint32 rate) external {
+        if (msg.sender != self.admin) revert IPool.InvalidCaller();
+        if (rate >= LiquidityLogic.BASIS_POINTS_SCALE) revert IPool.InvalidParameters();
+
+        self.adminFeeRate = rate;
+    }
+
+    /**
+     * @dev Helper function to withdraw admin fees
+     * @param self Pool storage
+     * @param recipient Recipient account
+     * @param scaledAmount Amount to withdraw
+     */
+    function _withdrawAdminFees(Pool.PoolStorage storage self, address recipient, uint256 scaledAmount) external {
+        if (msg.sender != self.admin) revert IPool.InvalidCaller();
+        if (recipient == address(0) || scaledAmount > self.adminFeeBalance) revert IPool.InvalidParameters();
+
+        /* Update admin fees balance */
+        self.adminFeeBalance -= scaledAmount;
+    }
 }
