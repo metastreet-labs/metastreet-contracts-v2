@@ -1,3 +1,7 @@
+* Pool v2.8 - 03/06/2024
+    * Add support for sub-18 decimal currency tokens.
+    * Add support for ratio ticks and external price oracles.
+
 * Pool v2.7 - 03/06/2024
     * Add forfeited admin fee to lender surplus from collateral liquidation.
     * Add support for aliases to CollectionCollateralFilter.
