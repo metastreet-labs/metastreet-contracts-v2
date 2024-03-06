@@ -8,6 +8,7 @@
     "no-global-import": "off",
     "not-rely-on-time": "off",
     "func-name-mixedcase": "off",
+    "immutable-vars-naming": "off",
     "max-states-count": ["warn", 16]
   },
   "plugins": ["prettier"]
