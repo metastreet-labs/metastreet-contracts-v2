@@ -1,3 +1,6 @@
+* KongzBundleCollateralWrapper v1.0 - 03/06/2024
+    * Initial release.
+
 * Pool v2.8 - 03/06/2024
     * Add support for sub-18 decimal currency tokens.
     * Add support for ratio ticks and external price oracles.
