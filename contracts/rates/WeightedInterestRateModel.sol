@@ -61,15 +61,9 @@ contract WeightedInterestRateModel is InterestRateModel {
             (, , uint256 rateIndex, ) = Tick.decode(nodes[i].tick, LiquidityLogic.BASIS_POINTS_SCALE);
             uint256 pending = nodes[i].used +
                 Math.mulDiv(nodes[i].used, rates[rateIndex] * duration, LiquidityLogic.FIXED_POINT_SCALE);
-
-            /* Update cumulative repayment */
-            repayment += pending;
-
-            /* Compute tick weight */
-            weights[i] = Math.mulDiv(repayment, pending, principal);
-
-            /* Accumulate weight for normalization */
-            normalization += weights[i];
+                
+            /* Update cumulative repayment, compute tick weight, and accumulate weight for normalization */
+            normalization += (weights[i] = Math.mulDiv(repayment += pending, pending, principal));
         }
 
         /* Compute interest and admin fee */
@@ -77,10 +71,9 @@ contract WeightedInterestRateModel is InterestRateModel {
         uint256 adminFee = (interest * adminFeeRate) / LiquidityLogic.BASIS_POINTS_SCALE;
 
         /* Deduct admin fee from interest */
-        interest -= adminFee;
+        uint256 interestRemaining = (interest -= adminFee);
 
         /* Second pass to assign weighted interest to ticks */
-        uint256 interestRemaining = interest;
         for (uint256 i; i < count; i++) {
             /* Compute weighted interest to tick */
             uint256 weightedInterest = Math.mulDiv(interest, weights[i], normalization);
