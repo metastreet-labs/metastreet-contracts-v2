@@ -6,8 +6,6 @@
     "build-local": "graph build subgraph.local.yml",
     "create-local": "graph create --node http://localhost:8020/ metastreet-v2-subgraph",
     "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 metastreet-v2-subgraph subgraph.local.yml",
-    "codegen-goerli": "rm -rf generated && graph codegen subgraph.goerli.yml",
-    "build-goerli": "graph build subgraph.goerli.yml",
     "codegen-sepolia": "rm -rf generated && graph codegen subgraph.sepolia.yml",
     "build-sepolia": "graph build subgraph.sepolia.yml",
     "codegen-mainnet": "rm -rf generated && graph codegen subgraph.mainnet.yml",
