@@ -216,6 +216,7 @@ type PoolEvent @entity(immutable: true) {
   redeemed: Redeemed
   withdrawn: Withdrawn
   tokenCreated: TokenCreated
+  transferred: Transferred
 }
 
 enum PoolEventType {
@@ -227,6 +228,7 @@ enum PoolEventType {
   Redeemed
   Withdrawn
   TokenCreated
+  Transferred
 }
 
 type LoanOriginated @entity(immutable: true) {
@@ -278,6 +280,16 @@ type TokenCreated @entity(immutable: true) {
   id: Bytes! # <pool><tx hash>
   tick: Tick!
   token: CurrencyToken!
+}
+
+type Transferred @entity(immutable: true) {
+  id: Bytes! # <pool><tx hash>
+  tick: Tick!
+  token: CurrencyToken!
+  shares: BigInt! # uint256
+  estimatedAmount: BigInt! # uint256
+  from: Bytes! # address
+  to: Bytes! # address
 }
 
 ################################################################################

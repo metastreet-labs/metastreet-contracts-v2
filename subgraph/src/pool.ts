@@ -18,6 +18,7 @@ import {
   Redemption as RedemptionEntity,
   Tick as TickEntity,
   TokenCreated as TokenCreatedEntity,
+  Transferred as TransferredEntity,
   Withdrawn as WithdrawnEntity,
 } from "../generated/schema";
 import { ERC721 as ERC721Contract } from "../generated/templates/Pool/ERC721";
@@ -67,6 +68,7 @@ class PoolEventType {
   static Redeemed: string = "Redeemed";
   static Withdrawn: string = "Withdrawn";
   static TokenCreated: string = "TokenCreated";
+  static Transferred: string = "Transferred";
 }
 
 class LoanStatus {
@@ -686,7 +688,8 @@ export function handleTokenCreated(event: TokenCreatedEvent): void {
 export function handleTransferred(event: TransferredEvent): void {
   const tick = loadTickOrThrow(event.params.tick);
 
-  if (tick.accrued && tick.accrualRate && tick.accrualTimestamp) {
+  // this is just to make the compiler happy, should always be true
+  if (tick.accrued && tick.accrualRate && tick.accrualTimestamp && tick.token) {
     const accrued = changetype<BigInt>(tick.accrued);
     const accrualRate = changetype<BigInt>(tick.accrualRate);
     const accrualTimestamp = changetype<BigInt>(tick.accrualTimestamp);
@@ -713,5 +716,15 @@ export function handleTransferred(event: TransferredEvent): void {
     if (event.params.to.notEqual(Address.zero())) {
       updateDepositEntity(event.params.to, event.params.tick, event.block.timestamp, estimatedAmount);
     }
+
+    const poolEventId = createPoolEventEntity(event, PoolEventType.Transferred, event.params.from, null);
+    const transferredEntity = new TransferredEntity(poolEventId);
+    transferredEntity.tick = tick.id;
+    transferredEntity.token = changetype<Bytes>(tick.token);
+    transferredEntity.shares = event.params.shares;
+    transferredEntity.estimatedAmount = estimatedAmount;
+    transferredEntity.from = event.params.from;
+    transferredEntity.to = event.params.to;
+    transferredEntity.save();
   }
 }
