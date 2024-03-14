@@ -273,6 +273,7 @@ function createPoolEventEntity(
   else if (type == PoolEventType.Redeemed) eventEntity.redeemed = id;
   else if (type == PoolEventType.Withdrawn) eventEntity.withdrawn = id;
   else if (type == PoolEventType.TokenCreated) eventEntity.tokenCreated = id;
+  else if (type == PoolEventType.Transferred) eventEntity.transferred = id;
   eventEntity.save();
   return id;
 }
