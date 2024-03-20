@@ -202,7 +202,7 @@ contract KongzBundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyG
     ) external view returns (address token, uint256[] memory tokenIds) {
         if (tokenId != uint256(_hash(context))) revert InvalidContext();
 
-        /* Get token address from context */
+        /* Set token as cyberkongz token */
         token = address(_cyberkongz);
 
         /* Compute number of tokens in context */
@@ -228,7 +228,7 @@ contract KongzBundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyG
     ) external view returns (address token, uint256[] memory tokenIds, uint256[] memory quantities) {
         if (tokenId != uint256(_hash(context))) revert InvalidContext();
 
-        /* Get token address from context */
+        /* Set token as cyberkongz token */
         token = address(_cyberkongz);
 
         /* Compute number of tokens in context */
@@ -311,22 +311,13 @@ contract KongzBundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyG
      * @param minter Minter
      * @param tokenId Token ID
      * @param tokenCount Token count
-     * @param isUnwrap True if caller is unwrap()
      */
-    function _claim(address minter, uint256 tokenId, uint256 tokenCount, bool isUnwrap) internal {
+    function _claim(address minter, uint256 tokenId, uint256 tokenCount) internal {
         /* Claim rewards for this contract */
         _yieldHub.getTokenReward(address(_banana));
 
         /* Cache last updated timestamp */
         uint256 lastUpdatedTimestamp = _lastUpdatedTimestamps[tokenId];
-
-        if (isUnwrap) {
-            /* Delete this last updated timestamp record if called from unwrap() */
-            delete _lastUpdatedTimestamps[tokenId];
-        } else {
-            /* Update last updated timestamp record  */
-            _lastUpdatedTimestamps[tokenId] = block.timestamp;
-        }
 
         /* Nothing to claim when outside yield window */
         if (block.timestamp < _yieldTokenStart || lastUpdatedTimestamp > _yieldTokenEnd) return;
@@ -403,7 +394,10 @@ contract KongzBundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyG
         _burn(tokenId);
 
         /* Update this contract's BANANA balance and transfer BANANA to minter */
-        _claim(minter, tokenId, tokenCount, true);
+        _claim(minter, tokenId, tokenCount);
+
+        /* Delete last updated timestamp record for token ID */
+        delete _lastUpdatedTimestamps[tokenId];
 
         /* Transfer assets back to owner of token */
         uint256 offset = 20;
@@ -434,7 +428,10 @@ contract KongzBundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyG
         uint256 tokenCount = (context.length - 20) / 32;
 
         /* Update this contract's BANANA balance and transfer BANANA to minter */
-        _claim(minter, tokenId, tokenCount, false);
+        _claim(minter, tokenId, tokenCount);
+
+        /* Update last updated timestamp record  */
+        _lastUpdatedTimestamps[tokenId] = block.timestamp;
     }
 
     /**
