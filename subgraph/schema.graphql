@@ -88,6 +88,7 @@ type Tick @entity {
   rate: BigInt! # uint64
   durationIndex: Int! # uint3
   rateIndex: Int! # uint3
+  limitType: Int! # uint2
   # node info
   active: Boolean!
   value: BigInt! # uint128
