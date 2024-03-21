@@ -671,8 +671,13 @@ export function handleTokenCreated(event: TokenCreatedEvent): void {
     const tokenContract = ERC20Contract.bind(token);
 
     const currencyTokenEntity = new CurrencyTokenEntity(token);
-    currencyTokenEntity.name = tokenContract.name();
-    currencyTokenEntity.symbol = tokenContract.symbol();
+
+    const tokenName = tokenContract.try_name();
+    currencyTokenEntity.name = tokenName.reverted ? "Unnamed Token" : tokenName.value;
+
+    const tokenSymbol = tokenContract.try_symbol();
+    currencyTokenEntity.symbol = tokenSymbol.reverted ? "???" : tokenSymbol.value;
+
     currencyTokenEntity.save();
 
     tickEntity.token = token;
