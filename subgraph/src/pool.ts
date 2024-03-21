@@ -81,15 +81,23 @@ class LoanStatus {
 /**************************************************************************/
 /* Tick utils */
 /**************************************************************************/
+
+enum LimitType {
+  Absolute,
+  Ratio,
+}
+
 class DecodedTick {
   limit: BigInt;
   durationIndex: i32;
   rateIndex: i32;
+  limitType: LimitType;
 
-  constructor(limit: BigInt, durationIndex: i32, rateIndex: i32) {
+  constructor(limit: BigInt, durationIndex: i32, rateIndex: i32, limitType: LimitType) {
     this.limit = limit;
     this.durationIndex = durationIndex;
     this.rateIndex = rateIndex;
+    this.limitType = limitType;
   }
 }
 
@@ -97,12 +105,14 @@ function decodeTick(encodedTick: BigInt): DecodedTick {
   const limitMask = TWO.pow(120).minus(ONE);
   const durationIndexMask = TWO.pow(3).minus(ONE);
   const rateIndexMask = TWO.pow(3).minus(ONE);
+  const limitTypeMask = TWO.pow(2).minus(ONE);
 
   const limit = encodedTick.rightShift(8).bitAnd(limitMask);
   const durationIndex = encodedTick.rightShift(5).bitAnd(durationIndexMask).toU32();
   const rateIndex = encodedTick.rightShift(2).bitAnd(rateIndexMask).toU32();
+  const limitType = encodedTick.equals(MAX_UINT128) ? LimitType.Absolute : encodedTick.bitAnd(limitTypeMask).toI32();
 
-  return new DecodedTick(limit, durationIndex, rateIndex);
+  return new DecodedTick(limit, durationIndex, rateIndex, limitType);
 }
 
 function getTickId(encodedTick: BigInt): Bytes {
@@ -210,6 +220,7 @@ function updateTickEntity(
   tickEntity.pool = poolAddress;
   tickEntity.raw = encodedTick;
   tickEntity.limit = decodedTick.limit;
+  tickEntity.limitType = decodedTick.limitType;
   tickEntity.duration = poolEntity.durations[decodedTick.durationIndex];
   tickEntity.rate = poolEntity.rates[decodedTick.rateIndex];
   tickEntity.durationIndex = decodedTick.durationIndex;
