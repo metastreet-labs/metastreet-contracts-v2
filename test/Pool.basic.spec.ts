@@ -2497,6 +2497,22 @@ describe("Pool Basic", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
     });
 
+    it("fails on zero principal", async function () {
+      await expect(
+        pool
+          .connect(accountBorrower)
+          .borrow(
+            0,
+            30 * 86400,
+            nft1.address,
+            123,
+            FixedPoint.from("26"),
+            await sourceLiquidity(FixedPoint.from("25")),
+            "0x"
+          )
+      ).to.be.revertedWithCustomError(pool, "InvalidParameters");
+    });
+
     it("fails on unsupported collateral", async function () {
       await expect(
         pool
