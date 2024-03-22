@@ -250,6 +250,9 @@ library BorrowLogic {
         uint16 count,
         bytes memory collateralWrapperContext
     ) external returns (bytes memory, bytes32) {
+        /* Validate principal is non-zero */
+        if (principal == 0) revert IPool.InvalidParameters();
+
         /* Validate duration is non-zero */
         if (duration == 0) revert IPool.UnsupportedLoanDuration();
 
