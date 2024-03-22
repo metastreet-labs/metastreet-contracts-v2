@@ -44,7 +44,7 @@ describe("KongzBundleCollateralWrapper", function () {
         {
           forking: {
             jsonRpcUrl: process.env.MAINNET_URL,
-            // blockNumber: BLOCK_ID,
+            blockNumber: BLOCK_ID,
           },
         },
       ],
