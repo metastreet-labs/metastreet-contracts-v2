@@ -3537,8 +3537,7 @@ describe("Pool Basic (6 Decimals)", function () {
         );
 
       /* Compute borrower surplus and lender proceeds */
-      const surplus = FixedPoint.from("30").sub(decodedLoanReceipt.repayment);
-      const borrowerSurplus = surplus.mul(9500).div(10000);
+      const borrowerSurplus = FixedPoint.from("30").sub(decodedLoanReceipt.repayment);
       const lendersProceeds = FixedPoint.from("30").sub(borrowerSurplus);
 
       /* Validate events */
