@@ -33,7 +33,7 @@ const config: HardhatUserConfig = {
             viaIR: true,
             optimizer: {
               enabled: true,
-              runs: 150,
+              runs: 450,
             },
             evmVersion: "shanghai",
             outputSelection: { "*": { "*": ["storageLayout"] } },
