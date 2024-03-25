@@ -53,11 +53,6 @@ abstract contract Pool is
      */
     uint256 public constant TICK_LIMIT_SPACING_BASIS_POINTS = LiquidityLogic.TICK_LIMIT_SPACING_BASIS_POINTS;
 
-    /**
-     * @notice Borrower's split of liquidation proceed surplus in basis points
-     */
-    uint256 public constant BORROWER_SURPLUS_SPLIT_BASIS_POINTS = BorrowLogic.BORROWER_SURPLUS_SPLIT_BASIS_POINTS;
-
     /**************************************************************************/
     /* Structures */
     /**************************************************************************/

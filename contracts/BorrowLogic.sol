@@ -25,11 +25,6 @@ library BorrowLogic {
     /**************************************************************************/
 
     /**
-     * @notice Borrower's split of liquidation proceed surplus in basis points
-     */
-    uint256 internal constant BORROWER_SURPLUS_SPLIT_BASIS_POINTS = 9_500;
-
-    /**
      * @notice Borrow options tag size in bytes
      */
     uint256 internal constant BORROW_OPTIONS_TAG_SIZE = 2;
@@ -406,33 +401,18 @@ library BorrowLogic {
         LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
         /* Compute borrower's share of liquidation surplus */
-        uint256 borrowerSurplus = proceeds > loanReceipt.repayment
-            ? Math.mulDiv(
-                proceeds - loanReceipt.repayment,
-                BORROWER_SURPLUS_SPLIT_BASIS_POINTS,
-                LiquidityLogic.BASIS_POINTS_SCALE
-            )
-            : 0;
-
-        /* Compute lenders' proceeds */
-        uint256 lendersProceeds = proceeds - borrowerSurplus;
-
-        /* Compute lenders' pending */
-        uint256 lendersPending = loanReceipt.repayment - loanReceipt.adminFee;
-
-        /* Check if lenders have a surplus */
-        bool hasSurplus = lendersProceeds > lendersPending;
+        uint256 borrowerSurplus = proceeds > loanReceipt.repayment ? proceeds - loanReceipt.repayment : 0;
 
         /* Compute elapsed time since loan origination */
         uint64 elapsed = uint64(block.timestamp + loanReceipt.duration - loanReceipt.maturity);
 
         /* Restore liquidity nodes */
-        uint256 proceedsRemaining = lendersProceeds;
+        uint256 proceedsRemaining = proceeds - borrowerSurplus;
         uint256 lastIndex = loanReceipt.nodeReceipts.length - 1;
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
             /* Compute amount to restore depending on whether there is a surplus */
-            uint256 restored = (i == lastIndex) ? proceedsRemaining : hasSurplus
-                ? Math.mulDiv(lendersProceeds, loanReceipt.nodeReceipts[i].pending, lendersPending)
+            uint256 restored = (i == lastIndex)
+                ? proceedsRemaining
                 : Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining);
 
             /* Restore node */

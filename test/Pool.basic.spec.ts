@@ -3499,8 +3499,7 @@ describe("Pool Basic", function () {
         .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, FixedPoint.from("30"));
 
       /* Compute borrower surplus and lender proceeds */
-      const surplus = FixedPoint.from("30").sub(decodedLoanReceipt.repayment);
-      const borrowerSurplus = surplus.mul(9500).div(10000);
+      const borrowerSurplus = FixedPoint.from("30").sub(decodedLoanReceipt.repayment);
       const lendersProceeds = FixedPoint.from("30").sub(borrowerSurplus);
 
       /* Validate events */
