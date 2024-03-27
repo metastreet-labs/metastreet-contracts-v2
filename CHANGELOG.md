@@ -1,3 +1,6 @@
+* KongzBundleCollateralWrapper v1.0 - 03/27/2024
+    * Initial release.
+
 * SimpleSignedPriceOracle v1.0 - 03/27/2024
     * Initial release.
 
