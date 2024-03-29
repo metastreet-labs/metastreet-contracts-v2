@@ -708,6 +708,19 @@ async function erc20DepositTokenImplementationDeploy(deployment: Deployment) {
 }
 
 /******************************************************************************/
+/* Generic Contract Deploy */
+/******************************************************************************/
+
+async function contractDeploy(contractName: string, args: string[]) {
+  const contractFactory = await ethers.getContractFactory(contractName, signer);
+
+  /* Deploy Contract */
+  const contract = await contractFactory.deploy(...decodeArgs(args));
+  await contract.deployed();
+  console.log(`${contractName}: ${contract.address}`);
+}
+
+/******************************************************************************/
 /* Ownership Commands */
 /******************************************************************************/
 
@@ -919,6 +932,14 @@ async function main() {
     .command("erc20-deposit-token-deploy")
     .description("Deploy ERC20 Deposit Token Implementation")
     .action(() => erc20DepositTokenImplementationDeploy(deployment));
+
+  /* Generic Contract Deploy */
+  program
+    .command("contract-deploy")
+    .description("Deploy contract")
+    .argument("contract", "Contract name")
+    .argument("[args...]", "Arguments")
+    .action((contract, args) => contractDeploy(contract, args));
 
   /* Loan Receipt */
   program
