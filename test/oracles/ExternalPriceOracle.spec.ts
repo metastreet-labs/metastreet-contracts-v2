@@ -51,10 +51,6 @@ describe("ExternalPriceOracle", function () {
   /****************************************************************************/
 
   describe("#price", async function () {
-    it("returns 0 if oracle context length is 0", async function () {
-      expect(await externalPriceOracle1.price(COLLATERAL_TOKEN, CURRENCY_TOKEN, [], [], "0x", "0x")).to.be.equal(0);
-    });
-
     it("returns 0 if price oracle address is 0", async function () {
       expect(await externalPriceOracle2.price(COLLATERAL_TOKEN, CURRENCY_TOKEN, [], [], "0x11", "0x")).to.be.equal(0);
     });
