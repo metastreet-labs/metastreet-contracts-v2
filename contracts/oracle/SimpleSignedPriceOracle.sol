@@ -137,6 +137,9 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
         if (collateralToken != quote.token || collateralTokenId != quote.tokenId || poolCurrency != quote.currency)
             revert InvalidQuote();
 
+        /* Validate quote price is non-zero */
+        if (quote.price == 0) revert InvalidQuote();
+
         /* Validate quote timestamp */
         if (quote.timestamp > block.timestamp || quote.timestamp + quote.duration < block.timestamp)
             revert InvalidTimestamp();
