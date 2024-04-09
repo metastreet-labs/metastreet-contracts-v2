@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 import "../interfaces/IPriceOracle.sol";
@@ -10,7 +10,7 @@ import "../interfaces/IPriceOracle.sol";
  * @title Simple Signed Price Oracle
  * @author MetaStreet Labs
  */
-contract SimpleSignedPriceOracle is Ownable, EIP712, IPriceOracle {
+contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
     /**************************************************************************/
     /* Constants */
     /**************************************************************************/
