@@ -22,7 +22,6 @@ import "./oracle/PriceOracle.sol";
 
 import "./interfaces/IPool.sol";
 import "./interfaces/ILiquidity.sol";
-import "./interfaces/IPriceOracle.sol";
 import "./interfaces/ICollateralWrapper.sol";
 import "./interfaces/ICollateralLiquidator.sol";
 import "./interfaces/ICollateralLiquidationReceiver.sol";
