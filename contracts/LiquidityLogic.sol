@@ -395,6 +395,7 @@ library LiquidityLogic {
     /**
      * @notice Instantiate liquidity
      * @param liquidity Liquidity state
+     * @param node Liquidity node
      * @param tick Tick
      */
     function _instantiate(Liquidity storage liquidity, Node storage node, uint128 tick) internal {
