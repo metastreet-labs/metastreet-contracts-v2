@@ -81,9 +81,6 @@ contract ExternalPriceOracle is PriceOracle {
         uint256[] memory tokenIdQuantities,
         bytes calldata oracleContext
     ) internal view override returns (uint256) {
-        /* Return 0 if oracle context does not exist */
-        if (oracleContext.length == 0) return 0;
-
         /* Cache price oracle address */
         address priceOracle_ = priceOracle();
 

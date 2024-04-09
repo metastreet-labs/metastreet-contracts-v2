@@ -562,7 +562,7 @@ abstract contract Pool is
             if (duration <= durations_[durationIndex]) break;
         }
 
-        /* Get oracle price if price oracle and oracle context exist, else 0 */
+        /* Get oracle price if price oracle exists, else 0 */
         uint256 oraclePrice = price(
             collateralToken(),
             address(_storage.currencyToken),
