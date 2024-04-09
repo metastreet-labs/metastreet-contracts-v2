@@ -247,6 +247,22 @@ describe("SimpleSignedPriceOracle", function () {
       ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "InvalidQuote");
     });
 
+    it("fails on invalid price", async function () {
+      const message = await createSignedQuote(accounts[0], WPUNKS_ADDRESS, WPUNK_ID_1, ethers.utils.parseEther("0"));
+      let oracleContext = ethers.utils.defaultAbiCoder.encode(
+        ["((address,uint256,address,uint256,uint64,uint64),bytes)[]"],
+        [[message]]
+      );
+
+      /* Fast forward 6 minutes */
+      await helpers.time.increase(360);
+
+      /* Validate invalid quote */
+      await expect(
+        simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1], [1], oracleContext)
+      ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "InvalidQuote");
+    });
+
     it("fails on invalid timestamp", async function () {
       const message = await createSignedQuote(accounts[0], WPUNKS_ADDRESS, WPUNK_ID_1, ethers.utils.parseEther("2"));
       let oracleContext = ethers.utils.defaultAbiCoder.encode(
