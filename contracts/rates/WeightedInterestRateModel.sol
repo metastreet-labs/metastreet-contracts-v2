@@ -51,10 +51,9 @@ contract WeightedInterestRateModel is InterestRateModel {
         uint16 count,
         uint64[] memory rates,
         uint32 adminFeeRate
-    ) internal pure override returns (uint256, uint256) {
+    ) internal pure override returns (uint256 repayment, uint256 adminFee) {
         /* First pass to compute repayment and weights */
         uint256[] memory weights = new uint256[](count);
-        uint256 repayment;
         uint256 normalization;
         for (uint256 i; i < count; i++) {
             /* Compute tick repayment */
@@ -74,7 +73,7 @@ contract WeightedInterestRateModel is InterestRateModel {
 
         /* Compute interest and admin fee */
         uint256 interest = repayment - principal;
-        uint256 adminFee = (interest * adminFeeRate) / LiquidityLogic.BASIS_POINTS_SCALE;
+        adminFee = (interest * adminFeeRate) / LiquidityLogic.BASIS_POINTS_SCALE;
 
         /* Deduct admin fee from interest */
         interest -= adminFee;
@@ -94,7 +93,5 @@ contract WeightedInterestRateModel is InterestRateModel {
 
         /* Drop off remaining interest dust at lowest node */
         if (interestRemaining != 0) nodes[0].pending += interestRemaining.toUint128();
-
-        return (repayment, adminFee);
     }
 }
