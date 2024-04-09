@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 import "../interfaces/ICollateralWrapper.sol";
 
@@ -16,8 +15,6 @@ import "../integrations/CyberKongz/IYieldHub.sol";
  * @author MetaStreet Labs
  */
 contract KongzBundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyGuard {
-    using SafeMath for uint256;
-
     /**************************************************************************/
     /* Constants */
     /**************************************************************************/
@@ -323,10 +320,10 @@ contract KongzBundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyG
         if (block.timestamp < _yieldTokenStart || lastUpdatedTimestamp > _yieldTokenEnd) return;
 
         /* Calculate delta since last updated timestamp */
-        uint256 delta = min(block.timestamp, _yieldTokenEnd).sub(max(lastUpdatedTimestamp, _yieldTokenStart));
+        uint256 delta = min(block.timestamp, _yieldTokenEnd) - max(lastUpdatedTimestamp, _yieldTokenStart);
 
         /* Calculate claimable BANANA and send to minter */
-        uint256 amount = tokenCount.mul(_yieldTokenRate).mul(delta).div(86400);
+        uint256 amount = (tokenCount * _yieldTokenRate * delta) / 86400;
         if (amount > 0) {
             _banana.transfer(minter, amount);
         }
@@ -452,10 +449,10 @@ contract KongzBundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyG
         if (block.timestamp < _yieldTokenStart || lastUpdatedTimestamp > _yieldTokenEnd) return 0;
 
         /* Calculate delta since last updated timestamp */
-        uint256 delta = min(block.timestamp, _yieldTokenEnd).sub(max(lastUpdatedTimestamp, _yieldTokenStart));
+        uint256 delta = min(block.timestamp, _yieldTokenEnd) - max(lastUpdatedTimestamp, _yieldTokenStart);
 
         /* Calculate claimable BANANA and send to minter */
-        return tokenCount.mul(_yieldTokenRate).mul(delta).div(86400);
+        return (tokenCount * _yieldTokenRate * delta) / 86400;
     }
 
     /******************************************************/
