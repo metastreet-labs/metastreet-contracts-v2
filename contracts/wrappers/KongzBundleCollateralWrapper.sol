@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -325,6 +326,7 @@ contract KongzBundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyG
         /* Calculate claimable BANANA and send to minter */
         uint256 amount = (tokenCount * _yieldTokenRate * delta) / 86400;
         if (amount > 0) {
+            amount = Math.min(amount, _banana.balanceOf(address(this)));
             _banana.transfer(minter, amount);
         }
 
@@ -439,6 +441,10 @@ contract KongzBundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyG
      * @return Amount of BANANA claimable
      */
     function claimable(uint256 tokenId, bytes calldata context) external view returns (uint256) {
+        /* Compute contract's BANANA balance with simulated rewards fetch */
+        uint256 balance = _banana.balanceOf(address(this)) +
+            _yieldHub.getTotalClaimable(address(this), address(_banana));
+
         /* Compute number of token IDs */
         uint256 tokenCount = (context.length - 20) / 32;
 
@@ -452,7 +458,8 @@ contract KongzBundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyG
         uint256 delta = min(block.timestamp, _yieldTokenEnd) - max(lastUpdatedTimestamp, _yieldTokenStart);
 
         /* Calculate claimable BANANA */
-        return (tokenCount * _yieldTokenRate * delta) / 86400;
+        uint256 amount = (tokenCount * _yieldTokenRate * delta) / 86400;
+        return Math.min(amount, balance);
     }
 
     /******************************************************/
