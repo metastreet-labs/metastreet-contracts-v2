@@ -451,7 +451,7 @@ contract KongzBundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyG
         /* Calculate delta since last updated timestamp */
         uint256 delta = min(block.timestamp, _yieldTokenEnd) - max(lastUpdatedTimestamp, _yieldTokenStart);
 
-        /* Calculate claimable BANANA and send to minter */
+        /* Calculate claimable BANANA */
         return (tokenCount * _yieldTokenRate * delta) / 86400;
     }
 
