@@ -169,6 +169,7 @@ abstract contract Pool is
     /**
      * @notice Delegate cash storage slot
      * @dev keccak256(abi.encode(uint256(keccak256("erc7201:pool.delegateStorage")) - 1)) & ~bytes32(uint256(0xff));
+     * @dev Erroneous inclusion of "erc7201" in the above namespace ID. No intention to fix.
      */
     bytes32 internal constant DELEGATE_STORAGE_LOCATION =
         0xf0e5094ebd597f2042580340ce53d1b15e5b64e0d8be717ecde51dd37c619300;
