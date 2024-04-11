@@ -69,6 +69,11 @@ library LiquidityLogic {
      */
     uint256 private constant MAX_REDEMPTION_QUEUE_SCAN_COUNT = 150;
 
+    /**
+     * @notice Amount of shares to lock for initial deposit
+     */
+    uint128 private constant LOCKED_SHARES = 1e6;
+
     /**************************************************************************/
     /* Structures */
     /**************************************************************************/
@@ -370,7 +375,7 @@ library LiquidityLogic {
      * @return True if empty, otherwise false
      */
     function _isEmpty(Node storage node) internal view returns (bool) {
-        return node.shares == 0 && node.pending == 0;
+        return node.shares <= LOCKED_SHARES && node.pending == 0;
     }
 
     /**
@@ -590,8 +595,12 @@ library LiquidityLogic {
             : (Math.min(node.value + node.accrual.accrued, node.available + node.pending) * FIXED_POINT_SCALE) /
                 node.shares;
 
-        /* Compute shares */
+        /* Compute shares and depositor's shares */
         uint128 shares = ((amount * FIXED_POINT_SCALE) / price).toUint128();
+        uint128 depositorShares = shares;
+
+        /* Reduce initial depositor's shares, reverts if depositorShares < LOCKED_SHARES */
+        if (node.shares < LOCKED_SHARES) depositorShares -= LOCKED_SHARES;
 
         node.value += amount;
         node.shares += shares;
@@ -600,7 +609,7 @@ library LiquidityLogic {
         /* Process any pending redemptions from available cash */
         _processRedemptions(liquidity, node);
 
-        return shares;
+        return depositorShares;
     }
 
     /**
