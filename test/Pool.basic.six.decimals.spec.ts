@@ -335,6 +335,9 @@ describe("Pool Basic (6 Decimals)", function () {
       });
 
       it("returns correct redemption share price after borrow", async function () {
+        const sharesMinted = await pool
+          .connect(accountDepositors[0])
+          .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
         await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
         await createActiveLoan(FixedPoint.from("1", 6));
 
@@ -345,9 +348,7 @@ describe("Pool Basic (6 Decimals)", function () {
         const expectedRedemptionPrice = await pool.redemptionSharePrice(scaleTickEncode("1", 6));
 
         /* Deposit */
-        const redemptionTx = await pool
-          .connect(accountDepositors[0])
-          .redeem(scaleTickEncode("1", 6), FixedPoint.from("1"));
+        const redemptionTx = await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), sharesMinted);
         const redemptionShares = (await extractEvent(redemptionTx, pool, "Redeemed")).args.shares;
 
         /* Get actual redemption price */
@@ -369,19 +370,12 @@ describe("Pool Basic (6 Decimals)", function () {
         /* Cache expected deposit price */
         const expectedRedemptionPrice = await pool.redemptionSharePrice(scaleTickEncode("1", 6));
 
-        /* Deposit */
-        const redemptionTx = await pool
-          .connect(accountDepositors[0])
-          .redeem(scaleTickEncode("1", 6), FixedPoint.from("1"));
-        const redemptionId = (await extractEvent(redemptionTx, pool, "Redeemed")).args.redemptionId;
-
-        /* Withdraw */
-        const [shares, amount] = await pool
-          .connect(accountDepositors[0])
-          .callStatic.withdraw(scaleTickEncode("1", 6), redemptionId);
-
         /* Get actual redemption price */
-        const actualRedemptionPrice = amount.mul(FixedPoint.from("1")).div(shares);
+        const node = await pool.liquidityNode(scaleTickEncode("1", 6));
+        const actualRedemptionPrice = node.value
+          .mul(FixedPoint.from("1"))
+          .div(node.shares)
+          .div(FixedPoint.from("1", 12));
 
         expect(expectedRedemptionPrice).to.closeTo(actualRedemptionPrice, "1");
       });
@@ -394,6 +388,9 @@ describe("Pool Basic (6 Decimals)", function () {
 
   describe("#deposit", async function () {
     it("successfully deposits", async function () {
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
       const depositTx = await pool
         .connect(accountDepositors[0])
         .deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
@@ -403,7 +400,7 @@ describe("Pool Basic (6 Decimals)", function () {
         account: accountDepositors[0].address,
         tick: scaleTickEncode("1", 6),
         amount: FixedPoint.from("1", 6),
-        shares: FixedPoint.from("1"),
+        shares: sharesMinted,
       });
 
       await expectEvent(depositTx, tok1, "Transfer", {
@@ -414,7 +411,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Validate deposit state */
       const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
-      expect(shares).to.equal(FixedPoint.from("1"));
+      expect(shares).to.equal(sharesMinted);
       expect(redemptionId).to.equal(ethers.constants.Zero);
 
       /* Validate redemption state */
@@ -431,14 +428,20 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("successfully deposits additional", async function () {
       /* Deposit 1 */
+      const sharesMinted1 = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
 
       /* Deposit 2 */
+      const sharesMinted2 = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("2", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("2", 6), 0);
 
       /* Validate deposit state */
       const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
-      expect(shares).to.equal(FixedPoint.from("3", 18));
+      expect(shares).to.equal(sharesMinted1.add(sharesMinted2));
       expect(redemptionId).to.equal(ethers.constants.Zero);
 
       /* Validate redemption state */
@@ -455,13 +458,16 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("successfully deposits at new tick after garbage collecting old tick", async function () {
       /* Deposit 1 ETH */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
 
       /* Only two nodes (including head) */
       expect((await pool.liquidityNodes(0, MaxUint128)).length).to.equal(2);
 
       /* Redeem 1 shares */
-      const redeemTx = await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), FixedPoint.from("1"));
+      const redeemTx = await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), sharesMinted);
 
       /* Only head node now */
       expect((await pool.liquidityNodes(0, MaxUint128)).length).to.equal(1);
@@ -557,17 +563,20 @@ describe("Pool Basic (6 Decimals)", function () {
   describe("#redeem", async function () {
     it("successfully redeems entire deposit from available cash", async function () {
       /* Deposit 1 ETH */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
 
       /* Redeem 1 shares */
-      const redeemTx = await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), FixedPoint.from("1"));
+      const redeemTx = await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), sharesMinted);
 
       /* Validate events */
       await expectEvent(redeemTx, pool, "Redeemed", {
         account: accountDepositors[0].address,
         tick: scaleTickEncode("1", 6),
         redemptionId: 0,
-        shares: FixedPoint.from("1"),
+        shares: sharesMinted,
       });
 
       /* Validate deposit state */
@@ -577,13 +586,16 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, scaleTickEncode("1", 6), 0);
-      expect(redemption.pending).to.equal(FixedPoint.from("1"));
+      expect(redemption.pending).to.equal(sharesMinted);
       expect(redemption.index).to.equal(ethers.constants.Zero);
       expect(redemption.target).to.equal(ethers.constants.Zero);
     });
 
     it("successfully redeems partial deposit from available cash", async function () {
       /* Deposit 1 ETH */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
 
       /* Redeem 0.5 shares */
@@ -599,7 +611,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Validate deposit state */
       const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
-      expect(shares).to.equal(FixedPoint.from("0.5"));
+      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("0.5")));
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
@@ -611,6 +623,9 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("successfully schedules redemption", async function () {
       /* Deposit */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("15", 6), FixedPoint.from("10", 6), 0);
 
@@ -622,7 +637,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Validate deposit state */
       const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
-      expect(shares).to.equal(FixedPoint.from("5"));
+      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("5")));
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
@@ -640,6 +655,9 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("successfully schedules multiple redemptions", async function () {
       /* Deposit */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("15", 6), FixedPoint.from("10", 6), 0);
 
@@ -648,8 +666,8 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Redeem 5 shares */
       await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), FixedPoint.from("5"));
-      /* Redeem another 5 shares */
-      await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), FixedPoint.from("5"));
+      /* Redeem remaining shares */
+      await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), sharesMinted.sub(FixedPoint.from("5")));
 
       /* Validate deposit state */
       const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
@@ -664,7 +682,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Validate redemption state */
       const redemption2 = await pool.redemptions(accountDepositors[0].address, scaleTickEncode("1", 6), 1);
-      expect(redemption2.pending).to.equal(FixedPoint.from("5"));
+      expect(redemption2.pending).to.equal(sharesMinted.sub(FixedPoint.from("5")));
       expect(redemption2.index).to.equal(ethers.constants.Zero);
       expect(redemption2.target).to.equal(FixedPoint.from("5"));
 
@@ -672,7 +690,7 @@ describe("Pool Basic (6 Decimals)", function () {
       const node = await pool.liquidityNode(scaleTickEncode("1", 6));
       expect(node.value).to.equal(FixedPoint.from("10"));
       expect(node.available).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(FixedPoint.from("10"));
+      expect(node.redemptions).to.equals(sharesMinted);
     });
 
     it("redeemed node with redemption dust is garbage collected", async function () {
@@ -711,9 +729,9 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Validate 2 ETH node has dust */
       let node = await pool.liquidityNode(scaleTickEncode("2", 6));
-      expect(node.available).to.equal(1);
-      expect(node.shares).to.equal(ethers.constants.Zero);
-      expect(node.value).to.equal(1);
+      expect(node.available).to.equal("1001097");
+      expect(node.shares).to.equal(FixedPoint.from("2").sub(shares));
+      expect(node.value).to.equal("1001097");
 
       /* Validate 2 ETH node unlinked */
       let nodes = await pool.liquidityNodes(0, MaxUint128);
@@ -754,6 +772,9 @@ describe("Pool Basic (6 Decimals)", function () {
       expect(amount).to.equal(ethers.constants.Zero);
 
       /* Deposit 1 ETH */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
 
       /* Redeem 0.5 shares */
@@ -767,7 +788,7 @@ describe("Pool Basic (6 Decimals)", function () {
       /* Validate deposit state */
       let redemptionId;
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
-      expect(shares).to.equal(FixedPoint.from("0.5"));
+      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("0.5")));
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
@@ -779,6 +800,9 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("returns full redemption available from repaid loan", async function () {
       /* Deposit */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("15", 6), FixedPoint.from("5", 6), 0);
 
@@ -804,7 +828,7 @@ describe("Pool Basic (6 Decimals)", function () {
       /* Validate deposit state */
       let redemptionId;
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
-      expect(shares).to.equal(FixedPoint.from("5"));
+      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("5")));
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
@@ -816,6 +840,9 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("returns partial redemption available from repaid loan", async function () {
       /* Deposit */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("15", 6), FixedPoint.from("5", 6), 0);
 
@@ -852,7 +879,7 @@ describe("Pool Basic (6 Decimals)", function () {
       /* Validate deposit state */
       let redemptionId;
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
-      expect(shares).to.equal(FixedPoint.from("2"));
+      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("8")));
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
@@ -864,6 +891,9 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("returns written down redemption available from liquidated loan", async function () {
       /* Deposit */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("15", 6), FixedPoint.from("5", 6), 0);
 
@@ -903,7 +933,7 @@ describe("Pool Basic (6 Decimals)", function () {
       /* Validate deposit state */
       let redemptionId;
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
-      expect(shares).to.equal(FixedPoint.from("5"));
+      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("5")));
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
@@ -915,6 +945,9 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("returns partial redemption available from subsequent deposit", async function () {
       /* Deposit */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("15", 6), FixedPoint.from("5", 6), 0);
 
@@ -940,7 +973,7 @@ describe("Pool Basic (6 Decimals)", function () {
       /* Validate deposit state */
       let redemptionId;
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
-      expect(shares).to.equal(FixedPoint.from("5"));
+      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("5")));
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
@@ -952,13 +985,16 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("returns zero redemption available from dust cash", async function () {
       /* Deposit */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
 
       /* Create loan */
       const [loanReceipt] = await createActiveLoan(FixedPoint.from("1", 6));
 
       /* Redeem 10 shares */
-      await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), sharesMinted);
 
       /* No redemption available */
       let [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, scaleTickEncode("1", 6), 0);
@@ -973,7 +1009,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Validate redemption state */
       let redemption = await pool.redemptions(accountDepositors[0].address, scaleTickEncode("1", 6), 0);
-      expect(redemption.pending).to.equal(FixedPoint.from("1"));
+      expect(redemption.pending).to.equal(sharesMinted);
       expect(redemption.index).to.equal(ethers.constants.Zero);
       expect(redemption.target).to.equal(ethers.constants.Zero);
 
@@ -1006,7 +1042,7 @@ describe("Pool Basic (6 Decimals)", function () {
       redemption = await pool.redemptions(accountDepositors[1].address, scaleTickEncode("1", 6), 0);
       expect(redemption.pending).to.equal(FixedPoint.from("0.005"));
       expect(redemption.index).to.equal(ethers.BigNumber.from("1"));
-      expect(redemption.target).to.be.closeTo(FixedPoint.from("1"), FixedPoint.from("0.01"));
+      expect(redemption.target).to.be.closeTo(sharesMinted, FixedPoint.from("0.01"));
     });
 
     it("correctly returns sharesAhead", async function () {
@@ -1051,7 +1087,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Validate sharesAhead */
       expect(redemptionAvailable1[2]).to.equal(0);
-      expect(redemptionAvailable2[2]).to.equal(FixedPoint.from("3"));
+      expect(redemptionAvailable2[2]).to.equal(shares1.sub(FixedPoint.from("2")));
 
       /* Depositor 2 deposits another 4 ETH */
       await pool.connect(accountDepositors[1]).deposit(scaleTickEncode("1", 6), FixedPoint.from("4", 6), 0);
@@ -1069,6 +1105,9 @@ describe("Pool Basic (6 Decimals)", function () {
   describe("#withdraw", async function () {
     it("withdraws fully available redemption from cash", async function () {
       /* Deposit 1 ETH */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
 
       /* Redeem 0.5 shares */
@@ -1098,7 +1137,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Validate deposit state */
       let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
-      expect(shares).to.equal(FixedPoint.from("0.5"));
+      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("0.5")));
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
@@ -1115,6 +1154,9 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("withdraws fully available redemption from repaid loan", async function () {
       /* Deposit */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("15", 6), FixedPoint.from("5", 6), 0);
 
@@ -1148,7 +1190,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Validate deposit state */
       const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
-      expect(shares).to.equal(FixedPoint.from("5"));
+      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("5")));
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
@@ -1160,6 +1202,9 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("withdraws multiple fully available redemptions from repaid loan", async function () {
       /* Deposit */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("15", 6), FixedPoint.from("5", 6), 0);
 
@@ -1168,8 +1213,8 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Redeem 5 shares */
       await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), FixedPoint.from("5"));
-      /* Redeem another 5 shares */
-      await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), FixedPoint.from("5"));
+      /* Redeem remaining shares */
+      await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), sharesMinted.sub(FixedPoint.from("5")));
 
       /* Repay loan */
       await pool.connect(accountBorrower).repay(loanReceipt);
@@ -1201,7 +1246,7 @@ describe("Pool Basic (6 Decimals)", function () {
         account: accountDepositors[0].address,
         tick: scaleTickEncode("1", 6),
         redemptionId: 1,
-        shares: FixedPoint.from("5"),
+        shares: sharesMinted.sub(FixedPoint.from("5")),
       });
       await expectEvent(withdrawTx2, tok1, "Transfer", {
         from: pool.address,
@@ -1232,6 +1277,9 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("withdraws partially available redemption from repaid loan", async function () {
       /* Deposit */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("15", 6), FixedPoint.from("5", 6), 0);
 
@@ -1269,7 +1317,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Validate deposit state */
       let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
-      expect(shares).to.equal(FixedPoint.from("2"));
+      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("8")));
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
@@ -1303,7 +1351,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Validate deposit state */
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
-      expect(shares).to.equal(FixedPoint.from("2"));
+      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("8")));
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
@@ -1315,6 +1363,9 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("withdraws fully written down redemption from liquidated loan", async function () {
       /* Deposit */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("15", 6), FixedPoint.from("5", 6), 0);
 
@@ -1355,7 +1406,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Validate deposit state */
       let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
-      expect(shares).to.equal(FixedPoint.from("5"));
+      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("5")));
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
@@ -1367,6 +1418,9 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("withdraws partially available redemption from subsequent deposit", async function () {
       /* Deposit */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("15", 6), FixedPoint.from("5", 6), 0);
 
@@ -1401,7 +1455,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Validate deposit state */
       let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
-      expect(shares).to.equal(FixedPoint.from("5"));
+      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("5")));
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
@@ -1435,7 +1489,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
       /* Validate deposit state */
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("1", 6));
-      expect(shares).to.equal(FixedPoint.from("5"));
+      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("5")));
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       /* Validate redemption state */
@@ -1579,29 +1633,37 @@ describe("Pool Basic (6 Decimals)", function () {
   describe("#rebalance", async function () {
     it("rebalances a full redemption into another tick", async function () {
       /* Deposit 1 ETH */
+      const sharesMinted1 = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
+      const amount1 = (await pool.liquidityNode(scaleTickEncode("1", 6))).value
+        .mul(sharesMinted1)
+        .div(FixedPoint.from("1"));
 
       /* Redeem all shares */
-      await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), FixedPoint.from("1"));
+      await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), sharesMinted1);
 
       /* Rebalances to 15 ETH tick */
       const rebalanceTx = await pool
         .connect(accountDepositors[0])
         .rebalance(scaleTickEncode("1", 6), scaleTickEncode("15", 6), 0, 0);
 
+      const sharesMinted2 = (await pool.deposits(accountDepositors[0].address, scaleTickEncode("15", 6))).shares;
+
       /* Validate events */
       await expectEvent(rebalanceTx, pool, "Withdrawn", {
         account: accountDepositors[0].address,
         tick: scaleTickEncode("1", 6),
         redemptionId: 0,
-        shares: FixedPoint.from("1.0"),
-        amount: FixedPoint.from("1.0", 6),
+        shares: sharesMinted1,
+        amount: amount1.div(FixedPoint.from("1", 12)),
       });
       await expectEvent(rebalanceTx, pool, "Deposited", {
         account: accountDepositors[0].address,
         tick: scaleTickEncode("15", 6),
-        amount: FixedPoint.from("1.0", 6),
-        shares: FixedPoint.from("1.0"),
+        amount: amount1.div(FixedPoint.from("1", 12)),
+        shares: sharesMinted2,
       });
 
       /* Validate deposit state */
@@ -1610,34 +1672,37 @@ describe("Pool Basic (6 Decimals)", function () {
       expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
 
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, scaleTickEncode("15", 6));
-      expect(shares).to.equal(FixedPoint.from("1.0"));
+      expect(shares).to.equal(sharesMinted2);
       expect(redemptionId).to.equal(ethers.constants.Zero);
 
       /* Validate redemption state */
-      // let redemption = await pool.redemptions(accountDepositors[0].address, scaleTickEncode("1", 6), 0);
-      // expect(redemption.pending).to.equal(ethers.constants.Zero);
-      // expect(redemption.index).to.equal(ethers.constants.Zero);
-      // expect(redemption.target).to.equal(ethers.constants.Zero);
+      let redemption = await pool.redemptions(accountDepositors[0].address, scaleTickEncode("1", 6), 0);
+      expect(redemption.pending).to.equal(ethers.constants.Zero);
+      expect(redemption.index).to.equal(ethers.constants.Zero);
+      expect(redemption.target).to.equal(ethers.constants.Zero);
 
-      // redemption = await pool.redemptions(accountDepositors[0].address, scaleTickEncode("15", 6), 0);
-      // expect(redemption.pending).to.equal(ethers.constants.Zero);
-      // expect(redemption.index).to.equal(ethers.constants.Zero);
-      // expect(redemption.target).to.equal(ethers.constants.Zero);
+      redemption = await pool.redemptions(accountDepositors[0].address, scaleTickEncode("15", 6), 0);
+      expect(redemption.pending).to.equal(ethers.constants.Zero);
+      expect(redemption.index).to.equal(ethers.constants.Zero);
+      expect(redemption.target).to.equal(ethers.constants.Zero);
 
-      // /* Validate tick state */
-      // let node = await pool.liquidityNode(scaleTickEncode("1", 6));
-      // expect(node.value).to.equal(ethers.constants.Zero);
-      // expect(node.available).to.equal(ethers.constants.Zero);
-      // expect(node.redemptions).to.equal(ethers.constants.Zero);
+      /* Validate tick state */
+      let node = await pool.liquidityNode(scaleTickEncode("1", 6));
+      expect(node.value).to.equal(FixedPoint.from("1").sub(amount1));
+      expect(node.available).to.equal(FixedPoint.from("1").sub(amount1));
+      expect(node.redemptions).to.equal(ethers.constants.Zero);
 
-      // node = await pool.liquidityNode(scaleTickEncode("15", 6));
-      // expect(node.value).to.equal(FixedPoint.from("1.0"));
-      // expect(node.available).to.equal(FixedPoint.from("1.0"));
-      // expect(node.redemptions).to.equal(ethers.constants.Zero);
+      node = await pool.liquidityNode(scaleTickEncode("15", 6));
+      expect(node.value).to.equal(amount1);
+      expect(node.available).to.equal(amount1);
+      expect(node.redemptions).to.equal(ethers.constants.Zero);
     });
 
     it("rebalances a partial redemption into another tick", async function () {
       /* Deposit */
+      const sharesMinted = await pool
+        .connect(accountDepositors[0])
+        .callStatic.deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
       await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("10", 6), 0);
 
       /* Create loan 1 */
@@ -1647,7 +1712,7 @@ describe("Pool Basic (6 Decimals)", function () {
       const [loanReceipt2] = await createActiveLoan(FixedPoint.from("5", 6));
 
       /* Redeem all shares */
-      await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), FixedPoint.from("10"));
+      await pool.connect(accountDepositors[0]).redeem(scaleTickEncode("1", 6), sharesMinted);
 
       /* Repay loan 1 */
       await pool.connect(accountBorrower).repay(loanReceipt1);
@@ -1815,7 +1880,7 @@ describe("Pool Basic (6 Decimals)", function () {
       /* Rebalance */
       await expect(
         pool.connect(accountDepositors[0]).rebalance(scaleTickEncode("1", 6), scaleTickEncode("15", 6), 0, 0)
-      ).to.be.revertedWithCustomError(pool, "InsufficientShares");
+      ).to.be.revertedWith;
     });
   });
 

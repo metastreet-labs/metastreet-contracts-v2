@@ -359,8 +359,9 @@ describe("Pool Gas", function () {
     });
     it("redeem (entire)", async function () {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      const shares = (await pool.deposits(accountDepositors[0].address, Tick.encode("10"))).shares;
 
-      const redeemTx = await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1.0"));
+      const redeemTx = await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), shares);
 
       const gasUsed = (await redeemTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
@@ -372,7 +373,9 @@ describe("Pool Gas", function () {
   describe("#withdraw", async function () {
     it("withdraw", async function () {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
-      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("1.0"));
+      const shares = (await pool.deposits(accountDepositors[0].address, Tick.encode("10"))).shares;
+
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), shares);
 
       const withdrawTx = await pool.connect(accountDepositors[0]).withdraw(Tick.encode("10"), 0);
 
@@ -386,11 +389,12 @@ describe("Pool Gas", function () {
   describe("#rebalance", async function () {
     it("multicall redeem + rebalance (new tick)", async function () {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      const shares = (await pool.deposits(accountDepositors[0].address, Tick.encode("10"))).shares;
 
       const redeemRebalanceTx = await pool
         .connect(accountDepositors[0])
         .multicall([
-          pool.interface.encodeFunctionData("redeem", [Tick.encode("10"), FixedPoint.from("1.0")]),
+          pool.interface.encodeFunctionData("redeem", [Tick.encode("10"), shares]),
           pool.interface.encodeFunctionData("rebalance", [Tick.encode("10"), Tick.encode("15"), 0, 0]),
         ]);
 
@@ -402,12 +406,14 @@ describe("Pool Gas", function () {
 
     it("multicall redeem + rebalance (existing tick)", async function () {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+      const shares = (await pool.deposits(accountDepositors[0].address, Tick.encode("10"))).shares;
+
       await pool.connect(accountDepositors[1]).deposit(Tick.encode("15"), FixedPoint.from("1"), 0);
 
       const redeemRebalanceTx = await pool
         .connect(accountDepositors[0])
         .multicall([
-          pool.interface.encodeFunctionData("redeem", [Tick.encode("10"), FixedPoint.from("1.0")]),
+          pool.interface.encodeFunctionData("redeem", [Tick.encode("10"), shares]),
           pool.interface.encodeFunctionData("rebalance", [Tick.encode("10"), Tick.encode("15"), 0, 0]),
         ]);
 

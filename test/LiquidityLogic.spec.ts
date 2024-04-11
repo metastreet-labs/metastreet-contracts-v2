@@ -203,11 +203,12 @@ describe("LiquidityLogic", function () {
   describe("#deposit", async function () {
     it("deposits into active nodes", async function () {
       /* Deposit absolute limit node */
+      const sharesMinted1 = await liquidityLogic.callStatic.deposit(Tick.encode("3"), FixedPoint.from("5"));
       let depositTx = await liquidityLogic.deposit(Tick.encode("3"), FixedPoint.from("5"));
 
       /* Validate shares created */
       await expectEvent(depositTx, liquidityLogic, "Deposited", {
-        shares: FixedPoint.from("5"),
+        shares: sharesMinted1,
       });
 
       /* Validate node */
@@ -221,6 +222,10 @@ describe("LiquidityLogic", function () {
       expect(accrual.rate).to.equal(ethers.constants.Zero);
 
       /* Deposit ltv limit node */
+      const sharesMinted2 = await liquidityLogic.callStatic.deposit(
+        Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1),
+        FixedPoint.from("5")
+      );
       depositTx = await liquidityLogic.deposit(
         Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1),
         FixedPoint.from("5")
@@ -228,7 +233,7 @@ describe("LiquidityLogic", function () {
 
       /* Validate shares created */
       await expectEvent(depositTx, liquidityLogic, "Deposited", {
-        shares: FixedPoint.from("5"),
+        shares: sharesMinted2,
       });
 
       /* Validate node */
