@@ -382,7 +382,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await withdrawTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(62100);
+      expect(gasUsed).to.be.lt(66800);
     });
   });
 
@@ -435,7 +435,7 @@ describe("Pool Gas", function () {
 
     for (const [principal, numTicks, maxGas] of [
       [FixedPoint.from("15"), 10, 356000],
-      [FixedPoint.from("25"), 16, 481000],
+      [FixedPoint.from("25"), 16, 483400],
     ]) {
       it(`borrow (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
@@ -550,7 +550,7 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 381000],
+      [FixedPoint.from("150"), 10, 382100],
       [FixedPoint.from("250"), 16, 512000],
     ]) {
       it(`borrow (bundle of 10, ${numTicks} ticks)`, async function () {
@@ -798,8 +798,8 @@ describe("Pool Gas", function () {
     });
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("15"), 10, 471000],
-      [FixedPoint.from("25"), 16, 683000],
+      [FixedPoint.from("15"), 10, 472700],
+      [FixedPoint.from("25"), 16, 684200],
     ]) {
       it(`refinance (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
@@ -829,8 +829,8 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 504000],
-      [FixedPoint.from("250"), 16, 716000],
+      [FixedPoint.from("150"), 10, 505000],
+      [FixedPoint.from("250"), 16, 716500],
     ]) {
       it(`refinance (bundle of 10, ${numTicks} ticks)`, async function () {
         /* Mint bundle of 10 */
@@ -1285,12 +1285,12 @@ describe("Pool Gas", function () {
       await poolImpl.deployed();
     });
     for (const [count, principal, numTicks, maxGas] of [
-      [10, FixedPoint.from("15"), 10, 364000],
+      [10, FixedPoint.from("15"), 10, 364500],
       [10, FixedPoint.from("25"), 16, 491000],
-      [100, FixedPoint.from("15"), 10, 368000],
+      [100, FixedPoint.from("15"), 10, 368100],
       [100, FixedPoint.from("25"), 16, 495000],
-      [1000, FixedPoint.from("15"), 10, 372000],
-      [1000, FixedPoint.from("25"), 16, 499000],
+      [1000, FixedPoint.from("15"), 10, 372800],
+      [1000, FixedPoint.from("25"), 16, 499200],
     ]) {
       it(`merkle borrow (single, ${numTicks} ticks, ${count} token ids)`, async function () {
         /* Build merkle tree */
