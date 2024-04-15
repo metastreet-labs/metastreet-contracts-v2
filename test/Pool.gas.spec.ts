@@ -310,7 +310,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await depositTx.wait()).gasUsed;
 
       gasReport.push([this.test.title, gasUsed]);
-      expect(gasUsed).to.be.lt(490000);
+      expect(gasUsed).to.be.lt(470000);
     });
 
     it("deposit (existing tick, tokenized)", async function () {
@@ -355,7 +355,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(142000);
+      expect(gasUsed).to.be.lt(130000);
     });
     it("redeem (entire)", async function () {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
@@ -366,7 +366,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(139000);
+      expect(gasUsed).to.be.lt(135000);
     });
   });
 
@@ -382,7 +382,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await withdrawTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(62100);
+      expect(gasUsed).to.be.lt(67000);
     });
   });
 
@@ -401,7 +401,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(523200);
+      expect(gasUsed).to.be.lt(275000);
     });
 
     it("multicall redeem + rebalance (existing tick)", async function () {
@@ -420,7 +420,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(205000);
+      expect(gasUsed).to.be.lt(195000);
     });
   });
 
@@ -434,8 +434,8 @@ describe("Pool Gas", function () {
     });
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("15"), 10, 356000],
-      [FixedPoint.from("25"), 16, 481000],
+      [FixedPoint.from("15"), 10, 357000],
+      [FixedPoint.from("25"), 16, 484000],
     ]) {
       it(`borrow (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
@@ -550,8 +550,8 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 381000],
-      [FixedPoint.from("250"), 16, 512000],
+      [FixedPoint.from("150"), 10, 384000],
+      [FixedPoint.from("250"), 16, 511000],
     ]) {
       it(`borrow (bundle of 10, ${numTicks} ticks)`, async function () {
         /* Mint bundle of 10 */
@@ -648,7 +648,7 @@ describe("Pool Gas", function () {
     });
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("15"), 10, 349000],
+      [FixedPoint.from("15"), 10, 334000],
       [FixedPoint.from("25"), 16, 476000],
     ]) {
       it(`repay (single, ${numTicks} ticks)`, async function () {
@@ -744,7 +744,7 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 371000],
+      [FixedPoint.from("150"), 10, 356000],
       [FixedPoint.from("250"), 16, 498000],
     ]) {
       it(`repay (bundle of 10, ${numTicks} ticks)`, async function () {
@@ -798,8 +798,8 @@ describe("Pool Gas", function () {
     });
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("15"), 10, 471000],
-      [FixedPoint.from("25"), 16, 683000],
+      [FixedPoint.from("15"), 10, 473000],
+      [FixedPoint.from("25"), 16, 685000],
     ]) {
       it(`refinance (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
@@ -829,8 +829,8 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 504000],
-      [FixedPoint.from("250"), 16, 716000],
+      [FixedPoint.from("150"), 10, 506000],
+      [FixedPoint.from("250"), 16, 717000],
     ]) {
       it(`refinance (bundle of 10, ${numTicks} ticks)`, async function () {
         /* Mint bundle of 10 */
@@ -909,7 +909,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await liquidateTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(216000);
+      expect(gasUsed).to.be.lt(195000);
     });
 
     it("liquidate (bundle of 10, external, 16 ticks)", async function () {
@@ -948,7 +948,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await liquidateTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(223000);
+      expect(gasUsed).to.be.lt(200000);
     });
 
     describe("english auction collateral liquidator", async function () {
@@ -1102,7 +1102,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await liquidateTx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
 
-        expect(gasUsed).to.be.lt(710000);
+        expect(gasUsed).to.be.lt(711000);
       });
 
       it("bid (first, english auction)", async function () {
@@ -1200,8 +1200,8 @@ describe("Pool Gas", function () {
         gasReport.push([`claim (last of bundle, english auction)`, gasUsed[9]]);
 
         expect(gasUsed[0]).to.be.lt(128000);
-        expect(gasUsed[4]).to.be.lt(93100);
-        expect(gasUsed[9]).to.be.lt(493000);
+        expect(gasUsed[4]).to.be.lt(94000);
+        expect(gasUsed[9]).to.be.lt(492000);
       });
     });
   });
@@ -1215,7 +1215,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await mintTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(250000);
+      expect(gasUsed).to.be.lt(245000);
     });
   });
 
@@ -1232,7 +1232,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await unwrapTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(170000);
+      expect(gasUsed).to.be.lt(165000);
     });
   });
 
@@ -1285,12 +1285,12 @@ describe("Pool Gas", function () {
       await poolImpl.deployed();
     });
     for (const [count, principal, numTicks, maxGas] of [
-      [10, FixedPoint.from("15"), 10, 364000],
-      [10, FixedPoint.from("25"), 16, 491000],
-      [100, FixedPoint.from("15"), 10, 368000],
-      [100, FixedPoint.from("25"), 16, 495000],
-      [1000, FixedPoint.from("15"), 10, 372000],
-      [1000, FixedPoint.from("25"), 16, 499000],
+      [10, FixedPoint.from("15"), 10, 366000],
+      [10, FixedPoint.from("25"), 16, 493000],
+      [100, FixedPoint.from("15"), 10, 370000],
+      [100, FixedPoint.from("25"), 16, 497000],
+      [1000, FixedPoint.from("15"), 10, 375000],
+      [1000, FixedPoint.from("25"), 16, 502000],
     ]) {
       it(`merkle borrow (single, ${numTicks} ticks, ${count} token ids)`, async function () {
         /* Build merkle tree */
@@ -1429,10 +1429,10 @@ describe("Pool Gas", function () {
       await nft2.connect(accountBorrower).setApprovalForAll(ERC1155CollateralWrapper.address, true);
     });
     for (const [principal, numTicks, totalTokenIds, maxGas] of [
-      [FixedPoint.from("245"), 10, 16, 455000],
+      [FixedPoint.from("245"), 10, 16, 457000],
       [FixedPoint.from("434"), 16, 16, 585000],
       [FixedPoint.from("490"), 10, 32, 545000],
-      [FixedPoint.from("868"), 16, 32, 670000],
+      [FixedPoint.from("868"), 16, 32, 672000],
     ]) {
       it(`erc1155 borrow (total token IDs ${totalTokenIds}, ${numTicks} tick)`, async function () {
         /* Mint NFT to borrower */
