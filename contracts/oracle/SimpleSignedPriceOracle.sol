@@ -175,7 +175,7 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
      * @return Price oracle implementation version
      */
     function IMPLEMENTATION_VERSION() public pure returns (string memory) {
-        return "1.0";
+        return "1.1";
     }
 
     /**

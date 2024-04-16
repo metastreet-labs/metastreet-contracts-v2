@@ -44,7 +44,7 @@ describe("SimpleSignedPriceOracle", function () {
 
   describe("constants", async function () {
     it("matches price oracle implementation version", async function () {
-      expect(await simpleSignedPriceOracle.IMPLEMENTATION_VERSION()).to.be.equal("1.0");
+      expect(await simpleSignedPriceOracle.IMPLEMENTATION_VERSION()).to.be.equal("1.1");
     });
   });
 
@@ -72,7 +72,7 @@ describe("SimpleSignedPriceOracle", function () {
   ) {
     const DOMAIN = {
       name: "testName" /* TBD */,
-      version: "1.0" /* TBD */,
+      version: "1.1" /* TBD */,
       chainId: 1,
       verifyingContract: simpleSignedPriceOracle.address,
     };
