@@ -1,3 +1,7 @@
+* SimpleSignedPriceOracle v1.1 - 04/16/2024
+    * Add check for non-zero quote price.
+    * Change access control from Ownable to Ownable2Step.
+
 * Pool v2.9 - 04/16/2024
     * Allow empty oracle context with `price()` in ExternalPriceOracle.
     * Make `price()` API public in PriceOracle.
