@@ -25,5 +25,5 @@ abstract contract PriceOracle {
         uint256[] memory tokenIds,
         uint256[] memory tokenIdQuantities,
         bytes calldata oracleContext
-    ) internal view virtual returns (uint256);
+    ) public view virtual returns (uint256);
 }
