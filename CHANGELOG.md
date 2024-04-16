@@ -1,3 +1,6 @@
+* KongzBundleCollateralWrapper v1.1 - 04/16/2024
+    * Fix rounding edge case in claimable amount.
+
 * SimpleSignedPriceOracle v1.1 - 04/16/2024
     * Add check for non-zero quote price.
     * Change access control from Ownable to Ownable2Step.
