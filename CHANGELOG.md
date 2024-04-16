@@ -1,3 +1,9 @@
+* Pool v2.9 - 04/16/2024
+    * Allow empty oracle context with `price()` in ExternalPriceOracle.
+    * Make `price()` API public in PriceOracle.
+    * Add locked shares on initial deposit in LiquidityLogic.
+    * Switch to absolute spacing for ratio ticks.
+
 * KongzBundleCollateralWrapper v1.0 - 03/27/2024
     * Initial release.
 
