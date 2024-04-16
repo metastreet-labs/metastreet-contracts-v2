@@ -96,7 +96,7 @@ describe("KongzBundleCollateralWrapper", function () {
 
   describe("constants", async function () {
     it("matches expected implementation version", async function () {
-      expect(await kongzBundleCollateralWrapper.IMPLEMENTATION_VERSION()).to.equal("1.0");
+      expect(await kongzBundleCollateralWrapper.IMPLEMENTATION_VERSION()).to.equal("1.1");
     });
     it("returns correct name", async function () {
       expect(await kongzBundleCollateralWrapper.name()).to.equal("MetaStreet CyberKongz Bundle Collateral Wrapper");

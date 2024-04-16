@@ -23,7 +23,7 @@ contract KongzBundleCollateralWrapper is ICollateralWrapper, ERC721, ReentrancyG
     /**
      * @notice Implementation version
      */
-    string public constant IMPLEMENTATION_VERSION = "1.0";
+    string public constant IMPLEMENTATION_VERSION = "1.1";
 
     /**
      * @notice Maximum bundle size
