@@ -95,7 +95,7 @@ library BorrowLogic {
         address delegateRegistryV1,
         address delegateRegistryV2,
         bytes calldata options
-    ) internal {
+    ) external {
         /* Find delegate.cash v2 tagged data in options */
         bytes calldata delegateDataV2 = _getOptionsData(options, Pool.BorrowOptions.DelegateCashV2);
 
@@ -160,7 +160,7 @@ library BorrowLogic {
         uint256 collateralTokenId,
         address delegateRegistryV1,
         address delegateRegistryV2
-    ) internal {
+    ) external {
         Pool.Delegate memory delegate = delegations.delegates[collateralToken][collateralTokenId];
 
         if (delegate.version == Pool.DelegateVersion.None) {
