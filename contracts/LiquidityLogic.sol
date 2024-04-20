@@ -450,14 +450,12 @@ library LiquidityLogic {
             if (
                 newLimit != prevLimit &&
                 prevLimitType == Tick.LimitType.Ratio &&
-                newLimit <
-                (prevLimit * (BASIS_POINTS_SCALE + RATIO_TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
+                newLimit < (prevLimit + RATIO_TICK_LIMIT_SPACING_BASIS_POINTS)
             ) revert ILiquidity.InsufficientTickSpacing();
             if (
                 newLimit != nextLimit &&
                 nextLimitType == Tick.LimitType.Ratio &&
-                nextLimit <
-                (newLimit * (BASIS_POINTS_SCALE + RATIO_TICK_LIMIT_SPACING_BASIS_POINTS)) / BASIS_POINTS_SCALE
+                nextLimit < (newLimit + RATIO_TICK_LIMIT_SPACING_BASIS_POINTS)
             ) revert ILiquidity.InsufficientTickSpacing();
         }
 
