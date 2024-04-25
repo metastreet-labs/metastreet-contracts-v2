@@ -156,8 +156,7 @@ describe("Pool Filter Migration", function () {
       collateralTokens = await wpunkPool.collateralTokens();
 
       expect(collateralTokens[0]).to.equal(WPUNK_ADDRESS);
-      expect(collateralTokens[1]).to.equal(CRYPTO_PUNK_721_ADDRESS);
-      expect(collateralTokens.length).to.equal(2);
+      expect(collateralTokens.length).to.equal(1);
     });
 
     it("migrate Autoglyphs pool", async function () {

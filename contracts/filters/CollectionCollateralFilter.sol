@@ -108,15 +108,11 @@ contract CollectionCollateralFilter is CollateralFilter {
     /**************************************************************************/
 
     /**
-     * @notice Add Ͼ721 to WPUNKS collateral filter alias set and
-     * set _requiresMigration, previously _initialized, to false
+     * @notice Set _requiresMigration, previously _initialized, to false.
      * @dev This function is to be removed after migration
      */
     function migrate() external {
         require(_requiresMigration, "Already migrated");
-
-        if (_token == 0xb7F7F6C52F2e2fdb1963Eab30438024864c313F6)
-            _aliases.add(0x00000000000000343662D3FAD10D154530C0d4F1);
 
         _requiresMigration = false;
     }
