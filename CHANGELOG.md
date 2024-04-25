@@ -1,3 +1,7 @@
+* Pool v2.7.1 - 04/25/2024
+    * Skip adding Yuga Labs CryptoPuks 721 Wrapper alias to collection
+      collateral filter for CryptoPunks collection pools in `migrate()`.
+
 * Pool v2.7 - 03/06/2024
     * Remove lender surplus from collateral liquidation.
     * Validate principal is non-zero for borrows.
