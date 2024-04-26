@@ -6,3 +6,4 @@ typechain
 cache
 artifacts
 deployments/unknown-31337.json
+deployments/.cache

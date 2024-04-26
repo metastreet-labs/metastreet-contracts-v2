@@ -527,7 +527,24 @@ async function collateralWrapperUpgrade(deployment: Deployment, contractName: st
 /* Pool Implementation Commands */
 /******************************************************************************/
 
-async function poolImplementationFactory(contractName: string): Promise<ContractFactory> {
+async function libraryCacheLookup(deployment: Deployment, bytecodeHash: string): Promise<string | undefined> {
+  const path = `deployments/.cache/libraries-${deployment.name}-${deployment.chainId}.json`;
+  const cache: { [hash: string]: string } = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, "utf-8")) : {};
+
+  return cache[bytecodeHash];
+}
+
+async function libraryCacheStore(deployment: Deployment, bytecodeHash: string, deployedAddress: string): Promise<void> {
+  const path = `deployments/.cache/libraries-${deployment.name}-${deployment.chainId}.json`;
+  const cache: { [hash: string]: string } = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, "utf-8")) : {};
+
+  cache[bytecodeHash] = deployedAddress;
+
+  if (!fs.existsSync("deployments/.cache/")) fs.mkdirSync("deployments/.cache/");
+  fs.writeFileSync(path, JSON.stringify(cache), { encoding: "utf-8" });
+}
+
+async function poolImplementationFactory(deployment: Deployment, contractName: string): Promise<ContractFactory> {
   /* Lookup libraries for Pool implementation contract */
   const poolImplLinkReferences = (await artifacts.readArtifact(contractName)).linkReferences;
   const libraryEntries = Object.entries(poolImplLinkReferences).flatMap(([k, v]) =>
@@ -539,12 +556,23 @@ async function poolImplementationFactory(contractName: string): Promise<Contract
   console.log();
   for (const libraryEntry of libraryEntries) {
     const libFactory = await ethers.getContractFactory(libraryEntry.fullName, signer);
-    const lib = await libFactory.deploy();
-    await lib.deployed();
+    const libBytecodeHash = ethers.utils.keccak256(libFactory.bytecode);
 
-    console.log(`Library ${libraryEntry.name}: ${lib.address}`);
+    const cachedAddress = await libraryCacheLookup(deployment, libBytecodeHash);
+    if (cachedAddress) {
+      console.log(`Library ${libraryEntry.name}: ${cachedAddress} (cached)`);
 
-    libraries[libraryEntry.fullName] = lib.address;
+      libraries[libraryEntry.fullName] = cachedAddress;
+    } else {
+      const lib = await libFactory.deploy();
+      await lib.deployed();
+
+      console.log(`Library ${libraryEntry.name}: ${lib.address}`);
+
+      await libraryCacheStore(deployment, libBytecodeHash, lib.address);
+
+      libraries[libraryEntry.fullName] = lib.address;
+    }
   }
   console.log();
 
@@ -558,7 +586,7 @@ async function poolImplementationDeploy(deployment: Deployment, name: string, co
   }
 
   /* Deploy implementation contract */
-  const poolFactory = await poolImplementationFactory(contractName);
+  const poolFactory = await poolImplementationFactory(deployment, contractName);
   const poolImpl = await poolFactory.deploy(...decodeArgs(args));
   await poolImpl.deployed();
   console.log(`Pool Implementation: ${poolImpl.address}`);
@@ -588,7 +616,7 @@ async function poolImplementationUpgrade(deployment: Deployment, name: string, c
   console.log(`Old Pool Version:        ${await getImplementationVersion(await upgradeableBeacon.implementation())}`);
 
   /* Deploy new implementation contract */
-  const poolFactory = await poolImplementationFactory(contractName);
+  const poolFactory = await poolImplementationFactory(deployment, contractName);
   const poolImpl = await poolFactory.deploy(...decodeArgs(args));
   await poolImpl.deployed();
 
