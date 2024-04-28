@@ -202,7 +202,7 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
         bytes calldata oracleContext
     ) external view override returns (uint256) {
         /* Decode oracle context into a SignedQuote array */
-        SignedQuote[] memory signedQuotes = abi.decode(oracleContext, ((SignedQuote)[]));
+        SignedQuote[] memory signedQuotes = abi.decode(oracleContext, (SignedQuote[]));
 
         /* Validate arrays have equal lengths */
         if (signedQuotes.length != collateralTokenIds.length) revert InvalidLength();
