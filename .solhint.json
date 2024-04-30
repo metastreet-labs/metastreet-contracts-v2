@@ -7,6 +7,7 @@
     "no-empty-blocks": "off",
     "no-global-import": "off",
     "not-rely-on-time": "off",
+    "no-inline-assembly": "off",
     "func-name-mixedcase": "off",
     "immutable-vars-naming": "off",
     "max-states-count": ["warn", 16]
