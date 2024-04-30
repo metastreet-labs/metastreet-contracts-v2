@@ -9,6 +9,7 @@ import "../oracle/ExternalPriceOracle.sol";
 
 import "../integrations/Blast/IBlastPoints.sol";
 import "../integrations/Blast/IBlast.sol";
+import "../integrations/Blast/IERC20Rebasing.sol";
 
 /**
  * @title Pool Configuration with a Weighted Interest Rate Model, Collection
