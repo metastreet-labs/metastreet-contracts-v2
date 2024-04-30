@@ -102,7 +102,7 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
     /**
      * @notice Mapping of collection to price oracle signers
      */
-    mapping(address => address) _priceOracleSigners;
+    mapping(address => address) internal _priceOracleSigners;
 
     /**************************************************************************/
     /* Constructor */
