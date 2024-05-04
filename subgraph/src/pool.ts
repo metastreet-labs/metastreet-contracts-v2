@@ -147,9 +147,22 @@ function updatePoolDayData(poolEntity: PoolEntity, event: ethereum.Event): void 
 /**************************************************************************/
 /* Liquidity updaters */
 /**************************************************************************/
-function updatePoolEntity(event: ethereum.Event): PoolEntity {
+
+function loadPoolOrThrow(): PoolEntity {
   const poolEntity = PoolEntity.load(poolAddress);
   if (!poolEntity) throw new Error("No Pool entity");
+  return poolEntity;
+}
+
+function loadCurrencyTokenOrThrow(): CurrencyTokenEntity {
+  const poolEntity = loadPoolOrThrow();
+  const currencyTokenEntity = CurrencyTokenEntity.load(poolEntity.currencyToken);
+  if (!currencyTokenEntity) throw new Error("CurrencyToken entity not found");
+  return currencyTokenEntity;
+}
+
+function updatePoolEntity(event: ethereum.Event): PoolEntity {
+  const poolEntity = loadPoolOrThrow();
 
   const durationsCount = poolEntity.durations.length;
 
@@ -475,6 +488,7 @@ function _handleRedeemed(
   redemptionId: BigInt,
   shares: BigInt
 ): void {
+  const currencyTokenEntity = loadCurrencyTokenOrThrow();
   const oldTickEntity = loadTickOrThrow(tick);
 
   updatePoolEntity(event);
@@ -497,7 +511,10 @@ function _handleRedeemed(
   redeemedEntity.tick = getTickId(tick);
   redeemedEntity.shares = shares;
   const tickSharePrice = FixedPoint.div(oldTickEntity.value, oldTickEntity.shares);
-  redeemedEntity.estimatedAmount = FixedPoint.mul(tickSharePrice, shares);
+  redeemedEntity.estimatedAmount = FixedPoint.scaleDown(
+    FixedPoint.mul(tickSharePrice, shares),
+    FixedPoint.DECIMALS - (currencyTokenEntity.decimals as u8)
+  );
   redeemedEntity.save();
 }
 
@@ -706,6 +723,7 @@ export function handleTokenCreated(event: TokenCreatedEvent): void {
 }
 
 export function handleTransferred(event: TransferredEvent): void {
+  const currencyTokenEntity = loadCurrencyTokenOrThrow();
   const tick = loadTickOrThrow(event.params.tick);
 
   // this is just to make the compiler happy, should always be true
@@ -722,7 +740,10 @@ export function handleTransferred(event: TransferredEvent): void {
       );
     }
 
-    const estimatedAmount = FixedPoint.mul(event.params.shares, depositSharePrice);
+    const estimatedAmount = FixedPoint.scaleDown(
+      FixedPoint.mul(event.params.shares, depositSharePrice),
+      FixedPoint.DECIMALS - (currencyTokenEntity.decimals as u8)
+    );
 
     if (event.params.from.notEqual(Address.zero())) {
       updateDepositEntity(
