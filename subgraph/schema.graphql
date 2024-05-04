@@ -70,6 +70,7 @@ type CurrencyToken @entity {
   id: Bytes!
   name: String!
   symbol: String!
+  decimals: Int!
   pools: [Pool!]! @derivedFrom(field: "currencyToken")
 }
 

@@ -108,12 +108,13 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
     const erc20Contract = ERC20.bind(Address.fromBytes(currencyTokenEntity.id));
 
     const tokenName = erc20Contract.try_name();
-    if (tokenName.reverted) currencyTokenEntity.name = "Unknown Token";
-    else currencyTokenEntity.name = tokenName.value;
+    currencyTokenEntity.name = tokenName.reverted ? "Unknown Token" : tokenName.value;
 
     const tokenSymbol = erc20Contract.try_symbol();
-    if (tokenSymbol.reverted) currencyTokenEntity.symbol = "UNK";
-    else currencyTokenEntity.symbol = tokenSymbol.value;
+    currencyTokenEntity.symbol = tokenSymbol.reverted ? "UNK" : tokenSymbol.value;
+
+    const tokenDecimals = erc20Contract.try_decimals();
+    currencyTokenEntity.decimals = tokenDecimals.reverted ? 18 : tokenDecimals.value;
 
     currencyTokenEntity.save();
   }
