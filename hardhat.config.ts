@@ -59,9 +59,23 @@ const config: HardhatUserConfig = {
       url: process.env.SEPOLIA_URL || "",
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
+    blast: {
+      url: process.env.BLAST_URL || "",
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
+    customChains: [
+      {
+        network: "blast",
+        chainId: 81457,
+        urls: {
+          apiURL: "https://api.blastscan.io/api",
+          browserURL: "https://blastscan.io",
+        },
+      },
+    ],
   },
   typechain: {
     outDir: "typechain",
