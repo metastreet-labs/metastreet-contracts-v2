@@ -1,3 +1,6 @@
+* Pool v2.10 - 05/09/2024
+    * Fix oracle price scaling for sub-18 currency tokens.
+
 * KongzBundleCollateralWrapper v1.1 - 04/16/2024
     * Fix rounding edge case in claimable amount.
 
