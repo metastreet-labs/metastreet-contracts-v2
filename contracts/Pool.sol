@@ -578,7 +578,7 @@ abstract contract Pool is
             ticks,
             underlyingCollateralTokenCount,
             durationIndex,
-            oraclePrice
+            _scale(oraclePrice)
         );
 
         /* Price interest for liquidity nodes */
