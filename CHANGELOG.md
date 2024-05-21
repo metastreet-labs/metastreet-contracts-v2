@@ -1,3 +1,6 @@
+* SimpleSignedPriceOracle v1.2 - 05/21/2024
+    * Add initializer for proxy deployment support.
+
 * Pool v2.10 - 05/09/2024
     * Fix oracle price scaling for sub-18 currency tokens.
 
