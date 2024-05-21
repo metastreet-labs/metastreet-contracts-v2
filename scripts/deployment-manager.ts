@@ -736,6 +736,58 @@ async function erc20DepositTokenImplementationDeploy(deployment: Deployment) {
 }
 
 /******************************************************************************/
+/* Price Oracle Commands */
+/******************************************************************************/
+
+async function priceOracleDeploy(contractName: string, args: string[]) {
+  const priceOracleFactory = await ethers.getContractFactory(contractName, signer);
+  const transparentUpgradeableProxyFactory = await ethers.getContractFactory("TransparentUpgradeableProxy", signer);
+
+  /* Deploy implementation contract */
+  const priceOracleImpl = await priceOracleFactory.deploy(...decodeArgs(args));
+  await priceOracleImpl.deployed();
+  console.log(`${contractName} Implementation: ${priceOracleImpl.address}`);
+
+  /* Deploy transparent proxy */
+  const priceOracle = await transparentUpgradeableProxyFactory.deploy(
+    priceOracleImpl.address,
+    await signer!.getAddress(),
+    "0x"
+  );
+  await priceOracle.deployed();
+  console.log(`${contractName} Proxy:          ${priceOracle.address}`);
+}
+
+async function priceOracleUpgrade(proxyAddress: string, contractName: string, args: string[]) {
+  const priceOracleProxy = (await ethers.getContractAt(
+    "ITransparentUpgradeableProxy",
+    proxyAddress,
+    signer
+  )) as ITransparentUpgradeableProxy;
+  const priceOracleFactory = await ethers.getContractFactory(contractName, signer);
+
+  console.log(
+    `Old ${contractName} Implementation: ${await getTransparentProxyImplementation(priceOracleProxy.address)}`
+  );
+
+  /* Deploy new implementation contract */
+  const priceOracleImpl = await priceOracleFactory.deploy(...decodeArgs(args));
+  await priceOracleImpl.deployed();
+
+  console.log(`New ${contractName} Implementation: ${priceOracleImpl.address}`);
+
+  /* Upgrade proxy */
+  if ((await signer!.getAddress()) === (await getTransparentProxyAdmin(priceOracleProxy.address))) {
+    await priceOracleProxy.upgradeTo(priceOracleImpl.address);
+  } else {
+    const calldata = (await priceOracleProxy.populateTransaction.upgradeTo(priceOracleImpl.address)).data;
+    console.log(`\nUpgrade Calldata`);
+    console.log(`  Target:   ${priceOracleProxy.address}`);
+    console.log(`  Calldata: ${calldata}`);
+  }
+}
+
+/******************************************************************************/
 /* Generic Contract Deploy */
 /******************************************************************************/
 
@@ -960,6 +1012,21 @@ async function main() {
     .command("erc20-deposit-token-deploy")
     .description("Deploy ERC20 Deposit Token Implementation")
     .action(() => erc20DepositTokenImplementationDeploy(deployment));
+
+  /* Price Oracle */
+  program
+    .command("price-oracle-deploy")
+    .description("Deploy Price Oracle")
+    .argument("contract", "Price oracle contract name")
+    .argument("[args...]", "Arguments")
+    .action((contract, args) => priceOracleDeploy(contract, args));
+  program
+    .command("price-oracle-upgrade")
+    .description("Upgrade Price Oracle")
+    .argument("instance", "Price oracle proxy address", parseAddress)
+    .argument("contract", "Price oracle contract name")
+    .argument("[args...]", "Arguments")
+    .action((instance, contract, args) => priceOracleUpgrade(instance, contract, args));
 
   /* Generic Contract Deploy */
   program
