@@ -752,7 +752,7 @@ async function priceOracleDeploy(contractName: string, args: string[]) {
   const priceOracle = await transparentUpgradeableProxyFactory.deploy(
     priceOracleImpl.address,
     await signer!.getAddress(),
-    "0x"
+    priceOracleImpl.interface.encodeFunctionData("initialize")
   );
   await priceOracle.deployed();
   console.log(`${contractName} Proxy:          ${priceOracle.address}`);

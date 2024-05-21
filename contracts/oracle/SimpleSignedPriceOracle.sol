@@ -100,6 +100,11 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
     /**************************************************************************/
 
     /**
+     * @notice Initialized boolean
+     */
+    bool private _initialized;
+
+    /**
      * @notice Mapping of collection to price oracle signers
      */
     mapping(address => address) internal _priceOracleSigners;
@@ -112,7 +117,24 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
      * @notice Simple Signed Price Oracle constructor
      * @param name_ Domain separator name
      */
-    constructor(string memory name_) EIP712(name_, IMPLEMENTATION_VERSION()) {}
+    constructor(string memory name_) EIP712(name_, IMPLEMENTATION_VERSION()) {
+        /* Disable initialization of implementation contract */
+        _initialized = true;
+    }
+
+    /**************************************************************************/
+    /* Initializer */
+    /**************************************************************************/
+
+    /**
+     * @notice Initializer
+     */
+    function initialize() external {
+        require(!_initialized, "Already initialized");
+
+        _initialized = true;
+        _transferOwnership(msg.sender);
+    }
 
     /**************************************************************************/
     /* Internal Helpers */
