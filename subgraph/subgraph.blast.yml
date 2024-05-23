@@ -20,6 +20,8 @@ dataSources:
           file: ../artifacts/contracts/PoolFactory.sol/PoolFactory.json
         - name: Pool
           file: ../artifacts/contracts/Pool.sol/Pool.json
+        - name: ExternalPriceOracle
+          file: ../artifacts/contracts/oracle/ExternalPriceOracle.sol/ExternalPriceOracle.json
         - name: RangedCollectionCollateralFilter
           file: ../artifacts/contracts/filters/RangedCollectionCollateralFilter.sol/RangedCollectionCollateralFilter.json
         - name: SetCollectionCollateralFilter

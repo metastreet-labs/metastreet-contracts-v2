@@ -15,6 +15,7 @@ type Pool @entity {
   adminFeeRate: BigInt! # uint64
   collateralLiquidator: Bytes! # address
   delegationRegistry: Bytes! # address
+  externalPriceOracle: Bytes # address
   # Collateral Filter
   tokenIdRange: [BigInt!]
   tokenIdSet: [BigInt!]

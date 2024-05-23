@@ -1,6 +1,7 @@
 import { Address, BigInt, Bytes } from "@graphprotocol/graph-ts";
 import { ERC20 } from "../generated/PoolFactory/ERC20";
 import { ERC721 } from "../generated/PoolFactory/ERC721";
+import { ExternalPriceOracle } from "../generated/PoolFactory/ExternalPriceOracle";
 import { MerkleCollectionCollateralFilter as MerkleCollectionCollateralFilterContract } from "../generated/PoolFactory/MerkleCollectionCollateralFilter";
 import { Pool as PoolContract } from "../generated/PoolFactory/Pool";
 import { PoolCreated as PoolCreatedEvent } from "../generated/PoolFactory/PoolFactory";
@@ -33,6 +34,9 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   poolEntity.adminFeeRate = poolContract.adminFeeRate();
   poolEntity.collateralLiquidator = poolContract.collateralLiquidator();
   poolEntity.delegationRegistry = poolContract.delegationRegistry();
+  const externalPriceOracle = ExternalPriceOracle.bind(poolAddress).try_priceOracle();
+  poolEntity.externalPriceOracle = !externalPriceOracle.reverted ? externalPriceOracle.value : null;
+
   // Derived properties
   const maxBorrows: BigInt[] = [];
   for (let i = 0; i < poolEntity.durations.length; i++) maxBorrows.push(BigInt.fromI32(0));
