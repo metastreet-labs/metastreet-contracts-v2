@@ -464,19 +464,17 @@ export function handleDeposited(event: DepositedEvent): void {
   updatePoolEntity(event);
   updateTickEntity(event.params.tick, ZERO, ZERO);
 
-  const depositEntityId = updateDepositEntity(
-    event.params.account,
-    event.params.tick,
-    event.block.timestamp,
-    event.params.amount
-  );
+  const currencyTokenEntity = loadCurrencyTokenOrThrow();
+  const amount = FixedPoint.scaleUp(event.params.amount, FixedPoint.DECIMALS - (currencyTokenEntity.decimals as u8));
+
+  const depositEntityId = updateDepositEntity(event.params.account, event.params.tick, event.block.timestamp, amount);
 
   const poolEventId = createPoolEventEntity(event, PoolEventType.Deposited, event.params.account, depositEntityId);
 
   const depositedEntity = new DepositedEntity(poolEventId);
   depositedEntity.account = event.params.account;
   depositedEntity.tick = getTickId(event.params.tick);
-  depositedEntity.amount = event.params.amount;
+  depositedEntity.amount = amount;
   depositedEntity.shares = event.params.shares;
   depositedEntity.save();
 }
@@ -511,10 +509,7 @@ function _handleRedeemed(
   redeemedEntity.tick = getTickId(tick);
   redeemedEntity.shares = shares;
   const tickSharePrice = FixedPoint.div(oldTickEntity.value, oldTickEntity.shares);
-  redeemedEntity.estimatedAmount = FixedPoint.scaleDown(
-    FixedPoint.mul(tickSharePrice, shares),
-    FixedPoint.DECIMALS - (currencyTokenEntity.decimals as u8)
-  );
+  redeemedEntity.estimatedAmount = FixedPoint.mul(tickSharePrice, shares);
   redeemedEntity.save();
 }
 
@@ -557,18 +552,24 @@ function _handleWithdrawn(
 }
 
 export function handleWithdrawn(event: WithdrawnEvent): void {
+  const currencyTokenEntity = loadCurrencyTokenOrThrow();
+  const amount = FixedPoint.scaleUp(event.params.amount, FixedPoint.DECIMALS - (currencyTokenEntity.decimals as u8));
+
   _handleWithdrawn(
     event,
     event.params.account,
     event.params.tick,
     event.params.redemptionId,
     event.params.shares,
-    event.params.amount
+    amount
   );
 }
 
 export function handleWithdrawnV1(event: WithdrawnEventV1): void {
-  _handleWithdrawn(event, event.params.account, event.params.tick, ZERO, event.params.shares, event.params.amount);
+  const currencyTokenEntity = loadCurrencyTokenOrThrow();
+  const amount = FixedPoint.scaleUp(event.params.amount, FixedPoint.DECIMALS - (currencyTokenEntity.decimals as u8));
+
+  _handleWithdrawn(event, event.params.account, event.params.tick, ZERO, event.params.shares, amount);
 }
 
 export function handleLoanOriginated(event: LoanOriginatedEvent): void {
@@ -619,10 +620,15 @@ export function handleLoanOriginated(event: LoanOriginatedEvent): void {
 }
 
 export function handleLoanRepaid(event: LoanRepaidEvent): void {
+  const currencyTokenEntity = loadCurrencyTokenOrThrow();
+
   const loanEntity = LoanEntity.load(event.params.loanReceiptHash);
   if (!loanEntity) throw new Error("Loan entity not found");
   loanEntity.status = LoanStatus.Repaid;
-  loanEntity.proceeds = event.params.repayment;
+  loanEntity.proceeds = FixedPoint.scaleUp(
+    event.params.repayment,
+    FixedPoint.DECIMALS - (currencyTokenEntity.decimals as u8)
+  );
   loanEntity.completion = event.block.timestamp;
   loanEntity.save();
 
@@ -641,6 +647,8 @@ export function handleLoanRepaid(event: LoanRepaidEvent): void {
 }
 
 export function handleLoanLiquidated(event: LoanLiquidatedEvent): void {
+  const currencyTokenEntity = loadCurrencyTokenOrThrow();
+
   const loanEntity = LoanEntity.load(event.params.loanReceiptHash);
   if (!loanEntity) throw new Error("Loan entity not found");
   loanEntity.status = LoanStatus.Liquidated;
@@ -661,10 +669,16 @@ export function handleLoanLiquidated(event: LoanLiquidatedEvent): void {
 }
 
 export function handleCollateralLiquidated(event: CollateralLiquidatedEvent): void {
+  const currencyTokenEntity = loadCurrencyTokenOrThrow();
+  const proceeds = FixedPoint.scaleUp(
+    event.params.proceeds,
+    FixedPoint.DECIMALS - (currencyTokenEntity.decimals as u8)
+  );
+
   const loanEntity = LoanEntity.load(event.params.loanReceiptHash);
   if (!loanEntity) throw new Error("Loan entity not found");
   loanEntity.status = LoanStatus.CollateralLiquidated;
-  loanEntity.proceeds = event.params.proceeds;
+  loanEntity.proceeds = proceeds;
   loanEntity.completion = event.block.timestamp;
   loanEntity.save();
 
@@ -679,7 +693,7 @@ export function handleCollateralLiquidated(event: CollateralLiquidatedEvent): vo
 
   const collateralLiquidatedEntity = new CollateralLiquidatedEntity(poolEventId);
   collateralLiquidatedEntity.loan = loanEntity.id;
-  collateralLiquidatedEntity.proceeds = event.params.proceeds;
+  collateralLiquidatedEntity.proceeds = proceeds;
   collateralLiquidatedEntity.save();
 }
 
@@ -740,10 +754,7 @@ export function handleTransferred(event: TransferredEvent): void {
       );
     }
 
-    const estimatedAmount = FixedPoint.scaleDown(
-      FixedPoint.mul(event.params.shares, depositSharePrice),
-      FixedPoint.DECIMALS - (currencyTokenEntity.decimals as u8)
-    );
+    const estimatedAmount = FixedPoint.mul(event.params.shares, depositSharePrice);
 
     if (event.params.from.notEqual(Address.zero())) {
       updateDepositEntity(
