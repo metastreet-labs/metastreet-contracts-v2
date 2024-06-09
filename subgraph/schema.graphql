@@ -179,6 +179,7 @@ type Loan @entity {
   bundle: Bundle # set only if this is a bundle loan
   batch: Batch # set only if this is a batch loan
   delegate: Bytes # address
+  delegateV2: Bytes # address
   # Decoded Loan Receipt
   borrower: Bytes! # address
   maturity: BigInt! # uint64 (in seconds since epoch)
