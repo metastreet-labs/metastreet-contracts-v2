@@ -44,7 +44,7 @@ import {
   Withdrawn as WithdrawnEventV1,
 } from "../generated/templates/Pool/PoolV1";
 import { FixedPoint } from "./utils/FixedPoint";
-import { decodeLogData } from "./utils/decodeLogData";
+import { getDelegatesFromReceipt } from "./utils/getDelegatesFromReceipt";
 import { bytesFromBigInt } from "./utils/misc";
 
 const poolContract = PoolContract.bind(dataSource.address());
@@ -338,21 +338,6 @@ function updateDepositEntity(
   return depositEntityId;
 }
 
-function decodeLoanDelegate(receipt: ethereum.TransactionReceipt | null): Address | null {
-  if (receipt == null) return null;
-
-  const DELEGATE_FOR_TOKEN_TOPIC = "0xe89c6ba1e8957285aed22618f52aa1dcb9d5bb64e1533d8b55136c72fcf5aa5d";
-  for (let i = 0; i < receipt.logs.length; i++) {
-    if (receipt.logs[i].topics[0].toHexString() == DELEGATE_FOR_TOKEN_TOPIC) {
-      const logData = decodeLogData("(address,address,address,uint256,bool)", receipt.logs[i]);
-      if (logData) return logData.at(1).toAddress();
-      break;
-    }
-  }
-
-  return null;
-}
-
 class LoanReceipt {
   nodeReceipts: NodeReceipt[];
   borrower: Address;
@@ -451,7 +436,9 @@ function createLoanEntity(
     loanEntity.collateralWrapperTokenId = loanReceipt.collateralTokenId;
   }
 
-  loanEntity.delegate = decodeLoanDelegate(event.receipt);
+  const delegates = getDelegatesFromReceipt(event.receipt);
+  loanEntity.delegate = delegates.v1;
+  loanEntity.delegateV2 = delegates.v2;
 
   loanEntity.save();
   return loanEntity;
