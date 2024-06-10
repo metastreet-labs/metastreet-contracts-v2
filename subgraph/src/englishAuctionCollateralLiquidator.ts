@@ -15,9 +15,11 @@ import {
   Auction as AuctionEntity,
   Bid,
   Bid as BidEntity,
+  CurrencyToken as CurrencyTokenEntity,
   Liquidation as LiquidationEntity,
   Pool as PoolEntity,
 } from "../generated/schema";
+import { FixedPoint } from "./utils/FixedPoint";
 import { bytesFromBigInt } from "./utils/misc";
 
 /**************************************************************************/
@@ -136,11 +138,16 @@ export function handleAuctionBid(event: AuctionBidEvent): void {
   );
   if (!auctionEntity) return;
 
+  const currencyTokenEntity = CurrencyTokenEntity.load(auctionEntity.currencyToken);
+  if (!currencyTokenEntity) throw new Error("CurrencyToken entity not found");
+
+  const amount = FixedPoint.scaleUp(event.params.amount, FixedPoint.DECIMALS - (currencyTokenEntity.decimals as u8));
+
   const bidId = auctionEntity.id.concat(event.params.bidder).concat(bytesFromBigInt(event.params.amount));
   const bidEntity = new BidEntity(bidId);
   bidEntity.auction = auctionEntity.id;
   bidEntity.bidder = event.params.bidder;
-  bidEntity.amount = event.params.amount;
+  bidEntity.amount = amount;
   bidEntity.isHighest = true;
   bidEntity.timestamp = event.block.timestamp;
   bidEntity.transactionHash = event.transaction.hash;
