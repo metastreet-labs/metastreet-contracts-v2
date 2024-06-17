@@ -35,6 +35,11 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
      */
     uint256 internal constant BASIS_POINTS_SCALE = 10_000;
 
+    /**
+     * @notice Claim delay as non-winner
+     */
+    uint256 internal constant CLAIM_DELAY = 1 days;
+
     /**************************************************************************/
     /* Errors */
     /**************************************************************************/
@@ -468,6 +473,10 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
 
         /* Liquidate if all auctions for the liquidation are completed */
         if (liquidation_.auctionCount == 1) {
+            /* Validate claim delay if claimed by non-winner */
+            if (auction_.highestBidder != msg.sender && auction_.endTime + CLAIM_DELAY >= block.timestamp)
+                revert InvalidClaim();
+
             /* Compute total proceeds */
             uint256 proceeds = liquidation_.proceeds + auction_.highestBid;
 
