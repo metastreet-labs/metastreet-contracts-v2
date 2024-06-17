@@ -1056,9 +1056,13 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       await expect(liquidation2.collateralToken).to.equal(bundleCollateralWrapper.address);
       await expect(liquidation2.liquidationContextHash).to.equal(loanReceiptHash);
 
-      /* Claim with accountBidder3 */
+      /* Fast forward to after claim delay */
+      const transactionTime2 = await getBlockTimestamp(bid1Tx.blockNumber);
+      await helpers.time.increaseTo(transactionTime2 + 86400 + 2 + 86400);
+
+      /* Claim with accountBidder1 (even though winner is accountBidder3) */
       const claim3Tx = await collateralLiquidator
-        .connect(accountBidder3)
+        .connect(accountBidder1)
         .claim(liquidationHash, nft1.address, 125, loanReceipt);
 
       /* Validate events */
@@ -1114,9 +1118,9 @@ describe("EnglishAuctionCollateralLiquidator", function () {
         .connect(accountBidder1)
         .bid(liquidationHash, nft1.address, 122, ethers.utils.parseEther("2"));
 
-      /* Fast forward to 1 second after end time */
+      /* Fast forward to 1 second after end time + claim delay of 24 */
       const transactionTime = await getBlockTimestamp(bidTx.blockNumber);
-      await helpers.time.increaseTo(transactionTime + 86400 + 1);
+      await helpers.time.increaseTo(transactionTime + 86400 + 1 + 86400);
 
       /* Claim with accountBidder2 */
       const claimTx = await collateralLiquidator
@@ -1497,6 +1501,31 @@ describe("EnglishAuctionCollateralLiquidator", function () {
       /* Claim with accountBidder1 */
       await expect(
         collateralLiquidator.connect(accountBidder1).claim(liquidationHash, nft1.address, 122, loanReceipt)
+      ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidClaim");
+    });
+
+    it("fails claim as non-winner before claim delay", async function () {
+      /* Construct loan receipt */
+      const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
+
+      /* Calling liquidate() */
+      const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
+
+      /* Get liquidationHash */
+      const liquidationHash = (await extractEvent(liquidateTx, collateralLiquidator, "LiquidationStarted")).args[0];
+
+      /* Bid with accountBidder1 */
+      const bidTx = await collateralLiquidator
+        .connect(accountBidder1)
+        .bid(liquidationHash, nft1.address, 122, ethers.utils.parseEther("2"));
+
+      /* Fast forward to 1 second after end time */
+      const transactionTime = await getBlockTimestamp(bidTx.blockNumber);
+      await helpers.time.increaseTo(transactionTime + 86400 + 1);
+
+      /* Claim with accountBidder2 */
+      await expect(
+        collateralLiquidator.connect(accountBidder2).claim(liquidationHash, nft1.address, 122, loanReceipt)
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidClaim");
     });
 
