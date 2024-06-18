@@ -17,7 +17,7 @@ abstract contract PriceOracle {
      * @param tokenIds Token IDs
      * @param tokenIdQuantities Token ID quantities
      * @param oracleContext Oracle context
-     * @return Price as a fixed point 18 decimal
+     * @return Token price in the same decimals as currency token
      */
     function price(
         address collateralToken,

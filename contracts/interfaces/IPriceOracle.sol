@@ -12,7 +12,7 @@ interface IPriceOracle {
      * @param tokenIds Token IDs
      * @param tokenIdQuantities Token ID quantities
      * @param oracleContext Oracle context
-     * @return price Token price as a fixed point 18 decimal
+     * @return price Token price in the same decimals as currency token
      */
     function price(
         address collateralToken,
