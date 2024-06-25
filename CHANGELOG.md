@@ -1,3 +1,6 @@
+* EnglishAuctionCollateralLiquidator v2.1 - 06/25/2024
+    * Add claim delay for non-winners of auction.
+
 * SimpleSignedPriceOracle v1.2 - 05/21/2024
     * Add initializer for proxy deployment support.
 
