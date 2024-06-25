@@ -37,6 +37,7 @@ describe("Tick", function () {
   const TEST_TICK = Tick.encode(FixedPoint.from("123.3"), 3, 5, 18);
   const TEST_TICK_2 = Tick.encode(ethers.BigNumber.from(5000), 3, 5, 18, 1);
   const TEST_TICK_3 = Tick.encode(ethers.BigNumber.from(10001), 3, 5, 18, 1);
+  const TEST_TICK_4 = Tick.encode(ethers.BigNumber.from(10001), 3, 6, 18, 1);
 
   describe("#decode", async function () {
     it("decodes a tick with absolute limit", async function () {
@@ -114,6 +115,7 @@ describe("Tick", function () {
       expect(await tickLibrary.validateFast(TEST_TICK, Tick.encode(FixedPoint.from("123.2"), 3, 4), 5, 10000)).to.equal(
         FixedPoint.from("123.3")
       );
+      expect(await tickLibrary.validateFast(TEST_TICK_4, TEST_TICK_3, 5, 10000)).to.equal(ethers.BigNumber.from(10001));
     });
     it("reverts on non-strictly increasing ticks", async function () {
       await expect(
@@ -124,6 +126,9 @@ describe("Tick", function () {
       ).to.be.revertedWithCustomError(tickLibrary, "InvalidTick");
       await expect(
         tickLibrary.validateFast(TEST_TICK_2, Tick.encode(ethers.BigNumber.from(5001), 3, 5, 18, 1), 4, 10000)
+      ).to.be.revertedWithCustomError(tickLibrary, "InvalidTick");
+      await expect(
+        tickLibrary.validateFast(TEST_TICK_2, Tick.encode(ethers.BigNumber.from(5000), 3, 5, 18, 0), 4, 10000)
       ).to.be.revertedWithCustomError(tickLibrary, "InvalidTick");
       await expect(
         tickLibrary.validateFast(TEST_TICK_2, Tick.encode(ethers.BigNumber.from(5000), 3, 5, 18, 0), 4, 10000)

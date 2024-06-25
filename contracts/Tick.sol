@@ -146,7 +146,8 @@ library Tick {
         (uint256 prevLimit, uint256 prevDuration, uint256 prevRate, ) = decode(prevTick, oraclePrice);
         (uint256 limit, uint256 duration, uint256 rate, ) = decode(tick, oraclePrice);
         if (limit < prevLimit) revert InvalidTick();
-        if (limit == prevLimit && (duration <= prevDuration || rate <= prevRate)) revert InvalidTick();
+        if (limit == prevLimit && duration < prevDuration) revert InvalidTick();
+        if (limit == prevLimit && duration == prevDuration && rate <= prevRate) revert InvalidTick();
         if (duration > maxDurationIndex) revert InvalidTick();
         return limit;
     }
