@@ -1,3 +1,6 @@
+* Pool v2.11 - 06/25/2024
+    * Fix sourcing from ticks of same limit and duration, but different rates.
+
 * EnglishAuctionCollateralLiquidator v2.1 - 06/25/2024
     * Add claim delay for non-winners of auction.
 
