@@ -61,7 +61,7 @@ describe("ExternalPriceOracle", function () {
           "0x11",
           "0x"
         )
-      ).to.be.equal(0);
+      ).to.be.eql([ethers.constants.Zero, ethers.constants.Zero, ethers.constants.AddressZero]);
     });
   });
 });

@@ -13,6 +13,8 @@ interface IPriceOracle {
      * @param tokenIdQuantities Token ID quantities
      * @param oracleContext Oracle context
      * @return price Token price in the same decimals as currency token
+     * @return feeRate Fee rate
+     * @return feeRecipient Fee recipient
      */
     function price(
         address collateralToken,
@@ -20,5 +22,5 @@ interface IPriceOracle {
         uint256[] memory tokenIds,
         uint256[] memory tokenIdQuantities,
         bytes calldata oracleContext
-    ) external view returns (uint256 price);
+    ) external view returns (uint256 price, uint256 feeRate, address feeRecipient);
 }

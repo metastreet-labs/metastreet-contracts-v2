@@ -278,7 +278,7 @@ describe("Pool Set Collection", function () {
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("10.082191780812159999"));
+      ).to.eql([FixedPoint.from("10.082191780812159999"), ethers.constants.Zero]);
 
       expect(
         await pool.quote(
@@ -289,7 +289,7 @@ describe("Pool Set Collection", function () {
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("25.205479452030399994"));
+      ).to.eql([FixedPoint.from("25.205479452030399994"), ethers.constants.Zero]);
     });
 
     it("fails on unsupported collateral with set collection filter", async function () {
@@ -313,7 +313,7 @@ describe("Pool Set Collection", function () {
 
     it("originates loan with set collection filter", async function () {
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         nft1.address,
@@ -409,7 +409,7 @@ describe("Pool Set Collection", function () {
       );
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         nft1.address,
@@ -518,7 +518,7 @@ describe("Pool Set Collection", function () {
       );
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         nft1.address,

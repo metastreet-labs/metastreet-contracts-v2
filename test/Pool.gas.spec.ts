@@ -434,8 +434,8 @@ describe("Pool Gas", function () {
     });
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("15"), 10, 357000],
-      [FixedPoint.from("25"), 16, 485000],
+      [FixedPoint.from("15"), 10, 359000],
+      [FixedPoint.from("25"), 16, 486000],
     ]) {
       it(`borrow (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
@@ -550,8 +550,8 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 385000],
-      [FixedPoint.from("250"), 16, 512000],
+      [FixedPoint.from("150"), 10, 386000],
+      [FixedPoint.from("250"), 16, 514000],
     ]) {
       it(`borrow (bundle of 10, ${numTicks} ticks)`, async function () {
         /* Mint bundle of 10 */
@@ -798,8 +798,8 @@ describe("Pool Gas", function () {
     });
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("15"), 10, 475000],
-      [FixedPoint.from("25"), 16, 686000],
+      [FixedPoint.from("15"), 10, 476000],
+      [FixedPoint.from("25"), 16, 687000],
     ]) {
       it(`refinance (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
@@ -829,7 +829,7 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 507000],
+      [FixedPoint.from("150"), 10, 508000],
       [FixedPoint.from("250"), 16, 719000],
     ]) {
       it(`refinance (bundle of 10, ${numTicks} ticks)`, async function () {
@@ -1285,11 +1285,11 @@ describe("Pool Gas", function () {
       await poolImpl.deployed();
     });
     for (const [count, principal, numTicks, maxGas] of [
-      [10, FixedPoint.from("15"), 10, 369000],
-      [10, FixedPoint.from("25"), 16, 496000],
+      [10, FixedPoint.from("15"), 10, 370000],
+      [10, FixedPoint.from("25"), 16, 497000],
       [100, FixedPoint.from("15"), 10, 373000],
       [100, FixedPoint.from("25"), 16, 500000],
-      [1000, FixedPoint.from("15"), 10, 377000],
+      [1000, FixedPoint.from("15"), 10, 378000],
       [1000, FixedPoint.from("25"), 16, 505000],
     ]) {
       it(`merkle borrow (single, ${numTicks} ticks, ${count} token ids)`, async function () {
@@ -1429,10 +1429,10 @@ describe("Pool Gas", function () {
       await nft2.connect(accountBorrower).setApprovalForAll(ERC1155CollateralWrapper.address, true);
     });
     for (const [principal, numTicks, totalTokenIds, maxGas] of [
-      [FixedPoint.from("245"), 10, 16, 458000],
-      [FixedPoint.from("434"), 16, 16, 586000],
-      [FixedPoint.from("490"), 10, 32, 545000],
-      [FixedPoint.from("868"), 16, 32, 673000],
+      [FixedPoint.from("245"), 10, 16, 459000],
+      [FixedPoint.from("434"), 16, 16, 587000],
+      [FixedPoint.from("490"), 10, 32, 546000],
+      [FixedPoint.from("868"), 16, 32, 674000],
     ]) {
       it(`erc1155 borrow (total token IDs ${totalTokenIds}, ${numTicks} tick)`, async function () {
         /* Mint NFT to borrower */

@@ -338,7 +338,7 @@ describe("Pool ERC1155", function () {
             [1, ethers.utils.hexDataLength(ERC1155WrapperData), ERC1155WrapperData]
           )
         )
-      ).to.equal(FixedPoint.from("10.082191780812160000"));
+      ).to.eql([FixedPoint.from("10.082191780812160000"), ethers.constants.Zero]);
 
       expect(
         await pool.quote(
@@ -352,7 +352,7 @@ describe("Pool ERC1155", function () {
             [1, ethers.utils.hexDataLength(ERC1155WrapperData), ERC1155WrapperData]
           )
         )
-      ).to.equal(FixedPoint.from("25.205479452030400000"));
+      ).to.eql([FixedPoint.from("25.205479452030400000"), ethers.constants.Zero]);
     });
 
     it("fails on insufficient liquidity for erc1155", async function () {
@@ -399,7 +399,7 @@ describe("Pool ERC1155", function () {
         .encodedBatch;
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         ERC1155CollateralWrapper.address,
@@ -516,7 +516,7 @@ describe("Pool ERC1155", function () {
         .encodedBatch;
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         ERC1155CollateralWrapper.address,
@@ -641,7 +641,7 @@ describe("Pool ERC1155", function () {
         .encodedBatch;
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("85"),
         30 * 86400,
         ERC1155CollateralWrapper.address,
@@ -816,7 +816,7 @@ describe("Pool ERC1155", function () {
       expect(await ERC1155CollateralWrapper.ownerOf(ERC1155WrapperTokenId)).to.equal(accountBorrower.address);
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         ERC1155CollateralWrapper.address,

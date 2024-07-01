@@ -303,6 +303,7 @@ interface IPool {
      * @param ticks Liquidity ticks
      * @param options Encoded options
      * @return repayment Repayment amount in currency tokens
+     * @return oracleFee Oracle fee
      */
     function quote(
         uint256 principal,
@@ -311,7 +312,7 @@ interface IPool {
         uint256 collateralTokenId,
         uint128[] calldata ticks,
         bytes calldata options
-    ) external view returns (uint256 repayment);
+    ) external view returns (uint256 repayment, uint256 oracleFee);
 
     /**
      * @notice Originate a loan

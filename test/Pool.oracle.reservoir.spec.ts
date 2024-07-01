@@ -256,7 +256,13 @@ describe("Pool Reservoir Price Oracle", function () {
     duration?: number = 0,
     rate?: number = 0
   ): Promise<ethers.BigNumber[]> {
-    const oraclePrice = await priceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [], [], oracleContext);
+    let [oraclePrice, oracleFee, oracleFeeRecipient] = await priceOracle.price(
+      WPUNKS_ADDRESS,
+      WETH_ADDRESS,
+      [],
+      [],
+      oracleContext
+    );
     const nodes = await pool.liquidityNodes(0, MaxUint128);
     const normalizedNodes = [...nodes];
     const ticks = [];
@@ -311,7 +317,7 @@ describe("Pool Reservoir Price Oracle", function () {
           await sourceLiquidity(FixedPoint.from("10"), RESERVOIR_MESSAGE_CALLDATA),
           oracleContext
         )
-      ).to.equal(FixedPoint.from("10.082191780812159999"));
+      ).to.eql([FixedPoint.from("10.082191780812159999"), ethers.constants.Zero]);
 
       expect(
         await pool.quote(
@@ -322,7 +328,7 @@ describe("Pool Reservoir Price Oracle", function () {
           await sourceLiquidity(FixedPoint.from("25"), RESERVOIR_MESSAGE_CALLDATA),
           oracleContext
         )
-      ).to.equal(FixedPoint.from("25.205479452030399993"));
+      ).to.eql([FixedPoint.from("25.205479452030399993"), ethers.constants.Zero]);
     });
   });
 
@@ -339,7 +345,7 @@ describe("Pool Reservoir Price Oracle", function () {
       );
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         nft1.address,

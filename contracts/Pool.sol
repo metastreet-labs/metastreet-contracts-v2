@@ -528,7 +528,7 @@ abstract contract Pool is
         bytes calldata collateralFilterContext,
         bytes calldata oracleContext,
         bool isRefinance
-    ) internal view returns (uint256, uint256, LiquidityLogic.NodeSource[] memory, uint16) {
+    ) internal view returns (uint256, uint256, uint256, address, LiquidityLogic.NodeSource[] memory, uint16) {
         /* Get underlying collateral */
         (
             address underlyingCollateralToken,
@@ -564,7 +564,7 @@ abstract contract Pool is
         }
 
         /* Get oracle price if price oracle exists, else 0 */
-        uint256 oraclePrice = price(
+        (uint256 oraclePrice, uint256 oracleFeeRate, address oracleFeeRecipient) = price(
             collateralToken(),
             address(_storage.currencyToken),
             underlyingCollateralTokenIds,
@@ -591,7 +591,7 @@ abstract contract Pool is
             _storage.adminFeeRate
         );
 
-        return (repayment, adminFee, nodes, count);
+        return (repayment, adminFee, oracleFeeRate, oracleFeeRecipient, nodes, count);
     }
 
     /**
@@ -637,9 +637,9 @@ abstract contract Pool is
         uint256 collateralTokenId,
         uint128[] calldata ticks,
         bytes calldata options
-    ) external view returns (uint256) {
+    ) external view returns (uint256, uint256) {
         /* Quote repayment */
-        (uint256 repayment, , , ) = _quote(
+        (uint256 repayment, , uint256 oracleFeeRate, , , ) = _quote(
             _scale(principal),
             duration,
             collateralToken,
@@ -651,7 +651,7 @@ abstract contract Pool is
             false
         );
 
-        return _unscale(repayment, true);
+        return (_unscale(repayment, true), (principal * oracleFeeRate) / LiquidityLogic.BASIS_POINTS_SCALE);
     }
 
     /**
@@ -669,17 +669,24 @@ abstract contract Pool is
         uint256 scaledPrincipal = _scale(principal);
 
         /* Quote repayment, admin fee, and liquidity nodes */
-        (uint256 repayment, uint256 adminFee, LiquidityLogic.NodeSource[] memory nodes, uint16 count) = _quote(
-            scaledPrincipal,
-            duration,
-            collateralToken,
-            collateralTokenId,
-            ticks,
-            BorrowLogic._getOptionsData(options, BorrowOptions.CollateralWrapperContext),
-            BorrowLogic._getOptionsData(options, BorrowOptions.CollateralFilterContext),
-            BorrowLogic._getOptionsData(options, BorrowOptions.OracleContext),
-            false
-        );
+        (
+            uint256 repayment,
+            uint256 adminFee,
+            uint256 oracleFeeRate,
+            address oracleFeeRecipient,
+            LiquidityLogic.NodeSource[] memory nodes,
+            uint16 count
+        ) = _quote(
+                scaledPrincipal,
+                duration,
+                collateralToken,
+                collateralTokenId,
+                ticks,
+                BorrowLogic._getOptionsData(options, BorrowOptions.CollateralWrapperContext),
+                BorrowLogic._getOptionsData(options, BorrowOptions.CollateralFilterContext),
+                BorrowLogic._getOptionsData(options, BorrowOptions.OracleContext),
+                false
+            );
 
         /* Handle borrow accounting */
         (bytes memory encodedLoanReceipt, bytes32 loanReceiptHash) = BorrowLogic._borrow(
@@ -709,8 +716,14 @@ abstract contract Pool is
         /* Transfer collateral from borrower to pool */
         IERC721(collateralToken).transferFrom(msg.sender, address(this), collateralTokenId);
 
+        /* Transfer oracle origination fee */
+        uint256 oracleFee = (principal * oracleFeeRate) / LiquidityLogic.BASIS_POINTS_SCALE;
+        if (oracleFee > 0 && oracleFeeRecipient != address(0)) {
+            _storage.currencyToken.safeTransfer(oracleFeeRecipient, oracleFee);
+        }
+
         /* Transfer principal from pool to borrower */
-        _storage.currencyToken.safeTransfer(msg.sender, principal);
+        _storage.currencyToken.safeTransfer(msg.sender, principal - oracleFee);
 
         /* Emit LoanOriginated */
         emit LoanOriginated(loanReceiptHash, encodedLoanReceipt);
@@ -775,17 +788,24 @@ abstract contract Pool is
         uint256 unscaledRepayment = _unscale(repayment, true);
 
         /* Quote new repayment, admin fee, and liquidity nodes */
-        (uint256 newRepayment, uint256 adminFee, LiquidityLogic.NodeSource[] memory nodes, uint16 count) = _quote(
-            scaledPrincipal,
-            duration,
-            loanReceipt.collateralToken,
-            loanReceipt.collateralTokenId,
-            ticks,
-            loanReceipt.collateralWrapperContext,
-            encodedLoanReceipt[0:0],
-            BorrowLogic._getOptionsData(options, BorrowOptions.OracleContext),
-            true
-        );
+        (
+            uint256 newRepayment,
+            uint256 adminFee,
+            uint256 oracleFeeRate,
+            address oracleFeeRecipient,
+            LiquidityLogic.NodeSource[] memory nodes,
+            uint16 count
+        ) = _quote(
+                scaledPrincipal,
+                duration,
+                loanReceipt.collateralToken,
+                loanReceipt.collateralTokenId,
+                ticks,
+                loanReceipt.collateralWrapperContext,
+                encodedLoanReceipt[0:0],
+                BorrowLogic._getOptionsData(options, BorrowOptions.OracleContext),
+                true
+            );
 
         /* Handle borrow accounting */
         (bytes memory newEncodedLoanReceipt, bytes32 newLoanReceiptHash) = BorrowLogic._borrow(
@@ -801,6 +821,14 @@ abstract contract Pool is
             count,
             loanReceipt.collateralWrapperContext
         );
+
+        /* Transfer oracle origination fee and update principal less fees */
+        uint256 oracleFee = (principal * oracleFeeRate) / LiquidityLogic.BASIS_POINTS_SCALE;
+        if (oracleFee > 0 && oracleFeeRecipient != address(0)) {
+            principal -= oracleFee;
+
+            _storage.currencyToken.safeTransfer(oracleFeeRecipient, oracleFee);
+        }
 
         /* Determine transfer direction */
         if (principal < unscaledRepayment) {

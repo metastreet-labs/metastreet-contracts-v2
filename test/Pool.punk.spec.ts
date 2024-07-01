@@ -348,7 +348,7 @@ describe("Pool Punks", function () {
           await sourceLiquidity(FixedPoint.from("10")),
           ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, ethers.utils.hexDataLength(context), context])
         )
-      ).to.equal(FixedPoint.from("10.082191780812160000"));
+      ).to.eql([FixedPoint.from("10.082191780812160000"), ethers.constants.Zero]);
 
       expect(
         await pool.quote(
@@ -359,7 +359,7 @@ describe("Pool Punks", function () {
           await sourceLiquidity(FixedPoint.from("25")),
           ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, ethers.utils.hexDataLength(context), context])
         )
-      ).to.equal(FixedPoint.from("25.205479452030400000"));
+      ).to.eql([FixedPoint.from("25.205479452030400000"), ethers.constants.Zero]);
     });
 
     it("fails on insufficient liquidity for punk", async function () {
@@ -393,7 +393,7 @@ describe("Pool Punks", function () {
       const context = ethers.utils.solidityPack(["uint256[]"], [[PUNK_ID_1, PUNK_ID_2, PUNK_ID_3]]);
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         punkCollateralWrapper.address,
@@ -496,7 +496,7 @@ describe("Pool Punks", function () {
       const context = ethers.utils.solidityPack(["uint256[]"], [[PUNK_ID_1, PUNK_ID_2, PUNK_ID_3]]);
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         punkCollateralWrapper.address,
@@ -616,7 +616,7 @@ describe("Pool Punks", function () {
       const context = ethers.utils.solidityPack(["uint256[]"], [[PUNK_ID_1, PUNK_ID_2, PUNK_ID_3]]);
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("85"),
         30 * 86400,
         punkCollateralWrapper.address,
@@ -768,7 +768,7 @@ describe("Pool Punks", function () {
       expect(await punkCollateralWrapper.ownerOf(punkTokenId)).to.equal(accountBorrower.address);
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         punkCollateralWrapper.address,

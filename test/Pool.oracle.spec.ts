@@ -232,7 +232,7 @@ describe("Pool Price Oracle", function () {
     duration?: number = 0,
     rate?: number = 0
   ): Promise<ethers.BigNumber[]> {
-    const oraclePrice = await priceOracle.price(
+    const [oraclePrice, oracleFee, oracleFeeRecipient] = await priceOracle.price(
       ethers.constants.AddressZero,
       ethers.constants.AddressZero,
       [],
@@ -284,6 +284,7 @@ describe("Pool Price Oracle", function () {
         [5, ethers.utils.hexDataLength("0x11"), "0x11"]
       );
 
+      const oracleFee1 = FixedPoint.from("10").mul(500).div(10000);
       expect(
         await pool.quote(
           FixedPoint.from("10"),
@@ -293,8 +294,9 @@ describe("Pool Price Oracle", function () {
           await sourceLiquidity(FixedPoint.from("10")),
           oracleContext
         )
-      ).to.equal(FixedPoint.from("10.082191780812159999"));
+      ).to.eql([FixedPoint.from("10.082191780812159999"), oracleFee1]);
 
+      const oracleFee2 = FixedPoint.from("25").mul(500).div(10000);
       expect(
         await pool.quote(
           FixedPoint.from("25"),
@@ -304,7 +306,7 @@ describe("Pool Price Oracle", function () {
           await sourceLiquidity(FixedPoint.from("25")),
           oracleContext
         )
-      ).to.equal(FixedPoint.from("25.205479452030399990"));
+      ).to.eql([FixedPoint.from("25.205479452030399990"), oracleFee2]);
     });
 
     it("correctly quotes repayment for bundle", async function () {
@@ -313,6 +315,7 @@ describe("Pool Price Oracle", function () {
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
+      const oracleFee1 = FixedPoint.from("10").mul(500).div(10000);
       expect(
         await pool.quote(
           FixedPoint.from("10"),
@@ -325,8 +328,9 @@ describe("Pool Price Oracle", function () {
             [1, ethers.utils.hexDataLength(bundleData), bundleData, 5, ethers.utils.hexDataLength("0x11"), "0x11"]
           )
         )
-      ).to.equal(FixedPoint.from("10.082191780812160000"));
+      ).to.eql([FixedPoint.from("10.082191780812160000"), oracleFee1]);
 
+      const oracleFee2 = FixedPoint.from("25").mul(500).div(10000);
       expect(
         await pool.quote(
           FixedPoint.from("25"),
@@ -339,7 +343,7 @@ describe("Pool Price Oracle", function () {
             [1, ethers.utils.hexDataLength(bundleData), bundleData, 5, ethers.utils.hexDataLength("0x11"), "0x11"]
           )
         )
-      ).to.equal(FixedPoint.from("25.205479452030400000"));
+      ).to.eql([FixedPoint.from("25.205479452030400000"), oracleFee2]);
     });
 
     it("fails on insufficient liquidity for bundle", async function () {
@@ -377,7 +381,7 @@ describe("Pool Price Oracle", function () {
       );
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, _] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         nft1.address,
@@ -422,11 +426,31 @@ describe("Pool Price Oracle", function () {
         tokenId: 123,
       });
 
-      await expectEvent(borrowTx, tok1, "Transfer", {
-        from: pool.address,
-        to: accountBorrower.address,
-        value: FixedPoint.from("25"),
-      });
+      /* Compute and validate oracle fee */
+      const oracleFee = FixedPoint.from("25").mul(500).div(10000);
+      await expectEvent(
+        borrowTx,
+        tok1,
+        "Transfer",
+        {
+          from: pool.address,
+          to: priceOracle.address,
+          value: oracleFee,
+        },
+        0
+      );
+
+      await expectEvent(
+        borrowTx,
+        tok1,
+        "Transfer",
+        {
+          from: pool.address,
+          to: accountBorrower.address,
+          value: FixedPoint.from("25").sub(oracleFee),
+        },
+        1
+      );
 
       await expect(borrowTx).to.emit(pool, "LoanOriginated");
 
@@ -472,7 +496,7 @@ describe("Pool Price Oracle", function () {
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, _] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         bundleCollateralWrapper.address,
@@ -532,11 +556,31 @@ describe("Pool Price Oracle", function () {
         tokenId: bundleTokenId,
       });
 
-      await expectEvent(borrowTx, tok1, "Transfer", {
-        from: pool.address,
-        to: accountBorrower.address,
-        value: FixedPoint.from("25"),
-      });
+      /* Compute and validate oracle fee */
+      const oracleFee = FixedPoint.from("25").mul(500).div(10000);
+      await expectEvent(
+        borrowTx,
+        tok1,
+        "Transfer",
+        {
+          from: pool.address,
+          to: priceOracle.address,
+          value: oracleFee,
+        },
+        0
+      );
+
+      await expectEvent(
+        borrowTx,
+        tok1,
+        "Transfer",
+        {
+          from: pool.address,
+          to: accountBorrower.address,
+          value: FixedPoint.from("25").sub(oracleFee),
+        },
+        1
+      );
 
       await expect(borrowTx).to.emit(pool, "LoanOriginated");
 

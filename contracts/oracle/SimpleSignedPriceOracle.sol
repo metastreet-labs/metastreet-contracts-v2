@@ -23,9 +23,19 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
             "Quote(address token,uint256 tokenId,address currency,uint256 price,uint64 timestamp,uint64 duration)"
         );
 
+    /**
+     * @notice Basis points scale
+     */
+    uint256 internal constant BASIS_POINTS_SCALE = 10_000;
+
     /**************************************************************************/
     /* Errors */
     /**************************************************************************/
+
+    /**
+     * @notice Invalid fee rate
+     */
+    error InvalidFeeRate();
 
     /**
      * @notice Invalid quote
@@ -52,6 +62,11 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
      */
     error InvalidLength();
 
+    /**
+     * @notice Invalid caller
+     */
+    error InvalidCaller();
+
     /**************************************************************************/
     /* Events */
     /**************************************************************************/
@@ -62,6 +77,14 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
      * @param signer Signer
      */
     event SignerUpdated(address indexed collateralToken, address signer);
+
+    /**
+     * @notice Emitted when price oracle fee rate or fee recipient is updated
+     * @param collateralToken Collateral token
+     * @param feeRate Fee rate
+     * @param feeRecipient Fee recipient
+     */
+    event FeeUpdated(address indexed collateralToken, uint256 feeRate, address feeRecipient);
 
     /**************************************************************************/
     /* Structures */
@@ -95,6 +118,18 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
         bytes signature;
     }
 
+    /**
+     * @notice Oracle information
+     * @param signer Signer
+     * @param feeRate Fee rate
+     * @param feeRecipient Fee recipient
+     */
+    struct OracleInfo {
+        address signer;
+        uint256 feeRate;
+        address feeRecipient;
+    }
+
     /**************************************************************************/
     /* State */
     /**************************************************************************/
@@ -105,9 +140,9 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
     bool private _initialized;
 
     /**
-     * @notice Mapping of collection to price oracle signers
+     * @notice Mapping of collection to price oracle information
      */
-    mapping(address => address) internal _priceOracleSigners;
+    mapping(address => OracleInfo) internal _priceOracle;
 
     /**************************************************************************/
     /* Constructor */
@@ -133,6 +168,7 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
         require(!_initialized, "Already initialized");
 
         _initialized = true;
+
         _transferOwnership(msg.sender);
     }
 
@@ -142,12 +178,14 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
 
     /**
      * @notice Verify quote and signer
+     * @param signer Signer
      * @param collateralToken Collateral token
      * @param collateralTokenId Collateral token ID
      * @param poolCurrency Pool currency
      * @param signedQuote Signed quote
      */
     function _verifyQuote(
+        address signer,
         address collateralToken,
         uint256 collateralTokenId,
         address poolCurrency,
@@ -185,7 +223,7 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
         );
 
         /* Validate signer */
-        if (signerAddress != _priceOracleSigners[collateralToken]) revert InvalidSigner();
+        if (signerAddress != signer) revert InvalidSigner();
     }
 
     /**************************************************************************/
@@ -206,7 +244,7 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
      * @return Price oracle signer
      */
     function priceOracleSigner(address collateralToken) external view returns (address) {
-        return _priceOracleSigners[collateralToken];
+        return _priceOracle[collateralToken].signer;
     }
 
     /**************************************************************************/
@@ -222,7 +260,10 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
         uint256[] memory collateralTokenIds,
         uint256[] memory collateralTokenQuantities,
         bytes calldata oracleContext
-    ) external view override returns (uint256) {
+    ) external view override returns (uint256, uint256, address) {
+        /* Get oracle info */
+        OracleInfo memory oracleInfo = _priceOracle[collateralToken];
+
         /* Decode oracle context into a SignedQuote array */
         SignedQuote[] memory signedQuotes = abi.decode(oracleContext, (SignedQuote[]));
 
@@ -235,15 +276,15 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
         uint256 count;
         for (uint256 i; i < collateralTokenIds.length; i++) {
             /* Validate quote and signer */
-            _verifyQuote(collateralToken, collateralTokenIds[i], currencyToken, signedQuotes[i]);
+            _verifyQuote(oracleInfo.signer, collateralToken, collateralTokenIds[i], currencyToken, signedQuotes[i]);
 
             /* Update total oracle price and collateral token count */
             totalOraclePrice += signedQuotes[i].quote.price * collateralTokenQuantities[i];
             count += collateralTokenQuantities[i];
         }
 
-        /* Return average collateral token price */
-        return totalOraclePrice / count;
+        /* Return average collateral token price, fee rate, and fee recipient */
+        return (totalOraclePrice / count, oracleInfo.feeRate, oracleInfo.feeRecipient);
     }
 
     /**************************************************************************/
@@ -259,8 +300,29 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
      * @param signer Signer
      */
     function setSigner(address collateralToken, address signer) external onlyOwner {
-        _priceOracleSigners[collateralToken] = signer;
+        _priceOracle[collateralToken].signer = signer;
 
         emit SignerUpdated(collateralToken, signer);
+    }
+
+    /**
+     * @notice Set oracle fee rate
+     *
+     * Emits a {FeeRateUpdated} event.
+     *
+     * @param collateralToken Collateral token
+     * @param feeRate Fee rate
+     * @param feeRecipient Fee recipient
+     */
+    function setFeeRate(address collateralToken, uint256 feeRate, address feeRecipient) external {
+        if (msg.sender != _priceOracle[collateralToken].signer) revert InvalidCaller();
+
+        /* Validate fee rate */
+        if (feeRate > BASIS_POINTS_SCALE) revert InvalidFeeRate();
+
+        _priceOracle[collateralToken].feeRate = feeRate;
+        _priceOracle[collateralToken].feeRecipient = feeRecipient;
+
+        emit FeeUpdated(collateralToken, feeRate, feeRecipient);
     }
 }

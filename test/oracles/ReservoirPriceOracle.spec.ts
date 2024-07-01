@@ -137,7 +137,7 @@ describe("ReservoirPriceOracle", function () {
     it("successfully return price", async function () {
       expect(
         await reservoirPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [], [], RESERVOIR_MESSAGE_CALLDATA)
-      ).to.be.equal(FixedPoint.from("55.25"));
+      ).to.be.eql([FixedPoint.from("55.25"), ethers.constants.Zero, ethers.constants.AddressZero]);
     });
 
     it("fails on invalid flag / message ID", async function () {

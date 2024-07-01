@@ -285,7 +285,7 @@ describe("Pool Bundle", function () {
 
     const ticks = await sourceLiquidity(principal);
 
-    const repayment = await pool.quote(principal, duration, nft1.address, tokenId, ticks, "0x");
+    const [repayment, oracleFee] = await pool.quote(principal, duration, nft1.address, tokenId, ticks, "0x");
 
     const borrowTx = await pool
       .connect(accountBorrower)
@@ -354,7 +354,7 @@ describe("Pool Bundle", function () {
             [1, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         )
-      ).to.equal(FixedPoint.from("10.082191780812160000"));
+      ).to.eql([FixedPoint.from("10.082191780812160000"), ethers.constants.Zero]);
 
       expect(
         await pool.quote(
@@ -368,7 +368,7 @@ describe("Pool Bundle", function () {
             [1, ethers.utils.hexDataLength(bundleData), bundleData]
           )
         )
-      ).to.equal(FixedPoint.from("25.205479452030400000"));
+      ).to.eql([FixedPoint.from("25.205479452030400000"), ethers.constants.Zero]);
     });
 
     it("fails on insufficient liquidity for bundle", async function () {
@@ -405,7 +405,7 @@ describe("Pool Bundle", function () {
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         bundleCollateralWrapper.address,
@@ -517,7 +517,7 @@ describe("Pool Bundle", function () {
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         bundleCollateralWrapper.address,
@@ -637,7 +637,7 @@ describe("Pool Bundle", function () {
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("85"),
         30 * 86400,
         bundleCollateralWrapper.address,
@@ -801,7 +801,7 @@ describe("Pool Bundle", function () {
       expect(await bundleCollateralWrapper.ownerOf(bundleTokenId)).to.equal(accountBorrower.address);
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         bundleCollateralWrapper.address,

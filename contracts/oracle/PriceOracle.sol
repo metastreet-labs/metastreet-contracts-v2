@@ -18,6 +18,8 @@ abstract contract PriceOracle {
      * @param tokenIdQuantities Token ID quantities
      * @param oracleContext Oracle context
      * @return Token price in the same decimals as currency token
+     * @return Fee rate
+     * @return Fee recipient
      */
     function price(
         address collateralToken,
@@ -25,5 +27,5 @@ abstract contract PriceOracle {
         uint256[] memory tokenIds,
         uint256[] memory tokenIdQuantities,
         bytes calldata oracleContext
-    ) public view virtual returns (uint256);
+    ) public view virtual returns (uint256, uint256, address);
 }

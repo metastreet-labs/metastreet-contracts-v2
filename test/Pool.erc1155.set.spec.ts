@@ -301,7 +301,7 @@ describe("Pool ERC1155 Set Collection", function () {
       );
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         ERC1155CollateralWrapper.address,
@@ -399,7 +399,7 @@ describe("Pool ERC1155 Set Collection", function () {
       );
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         ERC1155CollateralWrapper.address,

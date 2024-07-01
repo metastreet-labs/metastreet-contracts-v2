@@ -147,7 +147,7 @@ describe("SimpleSignedPriceOracle", function () {
       /* Validate for 1 collateral token ID */
       expect(
         await simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1], [1], oracleContext)
-      ).to.be.equal(ethers.utils.parseEther("2"));
+      ).to.be.eql([ethers.utils.parseEther("2"), ethers.constants.Zero, ethers.constants.AddressZero]);
 
       const message_2 = await createSignedQuote(accounts[0], WPUNKS_ADDRESS, WPUNK_ID_2, ethers.utils.parseEther("4"));
       oracleContext = ethers.utils.defaultAbiCoder.encode(
@@ -167,7 +167,7 @@ describe("SimpleSignedPriceOracle", function () {
           [1, 1],
           oracleContext
         )
-      ).to.be.equal(ethers.utils.parseEther("3"));
+      ).to.be.eql([ethers.utils.parseEther("3"), ethers.constants.Zero, ethers.constants.AddressZero]);
 
       /* Validate for 2 collateral token IDs with quantity 2 and 3 respectively */
       expect(
@@ -178,7 +178,7 @@ describe("SimpleSignedPriceOracle", function () {
           [2, 3],
           oracleContext
         )
-      ).to.be.equal(ethers.utils.parseEther("3.2"));
+      ).to.be.eql([ethers.utils.parseEther("3.2"), ethers.constants.Zero, ethers.constants.AddressZero]);
     });
 
     it("fails on invalid token", async function () {

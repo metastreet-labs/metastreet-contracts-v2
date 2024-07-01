@@ -1987,7 +1987,7 @@ describe("Pool Basic", function () {
 
     const ticks = await sourceLiquidity(principal);
 
-    const repayment = await pool.quote(principal, duration, nft1.address, tokenId, ticks, "0x");
+    const [repayment, oracleFee] = await pool.quote(principal, duration, nft1.address, tokenId, ticks, "0x");
 
     const borrowTx = await pool
       .connect(accountBorrower)
@@ -2047,7 +2047,7 @@ describe("Pool Basic", function () {
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("10.082191780812159999"));
+      ).to.eql([FixedPoint.from("10.082191780812159999"), ethers.constants.Zero]);
 
       expect(
         await pool.quote(
@@ -2058,15 +2058,16 @@ describe("Pool Basic", function () {
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
         )
-      ).to.equal(FixedPoint.from("25.205479452030399994"));
+      ).to.eql([FixedPoint.from("25.205479452030399994"), ethers.constants.Zero]);
     });
 
     it("quotes repayment from various duration and rate ticks", async function () {
       let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
 
-      expect(await pool.quote(FixedPoint.from("25"), 7 * 86400, nft1.address, 123, ticks, "0x")).to.equal(
-        FixedPoint.from("25.066700775731730214")
-      );
+      expect(await pool.quote(FixedPoint.from("25"), 7 * 86400, nft1.address, 123, ticks, "0x")).to.eql([
+        FixedPoint.from("25.066700775731730214"),
+        ethers.constants.Zero,
+      ]);
     });
 
     it("fails on insufficient liquidity", async function () {
@@ -2131,7 +2132,7 @@ describe("Pool Basic", function () {
 
     it("originates loan", async function () {
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         nft1.address,
@@ -2230,7 +2231,7 @@ describe("Pool Basic", function () {
 
     it("originates loan with v1 delegation", async function () {
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         nft1.address,
@@ -2333,7 +2334,7 @@ describe("Pool Basic", function () {
 
     it("originates loan with v2 delegation", async function () {
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         nft1.address,
@@ -2446,7 +2447,7 @@ describe("Pool Basic", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         nft1.address,
@@ -3725,7 +3726,7 @@ describe("Pool Basic", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         nft1.address,
@@ -3810,7 +3811,7 @@ describe("Pool Basic", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         nft1.address,

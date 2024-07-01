@@ -30,7 +30,7 @@ contract TestPriceOracle is IPriceOracle {
         uint256[] memory,
         uint256[] memory,
         bytes calldata
-    ) external view returns (uint256) {
-        return _oraclePrice;
+    ) external view returns (uint256, uint256, address) {
+        return (_oraclePrice, 500, address(this));
     }
 }

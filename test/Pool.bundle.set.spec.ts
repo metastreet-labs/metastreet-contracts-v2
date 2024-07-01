@@ -299,7 +299,7 @@ describe("Pool Bundle Set Collection", function () {
       );
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         bundleCollateralWrapper.address,
@@ -397,7 +397,7 @@ describe("Pool Bundle Set Collection", function () {
       );
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         bundleCollateralWrapper.address,

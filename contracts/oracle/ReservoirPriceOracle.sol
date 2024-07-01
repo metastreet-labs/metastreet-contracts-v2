@@ -227,7 +227,7 @@ contract ReservoirPriceOracle is IPriceOracle {
         uint256[] memory,
         uint256[] memory,
         bytes calldata oracleContext
-    ) external view override returns (uint256) {
+    ) external view override returns (uint256, uint256, address) {
         /* Decode oracle context into Message */
         Message memory message = abi.decode(oracleContext, (Message));
 
@@ -239,6 +239,6 @@ contract ReservoirPriceOracle is IPriceOracle {
         /* Validate message currency is pool currency */
         if (oracleCurrency != currencyToken) revert InvalidCurrency();
 
-        return oraclePrice;
+        return (oraclePrice, 0, address(0));
     }
 }

@@ -321,7 +321,7 @@ describe("Pool Punk Ranged Collection", function () {
       );
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         punkCollateralWrapper.address,
@@ -419,7 +419,7 @@ describe("Pool Punk Ranged Collection", function () {
       );
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
         punkCollateralWrapper.address,

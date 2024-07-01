@@ -213,7 +213,7 @@ describe("Pool Basic (6 Decimals)", function () {
       expect(await pool.delegationRegistryV2()).to.equal(delegateRegistryV2.address);
     });
 
-    describe("#depositSharePrice1", async function () {
+    describe("#depositSharePrice", async function () {
       it("returns correct share price", async function () {
         await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
         expect(await pool.depositSharePrice(scaleTickEncode("1", 6))).to.equal(FixedPoint.from("1", 6));
@@ -2011,7 +2011,7 @@ describe("Pool Basic (6 Decimals)", function () {
         ? 124
         : 125;
     const ticks = await sourceLiquidity(principal);
-    const repayment = await pool.quote(principal, duration, nft1.address, tokenId, ticks, "0x");
+    const [repayment, oracleFee] = await pool.quote(principal, duration, nft1.address, tokenId, ticks, "0x");
 
     const borrowTx = await pool
       .connect(accountBorrower)
@@ -2061,7 +2061,7 @@ describe("Pool Basic (6 Decimals)", function () {
       await setupLiquidity();
     });
 
-    it("correctly quotes repayment1", async function () {
+    it("correctly quotes repayment", async function () {
       expect(
         await pool.quote(
           FixedPoint.from("10", 6),
@@ -2071,7 +2071,7 @@ describe("Pool Basic (6 Decimals)", function () {
           await sourceLiquidity(FixedPoint.from("10", 6)),
           "0x"
         )
-      ).to.equal(FixedPoint.from("10.082192", 6));
+      ).to.eql([FixedPoint.from("10.082192", 6), ethers.constants.Zero]);
 
       expect(
         await pool.quote(
@@ -2082,15 +2082,16 @@ describe("Pool Basic (6 Decimals)", function () {
           await sourceLiquidity(FixedPoint.from("25", 6)),
           "0x"
         )
-      ).to.equal(FixedPoint.from("25.205480", 6));
+      ).to.eql([FixedPoint.from("25.205480", 6), ethers.constants.Zero]);
     });
 
     it("quotes repayment from various duration and rate ticks", async function () {
       let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25", 6)));
 
-      expect(await pool.quote(FixedPoint.from("25", 6), 7 * 86400, nft1.address, 123, ticks, "0x")).to.equal(
-        FixedPoint.from("25.066732", 6)
-      );
+      expect(await pool.quote(FixedPoint.from("25", 6), 7 * 86400, nft1.address, 123, ticks, "0x")).to.eql([
+        FixedPoint.from("25.066732", 6),
+        ethers.constants.Zero,
+      ]);
     });
 
     it("fails on insufficient liquidity", async function () {
@@ -2155,7 +2156,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("originates loan", async function () {
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25", 6),
         30 * 86400,
         nft1.address,
@@ -2254,7 +2255,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("originates loan with v1 delegation", async function () {
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25", 6),
         30 * 86400,
         nft1.address,
@@ -2357,7 +2358,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("originates loan with v2 delegation", async function () {
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25", 6),
         30 * 86400,
         nft1.address,
@@ -2470,7 +2471,7 @@ describe("Pool Basic (6 Decimals)", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25", 6),
         30 * 86400,
         nft1.address,
@@ -3743,7 +3744,7 @@ describe("Pool Basic (6 Decimals)", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25", 6),
         30 * 86400,
         nft1.address,
@@ -3831,7 +3832,7 @@ describe("Pool Basic (6 Decimals)", function () {
       await pool.setAdminFeeRate(500);
 
       /* Quote repayment */
-      const repayment = await pool.quote(
+      const [repayment, oracleFee] = await pool.quote(
         FixedPoint.from("25", 6),
         30 * 86400,
         nft1.address,

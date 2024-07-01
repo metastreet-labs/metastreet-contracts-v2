@@ -1904,7 +1904,7 @@ describe("Pool Tokenized", function () {
 
     const ticks = await sourceLiquidity(principal);
 
-    const repayment = await pool.quote(principal, duration, nft1.address, tokenId, ticks, "0x");
+    const [repayment, oracleFee] = await pool.quote(principal, duration, nft1.address, tokenId, ticks, "0x");
 
     const borrowTx = await pool
       .connect(accountBorrower)
