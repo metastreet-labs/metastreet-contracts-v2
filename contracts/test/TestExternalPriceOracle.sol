@@ -19,7 +19,7 @@ contract TestExternalPriceOracle is ExternalPriceOracle {
         uint256[] memory tokenIdQuantities,
         bytes calldata oracleContext,
         bytes memory /* Dummy variable to avoid same function sig as ExternalPriceOracle.price() */
-    ) external view returns (uint256) {
+    ) external view returns (uint256, uint256, address) {
         return ExternalPriceOracle.price(collateralToken, currencyToken, tokenIds, tokenIdQuantities, oracleContext);
     }
 }

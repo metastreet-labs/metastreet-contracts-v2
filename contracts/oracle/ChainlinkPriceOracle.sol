@@ -133,7 +133,7 @@ contract ChainlinkPriceOracle is IPriceOracle {
         uint256[] memory,
         uint256[] memory,
         bytes calldata
-    ) external view override returns (uint256) {
+    ) external view override returns (uint256, uint256, address) {
         /* Get floor price in oracle currency, reverts if feed does not exist */
         (, int256 floorPrice, , , ) = _nftPriceOracle.latestRoundData();
 
@@ -141,6 +141,10 @@ contract ChainlinkPriceOracle is IPriceOracle {
         if (floorPrice <= 0) revert InvalidFloorPrice();
 
         /* Return floor price denominated in given currency token */
-        return Math.mulDiv(uint256(floorPrice), FIXED_POINT_SCALE, _exchangeRate(currencyToken)) / FIXED_POINT_SCALE;
+        return (
+            Math.mulDiv(uint256(floorPrice), FIXED_POINT_SCALE, _exchangeRate(currencyToken)) / FIXED_POINT_SCALE,
+            0,
+            address(0)
+        );
     }
 }
