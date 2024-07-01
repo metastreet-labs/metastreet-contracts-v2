@@ -80,7 +80,7 @@ contract ExternalPriceOracle is PriceOracle {
         uint256[] memory tokenIds,
         uint256[] memory tokenIdQuantities,
         bytes calldata oracleContext
-    ) public view override returns (uint256) {
+    ) public view override returns (uint256, uint256, address) {
         /* Cache price oracle address */
         address priceOracle_ = priceOracle();
 
@@ -94,6 +94,6 @@ contract ExternalPriceOracle is PriceOracle {
                     tokenIdQuantities,
                     oracleContext
                 )
-                : 0;
+                : (0, 0, address(0));
     }
 }
