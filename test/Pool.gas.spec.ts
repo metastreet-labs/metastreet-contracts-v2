@@ -648,8 +648,8 @@ describe("Pool Gas", function () {
     });
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("15"), 10, 334000],
-      [FixedPoint.from("25"), 16, 476000],
+      [FixedPoint.from("15"), 10, 338000],
+      [FixedPoint.from("25"), 16, 480000],
     ]) {
       it(`repay (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
@@ -744,8 +744,8 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 356000],
-      [FixedPoint.from("250"), 16, 498000],
+      [FixedPoint.from("150"), 10, 360000],
+      [FixedPoint.from("250"), 16, 502000],
     ]) {
       it(`repay (bundle of 10, ${numTicks} ticks)`, async function () {
         /* Mint bundle of 10 */
@@ -798,8 +798,8 @@ describe("Pool Gas", function () {
     });
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("15"), 10, 475000],
-      [FixedPoint.from("25"), 16, 686000],
+      [FixedPoint.from("15"), 10, 478000],
+      [FixedPoint.from("25"), 16, 690000],
     ]) {
       it(`refinance (single, ${numTicks} ticks)`, async function () {
         /* Source liquidity */
@@ -829,8 +829,8 @@ describe("Pool Gas", function () {
     }
 
     for (const [principal, numTicks, maxGas] of [
-      [FixedPoint.from("150"), 10, 507000],
-      [FixedPoint.from("250"), 16, 719000],
+      [FixedPoint.from("150"), 10, 510000],
+      [FixedPoint.from("250"), 16, 722000],
     ]) {
       it(`refinance (bundle of 10, ${numTicks} ticks)`, async function () {
         /* Mint bundle of 10 */

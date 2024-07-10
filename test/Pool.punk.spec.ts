@@ -849,7 +849,7 @@ describe("Pool Punks", function () {
 
     it("refinance punk loan at maturity with admin fee and same principal", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, ethers.constants.AddressZero, 0);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash, punkTokenId, context] = await createActivePunkLoan(FixedPoint.from("25"));
@@ -916,7 +916,7 @@ describe("Pool Punks", function () {
 
     it("punk loan fails on refinance and refinance in same block with same loan receipt fields", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash, punkTokenId] = await createActivePunkLoan(FixedPoint.from("25"));
@@ -949,7 +949,7 @@ describe("Pool Punks", function () {
     it("punk loan fails on borrow and refinance in same block with same loan receipt fields", async function () {
       /* setup liquidity and borrow */
       await setupLiquidity();
-      pool.setAdminFeeRate(500);
+      pool.setAdminFee(500);
       [loanReceipt, loanReceiptHash, punkTokenId, context] = await createActivePunkLoan(FixedPoint.from("25"));
 
       /* Workaround to skip borrow() in beforeEach */
@@ -1016,7 +1016,7 @@ describe("Pool Punks", function () {
     it("punk loan fails on invalid caller", async function () {
       /* setup liquidity and borrow */
       await setupLiquidity();
-      pool.setAdminFeeRate(500);
+      pool.setAdminFee(500);
       [loanReceipt, loanReceiptHash] = await createActivePunkLoan(FixedPoint.from("25"));
 
       await expect(
@@ -1036,7 +1036,7 @@ describe("Pool Punks", function () {
     it("punk loan fails on invalid loan receipt", async function () {
       /* setup liquidity and borrow */
       await setupLiquidity();
-      pool.setAdminFeeRate(500);
+      pool.setAdminFee(500);
       [loanReceipt, loanReceiptHash] = await createActivePunkLoan(FixedPoint.from("25"));
 
       await expect(
@@ -1055,7 +1055,7 @@ describe("Pool Punks", function () {
 
     it("punk loan fails on repaid loan", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActivePunkLoan(FixedPoint.from("25"));
@@ -1078,7 +1078,7 @@ describe("Pool Punks", function () {
 
     it("punk loan fails on liquidated loan", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActivePunkLoan(FixedPoint.from("25"));

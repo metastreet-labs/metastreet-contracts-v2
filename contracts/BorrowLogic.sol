@@ -189,18 +189,22 @@ library BorrowLogic {
     /**
      * @dev Helper function to calculated prorated repayment
      * @param loanReceipt Decoded loan receipt
-     * @return repayment amount in currency tokens
-     * @return proration based on elapsed duration
+     * @return repayment Repayment amount in currency tokens
+     * @return adminFee Admin fee amount in currency tokens
+     * @return proration Proration based on elapsed duration
      */
     function _prorateRepayment(
         LoanReceipt.LoanReceiptV2 memory loanReceipt
-    ) internal view returns (uint256 repayment, uint256 proration) {
+    ) internal view returns (uint256 repayment, uint256 adminFee, uint256 proration) {
         /* Minimum of proration and 1.0 */
         proration = Math.min(
             ((block.timestamp - (loanReceipt.maturity - loanReceipt.duration)) * LiquidityLogic.FIXED_POINT_SCALE) /
                 loanReceipt.duration,
             LiquidityLogic.FIXED_POINT_SCALE
         );
+
+        /* Compute prorated admin fee */
+        adminFee = (loanReceipt.adminFee * proration) / LiquidityLogic.FIXED_POINT_SCALE;
 
         /* Compute repayment using prorated interest */
         repayment =
@@ -299,14 +303,16 @@ library BorrowLogic {
     /**
      * @dev Helper function to handle repay accounting
      * @param self Pool storage
+     * @param feeShareStorage Fee share storage
      * @param encodedLoanReceipt Encoded loan receipt
-     * @return Repayment amount in currency tokens, decoded loan receipt, loan
-     * receipt hash
+     * @return Repayment amount in currency tokens, fee share amount in
+     * currency tokens, decoded loan receipt, loan receipt hash
      */
     function _repay(
         Pool.PoolStorage storage self,
+        Pool.FeeShareStorage storage feeShareStorage,
         bytes calldata encodedLoanReceipt
-    ) external returns (uint256, LoanReceipt.LoanReceiptV2 memory, bytes32) {
+    ) external returns (uint256, uint256, LoanReceipt.LoanReceiptV2 memory, bytes32) {
         /* Compute loan receipt hash */
         bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
 
@@ -322,8 +328,8 @@ library BorrowLogic {
         /* Validate caller is borrower */
         if (msg.sender != loanReceipt.borrower) revert IPool.InvalidCaller();
 
-        /* Compute proration and repayment using prorated interest */
-        (uint256 repayment, uint256 proration) = _prorateRepayment(loanReceipt);
+        /* Compute prorated repayment using prorated interest, prorated admin fee and proration */
+        (uint256 repayment, uint256 adminFee, uint256 proration) = _prorateRepayment(loanReceipt);
 
         /* Compute elapsed time since loan origination */
         uint64 elapsed = uint64(block.timestamp + loanReceipt.duration - loanReceipt.maturity);
@@ -345,13 +351,18 @@ library BorrowLogic {
             );
         }
 
-        /* Update admin fee total balance with prorated admin fee */
-        self.adminFeeBalance += (loanReceipt.adminFee * proration) / LiquidityLogic.FIXED_POINT_SCALE;
+        /* Compute fee share amount */
+        uint256 feeShareAmount = (adminFee == 0)
+            ? 0
+            : (adminFee * feeShareStorage.split) / LiquidityLogic.BASIS_POINTS_SCALE;
+
+        /* Update admin fee total balance with prorated admin fee less fee share */
+        self.adminFeeBalance += adminFee - feeShareAmount;
 
         /* Mark loan status repaid */
         self.loans[loanReceiptHash] = Pool.LoanStatus.Repaid;
 
-        return (repayment, loanReceipt, loanReceiptHash);
+        return (repayment, feeShareAmount, loanReceipt, loanReceiptHash);
     }
 
     /**
@@ -439,28 +450,47 @@ library BorrowLogic {
     }
 
     /**
-     * @dev Helper function to set admin fee rate
+     * @dev Helper function to set admin fee
      * @param self Pool storage
-     * @param rate Rate is the admin fee in basis points
+     * @param feeShareStorage Fee share storage
+     * @param rate Admin fee rate in basis points
+     * @param feeShareRecipient Recipient of fee share
+     * @param feeShareSplit Fee share split in basis points
      */
-    function _setAdminFeeRate(Pool.PoolStorage storage self, uint32 rate) external {
+    function _setAdminFee(
+        Pool.PoolStorage storage self,
+        Pool.FeeShareStorage storage feeShareStorage,
+        uint32 rate,
+        address feeShareRecipient,
+        uint16 feeShareSplit
+    ) external {
+        /* Validate caller is pool admin */
         if (msg.sender != self.admin) revert IPool.InvalidCaller();
+        /* Validate rate and fee share split */
         if (rate >= LiquidityLogic.BASIS_POINTS_SCALE) revert IPool.InvalidParameters();
+        if (feeShareSplit > LiquidityLogic.BASIS_POINTS_SCALE) revert IPool.InvalidParameters();
 
         self.adminFeeRate = rate;
+
+        feeShareStorage.recipient = feeShareRecipient;
+        feeShareStorage.split = feeShareSplit;
     }
 
     /**
      * @dev Helper function to withdraw admin fees
      * @param self Pool storage
      * @param recipient Recipient account
-     * @param scaledAmount Amount to withdraw
+     * @return Withdraw amount
      */
-    function _withdrawAdminFees(Pool.PoolStorage storage self, address recipient, uint256 scaledAmount) external {
+    function _withdrawAdminFees(Pool.PoolStorage storage self, address recipient) external returns (uint256) {
         if (msg.sender != self.admin) revert IPool.InvalidCaller();
-        if (recipient == address(0) || scaledAmount > self.adminFeeBalance) revert IPool.InvalidParameters();
+        if (recipient == address(0)) revert IPool.InvalidParameters();
+
+        uint256 amount = self.adminFeeBalance;
 
         /* Update admin fees balance */
-        self.adminFeeBalance -= scaledAmount;
+        self.adminFeeBalance = 0;
+
+        return amount;
     }
 }

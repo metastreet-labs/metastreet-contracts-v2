@@ -499,15 +499,19 @@ describe("PoolFactory", function () {
       expect(await pool2.adminFeeRate()).to.equal(0);
 
       /* Set admin fee rate */
-      const setAdminFeeRateTx1 = await poolFactory.setAdminFeeRate(pool1.address, 500);
-      const setAdminFeeRateTx2 = await poolFactory.setAdminFeeRate(pool2.address, 700);
+      const setAdminFeeRateTx1 = await poolFactory.setAdminFee(pool1.address, 500, ethers.constants.AddressZero, 0);
+      const setAdminFeeRateTx2 = await poolFactory.setAdminFee(pool2.address, 700, accounts[2].address, 500);
 
       /* Validate events */
-      await expectEvent(setAdminFeeRateTx1, pool1, "AdminFeeRateUpdated", {
+      await expectEvent(setAdminFeeRateTx1, pool1, "AdminFeeUpdated", {
         rate: 500,
+        feeShareRecipient: ethers.constants.AddressZero,
+        feeShareSplit: 0,
       });
-      await expectEvent(setAdminFeeRateTx2, pool2, "AdminFeeRateUpdated", {
+      await expectEvent(setAdminFeeRateTx2, pool2, "AdminFeeUpdated", {
         rate: 700,
+        feeShareRecipient: accounts[2].address,
+        feeShareSplit: 500,
       });
 
       /* Validate state */
@@ -515,11 +519,13 @@ describe("PoolFactory", function () {
       expect(await pool2.adminFeeRate()).to.equal(700);
 
       /* Set admin fee rate */
-      const setAdminFeeRateTx3 = await poolFactory.setAdminFeeRate(pool1.address, 0);
+      const setAdminFeeRateTx3 = await poolFactory.setAdminFee(pool1.address, 0, ethers.constants.AddressZero, 0);
 
       /* Validate events */
-      await expectEvent(setAdminFeeRateTx3, pool1, "AdminFeeRateUpdated", {
+      await expectEvent(setAdminFeeRateTx3, pool1, "AdminFeeUpdated", {
         rate: 0,
+        feeShareRecipient: ethers.constants.AddressZero,
+        feeShareSplit: 0,
       });
 
       /* Validate state */
@@ -527,23 +533,24 @@ describe("PoolFactory", function () {
     });
 
     it("fails on invalid pool address", async function () {
-      await expect(poolFactory.setAdminFeeRate(poolFactory.address, 700)).to.be.revertedWithCustomError(
-        poolFactory,
-        "InvalidPool"
-      );
+      await expect(
+        poolFactory.setAdminFee(poolFactory.address, 700, ethers.constants.AddressZero, 0)
+      ).to.be.revertedWithCustomError(poolFactory, "InvalidPool");
     });
 
     it("fails on invalid caller", async function () {
-      await expect(poolFactory.connect(accounts[1]).setAdminFeeRate(pool2.address, 700)).to.be.revertedWith(
-        "Ownable: caller is not the owner"
-      );
+      await expect(
+        poolFactory.connect(accounts[1]).setAdminFee(pool2.address, 700, ethers.constants.AddressZero, 0)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
     it("fails on invalid rate", async function () {
-      await expect(poolFactory.setAdminFeeRate(pool2.address, 10000)).to.be.revertedWithCustomError(
-        pool2,
-        "InvalidParameters"
-      );
+      await expect(
+        poolFactory.setAdminFee(pool2.address, 10000, ethers.constants.AddressZero, 0)
+      ).to.be.revertedWithCustomError(pool2, "InvalidParameters");
+      await expect(
+        poolFactory.setAdminFee(pool2.address, 500, ethers.constants.AddressZero, 10001)
+      ).to.be.revertedWithCustomError(pool2, "InvalidParameters");
     });
   });
 });
