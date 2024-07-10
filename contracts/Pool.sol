@@ -102,10 +102,20 @@ abstract contract Pool is
 
     /**
      * @custom:storage-location erc7201:pool.delegateStorage
+     * @param delegates Mapping of collateralToken to token ID to Delegate
      */
     struct DelegateStorage {
-        /* Mapping of collateralToken to token ID to Delegate */
         mapping(address => mapping(uint256 => Delegate)) delegates;
+    }
+
+    /**
+     * @custom:storage-location pool.revenueShareStorage
+     * @param recipient Revenue share recipient
+     * @param split Revenue share of admin fee in basis points
+     */
+    struct RevenueShareStorage {
+        address recipient;
+        uint16 split;
     }
 
     /**
@@ -173,6 +183,13 @@ abstract contract Pool is
      */
     bytes32 internal constant DELEGATE_STORAGE_LOCATION =
         0xf0e5094ebd597f2042580340ce53d1b15e5b64e0d8be717ecde51dd37c619300;
+
+    /**
+     * @notice Revenue share storage slot
+     * @dev keccak256(abi.encode(uint256(keccak256("pool.revenueShareStorage")) - 1)) & ~bytes32(uint256(0xff));
+     */
+    bytes32 internal constant REVENUE_SHARE_STORAGE_LOCATION =
+        0x9fb5a23734b8ccfcf8d5c3bc601ef9afeba65f0b771c1531012ba7cad9a9ad00;
 
     /**************************************************************************/
     /* State */
@@ -329,6 +346,14 @@ abstract contract Pool is
      */
     function adminFeeBalance() external view returns (uint256) {
         return _unscale(_storage.adminFeeBalance, false);
+    }
+
+    /**
+     * @notice Get revenue share
+     * @return RevenueShareStorage
+     */
+    function revenueShare() external pure returns (RevenueShareStorage memory) {
+        return _getRevenueShareStorage();
     }
 
     /**
@@ -501,6 +526,16 @@ abstract contract Pool is
     function _getDelegateStorage() private pure returns (DelegateStorage storage $) {
         assembly {
             $.slot := DELEGATE_STORAGE_LOCATION
+        }
+    }
+
+    /**
+     * @notice Get reference to ERC-7201 revenue share storage
+     * @return $ Reference to revenue share storage
+     */
+    function _getRevenueShareStorage() private pure returns (RevenueShareStorage storage $) {
+        assembly {
+            $.slot := REVENUE_SHARE_STORAGE_LOCATION
         }
     }
 
@@ -1024,31 +1059,46 @@ abstract contract Pool is
     /**
      * @notice Set the admin fee rate
      *
-     * Emits a {AdminFeeRateUpdated} event.
+     * Emits a {AdminFeeUpdated} event.
      *
      * @param rate Rate is the admin fee in basis points
+     * @param revenueShareRecipient Recipient of revenue share
+     * @param revenueShareSplit Split is the share of admin fee in basis points
      */
-    function setAdminFeeRate(uint32 rate) external {
-        BorrowLogic._setAdminFeeRate(_storage, rate);
+    function setAdminFee(uint32 rate, address revenueShareRecipient, uint16 revenueShareSplit) external {
+        BorrowLogic._setAdminFee(_storage, _getRevenueShareStorage(), rate, revenueShareRecipient, revenueShareSplit);
 
-        emit AdminFeeRateUpdated(rate);
+        emit AdminFeeUpdated(rate, revenueShareRecipient, revenueShareSplit);
     }
 
     /**
      * @notice Withdraw admin fees
      *
+     * @param recipient Recipient of admin fee less revenue share
      * Emits a {AdminFeesWithdrawn} event.
      *
-     * @param recipient Recipient account
-     * @param amount Amount to withdraw
      */
-    function withdrawAdminFees(address recipient, uint256 amount) external nonReentrant {
-        BorrowLogic._withdrawAdminFees(_storage, recipient, _scale(amount));
+    function withdrawAdminFees(address recipient) external nonReentrant {
+        RevenueShareStorage memory revenueShareStorage = _getRevenueShareStorage();
+
+        /* Compute admin and revenue share amounts and update admin fee balance */
+        (uint256 adminAmount, uint256 revenueShareAmount) = BorrowLogic._withdrawAdminFees(
+            _storage,
+            recipient,
+            revenueShareStorage.recipient,
+            revenueShareStorage.split,
+            _unscale(_storage.adminFeeBalance, false)
+        );
+
+        /* Transfer cash from Pool to revenue share recipient */
+        if (revenueShareStorage.recipient != address(0)) {
+            _storage.currencyToken.safeTransfer(revenueShareStorage.recipient, revenueShareAmount);
+        }
 
         /* Transfer cash from Pool to recipient */
-        _storage.currencyToken.safeTransfer(recipient, amount);
+        _storage.currencyToken.safeTransfer(recipient, adminAmount);
 
-        emit AdminFeesWithdrawn(recipient, amount);
+        emit AdminFeesWithdrawn(recipient, adminAmount, revenueShareStorage.recipient, revenueShareAmount);
     }
 
     /******************************************************/

@@ -164,12 +164,27 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
      * @notice Set pool admin fee rate
      * @param pool Pool address
      * @param rate Rate is the admin fee in basis points
+     * @param revenueShareRecipient Recipient of revenue share
+     * @param revenueShareSplit Split is the share of admin fee in basis points
      */
-    function setAdminFeeRate(address pool, uint32 rate) external onlyOwner {
+    function setAdminFee(
+        address pool,
+        uint32 rate,
+        address revenueShareRecipient,
+        uint16 revenueShareSplit
+    ) external onlyOwner {
         /* Validate pool */
         if (!isPool(pool)) revert InvalidPool();
 
-        Address.functionCall(pool, abi.encodeWithSignature("setAdminFeeRate(uint32)", rate));
+        Address.functionCall(
+            pool,
+            abi.encodeWithSignature(
+                "setAdminFee(uint32,address,uint16)",
+                rate,
+                revenueShareRecipient,
+                revenueShareSplit
+            )
+        );
     }
 
     /**

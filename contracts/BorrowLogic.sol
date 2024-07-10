@@ -439,28 +439,62 @@ library BorrowLogic {
     }
 
     /**
-     * @dev Helper function to set admin fee rate
+     * @dev Helper function to set admin fee
      * @param self Pool storage
+     * @param revenueShareStorage Revenue share storage
      * @param rate Rate is the admin fee in basis points
+     * @param revenueShareRecipient Recipient of revenue share
+     * @param revenueShareSplit Split is the share of admin fee in basis points
      */
-    function _setAdminFeeRate(Pool.PoolStorage storage self, uint32 rate) external {
+    function _setAdminFee(
+        Pool.PoolStorage storage self,
+        Pool.RevenueShareStorage storage revenueShareStorage,
+        uint32 rate,
+        address revenueShareRecipient,
+        uint16 revenueShareSplit
+    ) external {
         if (msg.sender != self.admin) revert IPool.InvalidCaller();
         if (rate >= LiquidityLogic.BASIS_POINTS_SCALE) revert IPool.InvalidParameters();
+        if (revenueShareSplit >= LiquidityLogic.BASIS_POINTS_SCALE) revert IPool.InvalidParameters();
 
         self.adminFeeRate = rate;
+
+        revenueShareStorage.recipient = revenueShareRecipient;
+        revenueShareStorage.split = revenueShareSplit;
     }
 
     /**
      * @dev Helper function to withdraw admin fees
      * @param self Pool storage
-     * @param recipient Recipient account
-     * @param scaledAmount Amount to withdraw
+     * @param recipient Recipient of admin fees less revenue share
+     * @param revenueShareRecipient Revenue share recipient
+     * @param revenueShareSplit Revenue share split
+     * @param amount Admin fee balance
+     * @return Recipient amount, revenue share amount
      */
-    function _withdrawAdminFees(Pool.PoolStorage storage self, address recipient, uint256 scaledAmount) external {
+    function _withdrawAdminFees(
+        Pool.PoolStorage storage self,
+        address recipient,
+        address revenueShareRecipient,
+        uint16 revenueShareSplit,
+        uint256 amount
+    ) external returns (uint256, uint256) {
+        /* Validate caller is pool admin */
         if (msg.sender != self.admin) revert IPool.InvalidCaller();
-        if (recipient == address(0) || scaledAmount > self.adminFeeBalance) revert IPool.InvalidParameters();
+
+        /* Validate recipient is not zero address */
+        if (recipient == address(0)) revert IPool.InvalidParameters();
+
+        /* Compute admin fee and revenue share amounts */
+        uint256 revenueShareAmount;
+        if (revenueShareRecipient != address(0)) {
+            revenueShareAmount = (amount * revenueShareSplit) / LiquidityLogic.BASIS_POINTS_SCALE;
+            amount -= revenueShareAmount;
+        }
 
         /* Update admin fees balance */
-        self.adminFeeBalance -= scaledAmount;
+        self.adminFeeBalance = 0;
+
+        return (amount, revenueShareAmount);
     }
 }

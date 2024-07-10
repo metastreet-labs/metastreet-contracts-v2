@@ -213,7 +213,7 @@ describe("Pool Basic (6 Decimals)", function () {
       expect(await pool.delegationRegistryV2()).to.equal(delegateRegistryV2.address);
     });
 
-    describe("#depositSharePrice1", async function () {
+    describe("#depositSharePrice", async function () {
       it("returns correct share price", async function () {
         await pool.connect(accountDepositors[0]).deposit(scaleTickEncode("1", 6), FixedPoint.from("1", 6), 0);
         expect(await pool.depositSharePrice(scaleTickEncode("1", 6))).to.equal(FixedPoint.from("1", 6));
@@ -2061,7 +2061,7 @@ describe("Pool Basic (6 Decimals)", function () {
       await setupLiquidity();
     });
 
-    it("correctly quotes repayment1", async function () {
+    it("correctly quotes repayment", async function () {
       expect(
         await pool.quote(
           FixedPoint.from("10", 6),
@@ -2467,7 +2467,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("originates loan with admin fee", async function () {
       /* Set admin fee */
-      await pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Quote repayment */
       const repayment = await pool.quote(
@@ -2745,7 +2745,7 @@ describe("Pool Basic (6 Decimals)", function () {
     });
 
     it("repays with admin fee", async function () {
-      pool.setAdminFeeRate(500);
+      pool.setAdminFee(500);
 
       const borrowTx = await pool
         .connect(accountBorrower)
@@ -3028,7 +3028,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("fails on same block repayment", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       const [loanReceipt, _] = await createActiveLoan(FixedPoint.from("25", 6));
@@ -3103,7 +3103,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("refinance loan at maturity with admin fee and same principal", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25", 6));
@@ -3168,7 +3168,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("refinance loan at maturity with admin fee and smaller principal (1,000,000 wei less)", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25", 6));
@@ -3233,7 +3233,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("refinance loan at maturity with admin fee and bigger principal (1,000,000 wei more)", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25", 6));
@@ -3298,7 +3298,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("fails on refinance and refinance in same block with same loan receipt fields", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25", 6));
@@ -3330,7 +3330,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("fails on borrow and refinance in same block with same loan receipt fields", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25", 6));
@@ -3403,7 +3403,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("fails on invalid caller", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25", 6));
@@ -3424,7 +3424,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("fails on invalid loan receipt", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25", 6));
@@ -3445,7 +3445,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("fails on repaid loan", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25", 6));
@@ -3467,7 +3467,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("fails on liquidated loan", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25", 6));
@@ -3708,11 +3708,13 @@ describe("Pool Basic (6 Decimals)", function () {
       const rate = 500;
 
       /* Set admin fee rate */
-      const tx = await pool.setAdminFeeRate(rate);
+      const tx = await pool.setAdminFee(rate, accounts[2].address, 500);
 
       /* Validate events */
-      await expectEvent(tx, pool, "AdminFeeRateUpdated", {
+      await expectEvent(tx, pool, "AdminFeeUpdated", {
         rate: rate,
+        revenueShareRecipient: accounts[2].address,
+        split: 500,
       });
 
       /* Validate rate was successfully set */
@@ -3720,13 +3722,16 @@ describe("Pool Basic (6 Decimals)", function () {
     });
 
     it("fails on invalid value", async function () {
-      await expect(pool.setAdminFeeRate(10000)).to.be.revertedWithCustomError(pool, "InvalidParameters");
+      await expect(pool.setAdminFee(10000, accounts[2].address, 500)).to.be.revertedWithCustomError(
+        pool,
+        "InvalidParameters"
+      );
     });
 
     it("fails on invalid caller", async function () {
       const rate = 500;
 
-      await expect(pool.connect(accounts[1]).setAdminFeeRate(rate)).to.be.revertedWithCustomError(
+      await expect(pool.connect(accounts[1]).setAdminFee(rate, accounts[2].address, 500)).to.be.revertedWithCustomError(
         pool,
         "InvalidCaller"
       );
@@ -3740,7 +3745,7 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("withdraws admin fees with repayment at loan maturity", async function () {
       /* set admin fee */
-      await pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, ethers.constants.AddressZero, 0);
 
       /* Quote repayment */
       const repayment = await pool.quote(
@@ -3805,7 +3810,7 @@ describe("Pool Basic (6 Decimals)", function () {
       const startingBalance = await tok1.balanceOf(accounts[1].address);
 
       /* Withdraw */
-      const withdrawTx = await pool.withdrawAdminFees(accounts[1].address, adminFee);
+      const withdrawTx = await pool.withdrawAdminFees(accounts[1].address);
 
       /* Validate events */
       await expectEvent(withdrawTx, tok1, "Transfer", {
@@ -3815,8 +3820,10 @@ describe("Pool Basic (6 Decimals)", function () {
       });
 
       await expectEvent(withdrawTx, pool, "AdminFeesWithdrawn", {
-        account: accounts[1].address,
-        amount: adminFee,
+        recipient: accounts[1].address,
+        recipientAmount: adminFee,
+        revenueShareRecipient: ethers.constants.AddressZero,
+        revenueShareAmount: 0,
       });
 
       /* Validate balance in account */
@@ -3826,9 +3833,121 @@ describe("Pool Basic (6 Decimals)", function () {
       expect(await pool.adminFeeBalance()).to.equal(0);
     });
 
+    it("withdraws admin fees with repayment at loan maturity with revenue share", async function () {
+      /* set admin fee */
+      await pool.setAdminFee(500, accounts[2].address, 500);
+
+      /* Quote repayment */
+      const repayment = await pool.quote(
+        FixedPoint.from("25", 6),
+        30 * 86400,
+        nft1.address,
+        123,
+        await sourceLiquidity(FixedPoint.from("25", 6)),
+        "0x"
+      );
+
+      /* Borrow */
+      const borrowTx = await pool
+        .connect(accountBorrower)
+        .borrow(
+          FixedPoint.from("25", 6),
+          30 * 86400,
+          nft1.address,
+          123,
+          FixedPoint.from("26", 6),
+          await sourceLiquidity(FixedPoint.from("25", 6)),
+          "0x"
+        );
+
+      /* Extract loan receipt */
+      const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
+      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+
+      /* Validate loan receipt */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      /* Sum used and pending totals from node receipts */
+      let totalUsed = ethers.constants.Zero;
+      let totalPending = ethers.constants.Zero;
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+        totalUsed = totalUsed.add(nodeReceipt.used);
+        totalPending = totalPending.add(nodeReceipt.pending);
+      }
+
+      /* Calculate approx admin fee */
+      let adminFee = ethers.BigNumber.from(await pool.adminFeeRate())
+        .mul(repayment.sub(FixedPoint.from("25", 6)))
+        .div(10000);
+
+      /* Validate used and pending totals */
+      expect(totalUsed).to.equal(FixedPoint.from("25"));
+      expect(totalPending.div(SCALE)).to.closeTo(repayment.sub(adminFee), "1");
+
+      /* Validate loan state */
+      expect(await pool.loans(loanReceiptHash)).to.equal(1);
+
+      /* Repay */
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await pool.connect(accountBorrower).repay(loanReceipt);
+
+      /* Validate total adminFee balance */
+      expect(await pool.adminFeeBalance()).to.closeTo(adminFee, "1");
+
+      /* Use exact admin fee to withdraw */
+      adminFee = await pool.adminFeeBalance();
+
+      const startingBalance = await tok1.balanceOf(accounts[1].address);
+
+      /* Withdraw */
+      const withdrawTx = await pool.withdrawAdminFees(accounts[1].address);
+
+      /* Revenue share */
+      const revenueShare = adminFee.mul(500).div(10000);
+      const recipientAmount = adminFee.sub(revenueShare);
+
+      /* Validate events */
+      await expectEvent(
+        withdrawTx,
+        tok1,
+        "Transfer",
+        {
+          from: pool.address,
+          to: accounts[2].address,
+          value: revenueShare,
+        },
+        0
+      );
+
+      await expectEvent(
+        withdrawTx,
+        tok1,
+        "Transfer",
+        {
+          from: pool.address,
+          to: accounts[1].address,
+          value: recipientAmount,
+        },
+        1
+      );
+
+      await expectEvent(withdrawTx, pool, "AdminFeesWithdrawn", {
+        recipient: accounts[1].address,
+        recipientAmount: recipientAmount,
+        revenueShareRecipient: accounts[2].address,
+        revenueShareAmount: revenueShare,
+      });
+
+      /* Validate balance in account */
+      expect(await tok1.balanceOf(accounts[1].address)).to.equal(startingBalance.add(recipientAmount));
+
+      /* Validate total admin fee balance */
+      expect(await pool.adminFeeBalance()).to.equal(0);
+    });
+
     it("withdraws admin fees with repayment after one third of loan maturity", async function () {
       /* Set admin fee */
-      await pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, ethers.constants.AddressZero, 0);
 
       /* Quote repayment */
       const repayment = await pool.quote(
@@ -3878,12 +3997,14 @@ describe("Pool Basic (6 Decimals)", function () {
       expect(await pool.adminFeeBalance()).to.equal(adminFee);
 
       /* Withdraw */
-      const withdrawTx = await pool.withdrawAdminFees(accounts[1].address, adminFee);
+      const withdrawTx = await pool.withdrawAdminFees(accounts[1].address);
 
       /* Validate events */
       await expectEvent(withdrawTx, pool, "AdminFeesWithdrawn", {
-        account: accounts[1].address,
-        amount: adminFee,
+        recipient: accounts[1].address,
+        recipientAmount: adminFee,
+        revenueShareRecipient: ethers.constants.AddressZero,
+        revenueShareAmount: 0,
       });
 
       /* Validate total admin fee balance */
@@ -3892,36 +4013,25 @@ describe("Pool Basic (6 Decimals)", function () {
 
     it("fails on invalid caller", async function () {
       /* Set admin fee */
-      await pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create repaid loan */
       await createRepaidLoan(FixedPoint.from("25", 6));
 
-      await expect(
-        pool.connect(accounts[1]).withdrawAdminFees(accounts[1].address, FixedPoint.from("0.00001"))
-      ).to.be.revertedWithCustomError(pool, "InvalidCaller");
+      await expect(pool.connect(accounts[1]).withdrawAdminFees(accounts[1].address)).to.be.revertedWithCustomError(
+        pool,
+        "InvalidCaller"
+      );
     });
 
     it("fails on invalid address", async function () {
       /* Set admin fee */
-      await pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create repaid loan */
       await createRepaidLoan(FixedPoint.from("25", 6));
 
-      await expect(
-        pool.withdrawAdminFees(ethers.constants.AddressZero, FixedPoint.from("0.00001"))
-      ).to.be.revertedWithCustomError(pool, "InvalidParameters");
-    });
-
-    it("fails on parameter out of bounds", async function () {
-      /* set admin fee */
-      await pool.setAdminFeeRate(500);
-
-      /* Create repaid loan */
-      await createRepaidLoan(FixedPoint.from("25", 6));
-
-      await expect(pool.withdrawAdminFees(accounts[1].address, FixedPoint.from("10", 6))).to.be.revertedWithCustomError(
+      await expect(pool.withdrawAdminFees(ethers.constants.AddressZero)).to.be.revertedWithCustomError(
         pool,
         "InvalidParameters"
       );

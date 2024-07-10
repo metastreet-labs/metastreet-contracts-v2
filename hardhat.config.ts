@@ -8,6 +8,50 @@ import "hardhat-contract-sizer";
 
 dotenv.config();
 
+const overrides = Object.fromEntries(
+  fs.readdirSync("contracts/configurations").map((filename) => [
+    `contracts/configurations/${filename}`,
+    {
+      version: "0.8.20",
+      settings: {
+        viaIR: true,
+        optimizer: {
+          enabled: true,
+          runs: 400,
+        },
+        evmVersion: "shanghai",
+        outputSelection: { "*": { "*": ["storageLayout"] } },
+      },
+    },
+  ])
+);
+
+overrides["contracts/configurations/WeightedRateCollectionBlastPool.sol"] = {
+  version: "0.8.20",
+  settings: {
+    viaIR: true,
+    optimizer: {
+      enabled: true,
+      runs: 150,
+    },
+    evmVersion: "shanghai",
+    outputSelection: { "*": { "*": ["storageLayout"] } },
+  },
+};
+
+overrides["contracts/configurations/WeightedRateMerkleCollectionPool.sol"] = {
+  version: "0.8.20",
+  settings: {
+    viaIR: true,
+    optimizer: {
+      enabled: true,
+      runs: 150,
+    },
+    evmVersion: "shanghai",
+    outputSelection: { "*": { "*": ["storageLayout"] } },
+  },
+};
+
 const config: HardhatUserConfig = {
   solidity: {
     compilers: [
@@ -24,23 +68,7 @@ const config: HardhatUserConfig = {
         },
       },
     ],
-    overrides: Object.fromEntries(
-      fs.readdirSync("contracts/configurations").map((filename) => [
-        `contracts/configurations/${filename}`,
-        {
-          version: "0.8.20",
-          settings: {
-            viaIR: true,
-            optimizer: {
-              enabled: true,
-              runs: 400,
-            },
-            evmVersion: "shanghai",
-            outputSelection: { "*": { "*": ["storageLayout"] } },
-          },
-        },
-      ])
-    ),
+    overrides: overrides,
   },
   networks: {
     hardhat: {
