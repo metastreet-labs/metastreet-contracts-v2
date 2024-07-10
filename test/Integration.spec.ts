@@ -172,7 +172,7 @@ describe("Integration", function () {
     pool = (await ethers.getContractAt("WeightedRateCollectionPool", proxy.address)) as WeightedRateCollectionPool;
 
     /* Set admin rate */
-    await pool.setAdminFeeRate(CONFIG.adminFeeRate);
+    await pool.setAdminFee(CONFIG.adminFeeRate, ethers.constants.AddressZero, 0);
 
     /* Arrange accounts */
     accountDepositors = accounts.slice(0, CONFIG.numberOfDepositors + 1);

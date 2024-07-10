@@ -903,7 +903,7 @@ describe("Pool ERC1155", function () {
 
     it("refinance erc1155 loan at maturity with admin fee and same principal", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash, ERC1155WrapperTokenId] = await createActiveERC1155Loan(FixedPoint.from("25"));
@@ -965,12 +965,12 @@ describe("Pool ERC1155", function () {
 
       expect(await pool.loans(newLoanReceiptHash)).to.equal(1);
 
-      expect(await pool.adminFeeBalance()).to.equal(adminFee);
+      expect(await pool.adminFeeBalance()).to.closeTo(adminFee.mul(9500).div(10000), "1");
     });
 
     it("erc1155 loan fails on refinance and refinance in same block with same loan receipt fields", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash, ERC1155WrapperTokenId] = await createActiveERC1155Loan(FixedPoint.from("25"));
@@ -1003,7 +1003,7 @@ describe("Pool ERC1155", function () {
     it("erc1155 loan fails on borrow and refinance in same block with same loan receipt fields", async function () {
       /* setup liquidity and borrow */
       await setupLiquidity();
-      pool.setAdminFeeRate(500);
+      pool.setAdminFee(500);
       [loanReceipt, loanReceiptHash, ERC1155WrapperTokenId, ERC1155WrapperData] = await createActiveERC1155Loan(
         FixedPoint.from("25")
       );
@@ -1075,7 +1075,7 @@ describe("Pool ERC1155", function () {
     it("erc1155 loan fails on invalid caller", async function () {
       /* setup liquidity and borrow */
       await setupLiquidity();
-      pool.setAdminFeeRate(500);
+      pool.setAdminFee(500);
       [loanReceipt, loanReceiptHash] = await createActiveERC1155Loan(FixedPoint.from("25"));
 
       await expect(
@@ -1095,7 +1095,7 @@ describe("Pool ERC1155", function () {
     it("erc1155 loan fails on invalid loan receipt", async function () {
       /* setup liquidity and borrow */
       await setupLiquidity();
-      pool.setAdminFeeRate(500);
+      pool.setAdminFee(500);
       [loanReceipt, loanReceiptHash] = await createActiveERC1155Loan(FixedPoint.from("25"));
 
       await expect(
@@ -1114,7 +1114,7 @@ describe("Pool ERC1155", function () {
 
     it("erc1155 loan fails on repaid loan", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveERC1155Loan(FixedPoint.from("25"));
@@ -1137,7 +1137,7 @@ describe("Pool ERC1155", function () {
 
     it("erc1155 loan fails on liquidated loan", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveERC1155Loan(FixedPoint.from("25"));
