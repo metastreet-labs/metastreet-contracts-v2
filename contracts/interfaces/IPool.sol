@@ -137,17 +137,21 @@ interface IPool {
     event CollateralLiquidated(bytes32 indexed loanReceiptHash, uint256 proceeds, uint256 borrowerProceeds);
 
     /**
-     * @notice Emitted when admin fee rate is updated
+     * @notice Emitted when admin fee is updated
      * @param rate New admin fee rate in basis points
+     * @param feeShareRecipient New recipient of fee share
+     * @param feeShareSplit New fee share split in basis points
      */
-    event AdminFeeRateUpdated(uint256 rate);
+    event AdminFeeUpdated(uint256 rate, address feeShareRecipient, uint16 feeShareSplit);
 
     /**
      * @notice Emitted when admin fees are withdrawn
-     * @param account Recipient account
-     * @param amount Amount of currency tokens withdrawn
+     * @param recipient Recipient of admin fee less fee share
+     * @param amount Amount of currency tokens withdrawn for recipient
+     * @param feeShareRecipient Fee share recipient account
+     * @param feeShareAmount Amount of currency tokens withdrawn for fee share recipient
      */
-    event AdminFeesWithdrawn(address indexed account, uint256 amount);
+    event AdminFeesWithdrawn(address recipient, uint256 amount, address feeShareRecipient, uint256 feeShareAmount);
 
     /**************************************************************************/
     /* Getters */

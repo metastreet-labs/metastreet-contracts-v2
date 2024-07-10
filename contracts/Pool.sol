@@ -102,10 +102,20 @@ abstract contract Pool is
 
     /**
      * @custom:storage-location erc7201:pool.delegateStorage
+     * @param delegates Mapping of collateralToken to token ID to Delegate
      */
     struct DelegateStorage {
-        /* Mapping of collateralToken to token ID to Delegate */
         mapping(address => mapping(uint256 => Delegate)) delegates;
+    }
+
+    /**
+     * @custom:storage-location pool.feeShareStorage
+     * @param recipient Fee share recipient
+     * @param split Fee share of admin fee in basis points
+     */
+    struct FeeShareStorage {
+        address recipient;
+        uint16 split;
     }
 
     /**
@@ -173,6 +183,13 @@ abstract contract Pool is
      */
     bytes32 internal constant DELEGATE_STORAGE_LOCATION =
         0xf0e5094ebd597f2042580340ce53d1b15e5b64e0d8be717ecde51dd37c619300;
+
+    /**
+     * @notice Fee share storage slot
+     * @dev keccak256(abi.encode(uint256(keccak256("pool.feeShareStorage")) - 1)) & ~bytes32(uint256(0xff));
+     */
+    bytes32 internal constant FEE_SHARE_STORAGE_LOCATION =
+        0x1004a5c92d0898c7512a97f012b3e1b4d5140998c1fd26690d21ba53eace8b00;
 
     /**************************************************************************/
     /* State */
@@ -329,6 +346,14 @@ abstract contract Pool is
      */
     function adminFeeBalance() external view returns (uint256) {
         return _unscale(_storage.adminFeeBalance, false);
+    }
+
+    /**
+     * @notice Get fee share
+     * @return FeeShareStorage
+     */
+    function feeShare() external pure returns (FeeShareStorage memory) {
+        return _getFeeShareStorage();
     }
 
     /**
@@ -501,6 +526,16 @@ abstract contract Pool is
     function _getDelegateStorage() private pure returns (DelegateStorage storage $) {
         assembly {
             $.slot := DELEGATE_STORAGE_LOCATION
+        }
+    }
+
+    /**
+     * @notice Get reference to ERC-7201 fee share storage
+     * @return $ Reference to fee share storage
+     */
+    function _getFeeShareStorage() private pure returns (FeeShareStorage storage $) {
+        assembly {
+            $.slot := FEE_SHARE_STORAGE_LOCATION
         }
     }
 
@@ -1024,14 +1059,16 @@ abstract contract Pool is
     /**
      * @notice Set the admin fee rate
      *
-     * Emits a {AdminFeeRateUpdated} event.
+     * Emits a {AdminFeeUpdated} event.
      *
      * @param rate Rate is the admin fee in basis points
+     * @param feeShareRecipient Recipient of fee share
+     * @param feeShareSplit Fee share split in basis points
      */
-    function setAdminFeeRate(uint32 rate) external {
-        BorrowLogic._setAdminFeeRate(_storage, rate);
+    function setAdminFee(uint32 rate, address feeShareRecipient, uint16 feeShareSplit) external {
+        BorrowLogic._setAdminFee(_storage, _getFeeShareStorage(), rate, feeShareRecipient, feeShareSplit);
 
-        emit AdminFeeRateUpdated(rate);
+        emit AdminFeeUpdated(rate, feeShareRecipient, feeShareSplit);
     }
 
     /**
@@ -1039,16 +1076,29 @@ abstract contract Pool is
      *
      * Emits a {AdminFeesWithdrawn} event.
      *
-     * @param recipient Recipient account
-     * @param amount Amount to withdraw
+     * @param recipient Recipient of admin fee less fee share
      */
-    function withdrawAdminFees(address recipient, uint256 amount) external nonReentrant {
-        BorrowLogic._withdrawAdminFees(_storage, recipient, _scale(amount));
+    function withdrawAdminFees(address recipient) external nonReentrant {
+        FeeShareStorage memory feeShareStorage = _getFeeShareStorage();
+
+        /* Compute admin and fee share amounts and update admin fee balance */
+        (uint256 amount, uint256 feeShareAmount) = BorrowLogic._withdrawAdminFees(
+            _storage,
+            recipient,
+            feeShareStorage.recipient,
+            feeShareStorage.split,
+            _unscale(_storage.adminFeeBalance, false)
+        );
+
+        /* Transfer cash from Pool to fee share recipient */
+        if (feeShareStorage.recipient != address(0)) {
+            _storage.currencyToken.safeTransfer(feeShareStorage.recipient, feeShareAmount);
+        }
 
         /* Transfer cash from Pool to recipient */
         _storage.currencyToken.safeTransfer(recipient, amount);
 
-        emit AdminFeesWithdrawn(recipient, amount);
+        emit AdminFeesWithdrawn(recipient, amount, feeShareStorage.recipient, feeShareAmount);
     }
 
     /******************************************************/

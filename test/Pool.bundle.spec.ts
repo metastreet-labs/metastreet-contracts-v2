@@ -888,7 +888,7 @@ describe("Pool Bundle", function () {
 
     it("refinance bundle loan at maturity with admin fee and same principal", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash, bundleTokenId] = await createActiveBundleLoan(FixedPoint.from("25"));
@@ -955,7 +955,7 @@ describe("Pool Bundle", function () {
 
     it("bundle loan fails on refinance and refinance in same block with same loan receipt fields", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash, bundleTokenId] = await createActiveBundleLoan(FixedPoint.from("25"));
@@ -988,7 +988,7 @@ describe("Pool Bundle", function () {
     it("bundle loan fails on borrow and refinance in same block with same loan receipt fields", async function () {
       /* setup liquidity and borrow */
       await setupLiquidity();
-      pool.setAdminFeeRate(500);
+      pool.setAdminFee(500);
       [loanReceipt, loanReceiptHash, bundleTokenId, bundleData] = await createActiveBundleLoan(FixedPoint.from("25"));
 
       /* Workaround to skip borrow() in beforeEach */
@@ -1058,7 +1058,7 @@ describe("Pool Bundle", function () {
     it("bundle loan fails on invalid caller", async function () {
       /* setup liquidity and borrow */
       await setupLiquidity();
-      pool.setAdminFeeRate(500);
+      pool.setAdminFee(500);
       [loanReceipt, loanReceiptHash] = await createActiveBundleLoan(FixedPoint.from("25"));
 
       await expect(
@@ -1078,7 +1078,7 @@ describe("Pool Bundle", function () {
     it("bundle loan fails on invalid loan receipt", async function () {
       /* setup liquidity and borrow */
       await setupLiquidity();
-      pool.setAdminFeeRate(500);
+      pool.setAdminFee(500);
       [loanReceipt, loanReceiptHash] = await createActiveBundleLoan(FixedPoint.from("25"));
 
       await expect(
@@ -1097,7 +1097,7 @@ describe("Pool Bundle", function () {
 
     it("bundle loan fails on repaid loan", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveBundleLoan(FixedPoint.from("25"));
@@ -1120,7 +1120,7 @@ describe("Pool Bundle", function () {
 
     it("bundle loan fails on liquidated loan", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFee(500, accounts[2].address, 500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveBundleLoan(FixedPoint.from("25"));

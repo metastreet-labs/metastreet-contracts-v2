@@ -439,28 +439,61 @@ library BorrowLogic {
     }
 
     /**
-     * @dev Helper function to set admin fee rate
+     * @dev Helper function to set admin fee
      * @param self Pool storage
-     * @param rate Rate is the admin fee in basis points
+     * @param feeShareStorage Fee share storage
+     * @param rate Admin fee rate in basis points
+     * @param feeShareRecipient Recipient of fee share
+     * @param feeShareSplit Fee share split in basis points
      */
-    function _setAdminFeeRate(Pool.PoolStorage storage self, uint32 rate) external {
+    function _setAdminFee(
+        Pool.PoolStorage storage self,
+        Pool.FeeShareStorage storage feeShareStorage,
+        uint32 rate,
+        address feeShareRecipient,
+        uint16 feeShareSplit
+    ) external {
+        /* Validate caller is pool admin */
         if (msg.sender != self.admin) revert IPool.InvalidCaller();
+        /* Validate rate and fee share split */
         if (rate >= LiquidityLogic.BASIS_POINTS_SCALE) revert IPool.InvalidParameters();
+        if (feeShareSplit >= LiquidityLogic.BASIS_POINTS_SCALE) revert IPool.InvalidParameters();
 
         self.adminFeeRate = rate;
+
+        feeShareStorage.recipient = feeShareRecipient;
+        feeShareStorage.split = feeShareSplit;
     }
 
     /**
      * @dev Helper function to withdraw admin fees
      * @param self Pool storage
-     * @param recipient Recipient account
-     * @param scaledAmount Amount to withdraw
+     * @param recipient Recipient of admin fees less fee share
+     * @param feeShareRecipient Fee share recipient
+     * @param feeShareSplit Fee share split in basis points
+     * @param amount Admin fee balance
+     * @return Recipient amount, fee share amount
      */
-    function _withdrawAdminFees(Pool.PoolStorage storage self, address recipient, uint256 scaledAmount) external {
+    function _withdrawAdminFees(
+        Pool.PoolStorage storage self,
+        address recipient,
+        address feeShareRecipient,
+        uint16 feeShareSplit,
+        uint256 amount
+    ) external returns (uint256, uint256) {
+        /* Validate caller is pool admin */
         if (msg.sender != self.admin) revert IPool.InvalidCaller();
-        if (recipient == address(0) || scaledAmount > self.adminFeeBalance) revert IPool.InvalidParameters();
+        /* Validate recipient is not zero address */
+        if (recipient == address(0)) revert IPool.InvalidParameters();
+
+        /* Compute fee share split amount */
+        uint256 feeShareAmount = feeShareRecipient != address(0)
+            ? (amount * feeShareSplit) / LiquidityLogic.BASIS_POINTS_SCALE
+            : 0;
 
         /* Update admin fees balance */
-        self.adminFeeBalance -= scaledAmount;
+        self.adminFeeBalance = 0;
+
+        return (amount - feeShareAmount, feeShareAmount);
     }
 }
