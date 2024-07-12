@@ -1,5 +1,6 @@
 import { expect } from "chai";
 import { ethers, network } from "hardhat";
+import * as helpers from "@nomicfoundation/hardhat-network-helpers";
 
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { expectEvent, extractEvent } from "../test/helpers/EventUtilities";
@@ -8,6 +9,7 @@ import {
   TestERC20,
   TestERC721,
   TestProxy,
+  TestLoanReceipt,
   ExternalCollateralLiquidator,
   TestDelegateRegistryV1,
   TestDelegateRegistryV2,
@@ -18,11 +20,15 @@ import {
 
 import { getContractFactoryWithLibraries } from "./helpers/Deploy";
 import { FixedPoint } from "./helpers/FixedPoint.ts";
+import { Tick } from "./helpers/Tick";
 
 describe("PoolFactory", function () {
   let accounts: SignerWithAddress[];
+  let accountBorrower: SignerWithAddress;
+  let accountDepositor: SignerWithAddress;
   let tok1: TestERC20;
   let nft1: TestERC721;
+  let loanReceiptLib: TestLoanReceipt;
   let collateralLiquidator: ExternalCollateralLiquidator;
   let poolImpl: Pool;
   let poolFactoryImpl: PoolFactory;
@@ -38,6 +44,7 @@ describe("PoolFactory", function () {
 
     const testERC20Factory = await ethers.getContractFactory("TestERC20");
     const testERC721Factory = await ethers.getContractFactory("TestERC721");
+    const testLoanReceiptFactory = await ethers.getContractFactory("TestLoanReceipt");
     const testProxyFactory = await ethers.getContractFactory("TestProxy");
     const erc1967ProxyFactory = await ethers.getContractFactory("ERC1967Proxy");
     const externalCollateralLiquidatorFactory = await ethers.getContractFactory("ExternalCollateralLiquidator");
@@ -60,6 +67,10 @@ describe("PoolFactory", function () {
     /* Deploy test NFT */
     nft1 = (await testERC721Factory.deploy("NFT 1", "NFT1", "https://nft1.com/token/")) as TestERC721;
     await nft1.deployed();
+
+    /* Deploy loan receipt library */
+    loanReceiptLib = await testLoanReceiptFactory.deploy();
+    await loanReceiptLib.deployed();
 
     /* Deploy collateral liquidator implementation */
     const collateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
@@ -113,6 +124,22 @@ describe("PoolFactory", function () {
     );
     await proxy.deployed();
     poolFactory = (await ethers.getContractAt("PoolFactory", proxy.address)) as PoolFactory;
+
+    accountDepositor = accounts[0];
+    accountBorrower = accounts[1];
+
+    /* Transfer TOK1 to depositors and approve Pool */
+    await tok1.transfer(accountDepositor.address, ethers.utils.parseEther("1000"));
+
+    /* Mint NFT to borrower */
+    await nft1.mint(accountBorrower.address, 123);
+    await nft1.mint(accountBorrower.address, 124);
+
+    /* Mint token to borrower */
+    await tok1.transfer(accountBorrower.address, ethers.utils.parseEther("100"));
+
+    /* Mint token to lender */
+    await tok1.transfer(accountDepositor.address, ethers.utils.parseEther("1000"));
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -132,6 +159,40 @@ describe("PoolFactory", function () {
       expect(await poolFactory.IMPLEMENTATION_VERSION()).to.equal("1.2");
     });
   });
+
+  /****************************************************************************/
+  /* Liquidity Helper functions */
+  /****************************************************************************/
+
+  const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
+  const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
+
+  async function sourceLiquidity(
+    pool: Pool,
+    amount: ethers.BigNumber,
+    multiplier?: number = 1,
+    duration?: number = 0,
+    rate?: number = 0
+  ): Promise<ethers.BigNumber[]> {
+    const nodes = await pool.liquidityNodes(0, MaxUint128);
+    const ticks = [];
+
+    let taken = ethers.constants.Zero;
+    for (const node of nodes) {
+      const limit = Tick.decode(node.tick).limit;
+      if (limit.isZero()) continue;
+
+      const take = minBN(minBN(limit.mul(multiplier).sub(taken), node.available), amount.sub(taken));
+      if (take.isZero()) break;
+
+      ticks.push(node.tick);
+      taken = taken.add(take);
+    }
+
+    if (!taken.eq(amount)) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
+
+    return ticks;
+  }
 
   /****************************************************************************/
   /* Primary API */
@@ -551,6 +612,118 @@ describe("PoolFactory", function () {
       await expect(
         poolFactory.setAdminFee(pool2.address, 500, ethers.constants.AddressZero, 10000)
       ).to.be.revertedWithCustomError(pool2, "InvalidParameters");
+    });
+  });
+
+  describe("#withdrawAdminFees", async function () {
+    let pool1: Pool;
+    let pool2: Pool;
+
+    beforeEach("add pool implementation to allowlist and set admin fee rate", async function () {
+      /* Add pool implementation to allowlist */
+      await poolFactory.addPoolImplementation(poolImpl.address);
+
+      pool1 = (await ethers.getContractAt("Pool", await createPool())) as Pool;
+      pool2 = (await ethers.getContractAt("Pool", await createPool())) as Pool;
+
+      /* Set admin fee rate */
+      await poolFactory.setAdminFee(pool1.address, 500, ethers.constants.AddressZero, 0);
+      await poolFactory.setAdminFee(pool2.address, 700, accounts[2].address, 500);
+
+      /* Approve pools to transfer NFT */
+      await nft1.connect(accountBorrower).setApprovalForAll(pool1.address, true);
+      await nft1.connect(accountBorrower).setApprovalForAll(pool2.address, true);
+
+      /* Approve pools to transfer token */
+      await tok1.connect(accountBorrower).approve(pool1.address, ethers.constants.MaxUint256);
+      await tok1.connect(accountBorrower).approve(pool2.address, ethers.constants.MaxUint256);
+      await tok1.connect(accountDepositor).approve(pool1.address, ethers.constants.MaxUint256);
+      await tok1.connect(accountDepositor).approve(pool2.address, ethers.constants.MaxUint256);
+
+      /* Deposit into pools */
+      await pool1.connect(accountDepositor).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+      await pool2.connect(accountDepositor).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+
+      /* Set admin fee rate */
+      await poolFactory.setAdminFee(pool1.address, 500, ethers.constants.AddressZero, 0);
+      await poolFactory.setAdminFee(pool2.address, 700, accounts[2].address, 500);
+
+      /* Borrow */
+      const borrowTx1 = await pool1
+        .connect(accountBorrower)
+        .borrow(
+          FixedPoint.from("5"),
+          30 * 86400,
+          nft1.address,
+          123,
+          FixedPoint.from("6"),
+          await sourceLiquidity(pool1, FixedPoint.from("5")),
+          "0x"
+        );
+
+      /* Extract loan receipt */
+      const loanReceipt1 = (await extractEvent(borrowTx1, pool1, "LoanOriginated")).args.loanReceipt;
+
+      /* Validate loan receipt */
+      const decodedLoanReceipt1 = await loanReceiptLib.decode(loanReceipt1);
+
+      /* Repay */
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt1.maturity.toNumber());
+      await pool1.connect(accountBorrower).repay(loanReceipt1);
+
+      /* Borrow */
+      const borrowTx2 = await pool2
+        .connect(accountBorrower)
+        .borrow(
+          FixedPoint.from("5"),
+          30 * 86400,
+          nft1.address,
+          123,
+          FixedPoint.from("6"),
+          await sourceLiquidity(pool1, FixedPoint.from("5")),
+          "0x"
+        );
+
+      /* Extract loan receipt */
+      const loanReceipt2 = (await extractEvent(borrowTx2, pool2, "LoanOriginated")).args.loanReceipt;
+
+      /* Validate loan receipt */
+      const decodedLoanReceipt2 = await loanReceiptLib.decode(loanReceipt2);
+
+      /* Repay */
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt2.maturity.toNumber());
+      await pool2.connect(accountBorrower).repay(loanReceipt2);
+    });
+
+    it("withdraw admin fees", async function () {
+      const adminFees1 = await pool1.adminFeeBalance();
+      console.log("adminFees1:", adminFees1);
+      const adminFees2 = await pool2.adminFeeBalance();
+      console.log("adminFees2:", adminFees2);
+
+      const startingBalance = await tok1.balanceOf(accounts[2].address);
+      console.log("startingBalance:", startingBalance);
+
+      await poolFactory.withdrawAdminFees(pool1.address, accounts[2].address);
+
+      expect(await tok1.balanceOf(accounts[2].address)).to.equal(startingBalance.add(adminFees1));
+
+      await poolFactory.withdrawAdminFees(pool2.address, accounts[2].address);
+      console.log("accounts[2].address:", accounts[2].address);
+
+      expect(await tok1.balanceOf(accounts[2].address)).to.equal(startingBalance.add(adminFees1).add(adminFees2));
+    });
+
+    it("fails on invalid pool address", async function () {
+      await expect(
+        poolFactory.withdrawAdminFees(poolFactory.address, accounts[2].address)
+      ).to.be.revertedWithCustomError(poolFactory, "InvalidPool");
+    });
+
+    it("fails on invalid caller", async function () {
+      await expect(
+        poolFactory.connect(accounts[1]).withdrawAdminFees(pool1.address, accounts[2].address)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
   });
 });
