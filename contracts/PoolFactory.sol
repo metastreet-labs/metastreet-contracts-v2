@@ -183,6 +183,18 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
     }
 
     /**
+     * @notice Withdraw admin fees
+     * @param pool Pool address
+     * @param recipient Recipient of admin fees (less fee share)
+     */
+    function withdrawAdminFees(address pool, address recipient) external onlyOwner {
+        /* Validate pool */
+        if (!isPool(pool)) revert InvalidPool();
+
+        Address.functionCall(pool, abi.encodeWithSignature("withdrawAdminFees(address)", recipient));
+    }
+
+    /**
      * @notice Add pool implementation to allowlist
      * @param poolImplementation Pool implementation
      */
