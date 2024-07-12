@@ -33,11 +33,6 @@ contract WeightedRateCollectionBlastPool is
     IBlast internal constant BLAST = IBlast(0x4300000000000000000000000000000000000002);
 
     /**
-     * @notice Blast Points Contract (Testnet)
-     */
-    IBlastPoints internal constant BLAST_POINTS_TESTNET = IBlastPoints(0x2fc95838c71e76ec69ff817983BFf17c710F34E0);
-
-    /**
      * @notice Blast Points Contract (Mainnet)
      */
     IBlastPoints internal constant BLAST_POINTS_MAINNET = IBlastPoints(0x2536FE9ab3F511540F2f9e2eC2A805005C3Dd800);
@@ -127,7 +122,6 @@ contract WeightedRateCollectionBlastPool is
 
         /* Configure Blast Points Operator */
         if (block.chainid == 81457) BLAST_POINTS_MAINNET.configurePointsOperator(_blastPointsOperator);
-        else if (block.chainid == 168587773) BLAST_POINTS_TESTNET.configurePointsOperator(_blastPointsOperator);
     }
 
     /**************************************************************************/
@@ -148,15 +142,13 @@ contract WeightedRateCollectionBlastPool is
     /**
      * @notice Check if currency token is Blast yield token
      * @param currencyToken Currency token
-     * @return True if currency token is Blast mainnet USDB / WETH or
-     * Blast testnet sepolia USDB / WETH
+     * @return True if currency token is Blast mainnet USDB / WETH
      */
     function isBlastYieldToken(address currencyToken) internal view returns (bool) {
-        return ((block.chainid == 81457 &&
-            (currencyToken == 0x4300000000000000000000000000000000000003 ||
-                currencyToken == 0x4300000000000000000000000000000000000004)) ||
-            (block.chainid == 168587773 &&
-                (currencyToken == 0x4200000000000000000000000000000000000022 ||
-                    currencyToken == 0x4200000000000000000000000000000000000023)));
+        return (
+            (block.chainid == 81457 &&
+                (currencyToken == 0x4300000000000000000000000000000000000003 ||
+                    currencyToken == 0x4300000000000000000000000000000000000004))
+        );
     }
 }
