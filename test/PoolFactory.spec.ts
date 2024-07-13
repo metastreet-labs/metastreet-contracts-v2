@@ -156,7 +156,7 @@ describe("PoolFactory", function () {
 
   describe("constants", async function () {
     it("matches expected implementation", async function () {
-      expect(await poolFactory.IMPLEMENTATION_VERSION()).to.equal("1.2");
+      expect(await poolFactory.IMPLEMENTATION_VERSION()).to.equal("1.3");
     });
   });
 
