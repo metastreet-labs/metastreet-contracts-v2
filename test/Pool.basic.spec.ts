@@ -180,7 +180,7 @@ describe("Pool Basic", function () {
       expect(await pool.IMPLEMENTATION_NAME()).to.equal("WeightedRateCollectionPool");
     });
     it("matches expected implementation version", async function () {
-      expect(await pool.IMPLEMENTATION_VERSION()).to.equal("2.11");
+      expect(await pool.IMPLEMENTATION_VERSION()).to.equal("2.12");
     });
   });
 
