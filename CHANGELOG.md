@@ -1,3 +1,6 @@
+* Pool v2.12 - 07/12/2024
+    * Add admin fee share support.
+
 * Pool v2.11 - 06/25/2024
     * Fix sourcing from ticks of same limit and duration, but different rates.
 
