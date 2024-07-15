@@ -222,8 +222,8 @@ templates:
           receipt: true
         - event: CollateralLiquidated(indexed bytes32,uint256,uint256)
           handler: handleCollateralLiquidated
-        - event: AdminFeeRateUpdated(uint256)
-          handler: handleAdminFeeRateUpdated
+        - event: AdminFeeUpdated(uint256,address,uint16)
+          handler: handleAdminFeeUpdated
         - event: TokenCreated(indexed address,indexed address,indexed uint128)
           handler: handleTokenCreated
         - event: Transferred(indexed address,indexed address,indexed uint128,uint256)
