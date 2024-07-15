@@ -12,7 +12,9 @@ type Pool @entity {
   collateralWrappers: [Bytes!]! # address[]
   durations: [BigInt!]! # uint64[] (in seconds)
   rates: [BigInt!]! # uint64[]
-  adminFeeRate: BigInt! # uint64
+  adminFeeRate: BigInt! # uint256
+  adminFeeShareRecipient: Bytes! # address
+  adminFeeShareSplit: Int! # uint32
   collateralLiquidator: Bytes! # address
   delegationRegistry: Bytes! # address
   externalPriceOracle: Bytes # address
