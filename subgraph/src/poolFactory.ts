@@ -32,6 +32,8 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   poolEntity.durations = poolContract.durations();
   poolEntity.rates = poolContract.rates();
   poolEntity.adminFeeRate = poolContract.adminFeeRate();
+  poolEntity.adminFeeShareRecipient = Address.zero();
+  poolEntity.adminFeeShareSplit = 0;
   poolEntity.collateralLiquidator = poolContract.collateralLiquidator();
   poolEntity.delegationRegistry = poolContract.delegationRegistry();
   const externalPriceOracle = ExternalPriceOracle.bind(poolAddress).try_priceOracle();
