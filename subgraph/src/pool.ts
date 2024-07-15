@@ -24,7 +24,8 @@ import {
 import { ERC721 as ERC721Contract } from "../generated/templates/Pool/ERC721";
 import { ICollateralWrapper } from "../generated/templates/Pool/ICollateralWrapper";
 import {
-  AdminFeeRateUpdated as AdminFeeRateUpdatedEvent,
+  AdminFeeUpdated as AdminFeeUpdatedEvent,
+  AdminFeeWithdrawn as AdminFeeWithdrawnEvent,
   CollateralLiquidated as CollateralLiquidatedEvent,
   Deposited as DepositedEvent,
   Pool__liquidityNodeResultValue0Struct as LiquidityNode,
@@ -684,11 +685,13 @@ export function handleCollateralLiquidated(event: CollateralLiquidatedEvent): vo
   collateralLiquidatedEntity.save();
 }
 
-export function handleAdminFeeRateUpdated(event: AdminFeeRateUpdatedEvent): void {
+export function handleAdminFeeUpdated(event: AdminFeeUpdatedEvent): void {
   const poolEntity = PoolEntity.load(poolAddress);
   if (!poolEntity) throw new Error("Pool entity not found");
 
   poolEntity.adminFeeRate = event.params.rate;
+  poolEntity.feeShareRecipient = event.params.feeShareRecipient;
+  poolEntity.feeShareSplit = event.params.feeShareSplit;
   poolEntity.save();
 }
 
