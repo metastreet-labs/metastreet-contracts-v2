@@ -1,3 +1,8 @@
+* PoolFactory v1.3 - 07/19/2024
+    * Rename `setAdminFeeRate()` API to `setAdminFee()`.
+    * Add support for setting admin fee share.
+    * Add `withdrawAdminFees()` API.
+
 * Pool v2.12 - 07/19/2024
     * Add admin fee share support.
 
