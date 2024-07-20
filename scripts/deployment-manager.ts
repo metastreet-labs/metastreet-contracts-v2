@@ -379,6 +379,31 @@ async function poolFactoryRemoveImplementation(deployment: Deployment, implement
   }
 }
 
+async function poolFactorySetAdminFee(
+  deployment: Deployment,
+  pool: string,
+  rate: number,
+  feeShareRecipient: string,
+  feeShareSplit: number
+) {
+  if (!deployment.poolFactory) {
+    console.log("Pool factory not deployed.");
+    return;
+  }
+
+  const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
+
+  if ((await signer!.getAddress()) === (await getOwner(poolFactory.address))) {
+    await poolFactory.setAdminFee(pool, rate, feeShareRecipient, feeShareSplit);
+  } else {
+    const calldata = (await poolFactory.populateTransaction.setAdminFee(pool, rate, feeShareRecipient, feeShareSplit))
+      .data;
+    console.log(`Set Admin Fee Calldata`);
+    console.log(`  Target:   ${poolFactory.address}`);
+    console.log(`  Calldata: ${calldata}`);
+  }
+}
+
 /******************************************************************************/
 /* Collateral Liquidator Commands */
 /******************************************************************************/
@@ -1027,6 +1052,18 @@ async function main() {
     .argument("contract", "Price oracle contract name")
     .argument("[args...]", "Arguments")
     .action((instance, contract, args) => priceOracleUpgrade(instance, contract, args));
+
+  /* Admin Fee */
+  program
+    .command("pool-factory-set-admin-fee")
+    .description("Set admin fee on Pool")
+    .argument("pool", "Pool instance", parseAddress)
+    .argument("rate", "Admin fee rate in basis points", parseNumber)
+    .argument("fee_share_recipient", "Fee share recipient", parseAddress)
+    .argument("fee_share_split", "Fee share split in basis points", parseNumber)
+    .action((pool, rate, fee_share_recipient, fee_share_split) =>
+      poolFactorySetAdminFee(deployment, pool, rate, fee_share_recipient, fee_share_split)
+    );
 
   /* Generic Contract Deploy */
   program
