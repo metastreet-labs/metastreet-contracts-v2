@@ -379,6 +379,49 @@ async function poolFactoryRemoveImplementation(deployment: Deployment, implement
   }
 }
 
+async function poolFactorySetAdminFee(
+  deployment: Deployment,
+  pool: string,
+  rate: number,
+  feeShareRecipient: string,
+  feeShareSplit: number
+) {
+  if (!deployment.poolFactory) {
+    console.log("Pool factory not deployed.");
+    return;
+  }
+
+  const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
+
+  if ((await signer!.getAddress()) === (await getOwner(poolFactory.address))) {
+    await poolFactory.setAdminFee(pool, rate, feeShareRecipient, feeShareSplit);
+  } else {
+    const calldata = (await poolFactory.populateTransaction.setAdminFee(pool, rate, feeShareRecipient, feeShareSplit))
+      .data;
+    console.log(`Set Admin Fee Calldata`);
+    console.log(`  Target:   ${poolFactory.address}`);
+    console.log(`  Calldata: ${calldata}`);
+  }
+}
+
+async function poolFactoryWithdrawAdminFees(deployment: Deployment, pool: string, recipient: string) {
+  if (!deployment.poolFactory) {
+    console.log("Pool factory not deployed.");
+    return;
+  }
+
+  const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
+
+  if ((await signer!.getAddress()) === (await getOwner(poolFactory.address))) {
+    await poolFactory.withdrawAdminFees(pool, recipient);
+  } else {
+    const calldata = (await poolFactory.populateTransaction.withdrawAdminFees(pool, recipient)).data;
+    console.log(`Withdraw Admin Fees Calldata`);
+    console.log(`  Target:   ${poolFactory.address}`);
+    console.log(`  Calldata: ${calldata}`);
+  }
+}
+
 /******************************************************************************/
 /* Collateral Liquidator Commands */
 /******************************************************************************/
@@ -1027,6 +1070,24 @@ async function main() {
     .argument("contract", "Price oracle contract name")
     .argument("[args...]", "Arguments")
     .action((instance, contract, args) => priceOracleUpgrade(instance, contract, args));
+
+  /* Admin Fee */
+  program
+    .command("pool-factory-set-admin-fee")
+    .description("Set admin fee on Pool")
+    .argument("pool", "Pool instance")
+    .argument("rate", "Admin fee rate in basis points")
+    .argument("fee_share_recipient", "Fee share recipient")
+    .argument("fee_share_split", "Fee share split in basis points")
+    .action((pool, rate, fee_share_recipient, fee_share_split) =>
+      poolFactorySetAdminFee(deployment, pool, rate, fee_share_recipient, fee_share_split)
+    );
+  program
+    .command("pool-factory-withdraw-admin-fees")
+    .description("Withdraw admin fees from Pool")
+    .argument("pool", "Pool instance")
+    .argument("recipient", "Admin fee recipient")
+    .action((pool, recipient) => poolFactoryWithdrawAdminFees(deployment, pool, recipient));
 
   /* Generic Contract Deploy */
   program
