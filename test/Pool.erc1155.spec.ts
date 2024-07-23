@@ -903,7 +903,7 @@ describe("Pool ERC1155", function () {
 
     it("refinance erc1155 loan at maturity with admin fee and same principal", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFeeRate(500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash, ERC1155WrapperTokenId] = await createActiveERC1155Loan(FixedPoint.from("25"));
@@ -950,12 +950,12 @@ describe("Pool ERC1155", function () {
       await expectEvent(refinanceTx, tok1, "Transfer", {
         from: accountBorrower.address,
         to: pool.address,
-        value: decodedLoanReceipt.repayment.sub(decodedLoanReceipt.principal),
+        value: decodedLoanReceipt.repayment.add(decodedLoanReceipt.adminFee).sub(decodedLoanReceipt.principal),
       });
 
       await expectEvent(refinanceTx, pool, "LoanRepaid", {
         loanReceiptHash,
-        repayment: decodedLoanReceipt.repayment,
+        repayment: decodedLoanReceipt.repayment.add(decodedLoanReceipt.adminFee),
       });
 
       await expect(refinanceTx).to.emit(pool, "LoanOriginated");

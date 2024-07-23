@@ -2551,7 +2551,7 @@ describe("Pool Basic", function () {
       /* Validate events */
       await expectEvent(repayTx, pool, "LoanRepaid", {
         loanReceiptHash,
-        repayment: decodedLoanReceipt.repayment,
+        repayment: decodedLoanReceipt.repayment.add(decodedLoanReceipt.adminFee),
       });
 
       /* Validate state */
@@ -2761,9 +2761,7 @@ describe("Pool Basic", function () {
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Calculate prorated repayment amount */
-      const repayment = decodedLoanReceipt.repayment
-        .sub(decodedLoanReceipt.principal)
-        .add(decodedLoanReceipt.principal);
+      const repayment = decodedLoanReceipt.repayment.add(decodedLoanReceipt.adminFee);
 
       /* Validate events */
       await expectEvent(repayTx, tok1, "Transfer", {
@@ -3096,7 +3094,7 @@ describe("Pool Basic", function () {
 
     it("refinance loan at maturity with admin fee and same principal", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFeeRate(500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
@@ -3143,12 +3141,12 @@ describe("Pool Basic", function () {
       await expectEvent(refinanceTx, tok1, "Transfer", {
         from: accountBorrower.address,
         to: pool.address,
-        value: decodedLoanReceipt.repayment.sub(decodedLoanReceipt.principal),
+        value: decodedLoanReceipt.repayment.add(decodedLoanReceipt.adminFee).sub(decodedLoanReceipt.principal),
       });
 
       await expectEvent(refinanceTx, pool, "LoanRepaid", {
         loanReceiptHash,
-        repayment: decodedLoanReceipt.repayment,
+        repayment: decodedLoanReceipt.repayment.add(decodedLoanReceipt.adminFee),
       });
 
       await expect(refinanceTx).to.emit(pool, "LoanOriginated");
@@ -3208,12 +3206,12 @@ describe("Pool Basic", function () {
       await expectEvent(refinanceTx, tok1, "Transfer", {
         from: accountBorrower.address,
         to: pool.address,
-        value: decodedLoanReceipt.repayment.sub(decodedNewLoanReceipt.principal),
+        value: decodedLoanReceipt.repayment.add(decodedLoanReceipt.adminFee).sub(decodedNewLoanReceipt.principal),
       });
 
       await expectEvent(refinanceTx, pool, "LoanRepaid", {
         loanReceiptHash,
-        repayment: decodedLoanReceipt.repayment,
+        repayment: decodedLoanReceipt.repayment.add(decodedLoanReceipt.adminFee),
       });
 
       await expect(refinanceTx).to.emit(pool, "LoanOriginated");
@@ -3273,12 +3271,12 @@ describe("Pool Basic", function () {
       await expectEvent(refinanceTx, tok1, "Transfer", {
         from: pool.address,
         to: accountBorrower.address,
-        value: decodedNewLoanReceipt.principal.sub(decodedLoanReceipt.repayment),
+        value: decodedNewLoanReceipt.principal.sub(decodedLoanReceipt.repayment.add(decodedLoanReceipt.adminFee)),
       });
 
       await expectEvent(refinanceTx, pool, "LoanRepaid", {
         loanReceiptHash,
-        repayment: decodedLoanReceipt.repayment,
+        repayment: decodedLoanReceipt.repayment.add(decodedLoanReceipt.adminFee),
       });
 
       await expect(refinanceTx).to.emit(pool, "LoanOriginated");

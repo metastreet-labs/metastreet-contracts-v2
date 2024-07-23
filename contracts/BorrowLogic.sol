@@ -189,12 +189,13 @@ library BorrowLogic {
     /**
      * @dev Helper function to calculated prorated repayment
      * @param loanReceipt Decoded loan receipt
-     * @return repayment amount in currency tokens
+     * @return repayment amount in currency tokens (includes prorated adminFee)
+     * @return adminFee amount in currency tokens
      * @return proration based on elapsed duration
      */
     function _prorateRepayment(
         LoanReceipt.LoanReceiptV2 memory loanReceipt
-    ) internal view returns (uint256 repayment, uint256 proration) {
+    ) internal view returns (uint256 repayment, uint256 adminFee, uint256 proration) {
         /* Minimum of proration and 1.0 */
         proration = Math.min(
             ((block.timestamp - (loanReceipt.maturity - loanReceipt.duration)) * LiquidityLogic.FIXED_POINT_SCALE) /
@@ -202,10 +203,14 @@ library BorrowLogic {
             LiquidityLogic.FIXED_POINT_SCALE
         );
 
+        /* Compute prorated admin fee */
+        adminFee = ((loanReceipt.adminFee * proration) / LiquidityLogic.FIXED_POINT_SCALE);
+
         /* Compute repayment using prorated interest */
         repayment =
             loanReceipt.principal +
-            (((loanReceipt.repayment - loanReceipt.principal) * proration) / LiquidityLogic.FIXED_POINT_SCALE);
+            (((loanReceipt.repayment - loanReceipt.principal) * proration) / LiquidityLogic.FIXED_POINT_SCALE) +
+            adminFee;
     }
 
     /**
@@ -322,8 +327,8 @@ library BorrowLogic {
         /* Validate caller is borrower */
         if (msg.sender != loanReceipt.borrower) revert IPool.InvalidCaller();
 
-        /* Compute proration and repayment using prorated interest */
-        (uint256 repayment, uint256 proration) = _prorateRepayment(loanReceipt);
+        /* Compute prorated repayment (includes prorated admin fee), prorated admin fee, and proration */
+        (uint256 repayment, uint256 adminFee, uint256 proration) = _prorateRepayment(loanReceipt);
 
         /* Compute elapsed time since loan origination */
         uint64 elapsed = uint64(block.timestamp + loanReceipt.duration - loanReceipt.maturity);
@@ -346,7 +351,7 @@ library BorrowLogic {
         }
 
         /* Update admin fee total balance with prorated admin fee */
-        self.adminFeeBalance += (loanReceipt.adminFee * proration) / LiquidityLogic.FIXED_POINT_SCALE;
+        self.adminFeeBalance += adminFee;
 
         /* Mark loan status repaid */
         self.loans[loanReceiptHash] = Pool.LoanStatus.Repaid;

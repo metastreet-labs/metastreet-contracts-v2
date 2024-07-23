@@ -9,6 +9,7 @@ export type Liquidity = {
 type LoanReceipt = {
   principal: ethers.BigNumber;
   repayment: ethers.BigNumber;
+  adminFee: ethers.BigNumer;
   maturity: ethers.BigNumber;
   duration: ethers.BigNumber;
 };
@@ -86,6 +87,7 @@ export class PoolModel {
     this.tokenBalances = this.tokenBalances.sub(principal);
 
     let receipt: LoanReceipt = {
+      adminFee,
       principal,
       repayment,
       maturity,
@@ -114,21 +116,10 @@ export class PoolModel {
       throw new Error("repay(): loanReceipt === undefined");
     }
 
-    /* Compute admin fee */
-    const adminFee = this._adminFeeRate
-      .mul(loanReceipt.repayment.sub(loanReceipt.principal))
-      .div(this.BASIS_POINTS_SCALE);
-
     const [repayment, proration] = this._prorateRepayment(blockTimestamp, loanReceipt);
 
-    /* Total pending is essential repayment less admin fee */
-    const repaymentLessAdminFee = loanReceipt.repayment.sub(adminFee);
-
     /* Prorated admin fee */
-    const proratedAdminFee = loanReceipt.repayment
-      .sub(repaymentLessAdminFee)
-      .mul(proration)
-      .div(this.FIXED_POINT_SCALE);
+    const proratedAdminFee = loanReceipt.adminFee.mul(proration).div(this.FIXED_POINT_SCALE);
 
     /* Update admin fee total balance with prorated admin fee */
     this.adminFeeBalance = this.adminFeeBalance.add(proratedAdminFee);
@@ -139,7 +130,7 @@ export class PoolModel {
     this.liquidity.pending = pending;
 
     /* Update token balances */
-    this.tokenBalances = this.tokenBalances.add(repayment);
+    this.tokenBalances = this.tokenBalances.add(repayment).add(proratedAdminFee);
 
     /* Update collateral balances */
     this.collateralBalances = this.collateralBalances.sub(1);

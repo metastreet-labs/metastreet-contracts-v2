@@ -888,7 +888,7 @@ describe("Pool Bundle", function () {
 
     it("refinance bundle loan at maturity with admin fee and same principal", async function () {
       /* Set Admin Fee */
-      pool.setAdminFeeRate(500);
+      await pool.setAdminFeeRate(500);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash, bundleTokenId] = await createActiveBundleLoan(FixedPoint.from("25"));
@@ -935,12 +935,12 @@ describe("Pool Bundle", function () {
       await expectEvent(refinanceTx, tok1, "Transfer", {
         from: accountBorrower.address,
         to: pool.address,
-        value: decodedLoanReceipt.repayment.sub(decodedLoanReceipt.principal),
+        value: decodedLoanReceipt.repayment.add(decodedLoanReceipt.adminFee).sub(decodedLoanReceipt.principal),
       });
 
       await expectEvent(refinanceTx, pool, "LoanRepaid", {
         loanReceiptHash,
-        repayment: decodedLoanReceipt.repayment,
+        repayment: decodedLoanReceipt.repayment.add(decodedLoanReceipt.adminFee),
       });
 
       await expect(refinanceTx).to.emit(pool, "LoanOriginated");
