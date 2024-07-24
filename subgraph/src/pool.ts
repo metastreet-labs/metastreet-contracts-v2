@@ -340,6 +340,8 @@ function updateDepositEntity(
 
 class LoanReceipt {
   nodeReceipts: NodeReceipt[];
+  principal: BigInt;
+  repayment: BigInt;
   borrower: Address;
   maturity: BigInt;
   duration: BigInt;
@@ -349,6 +351,8 @@ class LoanReceipt {
 
   constructor(
     nodeReceipts: NodeReceipt[],
+    principal: BigInt,
+    repayment: BigInt,
     borrower: Address,
     maturity: BigInt,
     duration: BigInt,
@@ -357,6 +361,8 @@ class LoanReceipt {
     collateralTokenId: BigInt
   ) {
     this.nodeReceipts = nodeReceipts;
+    this.principal = principal;
+    this.repayment = repayment;
     this.borrower = borrower;
     this.maturity = maturity;
     this.duration = duration;
@@ -381,15 +387,11 @@ function createLoanEntity(
   let ticks: BigInt[] = [];
   let useds: BigInt[] = [];
   let interests: BigInt[] = [];
-  let principal: BigInt = BigInt.zero();
-  let repayment: BigInt = BigInt.zero();
   for (let i = 0; i < nodeReceipts.length; i++) {
     const nodeReceipt = nodeReceipts[i];
     ticks.push(nodeReceipt.tick);
     useds.push(nodeReceipt.used);
     interests.push(nodeReceipt.pending.minus(nodeReceipt.used));
-    principal = principal.plus(nodeReceipt.used);
-    repayment = repayment.plus(nodeReceipt.pending);
   }
 
   loanEntity.pool = poolAddress;
@@ -403,8 +405,8 @@ function createLoanEntity(
   loanEntity.ticks = ticks;
   loanEntity.useds = useds;
   loanEntity.interests = interests;
-  loanEntity.principal = principal;
-  loanEntity.repayment = repayment;
+  loanEntity.principal = loanReceipt.principal;
+  loanEntity.repayment = loanReceipt.repayment;
   loanEntity.loanReceipt = encodedReceipt;
   loanEntity.collateralToken = poolEntity.collateralToken;
 
@@ -570,6 +572,8 @@ export function handleLoanOriginated(event: LoanOriginatedEvent): void {
     const r = PoolV1Contract.bind(Address.fromBytes(poolEntity.id)).decodeLoanReceipt(event.params.loanReceipt);
     loanReceipt = new LoanReceipt(
       changetype<NodeReceipt[]>(r.nodeReceipts),
+      r.principal,
+      r.repayment,
       r.borrower,
       r.maturity,
       r.duration,
@@ -581,6 +585,8 @@ export function handleLoanOriginated(event: LoanOriginatedEvent): void {
     const r = poolContract.decodeLoanReceipt(event.params.loanReceipt);
     loanReceipt = new LoanReceipt(
       r.nodeReceipts,
+      r.principal,
+      r.repayment,
       r.borrower,
       r.maturity,
       r.duration,
