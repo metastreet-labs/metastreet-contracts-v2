@@ -3640,12 +3640,12 @@ describe("Pool Basic", function () {
 
     beforeEach("setup liquidity and borrow", async function () {
       await setupLiquidity();
-
-      /* Borrow */
-      [loanReceipt, loanReceiptHash] = await createExpiredLoan(FixedPoint.from("25"));
     });
 
     it("processes liquidated loan for higher proceeds", async function () {
+      /* Borrow */
+      [loanReceipt, loanReceiptHash] = await createExpiredLoan(FixedPoint.from("25"));
+
       /* Decode loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
@@ -3719,7 +3719,192 @@ describe("Pool Basic", function () {
       }
     });
 
+    it("processes liquidated loan for higher proceeds with lender surplus and borrower surplus", async function () {
+      /* Set admin fee rate */
+      await pool.setAdminFee(5000, ethers.constants.AddressZero, 0);
+
+      /* Borrow */
+      [loanReceipt, loanReceiptHash] = await createExpiredLoan(FixedPoint.from("25"));
+
+      /* Decode loan receipt */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      /* Process expiration */
+      await pool.liquidate(loanReceipt);
+
+      /* Withdraw collateral */
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
+
+      /* Liquidate collateral and process liquidation */
+      const onCollateralLiquidatedTx = await collateralLiquidator
+        .connect(accountLiquidator)
+        .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, FixedPoint.from("30"));
+
+      /* Compute borrower surplus and lender proceeds */
+      const borrowerSurplus = FixedPoint.from("30").sub(decodedLoanReceipt.repayment);
+      const lendersSurplus = decodedLoanReceipt.adminFee;
+      const lendersProceeds = FixedPoint.from("30").sub(borrowerSurplus).sub(lendersSurplus);
+
+      /* Validate events */
+      await expectEvent(
+        onCollateralLiquidatedTx,
+        tok1,
+        "Transfer",
+        {
+          from: collateralLiquidator.address,
+          to: pool.address,
+          value: FixedPoint.from("30"),
+        },
+        1
+      );
+      await expectEvent(
+        onCollateralLiquidatedTx,
+        tok1,
+        "Transfer",
+        {
+          from: pool.address,
+          to: decodedLoanReceipt.borrower,
+          value: borrowerSurplus,
+        },
+        2
+      );
+      await expectEvent(onCollateralLiquidatedTx, pool, "CollateralLiquidated", {
+        loanReceiptHash,
+        proceeds: FixedPoint.from("30"),
+        borrowerProceeds: borrowerSurplus,
+      });
+
+      /* Validate state */
+      expect(await pool.loans(loanReceiptHash)).to.equal(4);
+
+      /* Compute total pending */
+      const totalPending = decodedLoanReceipt.repayment.sub(decodedLoanReceipt.adminFee);
+
+      /* Compute total interest */
+      const totalInterest = totalPending.sub(decodedLoanReceipt.principal);
+
+      /* Validate ticks */
+      let i = 0;
+      let proceedsRemaining = lendersProceeds;
+      let lendersSurplusRemaining = lendersSurplus;
+      let totalAdminFee = ethers.constants.Zero;
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+        const node = await pool.liquidityNode(nodeReceipt.tick);
+        const surplus =
+          i == decodedLoanReceipt.nodeReceipts.length - 1
+            ? lendersSurplusRemaining
+            : nodeReceipt.pending.sub(nodeReceipt.used).mul(lendersSurplus).div(totalInterest);
+        const proceeds =
+          i == decodedLoanReceipt.nodeReceipts.length - 1
+            ? proceedsRemaining
+            : lendersProceeds.mul(nodeReceipt.pending).div(totalPending);
+        const value = FixedPoint.from("25").sub(nodeReceipt.used).add(proceeds).add(surplus);
+        proceedsRemaining = proceedsRemaining.sub(proceeds);
+        lendersSurplusRemaining = lendersSurplusRemaining.sub(surplus);
+        expect(node.value).to.equal(value);
+        expect(node.available).to.equal(value);
+        expect(node.pending).to.equal(ethers.constants.Zero);
+        totalAdminFee = totalAdminFee.add(surplus);
+        i += 1;
+      }
+
+      /* Validate admin fee is accounted for */
+      expect(totalAdminFee).to.equal(decodedLoanReceipt.adminFee);
+    });
+
+    it("processes liquidated loan for proceeds higher with lender surplus but no borrower surplus", async function () {
+      /* Set admin fee rate */
+      await pool.setAdminFee(5000, ethers.constants.AddressZero, 0);
+
+      /* Borrow */
+      [loanReceipt, loanReceiptHash] = await createExpiredLoan(FixedPoint.from("25"));
+
+      /* Decode loan receipt */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      /* Process expiration */
+      await pool.liquidate(loanReceipt);
+
+      /* Withdraw collateral */
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
+
+      /* Liquidate collateral and process liquidation */
+      const proceeds = ethers.BigNumber.from("25203000000000000000");
+      const onCollateralLiquidatedTx = await collateralLiquidator
+        .connect(accountLiquidator)
+        .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, proceeds);
+
+      /* Compute borrower surplus and lender proceeds */
+      const lendersSurplus = proceeds.sub(decodedLoanReceipt.repayment.sub(decodedLoanReceipt.adminFee));
+      const lendersProceeds = proceeds.sub(lendersSurplus);
+
+      /* Validate events */
+      await expectEvent(
+        onCollateralLiquidatedTx,
+        tok1,
+        "Transfer",
+        {
+          from: collateralLiquidator.address,
+          to: pool.address,
+          value: proceeds,
+        },
+        1
+      );
+      await expectEvent(onCollateralLiquidatedTx, pool, "CollateralLiquidated", {
+        loanReceiptHash,
+        proceeds,
+        borrowerProceeds: ethers.constants.Zero,
+      });
+
+      /* Validate state */
+      expect(await pool.loans(loanReceiptHash)).to.equal(4);
+
+      /* Compute total pending */
+      const totalPending = decodedLoanReceipt.repayment.sub(decodedLoanReceipt.adminFee);
+
+      /* Compute total interest */
+      const totalInterest = totalPending.sub(decodedLoanReceipt.principal);
+
+      /* Validate ticks */
+      let i = 0;
+      let proceedsRemaining = lendersProceeds;
+      let lendersSurplusRemaining = lendersSurplus;
+      let totalAdminFee = ethers.constants.Zero;
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+        const node = await pool.liquidityNode(nodeReceipt.tick);
+        const surplus =
+          i == decodedLoanReceipt.nodeReceipts.length - 1
+            ? lendersSurplusRemaining
+            : nodeReceipt.pending.sub(nodeReceipt.used).mul(lendersSurplus).div(totalInterest);
+        const proceeds =
+          i == decodedLoanReceipt.nodeReceipts.length - 1
+            ? proceedsRemaining
+            : lendersProceeds.mul(nodeReceipt.pending).div(totalPending);
+        const value = FixedPoint.from("25").sub(nodeReceipt.used).add(proceeds).add(surplus);
+        proceedsRemaining = proceedsRemaining.sub(proceeds);
+        lendersSurplusRemaining = lendersSurplusRemaining.sub(surplus);
+        expect(node.value).to.equal(value);
+        expect(node.available).to.equal(value);
+        expect(node.pending).to.equal(ethers.constants.Zero);
+        totalAdminFee = totalAdminFee.add(surplus);
+        i += 1;
+      }
+
+      /* Validate admin fee is accounted for */
+      expect(totalAdminFee).to.equal(lendersSurplus);
+    });
+
     it("processes liquidated loan for lower proceeds", async function () {
+      /* Set admin fee rate */
+      await pool.setAdminFee(5000, ethers.constants.AddressZero, 0);
+
+      /* Borrow */
+      [loanReceipt, loanReceiptHash] = await createExpiredLoan(FixedPoint.from("25"));
+
       /* Decode loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
