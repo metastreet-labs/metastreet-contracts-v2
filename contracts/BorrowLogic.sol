@@ -414,17 +414,36 @@ library BorrowLogic {
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
+        /* Compute repayment less admin fee */
+        uint256 repaymentLessAdminFee = loanReceipt.repayment - loanReceipt.adminFee;
+
+        /* Compute proceeds remaining */
+        uint256 proceedsRemaining = Math.min(proceeds, repaymentLessAdminFee);
+
         /* Compute borrower's share of liquidation surplus */
         uint256 borrowerSurplus = proceeds > loanReceipt.repayment ? proceeds - loanReceipt.repayment : 0;
+
+        /* Compute lenders surplus from admin fee */
+        uint256 lendersSurplus = proceeds - proceedsRemaining - borrowerSurplus;
+
+        /* Compute total interest */
+        uint256 totalInterest = repaymentLessAdminFee - loanReceipt.principal;
 
         /* Compute elapsed time since loan origination */
         uint64 elapsed = uint64(block.timestamp + loanReceipt.duration - loanReceipt.maturity);
 
         /* Restore liquidity nodes */
-        uint256 proceedsRemaining = proceeds - borrowerSurplus;
         uint256 lastIndex = loanReceipt.nodeReceipts.length - 1;
+        uint256 lendersSurplusRemaining = lendersSurplus;
+        bool hasLendersSurplus = lendersSurplus != 0;
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
-            /* Compute amount to restore depending on whether there is a surplus */
+            /* Compute lender surplus for the node */
+            uint256 surplus = (i == lastIndex) || !hasLendersSurplus
+                ? lendersSurplusRemaining
+                : (lendersSurplus * (loanReceipt.nodeReceipts[i].pending - loanReceipt.nodeReceipts[i].used)) /
+                    totalInterest;
+
+            /* Compute amount to restore */
             uint256 restored = (i == lastIndex)
                 ? proceedsRemaining
                 : Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining);
@@ -434,13 +453,14 @@ library BorrowLogic {
                 loanReceipt.nodeReceipts[i].tick,
                 loanReceipt.nodeReceipts[i].used,
                 loanReceipt.nodeReceipts[i].pending,
-                restored.toUint128(),
+                (restored + surplus).toUint128(),
                 loanReceipt.duration,
                 elapsed
             );
 
-            /* Update proceeds remaining */
+            /* Update proceeds remaining and lender surplus remaining */
             proceedsRemaining -= restored;
+            lendersSurplusRemaining -= surplus;
         }
 
         /* Mark loan status collateral liquidated */
