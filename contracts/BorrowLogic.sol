@@ -417,6 +417,14 @@ library BorrowLogic {
         /* Compute borrower's share of liquidation surplus */
         uint256 borrowerSurplus = proceeds > loanReceipt.repayment ? proceeds - loanReceipt.repayment : 0;
 
+        /* Compute lenders' surplus from admin fee */
+        uint256 lendersSurplus = proceeds - borrowerSurplus > loanReceipt.repayment - loanReceipt.adminFee
+            ? proceeds - borrowerSurplus - (loanReceipt.repayment - loanReceipt.adminFee)
+            : 0;
+
+        /* Compute total interest for prorating lenders' surplus */
+        uint256 totalInterest = loanReceipt.repayment - loanReceipt.adminFee - loanReceipt.principal;
+
         /* Compute elapsed time since loan origination */
         uint64 elapsed = uint64(block.timestamp + loanReceipt.duration - loanReceipt.maturity);
 
@@ -424,10 +432,12 @@ library BorrowLogic {
         uint256 proceedsRemaining = proceeds - borrowerSurplus;
         uint256 lastIndex = loanReceipt.nodeReceipts.length - 1;
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
-            /* Compute amount to restore depending on whether there is a surplus */
+            /* Compute amount to restore, prorating any lenders' surplus */
             uint256 restored = (i == lastIndex)
                 ? proceedsRemaining
-                : Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining);
+                : Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining) +
+                    (lendersSurplus * (loanReceipt.nodeReceipts[i].pending - loanReceipt.nodeReceipts[i].used)) /
+                    totalInterest;
 
             /* Restore node */
             self.liquidity.restore(
