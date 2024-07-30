@@ -1,3 +1,7 @@
+* Pool v2.12 - 07/30/2024
+    * Add admin fee share support.
+    * Redistribute admin fee as lender surplus in collateral liquidation.
+
 * Pool v2.11 - 06/25/2024
     * Fix sourcing from ticks of same limit and duration, but different rates.
 
