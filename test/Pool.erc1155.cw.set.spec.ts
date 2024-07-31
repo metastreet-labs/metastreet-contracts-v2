@@ -21,7 +21,7 @@ import { extractEvent, expectEvent } from "./helpers/EventUtilities";
 import { FixedPoint } from "./helpers/FixedPoint";
 import { Tick } from "./helpers/Tick";
 
-describe("Pool ERC1155 Ranged Collection", function () {
+describe("Pool ERC1155 Collateral Wrapper Set Collection", function () {
   let accounts: SignerWithAddress[];
   let tok1: TestERC20;
   let nft1: TestERC1155;
@@ -53,7 +53,7 @@ describe("Pool ERC1155 Ranged Collection", function () {
     const delegateRegistryV2Factory = await ethers.getContractFactory("TestDelegateRegistryV2");
     const ERC1155CollateralWrapperFactory = await ethers.getContractFactory("ERC1155CollateralWrapper");
     const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation");
-    const poolImplFactory = await getContractFactoryWithLibraries("WeightedRateRangedCollectionPool", [
+    const poolImplFactory = await getContractFactoryWithLibraries("WeightedRateSetCollectionPool", [
       "LiquidityLogic",
       "DepositLogic",
       "BorrowLogic",
@@ -118,11 +118,10 @@ describe("Pool ERC1155 Ranged Collection", function () {
       await poolImpl.getAddress(),
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.AbiCoder.defaultAbiCoder().encode(
-          ["address", "uint256", "uint256", "address", "address", "uint64[]", "uint64[]"],
+          ["address", "uint256[]", "address", "address", "uint64[]", "uint64[]"],
           [
             await nft1.getAddress(),
-            BigInt(123),
-            BigInt(125),
+            [123, 124, 125],
             await tok1.getAddress(),
             ethers.ZeroAddress,
             [30 * 86400, 14 * 86400, 7 * 86400],
@@ -203,7 +202,7 @@ describe("Pool ERC1155 Ranged Collection", function () {
 
   describe("constants", async function () {
     it("matches expected implementation name", async function () {
-      expect(await pool.IMPLEMENTATION_NAME()).to.equal("WeightedRateRangedCollectionPool");
+      expect(await pool.IMPLEMENTATION_NAME()).to.equal("WeightedRateSetCollectionPool");
     });
   });
 
@@ -294,7 +293,7 @@ describe("Pool ERC1155 Ranged Collection", function () {
       await setupLiquidity();
     });
 
-    it("originates batch loan with ranged filter", async function () {
+    it("originates batch loan with set filter", async function () {
       /* Compute borrow options */
       const borrowOptions = ethers.solidityPacked(
         ["uint16", "uint16", "bytes"],
@@ -392,7 +391,7 @@ describe("Pool ERC1155 Ranged Collection", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(1);
     });
 
-    it("originates batch loan with delegation and ranged filter", async function () {
+    it("originates batch loan with delegation and set filter", async function () {
       /* Compute borrow options */
       const borrowOptions = ethers.solidityPacked(
         ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes20"],
