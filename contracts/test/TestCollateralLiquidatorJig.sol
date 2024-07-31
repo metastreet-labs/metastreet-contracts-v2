@@ -5,8 +5,11 @@ import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 import "../LoanReceipt.sol";
 
@@ -17,7 +20,7 @@ import "../interfaces/ICollateralLiquidationReceiver.sol";
  * @title Testing Jig for Collateral Liquidators
  * @author MetaStreet Labs
  */
-contract TestCollateralLiquidatorJig is ERC165, ERC721Holder, ICollateralLiquidationReceiver {
+contract TestCollateralLiquidatorJig is ERC165, ERC721Holder, ICollateralLiquidationReceiver, ERC1155Holder {
     using SafeERC20 for IERC20;
 
     /**************************************************************************/
@@ -96,7 +99,11 @@ contract TestCollateralLiquidatorJig is ERC165, ERC721Holder, ICollateralLiquida
     function liquidate(bytes calldata encodedLoanReceipt) external {
         LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
-        IERC721(loanReceipt.collateralToken).approve(_collateralLiquidator, loanReceipt.collateralTokenId);
+        if (ERC165Checker.supportsInterface(loanReceipt.collateralToken, type(IERC1155).interfaceId)) {
+            IERC1155(loanReceipt.collateralToken).setApprovalForAll(_collateralLiquidator, true);
+        } else {
+            IERC721(loanReceipt.collateralToken).approve(_collateralLiquidator, loanReceipt.collateralTokenId);
+        }
 
         /* Start liquidation with collateral liquidator */
         ICollateralLiquidator(_collateralLiquidator).liquidate(
@@ -131,7 +138,7 @@ contract TestCollateralLiquidatorJig is ERC165, ERC721Holder, ICollateralLiquida
     /**
      * @inheritdoc IERC165
      */
-    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view override(ERC1155Receiver, ERC165) returns (bool) {
         return interfaceId == type(ICollateralLiquidationReceiver).interfaceId || super.supportsInterface(interfaceId);
     }
 }

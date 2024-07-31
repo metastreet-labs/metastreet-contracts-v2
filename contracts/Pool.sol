@@ -524,7 +524,7 @@ abstract contract Pool is
      * @notice Get reference to ERC-7201 delegate storage
      * @return $ Reference to delegate storage
      */
-    function _getDelegateStorage() private pure returns (DelegateStorage storage $) {
+    function _getDelegateStorage() internal pure returns (DelegateStorage storage $) {
         assembly {
             $.slot := DELEGATE_STORAGE_LOCATION
         }
@@ -659,6 +659,22 @@ abstract contract Pool is
         return (value % factor == 0 || !isRoundUp) ? value / factor : value / factor + 1;
     }
 
+    /**
+     * @dev Helper function to transfer collateral
+     * @param from From
+     * @param to To
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
+     */
+    function _transferCollateral(
+        address from,
+        address to,
+        address collateralToken,
+        uint256 collateralTokenId
+    ) internal virtual {
+        IERC721(collateralToken).transferFrom(from, to, collateralTokenId);
+    }
+
     /**************************************************************************/
     /* Lend API */
     /**************************************************************************/
@@ -743,7 +759,7 @@ abstract contract Pool is
         );
 
         /* Transfer collateral from borrower to pool */
-        IERC721(collateralToken).transferFrom(msg.sender, address(this), collateralTokenId);
+        _transferCollateral(msg.sender, address(this), collateralToken, collateralTokenId);
 
         /* Transfer principal from pool to borrower */
         _storage.currencyToken.safeTransfer(msg.sender, principal);
@@ -783,9 +799,10 @@ abstract contract Pool is
         _storage.currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), unscaledRepayment);
 
         /* Transfer collateral from pool to borrower */
-        IERC721(loanReceipt.collateralToken).transferFrom(
+        _transferCollateral(
             address(this),
             loanReceipt.borrower,
+            loanReceipt.collateralToken,
             loanReceipt.collateralTokenId
         );
 
@@ -889,7 +906,7 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function liquidate(bytes calldata encodedLoanReceipt) external nonReentrant {
+    function liquidate(bytes calldata encodedLoanReceipt) external virtual nonReentrant {
         /* Handle liquidate accounting */
         (LoanReceipt.LoanReceiptV2 memory loanReceipt, bytes32 loanReceiptHash) = BorrowLogic._liquidate(
             _storage,
@@ -1125,7 +1142,7 @@ abstract contract Pool is
     /**
      * @inheritdoc IERC165
      */
-    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165) returns (bool) {
         return interfaceId == type(ICollateralLiquidationReceiver).interfaceId || super.supportsInterface(interfaceId);
     }
 }

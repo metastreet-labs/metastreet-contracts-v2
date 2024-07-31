@@ -201,12 +201,13 @@ contract ERC1155CollateralWrapper is ICollateralWrapper, ERC721, ERC1155Holder, 
      * @param token Collateral token address
      * @param tokenIds List of token ids
      * @param quantities List of quantities
+     * @return Token ID, encoded batch
      */
     function mint(
         address token,
         uint256[] calldata tokenIds,
         uint256[] calldata quantities
-    ) external nonReentrant returns (uint256) {
+    ) external nonReentrant returns (uint256, bytes memory) {
         /* Validate token IDs and quantities */
         if (tokenIds.length == 0 || tokenIds.length > MAX_TOKEN_IDS || tokenIds.length != quantities.length)
             revert InvalidSize();
@@ -238,7 +239,7 @@ contract ERC1155CollateralWrapper is ICollateralWrapper, ERC721, ERC1155Holder, 
 
         emit BatchMinted(tokenId, msg.sender, encodedBatch);
 
-        return tokenId;
+        return (tokenId, encodedBatch);
     }
 
     /**
