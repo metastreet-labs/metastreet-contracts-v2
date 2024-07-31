@@ -4,6 +4,7 @@ pragma solidity 0.8.25;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
@@ -593,7 +594,11 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
         });
 
         /* Transfer collateral token from source to this contract */
-        IERC721(collateralToken).transferFrom(msg.sender, address(this), collateralTokenId);
+        if (ERC165Checker.supportsInterface(collateralToken, type(IERC1155).interfaceId)) {
+            IERC1155(collateralToken).safeTransferFrom(msg.sender, address(this), collateralTokenId, 1, "");
+        } else {
+            IERC721(collateralToken).transferFrom(msg.sender, address(this), collateralTokenId);
+        }
 
         /* Unwrap if collateral token is a collateral wrapper */
         if (isCollateralWrapper)
@@ -727,6 +732,17 @@ contract EnglishAuctionCollateralLiquidator is ICollateralLiquidator, Reentrancy
 
             /* Validate call success */
             if (!success) revert InvalidClaim();
+        } else if (ERC165Checker.supportsInterface(collateralToken, type(IERC1155).interfaceId)) {
+            /* Tolerate transfer failure due to absence of ERC1155Holder in receiver contract */
+            try
+                IERC1155(collateralToken).safeTransferFrom(
+                    address(this),
+                    auction_.highestBidder,
+                    collateralTokenId,
+                    1,
+                    ""
+                )
+            {} catch {}
         } else {
             IERC721(collateralToken).transferFrom(address(this), auction_.highestBidder, collateralTokenId);
         }
