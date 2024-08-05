@@ -27,7 +27,7 @@ describe("SimpleSignedPriceOracle", function () {
     const simpleSignedPriceOracleFactory = await ethers.getContractFactory("SimpleSignedPriceOracle");
 
     simpleSignedPriceOracle = (await simpleSignedPriceOracleFactory.deploy("testName")) as SimpleSignedPriceOracle;
-    simpleSignedPriceOracle.deployed();
+    simpleSignedPriceOracle.waitForDeployment();
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -66,15 +66,15 @@ describe("SimpleSignedPriceOracle", function () {
   async function createSignedQuote(
     signer: SignerWithAddress,
     token: string,
-    tokenId: ethers.BigNumber,
-    price: ethers.BigNumber,
+    tokenId: bigint,
+    price: bigint,
     currency?: string = WETH_ADDRESS
   ) {
     const DOMAIN = {
       name: "testName" /* TBD */,
       version: "1.2" /* TBD */,
       chainId: 1,
-      verifyingContract: simpleSignedPriceOracle.address,
+      verifyingContract: await simpleSignedPriceOracle.getAddress(),
     };
 
     /* Time now */
@@ -92,7 +92,7 @@ describe("SimpleSignedPriceOracle", function () {
       duration,
     };
 
-    const signature = await signer._signTypedData(DOMAIN, QUOTE_TYPEHASH, quote);
+    const signature = await signer.signTypedData(DOMAIN, QUOTE_TYPEHASH, quote);
 
     return [[token, tokenId, currency, price, timestamp, duration], signature];
   }
@@ -109,13 +109,11 @@ describe("SimpleSignedPriceOracle", function () {
       expect(await simpleSignedPriceOracle.priceOracleSigner(WPUNKS_ADDRESS)).to.be.equal(accounts[0].address);
       expect(await simpleSignedPriceOracle.priceOracleSigner(DOODLES_ADDRESS)).to.be.equal(accounts[1].address);
 
-      await simpleSignedPriceOracle.setSigner(WPUNKS_ADDRESS, ethers.constants.AddressZero);
-      await simpleSignedPriceOracle.setSigner(DOODLES_ADDRESS, ethers.constants.AddressZero);
+      await simpleSignedPriceOracle.setSigner(WPUNKS_ADDRESS, ethers.ZeroAddress);
+      await simpleSignedPriceOracle.setSigner(DOODLES_ADDRESS, ethers.ZeroAddress);
 
-      expect(await simpleSignedPriceOracle.priceOracleSigner(WPUNKS_ADDRESS)).to.be.equal(ethers.constants.AddressZero);
-      expect(await simpleSignedPriceOracle.priceOracleSigner(DOODLES_ADDRESS)).to.be.equal(
-        ethers.constants.AddressZero
-      );
+      expect(await simpleSignedPriceOracle.priceOracleSigner(WPUNKS_ADDRESS)).to.be.equal(ethers.ZeroAddress);
+      expect(await simpleSignedPriceOracle.priceOracleSigner(DOODLES_ADDRESS)).to.be.equal(ethers.ZeroAddress);
     });
 
     it("fails on non-owner setting signer", async function () {
@@ -135,8 +133,8 @@ describe("SimpleSignedPriceOracle", function () {
     });
 
     it("successfully return price", async function () {
-      const message_1 = await createSignedQuote(accounts[0], WPUNKS_ADDRESS, WPUNK_ID_1, ethers.utils.parseEther("2"));
-      let oracleContext = ethers.utils.defaultAbiCoder.encode(
+      const message_1 = await createSignedQuote(accounts[0], WPUNKS_ADDRESS, WPUNK_ID_1, ethers.parseEther("2"));
+      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
         ["((address,uint256,address,uint256,uint64,uint64),bytes)[]"],
         [[message_1]]
       );
@@ -147,10 +145,10 @@ describe("SimpleSignedPriceOracle", function () {
       /* Validate for 1 collateral token ID */
       expect(
         await simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1], [1], oracleContext)
-      ).to.be.equal(ethers.utils.parseEther("2"));
+      ).to.be.equal(ethers.parseEther("2"));
 
-      const message_2 = await createSignedQuote(accounts[0], WPUNKS_ADDRESS, WPUNK_ID_2, ethers.utils.parseEther("4"));
-      oracleContext = ethers.utils.defaultAbiCoder.encode(
+      const message_2 = await createSignedQuote(accounts[0], WPUNKS_ADDRESS, WPUNK_ID_2, ethers.parseEther("4"));
+      oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
         ["((address,uint256,address,uint256,uint64,uint64),bytes)[]"],
         [[message_1, message_2]]
       );
@@ -167,7 +165,7 @@ describe("SimpleSignedPriceOracle", function () {
           [1, 1],
           oracleContext
         )
-      ).to.be.equal(ethers.utils.parseEther("3"));
+      ).to.be.equal(ethers.parseEther("3"));
 
       /* Validate for 2 collateral token IDs with quantity 2 and 3 respectively */
       expect(
@@ -178,7 +176,7 @@ describe("SimpleSignedPriceOracle", function () {
           [2, 3],
           oracleContext
         )
-      ).to.be.equal(ethers.utils.parseEther("3.2"));
+      ).to.be.equal(ethers.parseEther("3.2"));
     });
 
     it("fails on invalid token", async function () {
@@ -186,10 +184,10 @@ describe("SimpleSignedPriceOracle", function () {
         accounts[0],
         DOODLES_ADDRESS,
         WPUNK_ID_1,
-        ethers.utils.parseEther("2"),
+        ethers.parseEther("2"),
         USDC_ADDRESS
       );
-      let oracleContext = ethers.utils.defaultAbiCoder.encode(
+      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
         ["((address,uint256,address,uint256,uint64,uint64),bytes)[]"],
         [[message]]
       );
@@ -208,10 +206,10 @@ describe("SimpleSignedPriceOracle", function () {
         accounts[0],
         WPUNKS_ADDRESS,
         WPUNK_ID_2,
-        ethers.utils.parseEther("2"),
+        ethers.parseEther("2"),
         USDC_ADDRESS
       );
-      let oracleContext = ethers.utils.defaultAbiCoder.encode(
+      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
         ["((address,uint256,address,uint256,uint64,uint64),bytes)[]"],
         [[message]]
       );
@@ -230,10 +228,10 @@ describe("SimpleSignedPriceOracle", function () {
         accounts[0],
         WPUNKS_ADDRESS,
         WPUNK_ID_1,
-        ethers.utils.parseEther("2"),
+        ethers.parseEther("2"),
         USDC_ADDRESS
       );
-      let oracleContext = ethers.utils.defaultAbiCoder.encode(
+      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
         ["((address,uint256,address,uint256,uint64,uint64),bytes)[]"],
         [[message]]
       );
@@ -248,8 +246,8 @@ describe("SimpleSignedPriceOracle", function () {
     });
 
     it("fails on invalid price", async function () {
-      const message = await createSignedQuote(accounts[0], WPUNKS_ADDRESS, WPUNK_ID_1, ethers.utils.parseEther("0"));
-      let oracleContext = ethers.utils.defaultAbiCoder.encode(
+      const message = await createSignedQuote(accounts[0], WPUNKS_ADDRESS, WPUNK_ID_1, ethers.parseEther("0"));
+      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
         ["((address,uint256,address,uint256,uint64,uint64),bytes)[]"],
         [[message]]
       );
@@ -264,8 +262,8 @@ describe("SimpleSignedPriceOracle", function () {
     });
 
     it("fails on invalid timestamp", async function () {
-      const message = await createSignedQuote(accounts[0], WPUNKS_ADDRESS, WPUNK_ID_1, ethers.utils.parseEther("2"));
-      let oracleContext = ethers.utils.defaultAbiCoder.encode(
+      const message = await createSignedQuote(accounts[0], WPUNKS_ADDRESS, WPUNK_ID_1, ethers.parseEther("2"));
+      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
         ["((address,uint256,address,uint256,uint64,uint64),bytes)[]"],
         [[message]]
       );
@@ -280,8 +278,8 @@ describe("SimpleSignedPriceOracle", function () {
     });
 
     it("fails on invalid signer", async function () {
-      const message_1 = await createSignedQuote(accounts[1], WPUNKS_ADDRESS, WPUNK_ID_1, ethers.utils.parseEther("2"));
-      let oracleContext = ethers.utils.defaultAbiCoder.encode(
+      const message_1 = await createSignedQuote(accounts[1], WPUNKS_ADDRESS, WPUNK_ID_1, ethers.parseEther("2"));
+      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
         ["((address,uint256,address,uint256,uint64,uint64),bytes)[]"],
         [[message_1]]
       );
@@ -294,8 +292,8 @@ describe("SimpleSignedPriceOracle", function () {
         simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1], [1], oracleContext)
       ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "InvalidSigner");
 
-      const message_2 = await createSignedQuote(accounts[0], DOODLES_ADDRESS, DOODLES_ID, ethers.utils.parseEther("2"));
-      oracleContext = ethers.utils.defaultAbiCoder.encode(
+      const message_2 = await createSignedQuote(accounts[0], DOODLES_ADDRESS, DOODLES_ID, ethers.parseEther("2"));
+      oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
         ["((address,uint256,address,uint256,uint64,uint64),bytes)[]"],
         [[message_2]]
       );
@@ -310,8 +308,8 @@ describe("SimpleSignedPriceOracle", function () {
     });
 
     it("fails on invalid length", async function () {
-      const message = await createSignedQuote(accounts[0], WPUNKS_ADDRESS, WPUNK_ID_1, ethers.utils.parseEther("2"));
-      let oracleContext = ethers.utils.defaultAbiCoder.encode(
+      const message = await createSignedQuote(accounts[0], WPUNKS_ADDRESS, WPUNK_ID_1, ethers.parseEther("2"));
+      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
         ["((address,uint256,address,uint256,uint64,uint64),bytes)[]"],
         [[message]]
       );

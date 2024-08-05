@@ -104,7 +104,7 @@ describe("ReservoirPriceOracle", function () {
       86400, // 24 hours
       true // only non-flagged tokens
     )) as ReservoirPriceOracle;
-    reservoirPriceOracle.deployed();
+    reservoirPriceOracle.waitForDeployment();
   });
 
   beforeEach("snapshot blockchain", async () => {

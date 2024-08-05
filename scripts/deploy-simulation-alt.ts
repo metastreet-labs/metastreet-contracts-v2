@@ -203,10 +203,10 @@ async function main() {
   /**************************************************************************/
 
   const TestERC20 = await ethers.getContractFactory("TestERC20");
-  const wethTokenContract = await TestERC20.deploy("Wrapped ETH", "WETH", 18, ethers.utils.parseEther("10000000"));
+  const wethTokenContract = await TestERC20.deploy("Wrapped ETH", "WETH", 18, ethers.parseEther("10000000"));
   await wethTokenContract.deployed();
-  await wethTokenContract.transfer(accounts[0].address, ethers.utils.parseEther("5000000"));
-  await wethTokenContract.transfer(accounts[1].address, ethers.utils.parseEther("5000000"));
+  await wethTokenContract.transfer(accounts[0].address, ethers.parseEther("5000000"));
+  await wethTokenContract.transfer(accounts[1].address, ethers.parseEther("5000000"));
   console.log("WETH : ", wethTokenContract.address);
 
   /**************************************************************************/
@@ -320,8 +320,8 @@ async function main() {
     let depth = maxBorrow - i;
     const ticks: BigNumber[] = [];
     for (let k = 0; k < 3; k++) {
-      const tick = Tick.encode(ethers.utils.parseEther(`${depth}`));
-      await poolContract.deposit(tick, ethers.utils.parseEther(`${maxBorrow * depth}`), 0);
+      const tick = Tick.encode(ethers.parseEther(`${depth}`));
+      await poolContract.deposit(tick, ethers.parseEther(`${maxBorrow * depth}`), 0);
       ticks.push(tick);
       depth *= 1.26;
     }
@@ -345,11 +345,11 @@ async function main() {
     console.log("Originating single loan");
     await nftContract.setApprovalForAll(poolAddress, true);
     await poolContract.borrow(
-      ethers.utils.parseEther("1"),
+      ethers.parseEther("1"),
       7 * 86400,
       collateralToken,
       0,
-      ethers.utils.parseEther("99"),
+      ethers.parseEther("99"),
       poolTicks,
       "0x"
     );
@@ -363,11 +363,11 @@ async function main() {
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
       await bundleCollateralWrapper.connect(accounts[0]).setApprovalForAll(poolAddress, true);
       await poolContract.borrow(
-        ethers.utils.parseEther("1"),
+        ethers.parseEther("1"),
         7 * 86400,
         bundleCollateralWrapper.address,
         bundleTokenId,
-        ethers.utils.parseEther("99"),
+        ethers.parseEther("99"),
         poolTicks,
         ethers.utils.solidityPack(
           ["uint16", "uint16", "bytes"],
@@ -392,11 +392,11 @@ async function main() {
       const batchData = (await extractEvent(mintTx, erc1155CollateralWrapper, "BatchMinted")).args.encodedBatch;
       await erc1155CollateralWrapper.connect(accounts[0]).setApprovalForAll(poolAddress, true);
       await poolContract.borrow(
-        ethers.utils.parseEther("1"),
+        ethers.parseEther("1"),
         7 * 86400,
         erc1155CollateralWrapper.address,
         batchTokenId,
-        ethers.utils.parseEther("99"),
+        ethers.parseEther("99"),
         poolTicks,
         ethers.utils.solidityPack(["uint16", "uint16", "bytes"], [1, ethers.utils.hexDataLength(batchData), batchData])
       );
@@ -418,11 +418,11 @@ async function main() {
   const receipts: string[] = [];
   for (let i = 0; i < tokenIds.length; i++) {
     const tx = await poolContract.borrow(
-      ethers.utils.parseEther("1"),
+      ethers.parseEther("1"),
       1,
       collateralToken,
       tokenIds[i],
-      ethers.utils.parseEther("99"),
+      ethers.parseEther("99"),
       poolTicks,
       "0x"
     );

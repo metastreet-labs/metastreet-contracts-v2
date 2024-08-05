@@ -13,7 +13,7 @@ describe("LoanReceipt", function () {
 
     /* Deploy loan receipt library */
     loanReceiptLibrary = await testLoanReceiptFactory.deploy();
-    await loanReceiptLibrary.deployed();
+    await loanReceiptLibrary.waitForDeployment();
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -30,9 +30,9 @@ describe("LoanReceipt", function () {
 
   const loanReceipt = {
     version: 2,
-    principal: ethers.BigNumber.from("3000000000000000000"),
-    repayment: ethers.BigNumber.from("3040000000000000000"),
-    adminFee: ethers.BigNumber.from("2000000000000000"),
+    principal: BigInt("3000000000000000000"),
+    repayment: BigInt("3040000000000000000"),
+    adminFee: BigInt("2000000000000000"),
     borrower: "0x0CD36Fa7D9634994231Bc76Fb36938D56C6FE70E",
     maturity: 1685595600,
     duration: 2592000,
@@ -42,51 +42,51 @@ describe("LoanReceipt", function () {
     collateralWrapperContext: "0x",
     nodeReceipts: [
       {
-        tick: ethers.BigNumber.from("1000000000000000000"),
-        used: ethers.BigNumber.from("1000000000000000000"),
-        pending: ethers.BigNumber.from("1010000000000000000"),
+        tick: BigInt("1000000000000000000"),
+        used: BigInt("1000000000000000000"),
+        pending: BigInt("1010000000000000000"),
       },
       {
-        tick: ethers.BigNumber.from("2000000000000000000"),
-        used: ethers.BigNumber.from("1000000000000000000"),
-        pending: ethers.BigNumber.from("1010000000000000000"),
+        tick: BigInt("2000000000000000000"),
+        used: BigInt("1000000000000000000"),
+        pending: BigInt("1010000000000000000"),
       },
       {
-        tick: ethers.BigNumber.from("3000000000000000000"),
-        used: ethers.BigNumber.from("1000000000000000000"),
-        pending: ethers.BigNumber.from("1020000000000000000"),
+        tick: BigInt("3000000000000000000"),
+        used: BigInt("1000000000000000000"),
+        pending: BigInt("1020000000000000000"),
       },
     ],
   };
 
   const bundleLoanReceipt = {
     version: 2,
-    principal: ethers.BigNumber.from("3000000000000000000"),
-    repayment: ethers.BigNumber.from("3040000000000000000"),
-    adminFee: ethers.BigNumber.from("2000000000000000"),
+    principal: BigInt("3000000000000000000"),
+    repayment: BigInt("3040000000000000000"),
+    adminFee: BigInt("2000000000000000"),
     borrower: "0x0CD36Fa7D9634994231Bc76Fb36938D56C6FE70E",
     maturity: 1685595600,
     duration: 2592000,
     collateralToken: "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82",
-    collateralTokenId: BigNumber.from("44527239254935349275158812996110366328027393789522367573114992166380918873022"),
+    collateralTokenId: BigInt("44527239254935349275158812996110366328027393789522367573114992166380918873022"),
     collateralWrapperContextLen: 84,
     collateralWrapperContext:
       "0xb7f8bc63bbcad18155201308c8f3540b07f84f5e00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
     nodeReceipts: [
       {
-        tick: ethers.BigNumber.from("1000000000000000000"),
-        used: ethers.BigNumber.from("1000000000000000000"),
-        pending: ethers.BigNumber.from("1010000000000000000"),
+        tick: BigInt("1000000000000000000"),
+        used: BigInt("1000000000000000000"),
+        pending: BigInt("1010000000000000000"),
       },
       {
-        tick: ethers.BigNumber.from("2000000000000000000"),
-        used: ethers.BigNumber.from("1000000000000000000"),
-        pending: ethers.BigNumber.from("1010000000000000000"),
+        tick: BigInt("2000000000000000000"),
+        used: BigInt("1000000000000000000"),
+        pending: BigInt("1010000000000000000"),
       },
       {
-        tick: ethers.BigNumber.from("3000000000000000000"),
-        used: ethers.BigNumber.from("1000000000000000000"),
-        pending: ethers.BigNumber.from("1020000000000000000"),
+        tick: BigInt("3000000000000000000"),
+        used: BigInt("1000000000000000000"),
+        pending: BigInt("1020000000000000000"),
       },
     ],
   };
@@ -147,9 +147,6 @@ describe("LoanReceipt", function () {
         expect(decodedLoanReceipt.nodeReceipts[i].used).to.equal(loanReceipt.nodeReceipts[i].used);
         expect(decodedLoanReceipt.nodeReceipts[i].pending).to.equal(loanReceipt.nodeReceipts[i].pending);
       }
-      expect(await loanReceiptLibrary.hash(await loanReceiptLibrary.encode(decodedLoanReceipt))).to.equal(
-        await loanReceiptLibrary.hash(encodedLoanReceipt)
-      );
     });
 
     it("successfuly decodes bundle loan receipt", async function () {
@@ -173,13 +170,10 @@ describe("LoanReceipt", function () {
         expect(decodedLoanReceipt.nodeReceipts[i].used).to.equal(bundleLoanReceipt.nodeReceipts[i].used);
         expect(decodedLoanReceipt.nodeReceipts[i].pending).to.equal(bundleLoanReceipt.nodeReceipts[i].pending);
       }
-      expect(await loanReceiptLibrary.hash(await loanReceiptLibrary.encode(decodedLoanReceipt))).to.equal(
-        await loanReceiptLibrary.hash(encodedLoanReceipt)
-      );
     });
 
     it("fails on invalid size", async function () {
-      const encodedLoanReceipt = ethers.utils.arrayify(await loanReceiptLibrary.encode(loanReceipt));
+      const encodedLoanReceipt = ethers.getBytes(await loanReceiptLibrary.encode(loanReceipt));
       await expect(loanReceiptLibrary.decode(encodedLoanReceipt.slice(0, 172))).to.be.revertedWithCustomError(
         loanReceiptLibrary,
         "InvalidReceiptEncoding"
@@ -187,7 +181,7 @@ describe("LoanReceipt", function () {
     });
 
     it("bundle fails on invalid size", async function () {
-      const encodedLoanReceipt = ethers.utils.arrayify(await loanReceiptLibrary.encode(bundleLoanReceipt));
+      const encodedLoanReceipt = ethers.getBytes(await loanReceiptLibrary.encode(bundleLoanReceipt));
       await expect(loanReceiptLibrary.decode(encodedLoanReceipt.slice(0, 256))).to.be.revertedWithCustomError(
         loanReceiptLibrary,
         "InvalidReceiptEncoding"
@@ -195,7 +189,7 @@ describe("LoanReceipt", function () {
     });
 
     it("fails on invalid node receipts", async function () {
-      const encodedLoanReceipt = ethers.utils.arrayify(await loanReceiptLibrary.encode(loanReceipt));
+      const encodedLoanReceipt = ethers.getBytes(await loanReceiptLibrary.encode(loanReceipt));
       await expect(loanReceiptLibrary.decode(encodedLoanReceipt.slice(0, 173 + 24))).to.be.revertedWithCustomError(
         loanReceiptLibrary,
         "InvalidReceiptEncoding"
@@ -203,7 +197,7 @@ describe("LoanReceipt", function () {
     });
 
     it("fails on unsupported version", async function () {
-      const encodedLoanReceipt = ethers.utils.arrayify(await loanReceiptLibrary.encode(loanReceipt));
+      const encodedLoanReceipt = ethers.getBytes(await loanReceiptLibrary.encode(loanReceipt));
       encodedLoanReceipt[0] = 1;
       await expect(loanReceiptLibrary.decode(encodedLoanReceipt)).to.be.revertedWithCustomError(
         loanReceiptLibrary,

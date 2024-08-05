@@ -1,90 +1,80 @@
 import { ethers } from "hardhat";
 
 export type Liquidity = {
-  value: ethers.BigNumber;
-  available: ethers.BigNumber;
-  pending: ethers.BigNumber;
+  value: bigint;
+  available: bigint;
+  pending: bigint;
 };
 
 type LoanReceipt = {
-  principal: ethers.BigNumber;
-  adminFee: ethers.BigNumber;
-  repayment: ethers.BigNumber;
-  maturity: ethers.BigNumber;
-  duration: ethers.BigNumber;
+  principal: bigint;
+  adminFee: bigint;
+  repayment: bigint;
+  maturity: bigint;
+  duration: bigint;
 };
 
 export class PoolModel {
   /* Constants */
-  private BASIS_POINTS_SCALE = ethers.BigNumber.from(10000);
-  private FIXED_POINT_SCALE = ethers.utils.parseEther("1");
+  private BASIS_POINTS_SCALE = BigInt(10000);
+  private FIXED_POINT_SCALE = ethers.parseEther("1");
 
   /* States we are using for comparison */
-  public adminFeeBalance: ethers.BigNumber = ethers.constants.Zero;
+  public adminFeeBalance: bigint = 0n;
   public liquidity: Liquidity = {
-    value: ethers.constants.Zero,
-    available: ethers.constants.Zero,
-    pending: ethers.constants.Zero,
+    value: 0n,
+    available: 0n,
+    pending: 0n,
   };
-  public collateralBalances: ethers.BigNumber = ethers.constants.Zero;
-  public tokenBalances: ethers.BigNumber = ethers.constants.Zero;
+  public collateralBalances: bigint = 0n;
+  public tokenBalances: bigint = 0n;
 
   /* Helper state to keep track of loan receipts */
   public loanReceipts: Map<string, Map<string, LoanReceipt>> = new Map<string, Map<string, LoanReceipt>>();
 
   /* Variables to be initialized */
-  public _adminFeeRate: ethers.BigNumber;
+  public _adminFeeRate: bigint;
 
-  constructor(_adminFeeRate: ethers.BigNumber, _interestRateModelType: string, _interestRateModelParams: any) {
+  constructor(_adminFeeRate: bigint, _interestRateModelType: string, _interestRateModelParams: any) {
     this._adminFeeRate = _adminFeeRate;
   }
 
-  public _prorateRepayment(
-    blockTimestamp: ethers.BigNumber,
-    loanReceipt: LoanReceipt
-  ): [ethers.BigNumber, ethers.BigNumber] {
-    const proration = blockTimestamp
-      .sub(loanReceipt.maturity.sub(loanReceipt.duration))
-      .mul(this.FIXED_POINT_SCALE)
-      .div(loanReceipt.duration);
-    const repayment = loanReceipt.principal.add(
-      loanReceipt.repayment.sub(loanReceipt.principal).mul(proration).div(this.FIXED_POINT_SCALE)
-    );
+  public _prorateRepayment(blockTimestamp: bigint, loanReceipt: LoanReceipt): [bigint, bigint] {
+    const proration =
+      ((blockTimestamp - (loanReceipt.maturity - loanReceipt.duration)) * this.FIXED_POINT_SCALE) /
+      loanReceipt.duration;
+    const repayment =
+      loanReceipt.principal + ((loanReceipt.repayment - loanReceipt.principal) * proration) / this.FIXED_POINT_SCALE;
     return [repayment, proration];
   }
 
-  public deposit(
-    amount: ethers.BigNumber,
-    value: ethers.BigNumber,
-    available: ethers.BigNumber,
-    pending: ethers.BigNumber
-  ) {
+  public deposit(amount: bigint, value: bigint, available: bigint, pending: bigint) {
     this.liquidity.value = value;
     this.liquidity.available = available;
     this.liquidity.pending = pending;
-    this.tokenBalances = this.tokenBalances.add(amount);
+    this.tokenBalances = this.tokenBalances + amount;
   }
 
   public borrow(
     address: string,
     encodedLoanReceipt: string,
-    repayment: ethers.BigNumber,
-    principal: ethers.BigNumber,
-    maturity: ethers.BigNumber,
-    duration: ethers.BigNumber
+    repayment: bigint,
+    principal: bigint,
+    maturity: bigint,
+    duration: bigint
   ) {
     /* Compute admin fee */
-    const adminFee = this._adminFeeRate.mul(repayment.sub(principal)).div(this.BASIS_POINTS_SCALE);
+    const adminFee = (this._adminFeeRate * (repayment - principal)) / this.BASIS_POINTS_SCALE;
 
-    /* Update liquidity  */
-    this.liquidity.available = this.liquidity.available.sub(principal);
-    this.liquidity.pending = this.liquidity.pending.add(repayment.sub(adminFee));
+    /* Update liquidity */
+    this.liquidity.available -= principal;
+    this.liquidity.pending += repayment - adminFee;
 
     /* FIXME update with bundles */
-    this.collateralBalances = this.collateralBalances.add(1);
+    this.collateralBalances += 1n;
 
     /* Send principal to borrower */
-    this.tokenBalances = this.tokenBalances.sub(principal);
+    this.tokenBalances -= principal;
 
     let receipt: LoanReceipt = {
       adminFee,
@@ -102,12 +92,12 @@ export class PoolModel {
 
   public repay(
     address: string,
-    blockTimestamp: ethers.BigNumber,
+    blockTimestamp: bigint,
     encodedLoanReceipt: string,
-    value: ethers.BigNumber,
-    available: ethers.BigNumber,
-    pending: ethers.BigNumber
-  ): ethers.BigNumber {
+    value: bigint,
+    available: bigint,
+    pending: bigint
+  ): bigint {
     const loanReceipts = this.loanReceipts.get(address) ?? new Map<string, LoanReceipt>();
 
     const loanReceipt = loanReceipts.get(encodedLoanReceipt);
@@ -119,26 +109,26 @@ export class PoolModel {
     const [repayment, proration] = this._prorateRepayment(blockTimestamp, loanReceipt);
 
     /* Prorated admin fee */
-    const proratedAdminFee = loanReceipt.adminFee.mul(proration).div(this.FIXED_POINT_SCALE);
+    const proratedAdminFee = (loanReceipt.adminFee * proration) / this.FIXED_POINT_SCALE;
 
     /* Update admin fee total balance with prorated admin fee */
-    this.adminFeeBalance = this.adminFeeBalance.add(proratedAdminFee);
+    this.adminFeeBalance += proratedAdminFee;
 
-    /* Update top level liquidity statistics */
+    /* Update top-level liquidity statistics */
     this.liquidity.value = value;
     this.liquidity.available = available;
     this.liquidity.pending = pending;
 
     /* Update token balances */
-    this.tokenBalances = this.tokenBalances.add(repayment);
+    this.tokenBalances += repayment;
 
     /* Update collateral balances */
-    this.collateralBalances = this.collateralBalances.sub(1);
+    this.collateralBalances -= 1n;
 
     return repayment;
   }
 
-  public redeem(value: ethers.BigNumber, available: ethers.BigNumber, pending: ethers.BigNumber) {
+  public redeem(value: bigint, available: bigint, pending: bigint) {
     /* Update liquidity value */
     this.liquidity.value = value;
 
@@ -149,23 +139,23 @@ export class PoolModel {
     this.liquidity.pending = pending;
   }
 
-  public withdraw(amount: ethers.BigNumber) {
+  public withdraw(amount: bigint) {
     /* Transfer withdrawal amount */
-    this.tokenBalances = this.tokenBalances.sub(amount);
+    this.tokenBalances = this.tokenBalances - amount;
   }
 
   public refinance(
     address: string,
-    blockTimestamp: ethers.BigNumber,
-    value: ethers.BigNumber,
-    available: ethers.BigNumber,
-    pending: ethers.BigNumber,
+    blockTimestamp: bigint,
+    value: bigint,
+    available: bigint,
+    pending: bigint,
     encodedLoanReceipt: string,
     newEncodedLoanReceipt: string,
-    repayment: ethers.BigNumber,
-    principal: ethers.BigNumber,
-    maturity: ethers.BigNumber,
-    duration: ethers.BigNumber
+    repayment: bigint,
+    principal: bigint,
+    maturity: bigint,
+    duration: bigint
   ) {
     this.repay(address, blockTimestamp, encodedLoanReceipt, value, available, pending);
 
@@ -179,16 +169,16 @@ export class PoolModel {
 
   public liquidate() {
     /* Transfer collateral to liquidator contract */
-    this.collateralBalances = this.collateralBalances.sub(1);
+    this.collateralBalances = this.collateralBalances - 1n;
   }
 
   public onCollateralLiquidated(
     address: string,
     encodedLoanReceipt: string,
-    proceeds: ethers.BigNumber,
-    value: ethers.BigNumber,
-    available: ethers.BigNumber,
-    pending: ethers.BigNumber
+    proceeds: bigint,
+    value: bigint,
+    available: bigint,
+    pending: bigint
   ) {
     const loanReceipts = this.loanReceipts.get(address) ?? new Map<string, LoanReceipt>();
 
@@ -204,6 +194,6 @@ export class PoolModel {
     this.liquidity.pending = pending;
 
     /* Transfer proceeds from liquidator to pool */
-    this.tokenBalances = this.tokenBalances.add(proceeds);
+    this.tokenBalances = this.tokenBalances + proceeds;
   }
 }

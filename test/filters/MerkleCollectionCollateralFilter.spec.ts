@@ -32,7 +32,7 @@ describe("MerkleCollectionCollateralFilter", function () {
       nodeCount,
       metadataURI
     );
-    await collateralFilter.deployed();
+    await collateralFilter.waitForDeployment();
   });
 
   beforeEach("snapshot blockchain", async () => {

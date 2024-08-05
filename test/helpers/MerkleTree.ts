@@ -7,15 +7,15 @@ export class MerkleTree {
   }
 
   static buildProof(value: any, nodeCount: number, tree: StandardMerkleTree<any>): string {
-    value = ethers.BigNumber.isBigNumber(value) ? value.toString() : value;
+    value = typeof value === "bigint" ? value.toString() : value;
     for (const [i, v] of tree.entries()) {
-      const v0 = ethers.BigNumber.isBigNumber(v[0]) ? v[0].toString() : v[0];
+      const v0 = typeof v[0] === "bigint" ? v[0].toString() : v[0];
       if (v0 === value) {
         const proof = tree.getProof(i); /* in shape of bytes32[] */
         if (proof.length != nodeCount) {
-          proof.push(ethers.constants.HashZero);
+          proof.push(ethers.ZeroHash);
         }
-        return ethers.utils.solidityPack(Array(proof.length).fill("bytes32"), proof);
+        return ethers.solidityPacked(Array(proof.length).fill("bytes32"), proof);
       }
     }
     throw new Error("Input value is not part of tree");
@@ -23,19 +23,19 @@ export class MerkleTree {
 
   static buildProofs(values: any[], nodeCount: number, tree: StandardMerkleTree<any>): string {
     values = values.map((v) => {
-      return ethers.BigNumber.isBigNumber(v) ? v.toString() : v;
+      return typeof v === "bigint" ? v.toString() : v;
     });
 
     const proofs: string[] = [];
     for (const [index, value] of values.entries()) {
       for (const [i, v] of tree.entries()) {
-        const v0 = ethers.BigNumber.isBigNumber(v[0]) ? v[0].toString() : v[0];
+        const v0 = typeof v[0] === "bigint" ? v[0].toString() : v[0];
         if (v0 === value) {
           const proof = tree.getProof(i); /* in shape of bytes32[] */
           if (proof.length != nodeCount) {
-            proof.push(ethers.constants.HashZero);
+            proof.push(ethers.ZeroHash);
           }
-          proofs.push(ethers.utils.solidityPack(Array(proof.length).fill("bytes32"), proof));
+          proofs.push(ethers.solidityPacked(Array(proof.length).fill("bytes32"), proof));
         }
       }
       if (index != proofs.length - 1) {
@@ -43,6 +43,6 @@ export class MerkleTree {
       }
     }
 
-    return ethers.utils.solidityPack(Array(proofs.length).fill("bytes"), proofs);
+    return ethers.solidityPacked(Array(proofs.length).fill("bytes"), proofs);
   }
 }

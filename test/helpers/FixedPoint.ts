@@ -1,31 +1,27 @@
 import { ethers } from "hardhat";
 
-import { BigNumber } from "@ethersproject/bignumber";
-
 export class FixedPoint {
-  static Zero = ethers.constants.Zero;
+  static Zero = 0n;
 
-  static from(x: string | number | BigNumber, decimals: number = 18): BigNumber {
+  static from(x: string | number | bigint, decimals?: number = 18): bigint {
     if (typeof x === "string") {
-      return ethers.utils.parseEther(x).div(10 ** (18 - decimals));
+      return ethers.parseEther(x) / BigInt(10 ** (18 - decimals));
     } else if (typeof x === "number") {
-      return ethers.BigNumber.from(x)
-        .mul(ethers.constants.WeiPerEther)
-        .div(10 ** (18 - decimals));
+      return (BigInt(x) * ethers.WeiPerEther) / BigInt(10 ** (18 - decimals));
     } else {
-      return x.mul(ethers.constants.WeiPerEther).div(10 ** (18 - decimals));
+      return (x * ethers.WeiPerEther) / BigInt(10 ** (18 - decimals));
     }
   }
 
-  static mul(x: BigNumber, y: BigNumber): BigNumber {
-    return x.mul(y).div(ethers.constants.WeiPerEther);
+  static mul(x: bigint, y: bigint): bigint {
+    return (x * y) / ethers.WeiPerEther;
   }
 
-  static div(x: BigNumber, y: BigNumber): BigNumber {
-    return x.mul(ethers.constants.WeiPerEther).div(y);
+  static div(x: bigint, y: bigint): bigint {
+    return (x * ethers.WeiPerEther) / y;
   }
 
-  static normalizeRate(rate: string | number | BigNumber): BigNumber {
-    return FixedPoint.from(rate).div(365 * 86400);
+  static normalizeRate(rate: string | number | bigint): bigint {
+    return FixedPoint.from(rate) / BigInt(365 * 86400);
   }
 }

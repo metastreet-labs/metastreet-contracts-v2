@@ -18,13 +18,13 @@ describe("KongzBundleCollateralWrapper", function () {
   let snapshotId: string;
 
   /* Constants */
-  const KONGZ_ID_1 = ethers.BigNumber.from("327");
-  const KONGZ_ID_2 = ethers.BigNumber.from("90");
-  const KONGZ_ID_3 = ethers.BigNumber.from("96");
-  const KONGZ_ID_4 = ethers.BigNumber.from("46");
-  const KONGZ_ID_5 = ethers.BigNumber.from("176");
-  const KONGZ_ID_6 = ethers.BigNumber.from("850");
-  const NON_OG_KONGZ_ID = ethers.BigNumber.from("2371");
+  const KONGZ_ID_1 = BigInt("327");
+  const KONGZ_ID_2 = BigInt("90");
+  const KONGZ_ID_3 = BigInt("96");
+  const KONGZ_ID_4 = BigInt("46");
+  const KONGZ_ID_5 = BigInt("176");
+  const KONGZ_ID_6 = BigInt("850");
+  const NON_OG_KONGZ_ID = BigInt("2371");
   const KONGZ_OWNER_1 = "0x6c8ee01f1f8b62e987b3d18f6f28b22a0ada755f"; /* Holder of 18 OG KONGZ */
   const KONGZ_ADDRESS = "0x57a204AA1042f6E66DD7730813f4024114d74f37";
   const KONGZ_GENESIS_MAX_TOKEN_ID = 1000;
@@ -65,21 +65,21 @@ describe("KongzBundleCollateralWrapper", function () {
       YIELDHUB_ADDRESS,
       KONGZ_GENESIS_MAX_TOKEN_ID
     )) as KongzBundleCollateralWrapper;
-    await kongzBundleCollateralWrapper.deployed();
+    await kongzBundleCollateralWrapper.waitForDeployment();
 
     testKongzBundleCollateralWrapper = (await testKongzBundleCollateralWrapperFactory.deploy(
-      kongzBundleCollateralWrapper.address,
+      await kongzBundleCollateralWrapper.getAddress(),
       KONGZ_ADDRESS,
       BANANA_ADDRESS,
       YIELDHUB_ADDRESS
     )) as TestKongzBundleCollateralWrapper;
-    await testKongzBundleCollateralWrapper.deployed();
+    await testKongzBundleCollateralWrapper.waitForDeployment();
 
     accountBorrower = await ethers.getImpersonatedSigner(KONGZ_OWNER_1);
 
     /* Approve kongz for collateral wrapper */
-    await kongz.connect(accountBorrower).setApprovalForAll(kongzBundleCollateralWrapper.address, true);
-    await kongz.connect(accountBorrower).setApprovalForAll(testKongzBundleCollateralWrapper.address, true);
+    await kongz.connect(accountBorrower).setApprovalForAll(await kongzBundleCollateralWrapper.getAddress(), true);
+    await kongz.connect(accountBorrower).setApprovalForAll(await testKongzBundleCollateralWrapper.getAddress(), true);
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -119,9 +119,9 @@ describe("KongzBundleCollateralWrapper", function () {
       const tokenId1 = (await extractEvent(mintTx1, kongzBundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
       /* Create context */
-      const context = ethers.utils.solidityPack(
+      const context = ethers.solidityPacked(
         ["address", "uint256[]"],
-        [accountBorrower.address, [KONGZ_ID_1, KONGZ_ID_2]]
+        [await accountBorrower.getAddress(), [KONGZ_ID_1, KONGZ_ID_2]]
       );
 
       /* Enumerate */
@@ -143,9 +143,9 @@ describe("KongzBundleCollateralWrapper", function () {
       const tokenId1 = (await extractEvent(mintTx1, kongzBundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
       /* Create context */
-      const context = ethers.utils.solidityPack(
+      const context = ethers.solidityPacked(
         ["address", "uint256[]"],
-        [accountBorrower.address, [KONGZ_ID_1, KONGZ_ID_2]]
+        [await accountBorrower.getAddress(), [KONGZ_ID_1, KONGZ_ID_2]]
       );
 
       /* Enumerate */
@@ -172,9 +172,9 @@ describe("KongzBundleCollateralWrapper", function () {
       const tokenId1 = (await extractEvent(mintTx1, kongzBundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
       /* Create context */
-      const context = ethers.utils.solidityPack(
+      const context = ethers.solidityPacked(
         ["address", "uint256[]"],
-        [accountBorrower.address, [KONGZ_ID_1, KONGZ_ID_2]]
+        [await accountBorrower.getAddress(), [KONGZ_ID_1, KONGZ_ID_2]]
       );
 
       /* Enumerate */
@@ -189,14 +189,12 @@ describe("KongzBundleCollateralWrapper", function () {
       await kongzBundleCollateralWrapper.connect(accountBorrower).mint([KONGZ_ID_1, KONGZ_ID_2]);
 
       /* Use different token id */
-      const badTokenId = ethers.BigNumber.from(
-        "80530570786821071483259871300278421257638987008682429097249700923201294947214"
-      );
+      const badTokenId = BigInt("80530570786821071483259871300278421257638987008682429097249700923201294947214");
 
       /* Create context */
-      const context = ethers.utils.solidityPack(
+      const context = ethers.solidityPacked(
         ["address", "uint256[]"],
-        [accountBorrower.address, [KONGZ_ID_1, KONGZ_ID_2]]
+        [await accountBorrower.getAddress(), [KONGZ_ID_1, KONGZ_ID_2]]
       );
 
       await expect(kongzBundleCollateralWrapper.count(badTokenId, context)).to.be.revertedWithCustomError(
@@ -211,7 +209,7 @@ describe("KongzBundleCollateralWrapper", function () {
       /* Get transferCalldata */
       const [target, calldata] = await kongzBundleCollateralWrapper.transferCalldata(
         KONGZ_ADDRESS,
-        accountBorrower.address,
+        await accountBorrower.getAddress(),
         accounts[0].address,
         KONGZ_ID_1,
         0
@@ -242,9 +240,9 @@ describe("KongzBundleCollateralWrapper", function () {
       const kongzData = (await extractEvent(mintTx1, kongzBundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
       /* Create context */
-      const context = ethers.utils.solidityPack(
+      const context = ethers.solidityPacked(
         ["address", "uint256[]"],
-        [accountBorrower.address, [KONGZ_ID_1, KONGZ_ID_2, KONGZ_ID_3]]
+        [await accountBorrower.getAddress(), [KONGZ_ID_1, KONGZ_ID_2, KONGZ_ID_3]]
       );
 
       /* Validate encoded bundle */
@@ -252,23 +250,23 @@ describe("KongzBundleCollateralWrapper", function () {
 
       /* Validate events */
       await expectEvent(mintTx1, kongzBundleCollateralWrapper, "Transfer", {
-        from: ethers.constants.AddressZero,
-        to: accountBorrower.address,
+        from: ethers.ZeroAddress,
+        to: await accountBorrower.getAddress(),
         tokenId: tokenId1,
       });
 
       await expectEvent(mintTx1, kongzBundleCollateralWrapper, "BundleMinted", {
         tokenId: tokenId1,
-        account: accountBorrower.address,
+        account: await accountBorrower.getAddress(),
       });
 
       /* Validate state */
       expect(await kongzBundleCollateralWrapper.exists(tokenId1)).to.equal(true);
-      expect(await kongzBundleCollateralWrapper.ownerOf(tokenId1)).to.equal(accountBorrower.address);
+      expect(await kongzBundleCollateralWrapper.ownerOf(tokenId1)).to.equal(await accountBorrower.getAddress());
 
-      expect(await kongz.ownerOf(KONGZ_ID_1)).to.equal(kongzBundleCollateralWrapper.address);
-      expect(await kongz.ownerOf(KONGZ_ID_2)).to.equal(kongzBundleCollateralWrapper.address);
-      expect(await kongz.ownerOf(KONGZ_ID_3)).to.equal(kongzBundleCollateralWrapper.address);
+      expect(await kongz.ownerOf(KONGZ_ID_1)).to.equal(await kongzBundleCollateralWrapper.getAddress());
+      expect(await kongz.ownerOf(KONGZ_ID_2)).to.equal(await kongzBundleCollateralWrapper.getAddress());
+      expect(await kongz.ownerOf(KONGZ_ID_3)).to.equal(await kongzBundleCollateralWrapper.getAddress());
     });
 
     it("can transfer KongzBundleCollateralWrapperToken", async function () {
@@ -281,12 +279,12 @@ describe("KongzBundleCollateralWrapper", function () {
       const tokenId1 = (await extractEvent(mintTx1, kongzBundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
       /* Validate owner */
-      expect(await kongzBundleCollateralWrapper.ownerOf(tokenId1)).to.equal(accountBorrower.address);
+      expect(await kongzBundleCollateralWrapper.ownerOf(tokenId1)).to.equal(await accountBorrower.getAddress());
 
       /* Transfer token */
       await kongzBundleCollateralWrapper
         .connect(accountBorrower)
-        .transferFrom(accountBorrower.address, accounts[2].address, tokenId1);
+        .transferFrom(await accountBorrower.getAddress(), accounts[2].address, tokenId1);
 
       /* Validate owner */
       expect(await kongzBundleCollateralWrapper.ownerOf(tokenId1)).to.equal(accounts[2].address);
@@ -317,7 +315,7 @@ describe("KongzBundleCollateralWrapper", function () {
 
   describe("#unwrap", async function () {
     let context: string;
-    let tokenId: ethers.BigNumber;
+    let tokenId: bigint;
     let kongzData: string;
 
     beforeEach("transfer control token IDs and mint bundle", async function () {
@@ -330,9 +328,9 @@ describe("KongzBundleCollateralWrapper", function () {
       kongzData = (await extractEvent(mintTx, kongzBundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
       /* Create context */
-      context = ethers.utils.solidityPack(
+      context = ethers.solidityPacked(
         ["address", "uint256[]"],
-        [testKongzBundleCollateralWrapper.address, [KONGZ_ID_3, KONGZ_ID_4]]
+        [await testKongzBundleCollateralWrapper.getAddress(), [KONGZ_ID_3, KONGZ_ID_4]]
       );
     });
 
@@ -341,7 +339,9 @@ describe("KongzBundleCollateralWrapper", function () {
       expect(kongzData).to.equal(context);
 
       /* Validate current owner */
-      expect(await kongzBundleCollateralWrapper.ownerOf(tokenId)).to.equal(testKongzBundleCollateralWrapper.address);
+      expect(await kongzBundleCollateralWrapper.ownerOf(tokenId)).to.equal(
+        await testKongzBundleCollateralWrapper.getAddress()
+      );
 
       /* Fast forward one second */
       await helpers.time.increase(1);
@@ -351,8 +351,8 @@ describe("KongzBundleCollateralWrapper", function () {
 
       expect(await kongzBundleCollateralWrapper.exists(tokenId)).to.equal(false);
 
-      expect(await kongz.ownerOf(KONGZ_ID_1)).to.equal(testKongzBundleCollateralWrapper.address);
-      expect(await kongz.ownerOf(KONGZ_ID_2)).to.equal(testKongzBundleCollateralWrapper.address);
+      expect(await kongz.ownerOf(KONGZ_ID_1)).to.equal(await testKongzBundleCollateralWrapper.getAddress());
+      expect(await kongz.ownerOf(KONGZ_ID_2)).to.equal(await testKongzBundleCollateralWrapper.getAddress());
     });
 
     it("unwrap kongz after 3 years", async function () {
@@ -360,7 +360,9 @@ describe("KongzBundleCollateralWrapper", function () {
       expect(kongzData).to.equal(context);
 
       /* Validate current owner */
-      expect(await kongzBundleCollateralWrapper.ownerOf(tokenId)).to.equal(testKongzBundleCollateralWrapper.address);
+      expect(await kongzBundleCollateralWrapper.ownerOf(tokenId)).to.equal(
+        await testKongzBundleCollateralWrapper.getAddress()
+      );
 
       /* Fast forward 1095 days */
       await helpers.time.increase(1095 * 24 * 60 * 60);
@@ -370,8 +372,8 @@ describe("KongzBundleCollateralWrapper", function () {
 
       expect(await kongzBundleCollateralWrapper.exists(tokenId)).to.equal(false);
 
-      expect(await kongz.ownerOf(KONGZ_ID_1)).to.equal(testKongzBundleCollateralWrapper.address);
-      expect(await kongz.ownerOf(KONGZ_ID_2)).to.equal(testKongzBundleCollateralWrapper.address);
+      expect(await kongz.ownerOf(KONGZ_ID_1)).to.equal(await testKongzBundleCollateralWrapper.getAddress());
+      expect(await kongz.ownerOf(KONGZ_ID_2)).to.equal(await testKongzBundleCollateralWrapper.getAddress());
     });
 
     it("only token holder can unwrap bundle", async function () {
@@ -382,13 +384,13 @@ describe("KongzBundleCollateralWrapper", function () {
       const tokenId1 = (await extractEvent(mintTx1, kongzBundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
       /* Create context */
-      const context = ethers.utils.solidityPack(
+      const context = ethers.solidityPacked(
         ["address", "uint256[]"],
-        [accountBorrower.address, [KONGZ_ID_5, KONGZ_ID_6]]
+        [await accountBorrower.getAddress(), [KONGZ_ID_5, KONGZ_ID_6]]
       );
 
       /* Validate current owner */
-      expect(await kongzBundleCollateralWrapper.ownerOf(tokenId1)).to.equal(accountBorrower.address);
+      expect(await kongzBundleCollateralWrapper.ownerOf(tokenId1)).to.equal(await accountBorrower.getAddress());
 
       /* Attempt to unwrap */
       await expect(
@@ -409,37 +411,37 @@ describe("KongzBundleCollateralWrapper", function () {
       const tokenId1 = (await extractEvent(mintTx1, kongzBundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
       /* Create context */
-      const context = ethers.utils.solidityPack(
+      const context = ethers.solidityPacked(
         ["address", "uint256[]"],
-        [accountBorrower.address, [KONGZ_ID_5, KONGZ_ID_6]]
+        [await accountBorrower.getAddress(), [KONGZ_ID_5, KONGZ_ID_6]]
       );
 
       /* Transfer bundle collateral token */
       await kongzBundleCollateralWrapper
         .connect(accountBorrower)
-        .transferFrom(accountBorrower.address, accounts[0].address, tokenId1);
+        .transferFrom(await accountBorrower.getAddress(), accounts[0].address, tokenId1);
 
       /* Fast forward 12 hours */
       await helpers.time.increase(12 * 60 * 60);
 
       /* Get balance before */
-      const balanceOfMinterBefore = await banana.balanceOf(accountBorrower.address);
+      const balanceOfMinterBefore = await banana.balanceOf(await accountBorrower.getAddress());
 
       await kongzBundleCollateralWrapper.connect(accounts[0]).unwrap(tokenId1, context);
 
       /* Get balance after */
-      const balanceOfMinterAfter = await banana.balanceOf(accountBorrower.address);
+      const balanceOfMinterAfter = await banana.balanceOf(await accountBorrower.getAddress());
       const balanceOfOwnerAfter = await banana.balanceOf(accounts[0].address);
 
       /* Validate balances */
-      expect(balanceOfMinterAfter.sub(balanceOfMinterBefore)).to.not.equal(0);
+      expect(balanceOfMinterAfter - balanceOfMinterBefore).to.not.equal(0);
       expect(balanceOfOwnerAfter).to.equal(0);
     });
   });
 
   describe("#claim and claimable", async function () {
     let context: string;
-    let tokenId: ethers.BigNumber;
+    let tokenId: bigint;
 
     beforeEach("transfer control token IDs and mint bundle", async function () {
       const mintTx = await testKongzBundleCollateralWrapper
@@ -450,9 +452,9 @@ describe("KongzBundleCollateralWrapper", function () {
       tokenId = (await extractEvent(mintTx, kongzBundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
       /* Create context */
-      context = ethers.utils.solidityPack(
+      context = ethers.solidityPacked(
         ["address", "uint256[]"],
-        [testKongzBundleCollateralWrapper.address, [KONGZ_ID_3, KONGZ_ID_4]]
+        [await testKongzBundleCollateralWrapper.getAddress(), [KONGZ_ID_3, KONGZ_ID_4]]
       );
     });
 
@@ -499,14 +501,14 @@ describe("KongzBundleCollateralWrapper", function () {
       const tokenId1 = (await extractEvent(mintTx1, kongzBundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
       /* Create context */
-      const context = ethers.utils.solidityPack(
+      const context = ethers.solidityPacked(
         ["address", "uint256[]"],
-        [accountBorrower.address, [KONGZ_ID_5, KONGZ_ID_6]]
+        [await accountBorrower.getAddress(), [KONGZ_ID_5, KONGZ_ID_6]]
       );
 
       await kongzBundleCollateralWrapper
         .connect(accountBorrower)
-        .transferFrom(accountBorrower.address, accounts[0].address, tokenId1);
+        .transferFrom(await accountBorrower.getAddress(), accounts[0].address, tokenId1);
 
       /* Fast forward 1095 days */
       await helpers.time.increase(1095 * 24 * 60 * 60);
@@ -569,7 +571,10 @@ describe("KongzBundleCollateralWrapper", function () {
       const tokenId1 = (await extractEvent(mintTx1, kongzBundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
       /* Create context */
-      const context1 = ethers.utils.solidityPack(["address", "uint256[]"], [accountBorrower.address, [KONGZ_ID_5]]);
+      const context1 = ethers.solidityPacked(
+        ["address", "uint256[]"],
+        [await accountBorrower.getAddress(), [KONGZ_ID_5]]
+      );
 
       /* Separate claim */
       await kongzBundleCollateralWrapper.connect(accountBorrower).claim(tokenId1, context1);
@@ -584,7 +589,10 @@ describe("KongzBundleCollateralWrapper", function () {
       const tokenId2 = (await extractEvent(mintTx2, kongzBundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
       /* Create context */
-      const context2 = ethers.utils.solidityPack(["address", "uint256[]"], [accountBorrower.address, [KONGZ_ID_6]]);
+      const context2 = ethers.solidityPacked(
+        ["address", "uint256[]"],
+        [await accountBorrower.getAddress(), [KONGZ_ID_6]]
+      );
 
       /* Separate claim */
       await kongzBundleCollateralWrapper.connect(accountBorrower).claim(tokenId1, context1);
@@ -606,7 +614,10 @@ describe("KongzBundleCollateralWrapper", function () {
       const tokenId1 = (await extractEvent(mintTx1, kongzBundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
       /* Create context */
-      const context1 = ethers.utils.solidityPack(["address", "uint256[]"], [accountBorrower.address, [KONGZ_ID_5]]);
+      const context1 = ethers.solidityPacked(
+        ["address", "uint256[]"],
+        [await accountBorrower.getAddress(), [KONGZ_ID_5]]
+      );
 
       /* New mint */
       const mintTx2 = await kongzBundleCollateralWrapper.connect(accountBorrower).mint([KONGZ_ID_6]);
@@ -618,7 +629,10 @@ describe("KongzBundleCollateralWrapper", function () {
       const tokenId2 = (await extractEvent(mintTx2, kongzBundleCollateralWrapper, "BundleMinted")).args.tokenId;
 
       /* Create context */
-      const context2 = ethers.utils.solidityPack(["address", "uint256[]"], [accountBorrower.address, [KONGZ_ID_6]]);
+      const context2 = ethers.solidityPacked(
+        ["address", "uint256[]"],
+        [await accountBorrower.getAddress(), [KONGZ_ID_6]]
+      );
 
       /* Separate unwraps */
       await kongzBundleCollateralWrapper.connect(accountBorrower).unwrap(tokenId1, context1);
@@ -647,21 +661,19 @@ describe("KongzBundleCollateralWrapper", function () {
     it("returns true on supported interfaces", async function () {
       /* ERC165 */
       expect(
-        await kongzBundleCollateralWrapper.supportsInterface(
-          kongzBundleCollateralWrapper.interface.getSighash("supportsInterface")
-        )
+        await kongzBundleCollateralWrapper.supportsInterface(ethers.id("supportsInterface(bytes4)").substring(0, 10))
       ).to.equal(true);
 
       /* ICollateralWrapper */
       expect(
         await kongzBundleCollateralWrapper.supportsInterface(
-          ethers.utils.hexlify(
-            ethers.BigNumber.from(kongzBundleCollateralWrapper.interface.getSighash("name"))
-              .xor(ethers.BigNumber.from(kongzBundleCollateralWrapper.interface.getSighash("unwrap")))
-              .xor(ethers.BigNumber.from(kongzBundleCollateralWrapper.interface.getSighash("enumerate")))
-              .xor(ethers.BigNumber.from(kongzBundleCollateralWrapper.interface.getSighash("count")))
-              .xor(ethers.BigNumber.from(kongzBundleCollateralWrapper.interface.getSighash("enumerateWithQuantities")))
-              .xor(ethers.BigNumber.from(kongzBundleCollateralWrapper.interface.getSighash("transferCalldata")))
+          ethers.toBeHex(
+            BigInt(ethers.id("name()").substring(0, 10)) ^
+              BigInt(ethers.id("unwrap(uint256,bytes)").substring(0, 10)) ^
+              BigInt(ethers.id("enumerate(uint256,bytes)").substring(0, 10)) ^
+              BigInt(ethers.id("count(uint256,bytes)").substring(0, 10)) ^
+              BigInt(ethers.id("enumerateWithQuantities(uint256,bytes)").substring(0, 10)) ^
+              BigInt(ethers.id("transferCalldata(address,address,address,uint256,uint256)").substring(0, 10))
           )
         )
       ).to.equal(true);

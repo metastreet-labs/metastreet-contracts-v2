@@ -14,7 +14,7 @@ describe("CollectionCollateralFilter", function () {
       "0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b",
       "0xb7F7F6C52F2e2fdb1963Eab30438024864c313F6",
     ]);
-    await collateralFilter.deployed();
+    await collateralFilter.waitForDeployment();
   });
 
   beforeEach("snapshot blockchain", async () => {

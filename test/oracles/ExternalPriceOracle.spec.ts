@@ -3,9 +3,6 @@ import { ethers, network } from "hardhat";
 
 import { TestExternalPriceOracle } from "../../typechain";
 
-import { FixedPoint } from "../helpers/FixedPoint";
-import { Tick } from "../helpers/Tick";
-
 describe("ExternalPriceOracle", function () {
   let externalPriceOracle1: TestExternalPriceOracle;
   let externalPriceOracle2: TestExternalPriceOracle;
@@ -19,12 +16,10 @@ describe("ExternalPriceOracle", function () {
     const externalPriceOracleFactory = await ethers.getContractFactory("TestExternalPriceOracle");
 
     externalPriceOracle1 = (await externalPriceOracleFactory.deploy(PRICE_ORACLE_ADDR)) as TestExternalPriceOracle;
-    await externalPriceOracle1.deployed();
+    await externalPriceOracle1.waitForDeployment();
 
-    externalPriceOracle2 = (await externalPriceOracleFactory.deploy(
-      ethers.constants.AddressZero
-    )) as TestExternalPriceOracle;
-    await externalPriceOracle2.deployed();
+    externalPriceOracle2 = (await externalPriceOracleFactory.deploy(ethers.ZeroAddress)) as TestExternalPriceOracle;
+    await externalPriceOracle2.waitForDeployment();
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -42,7 +37,7 @@ describe("ExternalPriceOracle", function () {
   describe("constants", async function () {
     it("matches price oracle storage fields", async function () {
       expect(await externalPriceOracle1.priceOracle()).to.be.equal(PRICE_ORACLE_ADDR);
-      expect(await externalPriceOracle2.priceOracle()).to.be.equal(ethers.constants.AddressZero);
+      expect(await externalPriceOracle2.priceOracle()).to.be.equal(ethers.ZeroAddress);
     });
   });
 

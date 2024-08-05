@@ -3,6 +3,7 @@ import fs from "fs";
 
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import "@nomicfoundation/hardhat-ethers";
 import "hardhat-tracer";
 import "hardhat-contract-sizer";
 

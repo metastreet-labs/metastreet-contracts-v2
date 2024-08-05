@@ -12,7 +12,7 @@ describe("SetCollectionCollateralFilter", function () {
       "0x9c0A02FF645DD52C7FA64d41638E7E7980E9703b",
       [123, 124, 125]
     );
-    await collateralFilter.deployed();
+    await collateralFilter.waitForDeployment();
   });
 
   beforeEach("snapshot blockchain", async () => {
