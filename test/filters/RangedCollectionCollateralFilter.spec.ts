@@ -17,7 +17,7 @@ describe("RangedCollectionCollateralFilter", function () {
       123,
       125
     );
-    await collateralFilter.deployed();
+    await collateralFilter.waitForDeployment();
   });
 
   beforeEach("snapshot blockchain", async () => {

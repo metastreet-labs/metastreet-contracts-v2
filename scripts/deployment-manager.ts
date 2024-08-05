@@ -886,7 +886,7 @@ function parseNumber(value: string, _: string): number {
 
 function parseDecimal(decimal: string, _: string): BigNumber {
   try {
-    return ethers.utils.parseEther(decimal);
+    return ethers.parseEther(decimal);
   } catch (e) {
     throw new InvalidArgumentError("Invalid decimal: " + e);
   }

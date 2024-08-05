@@ -41,7 +41,7 @@ describe("Pool Price Oracle", function () {
   let priceOracle: TestPriceOracle;
   let erc20DepositTokenImpl: ERC20DepositTokenImplementation;
 
-  const SCALE = 10 ** 12;
+  const SCALE = 10n ** 12n;
 
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
@@ -64,83 +64,83 @@ describe("Pool Price Oracle", function () {
     ]);
 
     /* Deploy test currency token */
-    tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 6, ethers.utils.parseEther("10000"))) as TestERC20;
-    await tok1.deployed();
+    tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 6, ethers.parseEther("10000"))) as TestERC20;
+    await tok1.waitForDeployment();
 
     /* Deploy test NFT */
     nft1 = (await testERC721Factory.deploy("NFT 1", "NFT1", "https://nft1.com/token/")) as TestERC721;
-    await nft1.deployed();
+    await nft1.waitForDeployment();
 
     /* Deploy loan receipt library */
     loanReceiptLib = await testLoanReceiptFactory.deploy();
-    await loanReceiptLib.deployed();
+    await loanReceiptLib.waitForDeployment();
 
     /* Deploy external collateral liquidator implementation */
     const collateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
-    await collateralLiquidatorImpl.deployed();
+    await collateralLiquidatorImpl.waitForDeployment();
 
     /* Deploy collateral liquidator */
     let proxy = await testProxyFactory.deploy(
-      collateralLiquidatorImpl.address,
+      await collateralLiquidatorImpl.getAddress(),
       collateralLiquidatorImpl.interface.encodeFunctionData("initialize")
     );
-    await proxy.deployed();
+    await proxy.waitForDeployment();
     collateralLiquidator = (await ethers.getContractAt(
       "ExternalCollateralLiquidator",
-      proxy.address
+      await proxy.getAddress()
     )) as ExternalCollateralLiquidator;
 
     /* Deploy test delegation registry v1 */
     delegateRegistryV1 = await delegateRegistryV1Factory.deploy();
-    await delegateRegistryV1.deployed();
+    await delegateRegistryV1.waitForDeployment();
 
     /* Deploy test delegation registry v2 */
     delegateRegistryV2 = await delegateRegistryV2Factory.deploy();
-    await delegateRegistryV2.deployed();
+    await delegateRegistryV2.waitForDeployment();
 
     /* Deploy bundle collateral wrapper */
     bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
-    await bundleCollateralWrapper.deployed();
+    await bundleCollateralWrapper.waitForDeployment();
 
     /* Deploy erc20 deposit token implementation */
     erc20DepositTokenImpl = (await erc20DepositTokenImplFactory.deploy()) as ERC20DepositTokenImplementation;
-    await erc20DepositTokenImpl.deployed();
+    await erc20DepositTokenImpl.waitForDeployment();
 
     /* Deploy test price oracle */
     priceOracle = await testPriceOracleFactory.deploy();
-    await priceOracle.deployed();
+    await priceOracle.waitForDeployment();
 
     /* Set oracle price */
     await priceOracle.setPrice(FixedPoint.from("201153", 6));
 
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
-      collateralLiquidator.address,
-      delegateRegistryV1.address,
-      delegateRegistryV2.address,
-      erc20DepositTokenImpl.address,
-      [bundleCollateralWrapper.address]
+      await collateralLiquidator.getAddress(),
+      await delegateRegistryV1.getAddress(),
+      await delegateRegistryV2.getAddress(),
+      await erc20DepositTokenImpl.getAddress(),
+      [await bundleCollateralWrapper.getAddress()]
     )) as Pool;
-    await poolImpl.deployed();
+    await poolImpl.waitForDeployment();
 
     /* Deploy pool */
     proxy = await testProxyFactory.deploy(
-      poolImpl.address,
+      await poolImpl.getAddress(),
       poolImpl.interface.encodeFunctionData("initialize", [
-        ethers.utils.defaultAbiCoder.encode(
+        ethers.AbiCoder.defaultAbiCoder().encode(
           ["address[]", "address", "address", "uint64[]", "uint64[]"],
           [
-            [nft1.address],
-            tok1.address,
-            priceOracle.address,
+            [await nft1.getAddress()],
+            await tok1.getAddress(),
+            await priceOracle.getAddress(),
             [30 * 86400, 14 * 86400, 7 * 86400],
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
           ]
         ),
       ])
     );
-    await proxy.deployed();
-    pool = (await ethers.getContractAt("Pool", proxy.address)) as Pool;
+    await proxy.waitForDeployment();
+    pool = (await ethers.getContractAt("Pool", await proxy.getAddress())) as Pool;
 
     /* Arrange accounts */
     accountDepositors = accounts.slice(1, 4);
@@ -151,40 +151,40 @@ describe("Pool Price Oracle", function () {
     /* Grant liquidator role to liquidator account */
     await collateralLiquidator.grantRole(
       await collateralLiquidator.COLLATERAL_LIQUIDATOR_ROLE(),
-      accountLiquidator.address
+      await accountLiquidator.getAddress()
     );
 
     /* Transfer TOK1 to depositors and approve Pool */
     for (const depositor of accountDepositors) {
-      await tok1.transfer(depositor.address, ethers.utils.parseEther("1000"));
-      await tok1.connect(depositor).approve(pool.address, ethers.constants.MaxUint256);
+      await tok1.transfer(await depositor.getAddress(), ethers.parseEther("1000"));
+      await tok1.connect(depositor).approve(await pool.getAddress(), ethers.MaxUint256);
     }
     /* Transfer TOK1 to liquidator and approve collateral liquidator */
-    await tok1.transfer(accountLiquidator.address, ethers.utils.parseEther("100"));
-    await tok1.connect(accountLiquidator).approve(collateralLiquidator.address, ethers.constants.MaxUint256);
+    await tok1.transfer(await accountLiquidator.getAddress(), ethers.parseEther("100"));
+    await tok1.connect(accountLiquidator).approve(await collateralLiquidator.getAddress(), ethers.MaxUint256);
 
     /* Mint NFT to borrower */
-    await nft1.mint(accountBorrower.address, 123);
-    await nft1.mint(accountBorrower.address, 124);
-    await nft1.mint(accountBorrower.address, 125);
+    await nft1.mint(await accountBorrower.getAddress(), 123);
+    await nft1.mint(await accountBorrower.getAddress(), 124);
+    await nft1.mint(await accountBorrower.getAddress(), 125);
 
     /* Mint token to borrower */
-    await tok1.transfer(accountBorrower.address, ethers.utils.parseEther("100"));
+    await tok1.transfer(await accountBorrower.getAddress(), ethers.parseEther("100"));
 
     /* Mint token to lender */
-    await tok1.transfer(accountLender.address, ethers.utils.parseEther("1000"));
+    await tok1.transfer(await accountLender.getAddress(), ethers.parseEther("1000"));
 
     /* Approve pool to transfer NFT */
-    await nft1.connect(accountBorrower).setApprovalForAll(pool.address, true);
+    await nft1.connect(accountBorrower).setApprovalForAll(await pool.getAddress(), true);
 
     /* Approve pool to transfer token (for repayment) */
-    await tok1.connect(accountBorrower).approve(pool.address, ethers.constants.MaxUint256);
+    await tok1.connect(accountBorrower).approve(await pool.getAddress(), ethers.MaxUint256);
 
     /* Approve bundle to transfer NFT */
-    await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
+    await nft1.connect(accountBorrower).setApprovalForAll(await bundleCollateralWrapper.getAddress(), true);
 
     /* Approve pool to transfer bundle NFT */
-    await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
+    await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(await pool.getAddress(), true);
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -209,7 +209,7 @@ describe("Pool Price Oracle", function () {
   /* Tick Helpers */
   /****************************************************************************/
 
-  function scaleTickEncode(limit: ethers.BigNumber, decimals: number) {
+  function scaleTickEncode(limit: bigint, decimals: number) {
     return Tick.encode(limit, undefined, undefined, decimals, 1);
   }
 
@@ -217,30 +217,28 @@ describe("Pool Price Oracle", function () {
   /* Liquidity and Loan Helper functions */
   /****************************************************************************/
 
-  const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
-  const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
-  const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
+  const MaxUint128 = BigInt("0xffffffffffffffffffffffffffffffff");
+  const minBN = (a: bigint, b: bigint) => (a < b ? a : b);
+  const maxBN = (a: bigint, b: bigint) => (a > b ? a : b);
 
   async function setupLiquidity(): Promise<void> {
     const NUM_RATIO_LIMITS = 6;
 
-    let limit = ethers.BigNumber.from(4000);
+    let limit = BigInt(4000);
     for (let i = 0; i < NUM_RATIO_LIMITS; i++) {
       await pool.connect(accountDepositors[1]).deposit(scaleTickEncode(limit, 18), FixedPoint.from("35000", 6), 0);
-      limit = limit.add(ethers.BigNumber.from(1000));
+      limit = limit + BigInt(1000);
     }
   }
 
   async function sourceLiquidity(
-    amount: ethers.BigNumber,
-    multiplier?: number = 1,
+    amount: bigint,
+    multiplier?: bigint = 1n,
     duration?: number = 0,
     rate?: number = 0
-  ): Promise<ethers.BigNumber[]> {
-    const normalizedAmount = amount.mul(SCALE);
-    const oraclePrice = (
-      await priceOracle.price(ethers.constants.AddressZero, ethers.constants.AddressZero, [], [], "0x")
-    ).mul(SCALE);
+  ): Promise<bigint[]> {
+    const normalizedAmount = amount * SCALE;
+    const oraclePrice = (await priceOracle.price(ethers.ZeroAddress, ethers.ZeroAddress, [], [], "0x")) * SCALE;
     const nodes = await pool.liquidityNodes(0, MaxUint128);
     const normalizedNodes = [...nodes];
     const ticks = [];
@@ -249,25 +247,25 @@ describe("Pool Price Oracle", function () {
     normalizedNodes.sort((a, b) => {
       const limitA = Tick.decode(a.tick, oraclePrice).limit;
       const limitB = Tick.decode(b.tick, oraclePrice).limit;
-      return limitA.lt(limitB) ? -1 : limitA.gt(limitB) ? 1 : 0;
+      return limitA < limitB ? -1 : limitA > limitB ? 1 : 0;
     });
 
-    let taken = ethers.constants.Zero;
+    let taken = 0n;
 
     for (const node of normalizedNodes) {
       const limit = Tick.decode(node.tick, oraclePrice).limit;
 
-      if (limit.isZero()) continue;
+      if (limit === 0n) continue;
 
-      const take = minBN(minBN(limit.mul(multiplier).sub(taken), node.available), normalizedAmount.sub(taken));
+      const take = minBN(minBN(limit * multiplier - taken, node.available), normalizedAmount - taken);
 
-      if (take.isZero()) break;
+      if (take === 0n) break;
 
       ticks.push(node.tick);
-      taken = taken.add(take);
+      taken = taken + take;
     }
 
-    if (!taken.eq(normalizedAmount)) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
+    if (taken !== normalizedAmount) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
     return ticks;
   }
 
@@ -282,16 +280,16 @@ describe("Pool Price Oracle", function () {
 
     it("correctly quotes repayment for single collateral", async function () {
       /* Arbitrary non-empty oracle context */
-      const oracleContext = ethers.utils.solidityPack(
+      const oracleContext = ethers.solidityPacked(
         ["uint16", "uint16", "bytes"],
-        [5, ethers.utils.hexDataLength("0x11"), "0x11"]
+        [5, ethers.dataLength("0x11"), "0x11"]
       );
 
       expect(
         await pool.quote(
           FixedPoint.from("100000", 6),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           await sourceLiquidity(FixedPoint.from("100000", 6)),
           oracleContext
@@ -302,7 +300,7 @@ describe("Pool Price Oracle", function () {
         await pool.quote(
           FixedPoint.from("150000", 6),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           await sourceLiquidity(FixedPoint.from("150000", 6)),
           oracleContext
@@ -312,7 +310,9 @@ describe("Pool Price Oracle", function () {
 
     it("correctly quotes repayment for bundle", async function () {
       /* Mint bundle */
-      const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
+      const mintTx = await bundleCollateralWrapper
+        .connect(accountBorrower)
+        .mint(await nft1.getAddress(), [123, 124, 125]);
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
@@ -320,12 +320,12 @@ describe("Pool Price Oracle", function () {
         await pool.quote(
           FixedPoint.from("150000", 6),
           30 * 86400,
-          bundleCollateralWrapper.address,
+          await bundleCollateralWrapper.getAddress(),
           bundleTokenId,
           await sourceLiquidity(FixedPoint.from("150000", 6)),
-          ethers.utils.solidityPack(
+          ethers.solidityPacked(
             ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes"],
-            [1, ethers.utils.hexDataLength(bundleData), bundleData, 5, ethers.utils.hexDataLength("0x11"), "0x11"]
+            [1, ethers.dataLength(bundleData), bundleData, 5, ethers.dataLength("0x11"), "0x11"]
           )
         )
       ).to.equal(FixedPoint.from("151232.876713", 6));
@@ -334,12 +334,12 @@ describe("Pool Price Oracle", function () {
         await pool.quote(
           FixedPoint.from("100000", 6),
           30 * 86400,
-          bundleCollateralWrapper.address,
+          await bundleCollateralWrapper.getAddress(),
           bundleTokenId,
           await sourceLiquidity(FixedPoint.from("100000", 6)),
-          ethers.utils.solidityPack(
+          ethers.solidityPacked(
             ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes"],
-            [1, ethers.utils.hexDataLength(bundleData), bundleData, 5, ethers.utils.hexDataLength("0x11"), "0x11"]
+            [1, ethers.dataLength(bundleData), bundleData, 5, ethers.dataLength("0x11"), "0x11"]
           )
         )
       ).to.equal(FixedPoint.from("100821.917809", 6));
@@ -347,7 +347,9 @@ describe("Pool Price Oracle", function () {
 
     it("fails on insufficient liquidity for bundle", async function () {
       /* Mint bundle */
-      const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
+      const mintTx = await bundleCollateralWrapper
+        .connect(accountBorrower)
+        .mint(await nft1.getAddress(), [123, 124, 125]);
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
@@ -355,22 +357,19 @@ describe("Pool Price Oracle", function () {
       const snapshotTicks = await sourceLiquidity(FixedPoint.from("180000", 6));
 
       /* Remove some liquidity */
-      const deposit = await pool.deposits(
-        accountDepositors[1].address,
-        scaleTickEncode(ethers.BigNumber.from(9000), 18)
-      );
-      await pool.connect(accountDepositors[1]).redeem(scaleTickEncode(ethers.BigNumber.from(9000), 18), deposit.shares);
+      const deposit = await pool.deposits(accountDepositors[1].address, scaleTickEncode(BigInt(9000), 18));
+      await pool.connect(accountDepositors[1]).redeem(scaleTickEncode(BigInt(9000), 18), deposit.shares);
 
       await expect(
         pool.quote(
           FixedPoint.from("180000", 6),
           30 * 86400,
-          bundleCollateralWrapper.address,
+          await bundleCollateralWrapper.getAddress(),
           bundleTokenId,
           snapshotTicks,
-          ethers.utils.solidityPack(
+          ethers.solidityPacked(
             ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes"],
-            [1, ethers.utils.hexDataLength(bundleData), bundleData, 5, ethers.utils.hexDataLength("0x11"), "0x11"]
+            [1, ethers.dataLength(bundleData), bundleData, 5, ethers.dataLength("0x11"), "0x11"]
           )
         )
       ).to.be.revertedWithCustomError(pool, "InsufficientLiquidity");
@@ -384,16 +383,16 @@ describe("Pool Price Oracle", function () {
 
     it("originates loan", async function () {
       /* Arbitrary non-empty oracle context */
-      const oracleContext = ethers.utils.solidityPack(
+      const oracleContext = ethers.solidityPacked(
         ["uint16", "uint16", "bytes"],
-        [5, ethers.utils.hexDataLength("0x11"), "0x11"]
+        [5, ethers.dataLength("0x11"), "0x11"]
       );
 
       /* Quote repayment */
       const repayment = await pool.quote(
         FixedPoint.from("150000", 6),
         30 * 86400,
-        nft1.address,
+        await nft1.getAddress(),
         123,
         await sourceLiquidity(FixedPoint.from("150000", 6)),
         oracleContext
@@ -402,10 +401,10 @@ describe("Pool Price Oracle", function () {
       /* Simulate borrow */
       const simulatedRepayment = await pool
         .connect(accountBorrower)
-        .callStatic.borrow(
+        .borrow.staticCall(
           FixedPoint.from("150000", 6),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           FixedPoint.from("200000", 6),
           await sourceLiquidity(FixedPoint.from("150000", 6)),
@@ -418,7 +417,7 @@ describe("Pool Price Oracle", function () {
         .borrow(
           FixedPoint.from("150000", 6),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           FixedPoint.from("200000", 6),
           await sourceLiquidity(FixedPoint.from("150000", 6)),
@@ -430,14 +429,14 @@ describe("Pool Price Oracle", function () {
 
       /* Validate events */
       await expectEvent(borrowTx, nft1, "Transfer", {
-        from: accountBorrower.address,
-        to: pool.address,
+        from: await accountBorrower.getAddress(),
+        to: await pool.getAddress(),
         tokenId: 123,
       });
 
       await expectEvent(borrowTx, tok1, "Transfer", {
-        from: pool.address,
-        to: accountBorrower.address,
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
         value: FixedPoint.from("150000", 6),
       });
 
@@ -453,26 +452,26 @@ describe("Pool Price Oracle", function () {
       /* Validate loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       expect(decodedLoanReceipt.version).to.equal(2);
-      expect(decodedLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedLoanReceipt.borrower).to.equal(await accountBorrower.getAddress());
       expect(decodedLoanReceipt.maturity).to.equal(
-        (await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp + 30 * 86400
+        BigInt((await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp) + 30n * 86400n
       );
       expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
-      expect(decodedLoanReceipt.collateralToken).to.equal(nft1.address);
+      expect(decodedLoanReceipt.collateralToken).to.equal(await nft1.getAddress());
       expect(decodedLoanReceipt.collateralTokenId).to.equal(123);
       expect(decodedLoanReceipt.nodeReceipts.length).to.equal(5);
 
       /* Sum used and pending totals from node receipts */
-      let totalUsed = ethers.constants.Zero;
-      let totalPending = ethers.constants.Zero;
+      let totalUsed = 0n;
+      let totalPending = 0n;
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
-        totalUsed = totalUsed.add(nodeReceipt.used);
-        totalPending = totalPending.add(nodeReceipt.pending);
+        totalUsed = totalUsed + nodeReceipt.used;
+        totalPending = totalPending + nodeReceipt.pending;
       }
 
       /* Validate used and pending totals */
       expect(totalUsed).to.equal(FixedPoint.from("150000"));
-      expect(totalPending).to.closeTo(repayment.mul(SCALE), ethers.BigNumber.from("1000000000000"));
+      expect(totalPending).to.closeTo(repayment * SCALE, BigInt("1000000000000"));
 
       /* Validate loan state */
       expect(await pool.loans(loanReceiptHash)).to.equal(1);
@@ -480,7 +479,9 @@ describe("Pool Price Oracle", function () {
 
     it("originates bundle loan", async function () {
       /* Mint bundle */
-      const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
+      const mintTx = await bundleCollateralWrapper
+        .connect(accountBorrower)
+        .mint(await nft1.getAddress(), [123, 124, 125]);
       const bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
       const bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
@@ -488,28 +489,28 @@ describe("Pool Price Oracle", function () {
       const repayment = await pool.quote(
         FixedPoint.from("150000", 6),
         30 * 86400,
-        bundleCollateralWrapper.address,
+        await bundleCollateralWrapper.getAddress(),
         bundleTokenId,
         await sourceLiquidity(FixedPoint.from("150000", 6)),
-        ethers.utils.solidityPack(
+        ethers.solidityPacked(
           ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes"],
-          [1, ethers.utils.hexDataLength(bundleData), bundleData, 5, ethers.utils.hexDataLength("0x11"), "0x11"]
+          [1, ethers.dataLength(bundleData), bundleData, 5, ethers.dataLength("0x11"), "0x11"]
         )
       );
 
       /* Simulate borrow */
       const simulatedRepayment = await pool
         .connect(accountBorrower)
-        .callStatic.borrow(
+        .borrow.staticCall(
           FixedPoint.from("150000", 6),
           30 * 86400,
-          bundleCollateralWrapper.address,
+          await bundleCollateralWrapper.getAddress(),
           bundleTokenId,
           repayment,
-          await sourceLiquidity(FixedPoint.from("150000", 6), 3),
-          ethers.utils.solidityPack(
+          await sourceLiquidity(FixedPoint.from("150000", 6), 3n),
+          ethers.solidityPacked(
             ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes"],
-            [1, ethers.utils.hexDataLength(bundleData), bundleData, 5, ethers.utils.hexDataLength("0x11"), "0x11"]
+            [1, ethers.dataLength(bundleData), bundleData, 5, ethers.dataLength("0x11"), "0x11"]
           )
         );
 
@@ -519,13 +520,13 @@ describe("Pool Price Oracle", function () {
         .borrow(
           FixedPoint.from("150000", 6),
           30 * 86400,
-          bundleCollateralWrapper.address,
+          await bundleCollateralWrapper.getAddress(),
           bundleTokenId,
           repayment,
-          await sourceLiquidity(FixedPoint.from("150000", 6), 3),
-          ethers.utils.solidityPack(
+          await sourceLiquidity(FixedPoint.from("150000", 6), 3n),
+          ethers.solidityPacked(
             ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes"],
-            [1, ethers.utils.hexDataLength(bundleData), bundleData, 5, ethers.utils.hexDataLength("0x11"), "0x11"]
+            [1, ethers.dataLength(bundleData), bundleData, 5, ethers.dataLength("0x11"), "0x11"]
           )
         );
 
@@ -534,20 +535,20 @@ describe("Pool Price Oracle", function () {
 
       /* Validate events */
       await expectEvent(mintTx, bundleCollateralWrapper, "Transfer", {
-        from: ethers.constants.AddressZero,
-        to: accountBorrower.address,
+        from: ethers.ZeroAddress,
+        to: await accountBorrower.getAddress(),
         tokenId: bundleTokenId,
       });
 
       await expectEvent(borrowTx, bundleCollateralWrapper, "Transfer", {
-        from: accountBorrower.address,
-        to: pool.address,
+        from: await accountBorrower.getAddress(),
+        to: await pool.getAddress(),
         tokenId: bundleTokenId,
       });
 
       await expectEvent(borrowTx, tok1, "Transfer", {
-        from: pool.address,
-        to: accountBorrower.address,
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
         value: FixedPoint.from("150000", 6),
       });
 
@@ -563,28 +564,28 @@ describe("Pool Price Oracle", function () {
       /* Validate loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       expect(decodedLoanReceipt.version).to.equal(2);
-      expect(decodedLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedLoanReceipt.borrower).to.equal(await accountBorrower.getAddress());
       expect(decodedLoanReceipt.maturity).to.equal(
-        (await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp + 30 * 86400
+        BigInt((await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp) + 30n * 86400n
       );
       expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
-      expect(decodedLoanReceipt.collateralToken).to.equal(bundleCollateralWrapper.address);
+      expect(decodedLoanReceipt.collateralToken).to.equal(await bundleCollateralWrapper.getAddress());
       expect(decodedLoanReceipt.collateralTokenId).to.equal(bundleTokenId);
-      expect(decodedLoanReceipt.collateralWrapperContextLen).to.equal(ethers.utils.hexDataLength(bundleData));
+      expect(decodedLoanReceipt.collateralWrapperContextLen).to.equal(ethers.dataLength(bundleData));
       expect(decodedLoanReceipt.collateralWrapperContext).to.equal(bundleData);
       expect(decodedLoanReceipt.nodeReceipts.length).to.equal(5);
 
       /* Sum used and pending totals from node receipts */
-      let totalUsed = ethers.constants.Zero;
-      let totalPending = ethers.constants.Zero;
+      let totalUsed = 0n;
+      let totalPending = 0n;
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
-        totalUsed = totalUsed.add(nodeReceipt.used);
-        totalPending = totalPending.add(nodeReceipt.pending);
+        totalUsed = totalUsed + nodeReceipt.used;
+        totalPending = totalPending + nodeReceipt.pending;
       }
 
       /* Validate used and pending totals */
       expect(totalUsed).to.equal(FixedPoint.from("150000"));
-      expect(totalPending).to.closeTo(repayment.mul(SCALE), ethers.BigNumber.from("1000000000000"));
+      expect(totalPending).to.closeTo(repayment * SCALE, BigInt("1000000000000"));
 
       /* Validate loan state */
       expect(await pool.loans(loanReceiptHash)).to.equal(1);

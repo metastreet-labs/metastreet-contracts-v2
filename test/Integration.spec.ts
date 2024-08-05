@@ -2,7 +2,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import * as helpers from "@nomicfoundation/hardhat-network-helpers";
 
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
+import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/dist/src/signer-with-address";
 
 import {
   TestERC20,
@@ -66,17 +66,17 @@ describe("Integration", function () {
 
   /* Test Suite Internal Storage */
   /* address -> (tick -> [amount, shares, shares pending withdrawals, depositor]) */
-  let deposits: Map<string, Map<string, [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress]>>;
+  let deposits: Map<string, Map<string, [bigint, bigint, bigint, SignerWithAddress]>>;
   /* address -> (tick -> redemption id) */
-  let redemptionIds: Map<string, Map<string, ethers.BigNumber[]>>;
+  let redemptionIds: Map<string, Map<string, bigint[]>>;
   /* list of (borrower address, token id, encoded loan receipt) */
-  let loans: [SignerWithAddress, ethers.BigNumber, string][];
+  let loans: [SignerWithAddress, bigint, string][];
   /* address -> list of token ids - removed when used as collateral */
-  let collateralsOwned: Map<string, Set<ethers.BigNumber>>;
+  let collateralsOwned: Map<string, Set<bigint>>;
   /* token id counter */
-  let collateralTokenId: ethers.BigNumber = ethers.constants.Zero;
+  let collateralTokenId: bigint = 0n;
   /* list of (borrower address, token id, encoded loan receipt) */
-  let defaultedLoans: [SignerWithAddress, ethers.BigNumber, string][];
+  let defaultedLoans: [SignerWithAddress, bigint, string][];
 
   let callSequence: any[];
   let callStatistics: any;
@@ -101,78 +101,82 @@ describe("Integration", function () {
     ]);
 
     /* Deploy test currency token */
-    tok1 = (await testERC20Factory.deploy(
-      "Token 1",
-      "TOK1",
-      18,
-      ethers.utils.parseEther("1000000000000")
-    )) as TestERC20;
-    await tok1.deployed();
+    tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.parseEther("1000000000000"))) as TestERC20;
+    await tok1.waitForDeployment();
 
     /* Deploy test NFT */
     nft1 = (await testERC721Factory.deploy("NFT 1", "NFT1", "https://nft1.com/token/")) as TestERC721;
-    await nft1.deployed();
+    await nft1.waitForDeployment();
 
     /* Deploy loan receipt library */
     loanReceiptLib = await testLoanReceiptFactory.deploy();
-    await loanReceiptLib.deployed();
+    await loanReceiptLib.waitForDeployment();
 
     /* Deploy external collateral liquidator implementation */
     collateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
-    await collateralLiquidatorImpl.deployed();
+    await collateralLiquidatorImpl.waitForDeployment();
 
     /* Deploy collateral liquidator */
     let proxy = await testProxyFactory.deploy(
-      collateralLiquidatorImpl.address,
+      await collateralLiquidatorImpl.getAddress(),
       collateralLiquidatorImpl.interface.encodeFunctionData("initialize")
     );
-    await proxy.deployed();
+    await proxy.waitForDeployment();
     collateralLiquidator = (await ethers.getContractAt(
       "ExternalCollateralLiquidator",
-      proxy.address
+      await proxy.getAddress()
     )) as ExternalCollateralLiquidator;
 
     /* Deploy test delegation registry v1 */
     delegateRegistryV1 = await delegateRegistryV1Factory.deploy();
-    await delegateRegistryV1.deployed();
+    await delegateRegistryV1.waitForDeployment();
 
     /* Deploy test delegation registry v2 */
     delegateRegistryV2 = await delegateRegistryV2Factory.deploy();
-    await delegateRegistryV2.deployed();
+    await delegateRegistryV2.waitForDeployment();
 
     /* Deploy bundle collateral wrapper */
     bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
-    await bundleCollateralWrapper.deployed();
+    await bundleCollateralWrapper.waitForDeployment();
 
     /* Deploy erc20 deposit token implementation */
     erc20DepositTokenImpl = (await erc20DepositTokenImplFactory.deploy()) as ERC20DepositTokenImplementation;
-    await erc20DepositTokenImpl.deployed();
+    await erc20DepositTokenImpl.waitForDeployment();
 
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
-      collateralLiquidator.address,
-      delegateRegistryV1.address,
-      delegateRegistryV2.address,
-      erc20DepositTokenImpl.address,
-      [bundleCollateralWrapper.address]
+      await collateralLiquidator.getAddress(),
+      await delegateRegistryV1.getAddress(),
+      await delegateRegistryV2.getAddress(),
+      await erc20DepositTokenImpl.getAddress(),
+      [await bundleCollateralWrapper.getAddress()]
     )) as Pool;
-    await poolImpl.deployed();
+    await poolImpl.waitForDeployment();
 
     /* Deploy pool */
     proxy = await testProxyFactory.deploy(
-      poolImpl.address,
+      await poolImpl.getAddress(),
       poolImpl.interface.encodeFunctionData("initialize", [
-        ethers.utils.defaultAbiCoder.encode(
+        ethers.AbiCoder.defaultAbiCoder().encode(
           ["address[]", "address", "address", "uint64[]", "uint64[]"],
-          [[nft1.address], tok1.address, ethers.constants.AddressZero, CONFIG.tickDurations, CONFIG.tickRates]
+          [
+            [await nft1.getAddress()],
+            await tok1.getAddress(),
+            ethers.ZeroAddress,
+            CONFIG.tickDurations,
+            CONFIG.tickRates,
+          ]
         ),
       ])
     );
-    await proxy.deployed();
-    pool = (await ethers.getContractAt("WeightedRateCollectionPool", proxy.address)) as WeightedRateCollectionPool;
+    await proxy.waitForDeployment();
+    pool = (await ethers.getContractAt(
+      "WeightedRateCollectionPool",
+      await proxy.getAddress()
+    )) as WeightedRateCollectionPool;
 
     /* Set admin rate */
-    await pool.setAdminFee(CONFIG.adminFeeRate, ethers.constants.AddressZero, 0);
+    await pool.setAdminFee(CONFIG.adminFeeRate, ethers.ZeroAddress, 0);
 
     /* Arrange accounts */
     accountDepositors = accounts.slice(0, CONFIG.numberOfDepositors + 1);
@@ -183,28 +187,28 @@ describe("Integration", function () {
     /* Grant liquidator role to liquidator account */
     await collateralLiquidator.grantRole(
       await collateralLiquidator.COLLATERAL_LIQUIDATOR_ROLE(),
-      accountLiquidator.address
+      await accountLiquidator.getAddress()
     );
 
     /* Transfer TOK1 to depositors and approve Pool */
     for (const depositor of accountDepositors) {
-      await tok1.transfer(depositor.address, ethers.utils.parseEther("100000000"));
-      await tok1.connect(depositor).approve(pool.address, ethers.constants.MaxUint256);
+      await tok1.transfer(await depositor.getAddress(), ethers.parseEther("100000000"));
+      await tok1.connect(depositor).approve(await pool.getAddress(), ethers.MaxUint256);
     }
 
     /* Transfer TOK1 to borrowers and approve Pool */
     for (const borrower of accountBorrowers) {
-      await tok1.transfer(borrower.address, ethers.utils.parseEther("100000000"));
-      await tok1.connect(borrower).approve(pool.address, ethers.constants.MaxUint256);
-      await nft1.connect(borrower).setApprovalForAll(pool.address, true);
+      await tok1.transfer(await borrower.getAddress(), ethers.parseEther("100000000"));
+      await tok1.connect(borrower).approve(await pool.getAddress(), ethers.MaxUint256);
+      await nft1.connect(borrower).setApprovalForAll(await pool.getAddress(), true);
     }
 
     /* Transfer TOK1 to liquidator */
-    await tok1.transfer(accountLiquidator.address, ethers.utils.parseEther("100000000"));
-    await tok1.connect(accountLiquidator).approve(collateralLiquidator.address, ethers.constants.MaxUint256);
+    await tok1.transfer(await accountLiquidator.getAddress(), ethers.parseEther("100000000"));
+    await tok1.connect(accountLiquidator).approve(await collateralLiquidator.getAddress(), ethers.MaxUint256);
 
     /* Instantiate Pool Model class */
-    poolModel = new PoolModel(ethers.BigNumber.from(CONFIG.adminFeeRate), "fixed");
+    poolModel = new PoolModel(BigInt(CONFIG.adminFeeRate), "fixed", null);
 
     /* Create call sequence */
     callSequence = await generateCallSequence();
@@ -212,15 +216,12 @@ describe("Integration", function () {
 
   beforeEach("snapshot blockchain", async () => {
     /* Reset internal storage */
-    collateralsOwned = new Map<string, Set<ethers.BigNumber>>();
+    collateralsOwned = new Map<string, Set<bigint>>();
     loans = [];
     defaultedLoans = [];
-    deposits = new Map<
-      string,
-      Map<string, [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress]>
-    >();
-    redemptionIds = new Map<string, Map<string, ethers.BigNumber[]>>();
-    collateralTokenId = ethers.constants.Zero;
+    deposits = new Map<string, Map<string, [bigint, bigint, bigint, SignerWithAddress]>>();
+    redemptionIds = new Map<string, Map<string, bigint[]>>();
+    collateralTokenId = 0n;
     callStatistics = {
       deposit: 0,
       borrow: 0,
@@ -237,7 +238,7 @@ describe("Integration", function () {
   /* Helper functions */
   /****************************************************************************/
 
-  const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
+  const MaxUint128 = BigInt("0xffffffffffffffffffffffffffffffff");
 
   function consoleLog(message: string) {
     if (!SILENCE_LOG) {
@@ -249,8 +250,14 @@ describe("Integration", function () {
     return Math.floor(Math.random() * (max - min)) + min;
   }
 
-  function getRandomBN(max: ethers.BigNumber): ethers.BigNumber {
-    return ethers.BigNumber.from(ethers.utils.randomBytes(32)).mod(max);
+  function getRandomBN(max: bigint): bigint {
+    const randomBytes = ethers.randomBytes(32);
+    let randomBigInt = BigInt(0);
+
+    for (let i = 0; i < randomBytes.length; i++) {
+      randomBigInt = (randomBigInt << BigInt(8)) | BigInt(randomBytes[i]);
+    }
+    return randomBigInt % max;
   }
 
   function filterNodes(
@@ -285,11 +292,11 @@ describe("Integration", function () {
     let ticks = new Set<string>();
     for (const node of nodes) {
       const tickDecoded = Tick.decode(node.tick);
-      const limit = ethers.utils.formatEther(tickDecoded.limit);
+      const limit = ethers.formatEther(tickDecoded.limit);
       /* Select only one node per tick limit */
       if (!ticks.has(limit)) {
         randomizedNodes.push(node);
-        ticks.add(limit);
+        ticks + limit;
       }
     }
 
@@ -300,9 +307,9 @@ describe("Integration", function () {
     nodes.sort((a, b) => {
       const aLimit = Tick.decode(a.tick).limit;
       const bLimit = Tick.decode(b.tick).limit;
-      if (aLimit.gt(bLimit)) {
+      if (aLimit > bLimit) {
         return 1;
-      } else if (aLimit.lt(bLimit)) {
+      } else if (aLimit < bLimit) {
         return -1;
       } else {
         return 0;
@@ -311,9 +318,9 @@ describe("Integration", function () {
     return nodes;
   }
 
-  function removeLoanFromStorage(store: [SignerWithAddress, ethers.BigNumber, string][], encodedLoanReceipt: string) {
+  function removeLoanFromStorage(store: [SignerWithAddress, bigint, string][], encodedLoanReceipt: string) {
     const indexOfRepaidLoan: number = store.findIndex(
-      (l: [SignerWithAddress, ethers.BigNumber, string]) => l[2] === encodedLoanReceipt
+      (l: [SignerWithAddress, bigint, string]) => l[2] === encodedLoanReceipt
     );
     if (indexOfRepaidLoan === -1) {
       throw new Error("Loan should be in store");
@@ -322,58 +329,43 @@ describe("Integration", function () {
     store.splice(indexOfRepaidLoan, 1);
   }
 
-  function flattenDeposits(
-    hasRedemptionPending: boolean
-  ): [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress][] {
-    const flattenedDeposits: [
-      ethers.BigNumber,
-      ethers.BigNumber,
-      ethers.BigNumber,
-      ethers.BigNumber,
-      SignerWithAddress
-    ][] = [];
-    deposits.forEach(
-      async (
-        ticks: Map<string, [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress]>,
-        address: string
-      ) => {
-        ticks.forEach(
-          async (value: [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress], tick: string) => {
-            const [amount, shares, sharesPendingWithdrawal, depositor] = value;
-            /* If we want deposits with redemption pending, then sharesPendingWithdrawal cannot be 0 */
-            if (!hasRedemptionPending === sharesPendingWithdrawal.eq(ethers.constants.Zero)) {
-              /* Exclude redemptionPending deposits */
-              flattenedDeposits.push([tick, amount, shares, sharesPendingWithdrawal, depositor]);
-            }
-          }
-        );
-      }
-    );
+  function flattenDeposits(hasRedemptionPending: boolean): [bigint, bigint, bigint, bigint, SignerWithAddress][] {
+    const flattenedDeposits: [bigint, bigint, bigint, bigint, SignerWithAddress][] = [];
+    deposits.forEach(async (ticks: Map<string, [bigint, bigint, bigint, SignerWithAddress]>, address: string) => {
+      ticks.forEach(async (value: [bigint, bigint, bigint, SignerWithAddress], tick: string) => {
+        const [amount, shares, sharesPendingWithdrawal, depositor] = value;
+        /* If we want deposits with redemption pending, then sharesPendingWithdrawal cannot be 0 */
+        if (!hasRedemptionPending === (sharesPendingWithdrawal === 0n)) {
+          /* Exclude redemptionPending deposits */
+          flattenedDeposits.push([BigInt(tick), amount, shares, sharesPendingWithdrawal, depositor]);
+        }
+      });
+    });
     return flattenedDeposits;
   }
 
   async function sourceLiquidity(
-    amount: ethers.BigNumber,
-    duration?: ethers.BigNumber = ethers.BigNumber.from(30 * 86400),
-    multiplier?: number = 1
-  ): Promise<ethers.BigNumber[]> {
+    amount: bigint,
+    duration?: bigint = BigInt(30 * 86400),
+    multiplier?: bigint = 1n
+  ): Promise<bigint[]> {
     let nodes = await pool.liquidityNodes(0, MaxUint128);
 
     const ticks = [];
 
-    const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
-    const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
+    const minBN = (a: bigint, b: bigint) => (a < b ? a : b);
+    const maxBN = (a: bigint, b: bigint) => (a > b ? a : b);
 
     /* Lookup duration index */
     const durations = await pool.durations();
 
-    if (duration.gt(durations[0])) {
+    if (duration > durations[0]) {
       throw new Error("Invalid duration");
     }
 
     let durationIndex = durations.length - 1;
     for (; durationIndex > 0; durationIndex--) {
-      if (duration.lte(durations[durationIndex])) break;
+      if (duration <= durations[durationIndex]) break;
     }
 
     /* Filter nodes based on duration index */
@@ -385,36 +377,36 @@ describe("Integration", function () {
     /* Sort nodes in ascending order of tick limit */
     nodes = sortNodes(nodes);
 
-    let taken = ethers.constants.Zero;
+    let taken = 0n;
 
     for (const node of nodes) {
       const tickDecoded = Tick.decode(node.tick);
       const limit = tickDecoded.limit;
-      const take = minBN(minBN(limit.mul(multiplier).sub(taken), node.available), amount.sub(taken));
-      if (take.isZero()) continue;
+      const take = minBN(minBN(limit * multiplier - taken, node.available), amount - taken);
+      if (take === 0n) continue;
       ticks.push(node.tick);
-      taken = taken.add(take);
+      taken = taken + take;
     }
 
-    if (!taken.eq(amount)) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
+    if (taken !== amount) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
     return ticks;
   }
 
-  async function liquidityNodes(): Promise<ethers.BigNumber[]> {
+  async function liquidityNodes(): Promise<bigint[]> {
     const nodes = await pool.liquidityNodes(0, MaxUint128);
-    let value = ethers.constants.Zero;
-    let available = ethers.constants.Zero;
-    let pending = ethers.constants.Zero;
-    let accrued = ethers.constants.Zero;
-    let accrualRate = ethers.constants.Zero;
+    let value = 0n;
+    let available = 0n;
+    let pending = 0n;
+    let accrued = 0n;
+    let accrualRate = 0n;
     for (let node of nodes) {
-      value = value.add(node.value);
-      available = available.add(node.available);
-      pending = pending.add(node.pending);
+      value = value + node.value;
+      available = available + node.available;
+      pending = pending + node.pending;
 
       const [_, accrual] = await pool.liquidityNodeWithAccrual(node.tick);
-      accrued = accrued.add(accrual.accrued);
-      accrualRate = accrualRate.add(accrual.rate);
+      accrued = accrued + accrual.accrued;
+      accrualRate = accrualRate + accrual.rate;
     }
     return [value, available, pending, accrued, accrualRate];
   }
@@ -425,10 +417,13 @@ describe("Integration", function () {
     expect(await pool.adminFeeBalance()).to.equal(poolModel.adminFeeBalance, "Admin fee balance unequal");
 
     /* Compare pool's token balance */
-    expect(await tok1.balanceOf(pool.address)).to.equal(poolModel.tokenBalances, "Token balance unequal");
+    expect(await tok1.balanceOf(await pool.getAddress())).to.equal(poolModel.tokenBalances, "Token balance unequal");
 
     /* Compare pool's collateral balance */
-    expect(await nft1.balanceOf(pool.address)).to.equal(poolModel.collateralBalances, "Collateral balance unequal");
+    expect(await nft1.balanceOf(await pool.getAddress())).to.equal(
+      poolModel.collateralBalances,
+      "Collateral balance unequal"
+    );
     consoleLog(
       `Balances => admin fee: ${poolModel.adminFeeBalance}, token: ${poolModel.tokenBalances}, collateral: ${poolModel.collateralBalances}`
     );
@@ -444,17 +439,17 @@ describe("Integration", function () {
     const flattenedDeposits = flattenDeposits(false);
     for (const deposit of flattenedDeposits) {
       const [tick, , shares, , depositor] = deposit;
-      const tokenAddr = await pool.depositToken(ethers.BigNumber.from(tick));
+      const tokenAddr = await pool.depositToken(BigInt(tick));
       const token = (await ethers.getContractAt(
         "ERC20DepositTokenImplementation",
         tokenAddr
       )) as ERC20DepositTokenImplementation;
-      const erc20DepositTokenBalance = await token.balanceOf(depositor.address);
+      const erc20DepositTokenBalance = await token.balanceOf(await depositor.getAddress());
       expect(erc20DepositTokenBalance).to.equal(shares, "ERC20 deposit token balance unequal");
     }
   }
 
-  async function getTransactionTimestamp(blockNumber: ethers.BigNumber): Promise<ethers.BigNumber> {
+  async function getTransactionTimestamp(blockNumber: bigint): Promise<bigint> {
     const block = await ethers.provider.getBlock(blockNumber);
     return block.timestamp;
   }
@@ -486,13 +481,13 @@ describe("Integration", function () {
         getRandomInteger(0, CONFIG.tickRates.length)
       );
 
-      const amount = ethers.utils.parseEther(
+      const amount = ethers.parseEther(
         getRandomInteger(CONFIG.depositAmounts[0], CONFIG.depositAmounts[CONFIG.depositAmounts.length - 1]).toString()
       );
 
       /* Check node is empty */
       const node = await pool.liquidityNode(tick);
-      if (!node.value.add(node.shares).add(node.available).add(node.pending).eq(ethers.constants.Zero)) {
+      if (node.value + node.shares + node.available + node.pending !== 0n) {
         consoleLog("Node is not empty");
         return;
       }
@@ -517,25 +512,24 @@ describe("Integration", function () {
 
       /* Update our helper variables */
       const depositorsDeposits =
-        deposits.get(depositor.address) ??
-        new Map<string, [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress]>();
+        deposits.get(await depositor.getAddress()) ?? new Map<string, [bigint, bigint, bigint, SignerWithAddress]>();
       const tickDeposit = depositorsDeposits.get(tick.toString()) ?? [
-        ethers.constants.Zero,
-        ethers.constants.Zero,
-        ethers.constants.Zero /* shares pending withdrawal */,
+        0n,
+        0n,
+        0n /* shares pending withdrawal */,
         depositor,
       ];
-      const newTickDeposit: [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress] = [
-        tickDeposit[0].add(amount),
-        tickDeposit[1].add(shares),
+      const newTickDeposit: [bigint, bigint, bigint, SignerWithAddress] = [
+        tickDeposit[0] + amount,
+        tickDeposit[1] + shares,
         tickDeposit[2] /* shares pending withdrawal */,
         depositor,
       ];
       depositorsDeposits.set(tick.toString(), newTickDeposit);
-      deposits.set(depositor.address, depositorsDeposits);
+      deposits.set(await depositor.getAddress(), depositorsDeposits);
 
       callStatistics["deposit"] += 1;
-      consoleLog(`${depositor.address}: Deposited ${amount} at tick ${tick}`);
+      consoleLog(`${await depositor.getAddress()}: Deposited ${amount} at tick ${tick}`);
     } catch (e) {
       consoleLog(`deposit() failed: ${e}`);
       throw e;
@@ -547,72 +541,71 @@ describe("Integration", function () {
       consoleLog("Executing borrow()...");
 
       const borrower = accountBorrowers[getRandomInteger(0, accountBorrowers.length)];
-      consoleLog(`Borrower: ${borrower.address}`);
+      consoleLog(`Borrower: ${await borrower.getAddress()}`);
 
-      const duration = ethers.BigNumber.from(
+      const duration = BigInt(
         getRandomInteger(CONFIG.borrowDurations[0], CONFIG.borrowDurations[CONFIG.borrowDurations.length - 1])
       );
 
-      const principal = ethers.utils.parseEther(
+      const principal = ethers.parseEther(
         getRandomInteger(CONFIG.principals[0], CONFIG.principals[CONFIG.principals.length - 1]).toString()
       );
 
       /* Source liquidity */
-      let _ticks: ethers.BigNumber[] = [];
+      let _ticks: bigint[] = [];
       try {
-        _ticks = await sourceLiquidity(principal, duration, 1);
+        _ticks = await sourceLiquidity(principal, duration, 1n);
       } catch (err) {
         consoleLog("Insufficient liquidity");
         return;
       }
 
       /* Get max repayment */
-      const maxRepayment = principal.mul(2);
+      const maxRepayment = principal * 2n;
 
       let tokenId;
 
       /* Check if borrower has existing collaterals */
-      const borrowerCollaterals = collateralsOwned.get(borrower.address);
+      const borrowerCollaterals = collateralsOwned.get(await borrower.getAddress());
       if (borrowerCollaterals === undefined || borrowerCollaterals.size === 0) {
         tokenId = collateralTokenId;
         /* Mint before borrowing */
-        await nft1.mint(borrower.address, tokenId);
+        await nft1.mint(await borrower.getAddress(), tokenId);
 
         /* Increase collateralTokenId counter since we just minted one */
-        collateralTokenId = collateralTokenId.add(1);
+        collateralTokenId = collateralTokenId + 1n;
       } else {
         const _borrowerCollaterals = Array.from(borrowerCollaterals);
         tokenId = _borrowerCollaterals[Math.floor(Math.random() * _borrowerCollaterals.length)];
 
         /* Remove token id from borrower's collaterals */
         borrowerCollaterals.delete(tokenId);
-        collateralsOwned.set(borrower.address, borrowerCollaterals);
+        collateralsOwned.set(await borrower.getAddress(), borrowerCollaterals);
       }
-
       /* Simulate borrow to get repayment value */
       const repayment = await pool
         .connect(borrower)
-        .callStatic.borrow(principal, duration, nft1.address, tokenId, maxRepayment, _ticks, "0x");
+        .borrow.staticCall(principal, duration, await nft1.getAddress(), tokenId, maxRepayment, _ticks, "0x");
 
       /* Execute borrow() on Pool */
       consoleLog(`Params => principal: ${principal}, duration: ${duration}, maxRepayment: ${maxRepayment}`);
       const borrowTx = await pool
         .connect(borrower)
-        .borrow(principal, duration, nft1.address, tokenId, maxRepayment, _ticks, "0x");
+        .borrow(principal, duration, await nft1.getAddress(), tokenId, maxRepayment, _ticks, "0x");
 
       /* Get block timestamp of borrow transaction */
-      const blockTimestamp = ethers.BigNumber.from(await getTransactionTimestamp(borrowTx.blockNumber));
+      const blockTimestamp = BigInt(await getTransactionTimestamp(borrowTx.blockNumber));
 
       /* Get encoded loan receipt */
       const encodedLoanReceipt: string = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
 
       /* Execute borrow() on PoolModel */
       poolModel.borrow(
-        borrower.address,
+        await borrower.getAddress(),
         encodedLoanReceipt,
         repayment,
         principal,
-        blockTimestamp.add(duration),
+        blockTimestamp + duration,
         duration
       );
 
@@ -641,19 +634,19 @@ describe("Integration", function () {
       const loan = loans[getRandomInteger(0, loans.length)];
 
       const [borrower, tokenId, encodedLoanReceipt] = loan;
-      consoleLog(`Borrower: ${borrower.address}`);
+      consoleLog(`Borrower: ${await borrower.getAddress()}`);
 
       /* Get previous block timestamp */
       const blockNumber = await ethers.provider.getBlockNumber();
       const block = await ethers.provider.getBlock(blockNumber);
-      const timestamp = ethers.BigNumber.from(block.timestamp);
+      const timestamp = BigInt(block.timestamp);
 
       /* Decode loan receipt to get maturity */
       const decodedLoanReceipt = await loanReceiptLib.decode(encodedLoanReceipt);
       const maturity = decodedLoanReceipt.maturity;
 
       /* Check if expired */
-      if (timestamp.gt(maturity)) {
+      if (timestamp > maturity) {
         /* Liquidate expired loan */
         await liquidate(loan);
 
@@ -661,7 +654,7 @@ describe("Integration", function () {
       }
 
       /* Go fast forward to a random timestamp that is before maturity */
-      const randomTimestamp = getRandomBN(maturity.sub(timestamp)).add(timestamp);
+      const randomTimestamp = getRandomBN(maturity - timestamp) + timestamp;
       await helpers.time.increaseTo(randomTimestamp);
 
       /* Execute repay() on Pool */
@@ -669,21 +662,21 @@ describe("Integration", function () {
       const [value, available, pending] = await liquidityNodes();
 
       /* Get block timestamp of repay transaction */
-      const blockTimestamp = ethers.BigNumber.from(await getTransactionTimestamp(repayTx.blockNumber));
+      const blockTimestamp = BigInt(await getTransactionTimestamp(repayTx.blockNumber));
 
       /* Get new encoded loan receipt */
-      const repayment: ethers.BigNumber = (await extractEvent(repayTx, pool, "LoanRepaid")).args.repayment;
+      const repayment: bigint = (await extractEvent(repayTx, pool, "LoanRepaid")).args.repayment;
 
       /* Execute repay() on PoolModel */
-      poolModel.repay(borrower.address, blockTimestamp, encodedLoanReceipt, value, available, pending);
+      poolModel.repay(await borrower.getAddress(), blockTimestamp, encodedLoanReceipt, value, available, pending);
 
       /* Remove loan from internal records based on encoded loan receipt */
       removeLoanFromStorage(loans, encodedLoanReceipt);
 
       /* Indicate that borrower now has the collateral */
-      const borrowerCollaterals: Set<ethers.BigNumber> = collateralsOwned.get(borrower.address) ?? new Set();
+      const borrowerCollaterals: Set<bigint> = collateralsOwned.get(await borrower.getAddress()) ?? new Set();
       borrowerCollaterals.add(tokenId);
-      collateralsOwned.set(borrower.address, borrowerCollaterals);
+      collateralsOwned.set(await borrower.getAddress(), borrowerCollaterals);
 
       callStatistics["repay"] += 1;
       consoleLog(
@@ -702,10 +695,10 @@ describe("Integration", function () {
     try {
       consoleLog("Executing refinance()...");
 
-      const duration = ethers.BigNumber.from(
+      const duration = BigInt(
         getRandomInteger(CONFIG.borrowDurations[0], CONFIG.borrowDurations[CONFIG.borrowDurations.length - 1])
       );
-      const principal = ethers.utils.parseEther(
+      const principal = ethers.parseEther(
         getRandomInteger(CONFIG.principals[0], CONFIG.principals[CONFIG.principals.length - 1]).toString()
       );
 
@@ -719,30 +712,30 @@ describe("Integration", function () {
       const loan = loans[getRandomInteger(0, loans.length)];
 
       const [borrower, tokenId, encodedLoanReceipt] = loan;
-      consoleLog(`Borrower: ${borrower.address}`);
+      consoleLog(`Borrower: ${await borrower.getAddress()}`);
 
       /* Get previous block timestamp */
       const blockNumber = await ethers.provider.getBlockNumber();
       const block = await ethers.provider.getBlock(blockNumber);
-      const timestamp = ethers.BigNumber.from(block.timestamp);
+      const timestamp = BigInt(block.timestamp);
 
       /* Decode loan receipt to get maturity */
       const decodedLoanReceipt = await loanReceiptLib.decode(encodedLoanReceipt);
       const maturity = decodedLoanReceipt.maturity;
 
       /* Check if expired */
-      if (timestamp.gt(maturity)) {
+      if (timestamp > maturity) {
         /* Liquidate expired loan */
         await liquidate(loan);
         return;
       }
 
       /* Go fast forward to a random timestamp that is before maturity */
-      const randomTimestamp = getRandomBN(maturity.sub(timestamp).sub(1)).add(timestamp);
+      const randomTimestamp = getRandomBN(maturity - timestamp - 1n) + timestamp;
       await helpers.time.increaseTo(randomTimestamp);
 
       /* Source liquidity */
-      let _ticks: ethers.BigNumber[] = [];
+      let _ticks: bigint[] = [];
       try {
         _ticks = await sourceLiquidity(principal, duration, 1);
       } catch (err) {
@@ -751,13 +744,13 @@ describe("Integration", function () {
       }
 
       /* Get max repayment */
-      const maxRepayment = principal.mul(2);
+      const maxRepayment = principal * 2n;
 
       /* Simulate refinance to get repayment value */
       consoleLog(`Params => principal: ${principal}, duration: ${duration}, maxRepayment: ${maxRepayment}`);
       const repayment = await pool
         .connect(borrower)
-        .callStatic.refinance(encodedLoanReceipt, principal, duration, maxRepayment, _ticks, "0x");
+        .refinance.staticCall(encodedLoanReceipt, principal, duration, maxRepayment, _ticks, "0x");
 
       /* Execute repay() on Pool */
       const refinanceTx = await pool
@@ -766,14 +759,14 @@ describe("Integration", function () {
       const [value, available, pending] = await liquidityNodes();
 
       /* Get block timestamp of borrow transaction */
-      const blockTimestamp = ethers.BigNumber.from(await getTransactionTimestamp(refinanceTx.blockNumber));
+      const blockTimestamp = BigInt(await getTransactionTimestamp(refinanceTx.blockNumber));
 
       /* Get new encoded loan receipt */
       const newEncodedLoanReceipt: string = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
 
       /* Execute refinance() on PoolModel */
       poolModel.refinance(
-        borrower.address,
+        await borrower.getAddress(),
         blockTimestamp,
         value,
         available,
@@ -782,7 +775,7 @@ describe("Integration", function () {
         newEncodedLoanReceipt,
         repayment,
         principal,
-        blockTimestamp.add(duration),
+        blockTimestamp + duration,
         duration
       );
 
@@ -817,14 +810,14 @@ describe("Integration", function () {
       }
       const [tick, amount, shares, sharesPendingWithdrawal, depositor] =
         flattenedDeposits[getRandomInteger(0, flattenedDeposits.length)];
-      consoleLog(`Depositor: ${depositor.address}`);
+      consoleLog(`Depositor: ${await depositor.getAddress()}`);
 
       /* If randomized, redeem at least 1 */
-      const sharesRedeemAmount = CONFIG.isSharesRedeemAmountRandomized ? getRandomBN(shares.sub(1)).add(1) : shares;
+      const sharesRedeemAmount = CONFIG.isSharesRedeemAmountRandomized ? getRandomBN(shares - 1n) + 1n : shares;
 
       /* Execute redeem() on Pool */
       consoleLog(`Params => tick: ${tick}, shares: ${sharesRedeemAmount}`);
-      const redemptionId = await pool.connect(depositor).callStatic.redeem(tick, sharesRedeemAmount);
+      const redemptionId = await pool.connect(depositor).redeem.staticCall(tick, sharesRedeemAmount);
       await pool.connect(depositor).redeem(tick, sharesRedeemAmount);
 
       const [value, available, pending] = await liquidityNodes();
@@ -833,31 +826,31 @@ describe("Integration", function () {
       poolModel.redeem(value, available, pending);
 
       /* Update our helper variables */
-      const depositorsDeposits = deposits.get(depositor.address);
+      const depositorsDeposits = deposits.get(await depositor.getAddress());
 
       if (depositorsDeposits === undefined) {
         throw new Error("depositorDeposits should exists");
       }
 
       /* Set redemption pending to true */
-      const newTickDeposit: [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress] = [
+      const newTickDeposit: [bigint, bigint, bigint, SignerWithAddress] = [
         amount,
-        shares.sub(sharesRedeemAmount),
-        sharesPendingWithdrawal.add(sharesRedeemAmount),
+        shares - sharesRedeemAmount,
+        sharesPendingWithdrawal + sharesRedeemAmount,
         depositor,
       ];
       depositorsDeposits.set(tick.toString(), newTickDeposit);
-      deposits.set(depositor.address, depositorsDeposits);
+      deposits.set(await depositor.getAddress(), depositorsDeposits);
 
       /* Add redemption ID */
-      const depositorTickRedemption = redemptionIds.get(depositor.address) ?? new Map<string, ethers.BigNumber[]>();
+      const depositorTickRedemption = redemptionIds.get(await depositor.getAddress()) ?? new Map<string, bigint[]>();
       const depositorTickRedemptionIds = depositorTickRedemption.get(tick) ?? [];
       depositorTickRedemptionIds.push(redemptionId);
       depositorTickRedemption.set(tick, depositorTickRedemptionIds);
-      redemptionIds.set(depositor.address, depositorTickRedemption);
+      redemptionIds.set(await depositor.getAddress(), depositorTickRedemption);
 
       callStatistics["redeem"] += 1;
-      consoleLog(`${depositor.address}: Redeemed ${sharesRedeemAmount} shares at tick ${tick}`);
+      consoleLog(`${await depositor.getAddress()}: Redeemed ${sharesRedeemAmount} shares at tick ${tick}`);
     } catch (e) {
       consoleLog(`redeem() failed: ${e}`);
       throw e;
@@ -879,23 +872,24 @@ describe("Integration", function () {
         flattenedDeposits[getRandomInteger(0, flattenedDeposits.length)];
 
       /* Simulate withdrawal is possible */
-      const depositorTickRedemption = redemptionIds.get(depositor.address) ?? new Map<string, ethers.BigNumber>();
+      const depositorTickRedemption = redemptionIds.get(await depositor.getAddress()) ?? new Map<string, bigint>();
       const depositorTickRedemptionIds = depositorTickRedemption.get(tick) ?? [];
+
       if (depositorTickRedemptionIds.length === 0) {
         throw new Error("depositorTickRedemptionIds should exists");
       }
       const redemptionId = depositorTickRedemptionIds[0];
-      const redemptionAvailable = await pool.redemptionAvailable(depositor.address, tick, redemptionId);
+      const redemptionAvailable = await pool.redemptionAvailable(await depositor.getAddress(), tick, redemptionId);
 
       /* Delete redemption ID if entire redemption is available */
-      const redemption = await pool.redemptions(depositor.address, tick, redemptionId);
-      if (redemption.pending.eq(redemptionAvailable[0])) {
+      const redemption = await pool.redemptions(await depositor.getAddress(), tick, redemptionId);
+      if (redemption.pending === redemptionAvailable[0]) {
         depositorTickRedemption.set(tick, depositorTickRedemptionIds.slice(1));
-        redemptionIds.set(depositor.address, depositorTickRedemption);
+        redemptionIds.set(await depositor.getAddress(), depositorTickRedemption);
       }
 
       /* Skip withdraw if shares and amount are both 0 */
-      if (redemptionAvailable[0].eq(0) && redemptionAvailable[1].eq(0)) {
+      if (redemptionAvailable[0] === 0 && redemptionAvailable[1] === 0) {
         return;
       }
 
@@ -914,21 +908,21 @@ describe("Integration", function () {
       poolModel.withdraw(_amount);
 
       /* Update our helper variables */
-      const depositorsDeposits = deposits.get(depositor.address);
+      const depositorsDeposits = deposits.get(await depositor.getAddress());
 
       if (depositorsDeposits === undefined) {
         throw new Error("depositorDeposits should exists");
       }
 
-      const newAmount = amount.sub(_amount);
-      const newSharesPendingWithdrawal = sharesPendingWithdrawal.sub(_shares);
+      const newAmount = amount - _amount;
+      const newSharesPendingWithdrawal = sharesPendingWithdrawal - _shares;
 
       /* Remove deposit record if fully repaid and no outstanding shares to be redeemed */
-      if (newSharesPendingWithdrawal.eq(ethers.constants.Zero) && shares.eq(ethers.constants.Zero)) {
+      if (newSharesPendingWithdrawal === 0n && shares === 0n) {
         depositorsDeposits.delete(tick.toString());
       } else {
         /* Else, update depositor record */
-        const newTickDeposit: [ethers.BigNumber, ethers.BigNumber, ethers.BigNumber, SignerWithAddress] = [
+        const newTickDeposit: [bigint, bigint, bigint, SignerWithAddress] = [
           newAmount,
           shares,
           newSharesPendingWithdrawal,
@@ -936,10 +930,10 @@ describe("Integration", function () {
         ];
         depositorsDeposits.set(tick.toString(), newTickDeposit);
       }
-      deposits.set(depositor.address, depositorsDeposits);
+      deposits.set(await depositor.getAddress(), depositorsDeposits);
 
       callStatistics["withdraw"] += 1;
-      consoleLog(`${depositor.address}: Withdrew ${_shares} shares and ${amount} tokens at tick ${tick}`);
+      consoleLog(`${await depositor.getAddress()}: Withdrew ${_shares} shares and ${amount} tokens at tick ${tick}`);
     } catch (e) {
       consoleLog(`withdraw() failed: ${e}`);
       throw e;
@@ -964,16 +958,16 @@ describe("Integration", function () {
       /* Get previous block timestamp */
       const blockNumber = await ethers.provider.getBlockNumber();
       const block = await ethers.provider.getBlock(blockNumber);
-      const timestamp = ethers.BigNumber.from(block.timestamp);
+      const timestamp = BigInt(block.timestamp);
 
       /* Decode loan receipt to get maturity */
       const decodedLoanReceipt = await loanReceiptLib.decode(encodedLoanReceipt);
       const maturity = decodedLoanReceipt.maturity;
 
       /* Check if expired */
-      if (maturity.gte(timestamp)) {
+      if (maturity >= timestamp) {
         /* Fast forward to one second after maturity */
-        await helpers.time.increaseTo(maturity.add(1).toNumber());
+        await helpers.time.increaseTo(maturity + 1n);
       }
 
       /* Execute liquidate on Pool */
@@ -1017,20 +1011,20 @@ describe("Integration", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(encodedLoanReceipt);
 
       /* Proceeds ratio */
-      const proceedsRatio = ethers.BigNumber.from(
+      const proceedsRatio = BigInt(
         CONFIG.liquidationProceedsRatio[getRandomInteger(0, CONFIG.liquidationProceedsRatio.length)]
       );
 
       /* Compute proceeds */
-      const proceeds = decodedLoanReceipt.repayment.mul(proceedsRatio).div(10000);
+      const proceeds = (decodedLoanReceipt.repayment * proceedsRatio) / 10000n;
 
       /* Execute liquidate on Pool */
       consoleLog(`Params => proceeds: ${proceeds}`);
       await collateralLiquidator
         .connect(accountLiquidator)
         .withdrawCollateral(
-          pool.address,
-          tok1.address,
+          await pool.getAddress(),
+          await tok1.getAddress(),
           decodedLoanReceipt.collateralToken,
           decodedLoanReceipt.collateralTokenId,
           "0x",
@@ -1039,8 +1033,8 @@ describe("Integration", function () {
       await collateralLiquidator
         .connect(accountLiquidator)
         .liquidateCollateral(
-          pool.address,
-          tok1.address,
+          await pool.getAddress(),
+          await tok1.getAddress(),
           decodedLoanReceipt.collateralToken,
           decodedLoanReceipt.collateralTokenId,
           "0x",
@@ -1050,7 +1044,14 @@ describe("Integration", function () {
       const [value, available, pending] = await liquidityNodes();
 
       /* Execute liquidate on PoolModel */
-      poolModel.onCollateralLiquidated(borrower.address, encodedLoanReceipt, proceeds, value, available, pending);
+      poolModel.onCollateralLiquidated(
+        await borrower.getAddress(),
+        encodedLoanReceipt,
+        proceeds,
+        value,
+        available,
+        pending
+      );
 
       /* Update our helper variables */
       removeLoanFromStorage(defaultedLoans, encodedLoanReceipt);

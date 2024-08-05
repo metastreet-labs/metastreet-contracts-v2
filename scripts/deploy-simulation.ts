@@ -23,7 +23,7 @@ async function main() {
   const PoolFactory = await ethers.getContractFactory("PoolFactory", accounts[9]);
 
   /* Deploy WETH */
-  const wethTokenContract = await TestERC20.deploy("WETH", "WETH", 18, ethers.utils.parseEther("1000000"));
+  const wethTokenContract = await TestERC20.deploy("WETH", "WETH", 18, ethers.parseEther("1000000"));
   await wethTokenContract.deployed();
   console.log("WETH ERC20 Contract:        ", wethTokenContract.address);
 
@@ -115,10 +115,10 @@ async function main() {
   console.log("Depositer 2 is   account #3 (%s)", accounts[3].address);
   console.log("");
 
-  await wethTokenContract.transfer(accounts[0].address, ethers.utils.parseEther("1000"));
-  await wethTokenContract.transfer(accounts[1].address, ethers.utils.parseEther("1000"));
-  await wethTokenContract.transfer(accounts[2].address, ethers.utils.parseEther("1000"));
-  await wethTokenContract.transfer(accounts[3].address, ethers.utils.parseEther("1000"));
+  await wethTokenContract.transfer(accounts[0].address, ethers.parseEther("1000"));
+  await wethTokenContract.transfer(accounts[1].address, ethers.parseEther("1000"));
+  await wethTokenContract.transfer(accounts[2].address, ethers.parseEther("1000"));
+  await wethTokenContract.transfer(accounts[3].address, ethers.parseEther("1000"));
   console.log("Transferred 1000 WETH to account #0, #1, #2, #3");
 
   await baycTokenContract.mint(accounts[1].address, 123);

@@ -41,10 +41,10 @@ describe("Pool Bundle Merkle", function () {
   let delegateRegistryV2: TestDelegateRegistryV2;
   let bundleCollateralWrapper: BundleCollateralWrapper;
   let bundleData: any;
-  let bundleTokenId: ethers.BigNumber;
+  let bundleTokenId: bigint;
   let merkleTree: StandardMerkleTree<any>;
   let nodeCount: number;
-  let rates: ethers.BigNumber[];
+  let rates: bigint[];
   let erc20DepositTokenImpl: ERC20DepositTokenImplementation;
 
   before("deploy fixture", async () => {
@@ -67,57 +67,57 @@ describe("Pool Bundle Merkle", function () {
     ]);
 
     /* Deploy test currency token */
-    tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;
-    await tok1.deployed();
+    tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.parseEther("10000"))) as TestERC20;
+    await tok1.waitForDeployment();
 
     /* Deploy test NFT */
     nft1 = (await testERC721Factory.deploy("NFT 1", "NFT1", "https://nft1.com/token/")) as TestERC721;
-    await nft1.deployed();
+    await nft1.waitForDeployment();
 
     /* Deploy loan receipt library */
     loanReceiptLib = await testLoanReceiptFactory.deploy();
-    await loanReceiptLib.deployed();
+    await loanReceiptLib.waitForDeployment();
 
     /* Deploy external collateral liquidator implementation */
     const collateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
-    await collateralLiquidatorImpl.deployed();
+    await collateralLiquidatorImpl.waitForDeployment();
 
     /* Deploy collateral liquidator */
     let proxy = await testProxyFactory.deploy(
-      collateralLiquidatorImpl.address,
+      await collateralLiquidatorImpl.getAddress(),
       collateralLiquidatorImpl.interface.encodeFunctionData("initialize")
     );
-    await proxy.deployed();
+    await proxy.waitForDeployment();
     collateralLiquidator = (await ethers.getContractAt(
       "ExternalCollateralLiquidator",
-      proxy.address
+      await proxy.getAddress()
     )) as ExternalCollateralLiquidator;
 
     /* Deploy test delegation registry v1 */
     delegateRegistryV1 = await delegateRegistryV1Factory.deploy();
-    await delegateRegistryV1.deployed();
+    await delegateRegistryV1.waitForDeployment();
 
     /* Deploy test delegation registry v2 */
     delegateRegistryV2 = await delegateRegistryV2Factory.deploy();
-    await delegateRegistryV2.deployed();
+    await delegateRegistryV2.waitForDeployment();
 
     /* Deploy bundle collateral wrapper */
     bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
-    await bundleCollateralWrapper.deployed();
+    await bundleCollateralWrapper.waitForDeployment();
 
     /* Deploy erc20 deposit token implementation */
     erc20DepositTokenImpl = (await erc20DepositTokenImplFactory.deploy()) as ERC20DepositTokenImplementation;
-    await erc20DepositTokenImpl.deployed();
+    await erc20DepositTokenImpl.waitForDeployment();
 
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
-      collateralLiquidator.address,
-      delegateRegistryV1.address,
-      delegateRegistryV2.address,
-      erc20DepositTokenImpl.address,
-      [bundleCollateralWrapper.address]
+      await collateralLiquidator.getAddress(),
+      await delegateRegistryV1.getAddress(),
+      await delegateRegistryV2.getAddress(),
+      await erc20DepositTokenImpl.getAddress(),
+      [await bundleCollateralWrapper.getAddress()]
     )) as Pool;
-    await poolImpl.deployed();
+    await poolImpl.waitForDeployment();
 
     /* Arrange accounts */
     accountDepositors = accounts.slice(1, 4);
@@ -126,15 +126,17 @@ describe("Pool Bundle Merkle", function () {
     accountLiquidator = accounts[6];
 
     /* Mint NFT to borrower */
-    await nft1.mint(accountBorrower.address, 123);
-    await nft1.mint(accountBorrower.address, 124);
-    await nft1.mint(accountBorrower.address, 125);
+    await nft1.mint(await accountBorrower.getAddress(), 123);
+    await nft1.mint(await accountBorrower.getAddress(), 124);
+    await nft1.mint(await accountBorrower.getAddress(), 125);
 
     /* Approve bundle to transfer NFT */
-    await nft1.connect(accountBorrower).setApprovalForAll(bundleCollateralWrapper.address, true);
+    await nft1.connect(accountBorrower).setApprovalForAll(await bundleCollateralWrapper.getAddress(), true);
 
     /* Mint bundle */
-    const mintTx = await bundleCollateralWrapper.connect(accountBorrower).mint(nft1.address, [123, 124, 125]);
+    const mintTx = await bundleCollateralWrapper
+      .connect(accountBorrower)
+      .mint(await nft1.getAddress(), [123, 124, 125]);
     bundleTokenId = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.tokenId;
     bundleData = (await extractEvent(mintTx, bundleCollateralWrapper, "BundleMinted")).args.encodedBundle;
 
@@ -148,52 +150,52 @@ describe("Pool Bundle Merkle", function () {
 
     /* Deploy pool */
     proxy = await testProxyFactory.deploy(
-      poolImpl.address,
+      await poolImpl.getAddress(),
       poolImpl.interface.encodeFunctionData("initialize", [
-        ethers.utils.defaultAbiCoder.encode(
+        ethers.AbiCoder.defaultAbiCoder().encode(
           ["address", "bytes32", "uint32", "string", "address", "address", "uint64[]", "uint64[]"],
           [
-            nft1.address,
+            await nft1.getAddress(),
             merkleTree.root /* Merkle root */,
             nodeCount,
             "https://api.example.com/v2/",
-            tok1.address,
-            ethers.constants.AddressZero,
+            await tok1.getAddress(),
+            ethers.ZeroAddress,
             [30 * 86400, 14 * 86400, 7 * 86400],
             rates,
           ]
         ),
       ])
     );
-    await proxy.deployed();
-    pool = (await ethers.getContractAt("Pool", proxy.address)) as Pool;
+    await proxy.waitForDeployment();
+    pool = (await ethers.getContractAt("Pool", await proxy.getAddress())) as Pool;
 
     /* Grant liquidator role to liquidator account */
     await collateralLiquidator.grantRole(
       await collateralLiquidator.COLLATERAL_LIQUIDATOR_ROLE(),
-      accountLiquidator.address
+      await accountLiquidator.getAddress()
     );
 
     /* Transfer TOK1 to depositors and approve Pool */
     for (const depositor of accountDepositors) {
-      await tok1.transfer(depositor.address, ethers.utils.parseEther("1000"));
-      await tok1.connect(depositor).approve(pool.address, ethers.constants.MaxUint256);
+      await tok1.transfer(await depositor.getAddress(), ethers.parseEther("1000"));
+      await tok1.connect(depositor).approve(await pool.getAddress(), ethers.MaxUint256);
     }
     /* Transfer TOK1 to liquidator and approve collateral liquidator */
-    await tok1.transfer(accountLiquidator.address, ethers.utils.parseEther("100"));
-    await tok1.connect(accountLiquidator).approve(collateralLiquidator.address, ethers.constants.MaxUint256);
+    await tok1.transfer(await accountLiquidator.getAddress(), ethers.parseEther("100"));
+    await tok1.connect(accountLiquidator).approve(await collateralLiquidator.getAddress(), ethers.MaxUint256);
 
     /* Mint token to borrower */
-    await tok1.transfer(accountBorrower.address, ethers.utils.parseEther("100"));
+    await tok1.transfer(await accountBorrower.getAddress(), ethers.parseEther("100"));
 
     /* Mint token to lender */
-    await tok1.transfer(accountLender.address, ethers.utils.parseEther("1000"));
+    await tok1.transfer(await accountLender.getAddress(), ethers.parseEther("1000"));
 
     /* Approve pool to transfer token (for repayment) */
-    await tok1.connect(accountBorrower).approve(pool.address, ethers.constants.MaxUint256);
+    await tok1.connect(accountBorrower).approve(await pool.getAddress(), ethers.MaxUint256);
 
     /* Approve pool to transfer bundle NFT */
-    await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(pool.address, true);
+    await bundleCollateralWrapper.connect(accountBorrower).setApprovalForAll(await pool.getAddress(), true);
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -210,7 +212,7 @@ describe("Pool Bundle Merkle", function () {
 
   describe("getters", async function () {
     it("returns expected currency token", async function () {
-      expect(await pool.currencyToken()).to.equal(tok1.address);
+      expect(await pool.currencyToken()).to.equal(await tok1.getAddress());
     });
 
     it("returns expected admin fee rate", async function () {
@@ -220,19 +222,19 @@ describe("Pool Bundle Merkle", function () {
     it("returns expected collateral wrappers", async function () {
       const collateralWrappers = await pool.collateralWrappers();
       expect(collateralWrappers.length).to.equal(3);
-      expect(collateralWrappers[0]).to.equal(bundleCollateralWrapper.address);
+      expect(collateralWrappers[0]).to.equal(await bundleCollateralWrapper.getAddress());
     });
 
     it("returns expected collateral liquidator", async function () {
-      expect(await pool.collateralLiquidator()).to.equal(collateralLiquidator.address);
+      expect(await pool.collateralLiquidator()).to.equal(await collateralLiquidator.getAddress());
     });
 
     it("returns expected delegation registry v1", async function () {
-      expect(await pool.delegationRegistry()).to.equal(delegateRegistryV1.address);
+      expect(await pool.delegationRegistry()).to.equal(await delegateRegistryV1.getAddress());
     });
 
     it("returns expected delegation registry v2", async function () {
-      expect(await pool.delegationRegistryV2()).to.equal(delegateRegistryV2.address);
+      expect(await pool.delegationRegistryV2()).to.equal(await delegateRegistryV2.getAddress());
     });
   });
 
@@ -240,10 +242,10 @@ describe("Pool Bundle Merkle", function () {
   /* Liquidity and Loan Helper functions */
   /****************************************************************************/
 
-  const FixedPointScale = ethers.utils.parseEther("1");
-  const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
-  const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
-  const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
+  const FixedPointScale = ethers.parseEther("1");
+  const MaxUint128 = BigInt("0xffffffffffffffffffffffffffffffff");
+  const minBN = (a: bigint, b: bigint) => (a < b ? a : b);
+  const maxBN = (a: bigint, b: bigint) => (a > b ? a : b);
 
   async function setupLiquidity(): Promise<void> {
     const NUM_LIMITS = 20;
@@ -252,52 +254,46 @@ describe("Pool Bundle Merkle", function () {
     let limit = FixedPoint.from("6.5");
     for (let i = 0; i < NUM_LIMITS; i++) {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode(limit), FixedPoint.from("25"), 0);
-      limit = limit.mul(TICK_LIMIT_SPACING_BASIS_POINTS.add(10000)).div(10000);
+      limit = (limit * (TICK_LIMIT_SPACING_BASIS_POINTS + 10000n)) / 10000n;
     }
   }
 
   async function sourceLiquidity(
-    amount: ethers.BigNumber,
-    multiplier?: number = 1,
+    amount: bigint,
+    multiplier?: bigint = 1n,
     duration?: number = 2,
     rate?: number = 0
-  ): Promise<[ethers.BigNumber[], ethers.BigNumber[]]> {
+  ): Promise<[bigint[], bigint[]]> {
     const nodes = await pool.liquidityNodes(0, MaxUint128);
     const ticks = [];
     const used = [];
 
-    let taken = ethers.constants.Zero;
+    let taken = 0n;
     for (const node of nodes) {
       const limit = Tick.decode(node.tick).limit;
-      if (limit.isZero()) continue;
+      if (limit === 0n) continue;
 
-      const take = minBN(minBN(limit.mul(multiplier).sub(taken), node.available), amount.sub(taken));
-      if (take.isZero()) break;
+      const take = minBN(minBN(limit * multiplier - taken, node.available), amount - taken);
+      if (take === 0n) break;
 
       ticks.push(node.tick);
       used.push(take);
-      taken = taken.add(take);
+      taken = taken + take;
     }
 
-    if (!taken.eq(amount)) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
+    if (taken !== amount) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
 
     return [ticks, used];
   }
 
-  function quote(
-    amount: ethers.BigNumber,
-    duration: number,
-    ticks: ethers.BigNumber[],
-    used: ethers.BigNumber[],
-    rates: ethers.BigNumber[]
-  ): ethers.BigNumber {
-    let interest = ethers.constants.Zero;
+  function quote(amount: bigint, duration: number, ticks: bigint[], used: bigint[], rates: bigint[]): bigint {
+    let interest = 0n;
     for (let i = 0; i < ticks.length; i++) {
       const rateIndex = Tick.decode(ticks[i]).rateIndex;
-      interest = interest.add(used[i].mul(rates[rateIndex]).mul(duration).div(FixedPointScale));
+      interest = interest + (used[i] * rates[rateIndex] * BigInt(duration)) / FixedPointScale;
     }
 
-    return amount.add(interest);
+    return amount + interest;
   }
 
   /****************************************************************************/
@@ -314,20 +310,13 @@ describe("Pool Bundle Merkle", function () {
       const merkleProofs = MerkleTree.buildProofs(["123", "124", "125"], nodeCount, merkleTree);
 
       /* Compute borrow options */
-      const borrowOptions = ethers.utils.solidityPack(
+      const borrowOptions = ethers.solidityPacked(
         ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes"],
-        [
-          1,
-          ethers.utils.hexDataLength(bundleData),
-          bundleData,
-          2,
-          ethers.utils.hexDataLength(merkleProofs),
-          merkleProofs,
-        ]
+        [1, ethers.dataLength(bundleData), bundleData, 2, ethers.dataLength(merkleProofs), merkleProofs]
       );
 
       /* Source liquidity */
-      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 3);
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 3n);
 
       /* Quote repayment */
       const repayment = quote(FixedPoint.from("25"), 30 * 86400, ticks, used, rates);
@@ -335,10 +324,10 @@ describe("Pool Bundle Merkle", function () {
       /* Simulate borrow */
       const simulatedRepayment = await pool
         .connect(accountBorrower)
-        .callStatic.borrow(
+        .borrow.staticCall(
           FixedPoint.from("25"),
           30 * 86400,
-          bundleCollateralWrapper.address,
+          await bundleCollateralWrapper.getAddress(),
           bundleTokenId,
           FixedPoint.from("26"),
           ticks,
@@ -351,7 +340,7 @@ describe("Pool Bundle Merkle", function () {
         .borrow(
           FixedPoint.from("25"),
           30 * 86400,
-          bundleCollateralWrapper.address,
+          await bundleCollateralWrapper.getAddress(),
           bundleTokenId,
           FixedPoint.from("26"),
           ticks,
@@ -363,14 +352,14 @@ describe("Pool Bundle Merkle", function () {
 
       /* Validate events */
       await expectEvent(borrowTx, bundleCollateralWrapper, "Transfer", {
-        from: accountBorrower.address,
-        to: pool.address,
+        from: await accountBorrower.getAddress(),
+        to: await pool.getAddress(),
         tokenId: bundleTokenId,
       });
 
       await expectEvent(borrowTx, tok1, "Transfer", {
-        from: pool.address,
-        to: accountBorrower.address,
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
         value: FixedPoint.from("25"),
       });
 
@@ -386,23 +375,23 @@ describe("Pool Bundle Merkle", function () {
       /* Validate loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       expect(decodedLoanReceipt.version).to.equal(2);
-      expect(decodedLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedLoanReceipt.borrower).to.equal(await accountBorrower.getAddress());
       expect(decodedLoanReceipt.maturity).to.equal(
-        (await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp + 30 * 86400
+        BigInt((await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp) + 30n * 86400n
       );
       expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
-      expect(decodedLoanReceipt.collateralToken).to.equal(bundleCollateralWrapper.address);
+      expect(decodedLoanReceipt.collateralToken).to.equal(await bundleCollateralWrapper.getAddress());
       expect(decodedLoanReceipt.collateralTokenId).to.equal(bundleTokenId);
-      expect(decodedLoanReceipt.collateralWrapperContextLen).to.equal(ethers.utils.hexDataLength(bundleData));
+      expect(decodedLoanReceipt.collateralWrapperContextLen).to.equal(ethers.dataLength(bundleData));
       expect(decodedLoanReceipt.collateralWrapperContext).to.equal(bundleData);
       expect(decodedLoanReceipt.nodeReceipts.length).to.equal(4);
 
       /* Sum used and pending totals from node receipts */
-      let totalUsed = ethers.constants.Zero;
-      let totalPending = ethers.constants.Zero;
+      let totalUsed = 0n;
+      let totalPending = 0n;
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
-        totalUsed = totalUsed.add(nodeReceipt.used);
-        totalPending = totalPending.add(nodeReceipt.pending);
+        totalUsed = totalUsed + nodeReceipt.used;
+        totalPending = totalPending + nodeReceipt.pending;
       }
 
       /* Validate used and pending totals */
@@ -418,23 +407,23 @@ describe("Pool Bundle Merkle", function () {
       const merkleProofs = MerkleTree.buildProofs(["123", "124", "125"], nodeCount, merkleTree);
 
       /* Compute borrow options */
-      const borrowOptions = ethers.utils.solidityPack(
+      const borrowOptions = ethers.solidityPacked(
         ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes", "uint16", "uint16", "bytes20"],
         [
           1,
-          ethers.utils.hexDataLength(bundleData),
+          ethers.dataLength(bundleData),
           bundleData,
           2,
-          ethers.utils.hexDataLength(merkleProofs),
+          ethers.dataLength(merkleProofs),
           merkleProofs,
           3,
           20,
-          accountBorrower.address,
+          await accountBorrower.getAddress(),
         ]
       );
 
       /* Source liquidity */
-      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 3);
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 3n);
 
       /* Quote repayment */
       const repayment = quote(FixedPoint.from("25"), 30 * 86400, ticks, used, rates);
@@ -442,10 +431,10 @@ describe("Pool Bundle Merkle", function () {
       /* Simulate borrow */
       const simulatedRepayment = await pool
         .connect(accountBorrower)
-        .callStatic.borrow(
+        .borrow.staticCall(
           FixedPoint.from("25"),
           30 * 86400,
-          bundleCollateralWrapper.address,
+          await bundleCollateralWrapper.getAddress(),
           bundleTokenId,
           FixedPoint.from("26"),
           ticks,
@@ -458,7 +447,7 @@ describe("Pool Bundle Merkle", function () {
         .borrow(
           FixedPoint.from("25"),
           30 * 86400,
-          bundleCollateralWrapper.address,
+          await bundleCollateralWrapper.getAddress(),
           bundleTokenId,
           FixedPoint.from("26"),
           ticks,
@@ -470,21 +459,21 @@ describe("Pool Bundle Merkle", function () {
 
       /* Validate events */
       await expectEvent(borrowTx, bundleCollateralWrapper, "Transfer", {
-        from: accountBorrower.address,
-        to: pool.address,
+        from: await accountBorrower.getAddress(),
+        to: await pool.getAddress(),
         tokenId: bundleTokenId,
       });
 
       await expectEvent(borrowTx, tok1, "Transfer", {
-        from: pool.address,
-        to: accountBorrower.address,
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
         value: FixedPoint.from("25"),
       });
 
       await expectEvent(borrowTx, delegateRegistryV1, "DelegateForToken", {
-        vault: pool.address,
-        delegate: accountBorrower.address,
-        contract_: bundleCollateralWrapper.address,
+        vault: await pool.getAddress(),
+        delegate: await accountBorrower.getAddress(),
+        contract_: await bundleCollateralWrapper.getAddress(),
         tokenId: bundleTokenId,
         value: true,
       });
@@ -501,23 +490,23 @@ describe("Pool Bundle Merkle", function () {
       /* Validate loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       expect(decodedLoanReceipt.version).to.equal(2);
-      expect(decodedLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedLoanReceipt.borrower).to.equal(await accountBorrower.getAddress());
       expect(decodedLoanReceipt.maturity).to.equal(
-        (await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp + 30 * 86400
+        BigInt((await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp) + 30n * 86400n
       );
       expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
-      expect(decodedLoanReceipt.collateralToken).to.equal(bundleCollateralWrapper.address);
+      expect(decodedLoanReceipt.collateralToken).to.equal(await bundleCollateralWrapper.getAddress());
       expect(decodedLoanReceipt.collateralTokenId).to.equal(bundleTokenId);
-      expect(decodedLoanReceipt.collateralWrapperContextLen).to.equal(ethers.utils.hexDataLength(bundleData));
+      expect(decodedLoanReceipt.collateralWrapperContextLen).to.equal(ethers.dataLength(bundleData));
       expect(decodedLoanReceipt.collateralWrapperContext).to.equal(bundleData);
       expect(decodedLoanReceipt.nodeReceipts.length).to.equal(4);
 
       /* Sum used and pending totals from node receipts */
-      let totalUsed = ethers.constants.Zero;
-      let totalPending = ethers.constants.Zero;
+      let totalUsed = 0n;
+      let totalPending = 0n;
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
-        totalUsed = totalUsed.add(nodeReceipt.used);
-        totalPending = totalPending.add(nodeReceipt.pending);
+        totalUsed = totalUsed + nodeReceipt.used;
+        totalPending = totalPending + nodeReceipt.pending;
       }
 
       /* Validate used and pending totals */
@@ -539,20 +528,13 @@ describe("Pool Bundle Merkle", function () {
       const merkleProofs = MerkleTree.buildProofs(["123", "124", "125"], nodeCount, merkleTree);
 
       /* Compute borrow options */
-      const borrowOptions = ethers.utils.solidityPack(
+      const borrowOptions = ethers.solidityPacked(
         ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes"],
-        [
-          1,
-          ethers.utils.hexDataLength(bundleData),
-          bundleData,
-          2,
-          ethers.utils.hexDataLength(merkleProofs),
-          merkleProofs,
-        ]
+        [1, ethers.dataLength(bundleData), bundleData, 2, ethers.dataLength(merkleProofs), merkleProofs]
       );
 
       /* Source liquidity */
-      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 3);
+      const [ticks, used] = await sourceLiquidity(FixedPoint.from("25"), 3n);
 
       /* Borrow */
       const borrowTx = await pool
@@ -560,7 +542,7 @@ describe("Pool Bundle Merkle", function () {
         .borrow(
           FixedPoint.from("25"),
           30 * 86400,
-          bundleCollateralWrapper.address,
+          await bundleCollateralWrapper.getAddress(),
           bundleTokenId,
           FixedPoint.from("26"),
           ticks,
@@ -575,7 +557,7 @@ describe("Pool Bundle Merkle", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Refinance */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity);
       const refinanceTx = await pool
         .connect(accountBorrower)
         .refinance(loanReceipt, decodedLoanReceipt.principal, 15 * 86400, FixedPoint.from("26"), ticks, "0x");
@@ -583,9 +565,8 @@ describe("Pool Bundle Merkle", function () {
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
 
       /* Calculate admin fee */
-      const adminFee = ethers.BigNumber.from(await pool.adminFeeRate())
-        .mul(decodedLoanReceipt.repayment.sub(FixedPoint.from("25")))
-        .div(10000);
+      const adminFee =
+        (BigInt(await pool.adminFeeRate()) * (decodedLoanReceipt.repayment - FixedPoint.from("25"))) / 10000n;
 
       /* Validate hash */
       expect(loanReceiptHash).to.equal(await loanReceiptLib.hash(loanReceipt));
@@ -593,20 +574,20 @@ describe("Pool Bundle Merkle", function () {
       /* Validate loan receipt */
       const decodedNewLoanReceipt = await loanReceiptLib.decode(newLoanReceipt);
       expect(decodedNewLoanReceipt.version).to.equal(2);
-      expect(decodedNewLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedNewLoanReceipt.borrower).to.equal(await accountBorrower.getAddress());
       expect(decodedNewLoanReceipt.maturity).to.equal(
-        (await ethers.provider.getBlock(refinanceTx.blockHash!)).timestamp + 15 * 86400
+        BigInt((await ethers.provider.getBlock(refinanceTx.blockHash!)).timestamp) + 15n * 86400n
       );
       expect(decodedNewLoanReceipt.duration).to.equal(15 * 86400);
-      expect(decodedNewLoanReceipt.collateralToken).to.equal(bundleCollateralWrapper.address);
+      expect(decodedNewLoanReceipt.collateralToken).to.equal(await bundleCollateralWrapper.getAddress());
       expect(decodedNewLoanReceipt.collateralTokenId).to.equal(bundleTokenId);
       expect(decodedNewLoanReceipt.nodeReceipts.length).to.equal(4);
 
       /* Validate events */
       await expectEvent(refinanceTx, tok1, "Transfer", {
-        from: accountBorrower.address,
-        to: pool.address,
-        value: decodedLoanReceipt.repayment.sub(decodedLoanReceipt.principal),
+        from: await accountBorrower.getAddress(),
+        to: await pool.getAddress(),
+        value: decodedLoanReceipt.repayment - decodedLoanReceipt.principal,
       });
 
       await expectEvent(refinanceTx, pool, "LoanRepaid", {
