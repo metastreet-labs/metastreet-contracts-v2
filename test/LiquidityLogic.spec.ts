@@ -30,12 +30,12 @@ describe("LiquidityLogic", function () {
   /* Initial State */
   /****************************************************************************/
 
-  const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
+  const MaxUint128 = BigInt("0xffffffffffffffffffffffffffffffff");
 
   describe("initial state", async function () {
     it("matches expected initial state", async function () {
       /* Validate nodes */
-      let nodes = await liquidityLogic.liquidityNodes(ethers.constants.Zero, MaxUint128);
+      let nodes = await liquidityLogic.liquidityNodes(0n, MaxUint128);
       expect(nodes.length).to.equal(1);
       expect(nodes[0].tick).to.equal(0);
       expect(nodes[0].value).to.equal(0);
@@ -55,64 +55,64 @@ describe("LiquidityLogic", function () {
   describe("#instantiate", async function () {
     it("instantiates a new liquidity node with absolute limit first", async function () {
       /* Instantiate one node */
-      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(4000)));
+      await liquidityLogic.instantiate(Tick.encode(BigInt(4000)));
 
       /* Validate nodes */
-      let nodes = await liquidityLogic.liquidityNodes(ethers.constants.Zero, MaxUint128);
+      let nodes = await liquidityLogic.liquidityNodes(0n, MaxUint128);
       expect(nodes.length).to.equal(2);
       expect(nodes[0].prev).to.equal(0);
-      expect(nodes[0].next).to.equal(Tick.encode(ethers.BigNumber.from(4000)));
+      expect(nodes[0].next).to.equal(Tick.encode(BigInt(4000)));
       expect(nodes[1].prev).to.equal(0);
       expect(nodes[1].next).to.equal(MaxUint128);
 
       /* Instantiate three additional nodes */
-      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(4001), 0, 0, 18, 1));
+      await liquidityLogic.instantiate(Tick.encode(BigInt(4001), 0, 0, 18, 1));
       await liquidityLogic.instantiate(Tick.encode("50"));
-      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(6000), 0, 0, 18, 1));
+      await liquidityLogic.instantiate(Tick.encode(BigInt(6000), 0, 0, 18, 1));
 
       /* Validate nodes */
-      nodes = await liquidityLogic.liquidityNodes(ethers.constants.Zero, MaxUint128);
+      nodes = await liquidityLogic.liquidityNodes(0n, MaxUint128);
       expect(nodes.length).to.equal(5);
       expect(nodes[0].prev).to.equal(0);
-      expect(nodes[0].next).to.equal(Tick.encode(ethers.BigNumber.from(4001), 0, 0, 18, 1));
+      expect(nodes[0].next).to.equal(Tick.encode(BigInt(4001), 0, 0, 18, 1));
       expect(nodes[1].prev).to.equal(0);
-      expect(nodes[1].next).to.equal(Tick.encode(ethers.BigNumber.from(6000), 0, 0, 18, 1));
-      expect(nodes[2].prev).to.equal(Tick.encode(ethers.BigNumber.from(4001), 0, 0, 18, 1));
-      expect(nodes[2].next).to.equal(Tick.encode(ethers.BigNumber.from(4000)));
-      expect(nodes[3].prev).to.equal(Tick.encode(ethers.BigNumber.from(6000), 0, 0, 18, 1));
+      expect(nodes[1].next).to.equal(Tick.encode(BigInt(6000), 0, 0, 18, 1));
+      expect(nodes[2].prev).to.equal(Tick.encode(BigInt(4001), 0, 0, 18, 1));
+      expect(nodes[2].next).to.equal(Tick.encode(BigInt(4000)));
+      expect(nodes[3].prev).to.equal(Tick.encode(BigInt(6000), 0, 0, 18, 1));
       expect(nodes[3].next).to.equal(Tick.encode("50"));
-      expect(nodes[4].prev).to.equal(Tick.encode(ethers.BigNumber.from(4000)));
+      expect(nodes[4].prev).to.equal(Tick.encode(BigInt(4000)));
       expect(nodes[4].next).to.equal(MaxUint128);
     });
     it("instantiates a new liquidity node with ratio limit first", async function () {
       /* Instantiate one node */
-      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+      await liquidityLogic.instantiate(Tick.encode(BigInt(5000), 0, 0, 18, 1));
 
       /* Validate nodes */
-      let nodes = await liquidityLogic.liquidityNodes(ethers.constants.Zero, MaxUint128);
+      let nodes = await liquidityLogic.liquidityNodes(0n, MaxUint128);
       expect(nodes.length).to.equal(2);
       expect(nodes[0].prev).to.equal(0);
-      expect(nodes[0].next).to.equal(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+      expect(nodes[0].next).to.equal(Tick.encode(BigInt(5000), 0, 0, 18, 1));
       expect(nodes[1].prev).to.equal(0);
       expect(nodes[1].next).to.equal(MaxUint128);
 
       /* Instantiate three additional nodes */
       await liquidityLogic.instantiate(Tick.encode("50"));
-      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(4000)));
-      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(6000), 0, 0, 18, 1));
+      await liquidityLogic.instantiate(Tick.encode(BigInt(4000)));
+      await liquidityLogic.instantiate(Tick.encode(BigInt(6000), 0, 0, 18, 1));
 
       /* Validate nodes */
-      nodes = await liquidityLogic.liquidityNodes(ethers.constants.Zero, MaxUint128);
+      nodes = await liquidityLogic.liquidityNodes(0n, MaxUint128);
       expect(nodes.length).to.equal(5);
       expect(nodes[0].prev).to.equal(0);
-      expect(nodes[0].next).to.equal(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+      expect(nodes[0].next).to.equal(Tick.encode(BigInt(5000), 0, 0, 18, 1));
       expect(nodes[1].prev).to.equal(0);
-      expect(nodes[1].next).to.equal(Tick.encode(ethers.BigNumber.from(6000), 0, 0, 18, 1));
-      expect(nodes[2].prev).to.equal(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
-      expect(nodes[2].next).to.equal(Tick.encode(ethers.BigNumber.from(4000)));
-      expect(nodes[3].prev).to.equal(Tick.encode(ethers.BigNumber.from(6000), 0, 0, 18, 1));
+      expect(nodes[1].next).to.equal(Tick.encode(BigInt(6000), 0, 0, 18, 1));
+      expect(nodes[2].prev).to.equal(Tick.encode(BigInt(5000), 0, 0, 18, 1));
+      expect(nodes[2].next).to.equal(Tick.encode(BigInt(4000)));
+      expect(nodes[3].prev).to.equal(Tick.encode(BigInt(6000), 0, 0, 18, 1));
       expect(nodes[3].next).to.equal(Tick.encode("50"));
-      expect(nodes[4].prev).to.equal(Tick.encode(ethers.BigNumber.from(4000)));
+      expect(nodes[4].prev).to.equal(Tick.encode(BigInt(4000)));
       expect(nodes[4].next).to.equal(MaxUint128);
     });
     it("no-op on existing node", async function () {
@@ -120,7 +120,7 @@ describe("LiquidityLogic", function () {
       await liquidityLogic.instantiate(Tick.encode("1"));
 
       /* Validate nodes */
-      let nodes = await liquidityLogic.liquidityNodes(ethers.constants.Zero, MaxUint128);
+      let nodes = await liquidityLogic.liquidityNodes(0n, MaxUint128);
       expect(nodes.length).to.equal(2);
       expect(nodes[0].prev).to.equal(0);
       expect(nodes[0].next).to.equal(Tick.encode("1"));
@@ -131,7 +131,7 @@ describe("LiquidityLogic", function () {
       await liquidityLogic.instantiate(Tick.encode("1"));
 
       /* Validate nodes */
-      nodes = await liquidityLogic.liquidityNodes(ethers.constants.Zero, MaxUint128);
+      nodes = await liquidityLogic.liquidityNodes(0n, MaxUint128);
       expect(nodes.length).to.equal(2);
       expect(nodes[0].prev).to.equal(0);
       expect(nodes[0].next).to.equal(Tick.encode("1"));
@@ -139,29 +139,29 @@ describe("LiquidityLogic", function () {
       expect(nodes[1].next).to.equal(MaxUint128);
 
       /* Instantiate another node */
-      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+      await liquidityLogic.instantiate(Tick.encode(BigInt(5000), 0, 0, 18, 1));
 
       /* Validate nodes */
-      nodes = await liquidityLogic.liquidityNodes(ethers.constants.Zero, MaxUint128);
+      nodes = await liquidityLogic.liquidityNodes(0n, MaxUint128);
       expect(nodes.length).to.equal(3);
       expect(nodes[0].prev).to.equal(0);
-      expect(nodes[0].next).to.equal(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+      expect(nodes[0].next).to.equal(Tick.encode(BigInt(5000), 0, 0, 18, 1));
       expect(nodes[1].prev).to.equal(0);
       expect(nodes[1].next).to.equal(Tick.encode("1"));
-      expect(nodes[2].prev).to.equal(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+      expect(nodes[2].prev).to.equal(Tick.encode(BigInt(5000), 0, 0, 18, 1));
       expect(nodes[2].next).to.equal(MaxUint128);
 
       /* Instantiate same node again */
-      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+      await liquidityLogic.instantiate(Tick.encode(BigInt(5000), 0, 0, 18, 1));
 
       /* Validate nodes */
-      nodes = await liquidityLogic.liquidityNodes(ethers.constants.Zero, MaxUint128);
+      nodes = await liquidityLogic.liquidityNodes(0n, MaxUint128);
       expect(nodes.length).to.equal(3);
       expect(nodes[0].prev).to.equal(0);
-      expect(nodes[0].next).to.equal(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+      expect(nodes[0].next).to.equal(Tick.encode(BigInt(5000), 0, 0, 18, 1));
       expect(nodes[1].prev).to.equal(0);
       expect(nodes[1].next).to.equal(Tick.encode("1"));
-      expect(nodes[2].prev).to.equal(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1));
+      expect(nodes[2].prev).to.equal(Tick.encode(BigInt(5000), 0, 0, 18, 1));
       expect(nodes[2].next).to.equal(MaxUint128);
     });
     it("fails on insufficient tick spacing", async function () {
@@ -180,30 +180,30 @@ describe("LiquidityLogic", function () {
       );
 
       /* Instantiate another node with ltv limit */
-      await liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(1000), 0, 0, 18, 1));
+      await liquidityLogic.instantiate(Tick.encode(BigInt(1000), 0, 0, 18, 1));
 
       /* Try to instantiate another node with ltv limit that is 2.5% higher */
-      await expect(
-        liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(1025), 0, 0, 18, 1))
-      ).to.be.revertedWithCustomError(liquidityLogic, "InsufficientTickSpacing");
+      await expect(liquidityLogic.instantiate(Tick.encode(BigInt(1025), 0, 0, 18, 1))).to.be.revertedWithCustomError(
+        liquidityLogic,
+        "InsufficientTickSpacing"
+      );
       /* Try to instantiate another node with ltv limit that is 2.5% lower */
-      await expect(
-        liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(975), 0, 0, 18, 1))
-      ).to.be.revertedWithCustomError(liquidityLogic, "InsufficientTickSpacing");
+      await expect(liquidityLogic.instantiate(Tick.encode(BigInt(975), 0, 0, 18, 1))).to.be.revertedWithCustomError(
+        liquidityLogic,
+        "InsufficientTickSpacing"
+      );
     });
     it("fails on invalid limit type", async function () {
       /* Reverted with panic code 0x21 (Tried to convert a value into an enum */
       /* but the value was too big or negative) */
-      await expect(
-        liquidityLogic.instantiate(Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 2))
-      ).to.be.revertedWithPanic("0x21");
+      await expect(liquidityLogic.instantiate(Tick.encode(BigInt(5000), 0, 0, 18, 2))).to.be.revertedWithPanic("0x21");
     });
   });
 
   describe("#deposit", async function () {
     it("deposits into active nodes", async function () {
       /* Deposit absolute limit node */
-      const sharesMinted1 = await liquidityLogic.callStatic.deposit(Tick.encode("3"), FixedPoint.from("5"));
+      const sharesMinted1 = await liquidityLogic.deposit.staticCall(Tick.encode("3"), FixedPoint.from("5"));
       let depositTx = await liquidityLogic.deposit(Tick.encode("3"), FixedPoint.from("5"));
 
       /* Validate shares created */
@@ -216,20 +216,17 @@ describe("LiquidityLogic", function () {
       expect(node.value).to.equal(FixedPoint.from("5"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(FixedPoint.from("5"));
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
 
       /* Deposit ltv limit node */
-      const sharesMinted2 = await liquidityLogic.callStatic.deposit(
-        Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1),
+      const sharesMinted2 = await liquidityLogic.deposit.staticCall(
+        Tick.encode(BigInt(5000), 0, 0, 18, 1),
         FixedPoint.from("5")
       );
-      depositTx = await liquidityLogic.deposit(
-        Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1),
-        FixedPoint.from("5")
-      );
+      depositTx = await liquidityLogic.deposit(Tick.encode(BigInt(5000), 0, 0, 18, 1), FixedPoint.from("5"));
 
       /* Validate shares created */
       await expectEvent(depositTx, liquidityLogic, "Deposited", {
@@ -237,16 +234,14 @@ describe("LiquidityLogic", function () {
       });
 
       /* Validate node */
-      [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(
-        Tick.encode(ethers.BigNumber.from(5000), 0, 0, 18, 1)
-      );
+      [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(Tick.encode(BigInt(5000), 0, 0, 18, 1));
       expect(node.value).to.equal(FixedPoint.from("5"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(FixedPoint.from("5"));
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
     });
     it("deposits into active node that has appreciated", async function () {
       /* Appreciate node */
@@ -277,10 +272,10 @@ describe("LiquidityLogic", function () {
       expect(node.value).to.equal(FixedPoint.from("9"));
       expect(node.shares).to.equal(FixedPoint.from("7.5"));
       expect(node.available).to.equal(FixedPoint.from("9"));
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
     });
     it("deposits into active node that has depreciated", async function () {
       /* Depreciate node */
@@ -311,10 +306,10 @@ describe("LiquidityLogic", function () {
       expect(node.value).to.equal(FixedPoint.from("6"));
       expect(node.shares).to.equal(FixedPoint.from("7.5"));
       expect(node.available).to.equal(FixedPoint.from("6"));
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
     });
     it("deposits into active node that has pending returns", async function () {
       /* Create node with used liquidity */
@@ -340,9 +335,9 @@ describe("LiquidityLogic", function () {
       expect(node.shares).to.closeTo(FixedPoint.from("7.5"), 1000000);
       expect(node.available).to.equal(FixedPoint.from("3"));
       expect(node.pending).to.equal(FixedPoint.from("7"));
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
+      expect(node.redemptions).to.equal(0n);
       expect(accrual.accrued).to.closeTo(FixedPoint.from("1"), 1000000);
-      expect(accrual.rate).to.closeTo(FixedPoint.from("2").div(30 * 86000), 4000000000);
+      expect(accrual.rate).to.closeTo(FixedPoint.from("2") / (30n * 86000n), 4000000000);
     });
     it("deposits into active node that has high pending returns", async function () {
       /* Create node with used liquidity */
@@ -399,7 +394,7 @@ describe("LiquidityLogic", function () {
         Tick.encode("3"),
         FixedPoint.from("5"),
         FixedPoint.from("6"),
-        ethers.constants.Zero,
+        0n,
         30 * 86400,
         30 * 86400
       );
@@ -426,9 +421,9 @@ describe("LiquidityLogic", function () {
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(FixedPoint.from("2"));
       expect(node.pending).to.equal(FixedPoint.from("3.2"));
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(FixedPoint.from("0.2").div(30 * 86400));
+      expect(node.redemptions).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(FixedPoint.from("0.2") / (30n * 86400n));
     });
   });
 
@@ -457,10 +452,10 @@ describe("LiquidityLogic", function () {
       expect(node.value).to.equal(FixedPoint.from("6"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(FixedPoint.from("6"));
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
     });
     it("restores less than pending", async function () {
       /* Use */
@@ -481,10 +476,10 @@ describe("LiquidityLogic", function () {
       expect(node.value).to.equal(FixedPoint.from("4"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(FixedPoint.from("4"));
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
     });
     it("restores less than pending and becomes impaired", async function () {
       /* Use */
@@ -505,16 +500,16 @@ describe("LiquidityLogic", function () {
       expect(node.value).to.equal(FixedPoint.from("0.20"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(FixedPoint.from("0.20"));
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.prev).to.equal(ethers.constants.Zero);
-      expect(node.next).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(node.prev).to.equal(0n);
+      expect(node.next).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
 
       /* Validate head node linkage */
-      [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(ethers.constants.Zero);
-      expect(node.prev).to.equal(ethers.constants.Zero);
+      [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(0n);
+      expect(node.prev).to.equal(0n);
       expect(node.next).to.equal(MaxUint128);
     });
     it("restores less than pending and becomes insolvent", async function () {
@@ -536,16 +531,16 @@ describe("LiquidityLogic", function () {
       expect(node.value).to.equal(4);
       expect(node.shares).to.equal(FixedPoint.from("5"));
       expect(node.available).to.equal(4);
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.prev).to.equal(ethers.constants.Zero);
-      expect(node.next).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(node.prev).to.equal(0n);
+      expect(node.next).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
 
       /* Validate head node linkage */
-      [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(ethers.constants.Zero);
-      expect(node.prev).to.equal(ethers.constants.Zero);
+      [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(0n);
+      expect(node.prev).to.equal(0n);
       expect(node.next).to.equal(MaxUint128);
     });
   });
@@ -565,8 +560,8 @@ describe("LiquidityLogic", function () {
 
       /* Validate return value */
       await expectEvent(redeemTx1, liquidityLogic, "RedemptionTarget", {
-        index: ethers.constants.Zero,
-        target: ethers.constants.Zero,
+        index: 0n,
+        target: 0n,
       });
 
       /* Redeem */
@@ -574,7 +569,7 @@ describe("LiquidityLogic", function () {
 
       /* Validate return value */
       await expectEvent(redeemTx2, liquidityLogic, "RedemptionTarget", {
-        index: ethers.constants.Zero,
+        index: 0n,
         target: FixedPoint.from("1"),
       });
 
@@ -582,11 +577,11 @@ describe("LiquidityLogic", function () {
       const [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("5"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
-      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.available).to.equal(0n);
       expect(node.pending).to.equal(FixedPoint.from("5"));
       expect(node.redemptions).to.equal(FixedPoint.from("2"));
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
     });
     it("redeems from subsequent index", async function () {
       /* Redeem */
@@ -594,8 +589,8 @@ describe("LiquidityLogic", function () {
 
       /* Validate return value */
       await expectEvent(redeemTx1, liquidityLogic, "RedemptionTarget", {
-        index: ethers.constants.Zero,
-        target: ethers.constants.Zero,
+        index: 0n,
+        target: 0n,
       });
 
       /* Validate node */
@@ -603,10 +598,10 @@ describe("LiquidityLogic", function () {
       expect(node.value).to.equal(FixedPoint.from("4"));
       expect(node.shares).to.equal(FixedPoint.from("4"));
       expect(node.available).to.equal(FixedPoint.from("4"));
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
 
       /* Redeem */
       const redeemTx2 = await liquidityLogic.redeem(Tick.encode("3"), FixedPoint.from("1"));
@@ -614,7 +609,7 @@ describe("LiquidityLogic", function () {
       /* Validate return value */
       await expectEvent(redeemTx2, liquidityLogic, "RedemptionTarget", {
         index: 1,
-        target: ethers.constants.Zero,
+        target: 0n,
       });
 
       /* Validate node */
@@ -622,10 +617,10 @@ describe("LiquidityLogic", function () {
       expect(node.value).to.equal(FixedPoint.from("3"));
       expect(node.shares).to.equal(FixedPoint.from("3"));
       expect(node.available).to.equal(FixedPoint.from("3"));
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
     });
   });
 
@@ -667,10 +662,10 @@ describe("LiquidityLogic", function () {
       expect(node.value).to.equal(FixedPoint.from("2"));
       expect(node.shares).to.equal(FixedPoint.from("2"));
       expect(node.available).to.equal(FixedPoint.from("2"));
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
     });
     it("processes redemption from restored liquidity", async function () {
       /* Use */
@@ -689,13 +684,13 @@ describe("LiquidityLogic", function () {
           redemptionIndex,
           redemptionTarget
         )
-      ).to.deep.equal([ethers.constants.Zero, ethers.constants.Zero]);
+      ).to.deep.equal([0n, 0n]);
 
       /* Validate node */
       let [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("5"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
-      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.available).to.equal(0n);
       expect(node.pending).to.equal(FixedPoint.from("6"));
       expect(node.redemptions).to.equal(FixedPoint.from("2"));
 
@@ -725,10 +720,10 @@ describe("LiquidityLogic", function () {
       expect(node.value).to.equal(FixedPoint.from("3.6"));
       expect(node.shares).to.equal(FixedPoint.from("3"));
       expect(node.available).to.equal(FixedPoint.from("3.6"));
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
       expect(accrual.accrued).to.equal("385802469135");
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(accrual.rate).to.equal(0n);
     });
     it("processes redemption from restored liquidity at multiple prices", async function () {
       /* Use */
@@ -749,13 +744,13 @@ describe("LiquidityLogic", function () {
           redemptionIndex,
           redemptionTarget
         )
-      ).to.deep.equal([ethers.constants.Zero, ethers.constants.Zero]);
+      ).to.deep.equal([0n, 0n]);
 
       /* Validate node */
       let [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("5"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
-      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.available).to.equal(0n);
       expect(node.pending).to.equal(FixedPoint.from("7"));
       expect(node.redemptions).to.equal(FixedPoint.from("3"));
 
@@ -791,7 +786,7 @@ describe("LiquidityLogic", function () {
       [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("3"));
       expect(node.shares).to.equal(FixedPoint.from("2.5"));
-      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.available).to.equal(0n);
       expect(node.pending).to.equal(FixedPoint.from("4"));
       expect(node.redemptions).to.equal(FixedPoint.from("0.5"));
 
@@ -826,10 +821,10 @@ describe("LiquidityLogic", function () {
       expect(node.value).to.equal(FixedPoint.from("3.2"));
       expect(node.shares).to.equal(FixedPoint.from("2"));
       expect(node.available).to.equal(FixedPoint.from("3.2"));
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
     });
     it("processes redemption from impaired liquidity", async function () {
       /* Use 5 amount */
@@ -842,7 +837,7 @@ describe("LiquidityLogic", function () {
 
       /* Validate redemption target */
       expect(redemptionIndex1).to.equal(0);
-      expect(redemptionTarget1).to.equal(ethers.constants.Zero);
+      expect(redemptionTarget1).to.equal(0n);
 
       /* Validate redemption available is zero */
       expect(
@@ -852,13 +847,13 @@ describe("LiquidityLogic", function () {
           redemptionIndex1,
           redemptionTarget1
         )
-      ).to.deep.equal([ethers.constants.Zero, ethers.constants.Zero]);
+      ).to.deep.equal([0n, 0n]);
 
       /* Validate node */
       let [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("5"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
-      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.available).to.equal(0n);
       expect(node.pending).to.equal(FixedPoint.from("6"));
       expect(node.redemptions).to.equal(FixedPoint.from("3"));
 
@@ -890,12 +885,12 @@ describe("LiquidityLogic", function () {
       expect(node.value).to.equal(FixedPoint.from("0.08"));
       expect(node.shares).to.equal(FixedPoint.from("2"));
       expect(node.available).to.equal(FixedPoint.from("0.08"));
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
 
       /* Validate node is inactive */
-      expect(node.prev).to.equal(ethers.constants.Zero);
-      expect(node.next).to.equal(ethers.constants.Zero);
+      expect(node.prev).to.equal(0n);
+      expect(node.next).to.equal(0n);
 
       /* Redeem remaining 2 shares */
       const redeemTx2 = await liquidityLogic.redeem(Tick.encode("3"), FixedPoint.from("2"));
@@ -904,7 +899,7 @@ describe("LiquidityLogic", function () {
 
       /* Validate redemption target */
       expect(redemptionIndex2).to.equal(1);
-      expect(redemptionTarget2).to.equal(ethers.constants.Zero);
+      expect(redemptionTarget2).to.equal(0n);
 
       /* Validate redemption available */
       expect(
@@ -918,13 +913,13 @@ describe("LiquidityLogic", function () {
 
       /* Validate node */
       [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(Tick.encode("3"));
-      expect(node.value).to.equal(ethers.constants.Zero);
-      expect(node.shares).to.equal(ethers.constants.Zero);
-      expect(node.available).to.equal(ethers.constants.Zero);
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.prev).to.equal(ethers.constants.Zero);
-      expect(node.next).to.equal(ethers.constants.Zero);
+      expect(node.value).to.equal(0n);
+      expect(node.shares).to.equal(0n);
+      expect(node.available).to.equal(0n);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(node.prev).to.equal(0n);
+      expect(node.next).to.equal(0n);
 
       /* Instantiate and deposit into node */
       await liquidityLogic.deposit(Tick.encode("3"), FixedPoint.from("4"));
@@ -934,10 +929,10 @@ describe("LiquidityLogic", function () {
       expect(node.value).to.equal(FixedPoint.from("4"));
       expect(node.shares).to.equal(FixedPoint.from("4"));
       expect(node.available).to.equal(FixedPoint.from("4"));
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
     });
     it("processes redemption from insolvent liquidity", async function () {
       /* Use 5 amount */
@@ -950,7 +945,7 @@ describe("LiquidityLogic", function () {
 
       /* Validate redemption target */
       expect(redemptionIndex1).to.equal(0);
-      expect(redemptionTarget1).to.equal(ethers.constants.Zero);
+      expect(redemptionTarget1).to.equal(0n);
 
       /* Validate redemption available */
       expect(
@@ -960,13 +955,13 @@ describe("LiquidityLogic", function () {
           redemptionIndex1,
           redemptionTarget1
         )
-      ).to.deep.equal([ethers.constants.Zero, ethers.constants.Zero]);
+      ).to.deep.equal([0n, 0n]);
 
       /* Validate node */
       let [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(FixedPoint.from("5"));
       expect(node.shares).to.equal(FixedPoint.from("5"));
-      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.available).to.equal(0n);
       expect(node.pending).to.equal(FixedPoint.from("6"));
       expect(node.redemptions).to.equal(FixedPoint.from("2.5"));
 
@@ -991,21 +986,21 @@ describe("LiquidityLogic", function () {
           redemptionIndex1,
           redemptionTarget1
         )
-      ).to.deep.equal([FixedPoint.from("2.5"), ethers.constants.Zero]);
+      ).to.deep.equal([FixedPoint.from("2.5"), 0n]);
 
       /* Validate node */
       [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(0);
       expect(node.shares).to.equal(FixedPoint.from("2.5"));
       expect(node.available).to.equal(0);
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
 
       /* Validate node is inactive */
-      expect(node.prev).to.equal(ethers.constants.Zero);
-      expect(node.next).to.equal(ethers.constants.Zero);
+      expect(node.prev).to.equal(0n);
+      expect(node.next).to.equal(0n);
 
       /* Redeem remaining 2.5 shares */
       const redeemTx2 = await liquidityLogic.redeem(Tick.encode("3"), FixedPoint.from("2.5"));
@@ -1014,7 +1009,7 @@ describe("LiquidityLogic", function () {
 
       /* Validate redemption target */
       expect(redemptionIndex2).to.equal(1);
-      expect(redemptionTarget2).to.equal(ethers.constants.Zero);
+      expect(redemptionTarget2).to.equal(0n);
 
       /* Validate redemption available */
       expect(
@@ -1024,27 +1019,27 @@ describe("LiquidityLogic", function () {
           redemptionIndex2,
           redemptionTarget2
         )
-      ).to.deep.equal([FixedPoint.from("2.5"), ethers.constants.Zero]);
+      ).to.deep.equal([FixedPoint.from("2.5"), 0n]);
 
       /* Validate node */
       [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(Tick.encode("3"));
-      expect(node.value).to.equal(ethers.constants.Zero);
-      expect(node.shares).to.equal(ethers.constants.Zero);
-      expect(node.available).to.equal(ethers.constants.Zero);
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.prev).to.equal(ethers.constants.Zero);
-      expect(node.next).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.value).to.equal(0n);
+      expect(node.shares).to.equal(0n);
+      expect(node.available).to.equal(0n);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(node.prev).to.equal(0n);
+      expect(node.next).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
     });
 
     it("delays redemption of insolvent node with pending interest", async function () {
       /* Use 2 and 3 amounts */
       const useTx1 = await liquidityLogic.use(
         Tick.encode("3"),
-        FixedPoint.from("5").sub(1),
-        FixedPoint.from("6").add(1),
+        FixedPoint.from("5") - 1n,
+        FixedPoint.from("6") + 1n,
         30 * 86400
       );
       await helpers.time.setNextBlockTimestamp((await ethers.provider.getBlock("latest")).timestamp + 15 * 86400);
@@ -1057,7 +1052,7 @@ describe("LiquidityLogic", function () {
 
       /* Validate redemption target */
       expect(redemptionIndex1).to.equal(0);
-      expect(redemptionTarget1).to.equal(ethers.constants.Zero);
+      expect(redemptionTarget1).to.equal(0n);
 
       /* Validate redemption is not available */
       expect(
@@ -1067,7 +1062,7 @@ describe("LiquidityLogic", function () {
           redemptionIndex1,
           redemptionTarget1
         )
-      ).to.deep.equal([ethers.constants.Zero, ethers.constants.Zero]);
+      ).to.deep.equal([0n, 0n]);
 
       /* Restore first to zero, making node insolvent */
       await helpers.time.setNextBlockTimestamp(
@@ -1075,9 +1070,9 @@ describe("LiquidityLogic", function () {
       );
       await liquidityLogic.restore(
         Tick.encode("3"),
-        FixedPoint.from("5").sub(1),
-        FixedPoint.from("6").add(1),
-        ethers.constants.Zero,
+        FixedPoint.from("5") - 1n,
+        FixedPoint.from("6") + 1n,
+        0n,
         30 * 86400,
         30 * 86400
       );
@@ -1090,19 +1085,19 @@ describe("LiquidityLogic", function () {
           redemptionIndex1,
           redemptionTarget1
         )
-      ).to.deep.equal([ethers.constants.Zero, ethers.constants.Zero]);
+      ).to.deep.equal([0n, 0n]);
 
       /* Validate node is inactive */
       let [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(Tick.encode("3"));
       expect(node.value).to.equal(1);
       expect(node.shares).to.equal(FixedPoint.from("5"));
-      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.available).to.equal(0n);
       expect(node.pending).to.equal(5);
       expect(node.redemptions).to.equal(FixedPoint.from("5"));
-      expect(node.prev).to.equal(ethers.constants.Zero);
-      expect(node.next).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.prev).to.equal(0n);
+      expect(node.next).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
 
       /* Restore second to 3, leaving insolvent dust */
       await helpers.time.setNextBlockTimestamp(
@@ -1118,19 +1113,19 @@ describe("LiquidityLogic", function () {
           redemptionIndex1,
           redemptionTarget1
         )
-      ).to.deep.equal([FixedPoint.from("5"), ethers.constants.Zero]);
+      ).to.deep.equal([FixedPoint.from("5"), 0n]);
 
       /* Validate node is inactive */
       [node, accrual] = await liquidityLogic.liquidityNodeWithAccrual(Tick.encode("3"));
-      expect(node.value).to.equal(ethers.constants.Zero);
-      expect(node.shares).to.equal(ethers.constants.Zero);
-      expect(node.available).to.equal(ethers.constants.Zero);
-      expect(node.pending).to.equal(ethers.constants.Zero);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
-      expect(node.prev).to.equal(ethers.constants.Zero);
-      expect(node.next).to.equal(ethers.constants.Zero);
-      expect(accrual.accrued).to.equal(ethers.constants.Zero);
-      expect(accrual.rate).to.equal(ethers.constants.Zero);
+      expect(node.value).to.equal(0n);
+      expect(node.shares).to.equal(0n);
+      expect(node.available).to.equal(0n);
+      expect(node.pending).to.equal(0n);
+      expect(node.redemptions).to.equal(0n);
+      expect(node.prev).to.equal(0n);
+      expect(node.next).to.equal(0n);
+      expect(accrual.accrued).to.equal(0n);
+      expect(accrual.rate).to.equal(0n);
     });
   });
 
@@ -1157,7 +1152,7 @@ describe("LiquidityLogic", function () {
       Tick.encode("50"),
       FixedPoint.from("5"),
       FixedPoint.from("6"),
-      ethers.constants.Zero,
+      0n,
       30 * 86400,
       30 * 86400
     );
@@ -1326,7 +1321,7 @@ describe("LiquidityLogic", function () {
       for (let i = 0; i < 35; i++) {
         await liquidityLogic.deposit(Tick.encode(limit), FixedPoint.from("1"));
         ticks2.push(Tick.encode(limit));
-        limit = limit.mul(2);
+        limit = limit * 2n;
       }
 
       await expect(liquidityLogic.source(FixedPoint.from("30"), ticks2, 0, 0, 0)).to.be.revertedWithCustomError(

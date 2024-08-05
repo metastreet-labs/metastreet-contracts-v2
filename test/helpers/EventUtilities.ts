@@ -15,7 +15,8 @@ export async function extractEvent(
 
   /* Collect all events under the name */
   for (const log of logs) {
-    if (log.address !== contract.address) continue;
+    const contractAddress = await contract.getAddress();
+    if (log.address !== contractAddress) continue;
 
     const event = contract.interface.parseLog(log);
     if (event.name !== name) continue;
@@ -41,7 +42,8 @@ export async function countEvent(tx: ContractTransaction, contract: Contract, na
 
   /* Collect all events under the name */
   for (const log of logs) {
-    if (log.address !== contract.address) continue;
+    const contractAddress = await contract.getAddress();
+    if (log.address !== contractAddress) continue;
 
     const event = contract.interface.parseLog(log);
     if (event.name !== name) continue;

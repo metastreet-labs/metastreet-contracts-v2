@@ -19,6 +19,7 @@ import {
 import { getContractFactoryWithLibraries } from "./helpers/Deploy";
 import { extractEvent, expectEvent } from "./helpers/EventUtilities";
 import { FixedPoint } from "./helpers/FixedPoint";
+import { BigIntMath } from "./helpers/Math";
 import { Tick } from "./helpers/Tick";
 
 describe("Pool Basic", function () {
@@ -57,72 +58,72 @@ describe("Pool Basic", function () {
     ]);
 
     /* Deploy test currency token */
-    tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;
-    await tok1.deployed();
+    tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.parseEther("10000"))) as TestERC20;
+    await tok1.waitForDeployment();
 
     /* Deploy test NFT */
     nft1 = (await testERC721Factory.deploy("NFT 1", "NFT1", "https://nft1.com/token/")) as TestERC721;
-    await nft1.deployed();
+    await nft1.waitForDeployment();
 
     /* Deploy loan receipt library */
     loanReceiptLib = await testLoanReceiptFactory.deploy();
-    await loanReceiptLib.deployed();
+    await loanReceiptLib.waitForDeployment();
 
     /* Deploy external collateral liquidator implementation */
     const collateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
-    await collateralLiquidatorImpl.deployed();
+    await collateralLiquidatorImpl.waitForDeployment();
 
     /* Deploy collateral liquidator */
     let proxy = await testProxyFactory.deploy(
-      collateralLiquidatorImpl.address,
+      await collateralLiquidatorImpl.getAddress(),
       collateralLiquidatorImpl.interface.encodeFunctionData("initialize")
     );
-    await proxy.deployed();
+    await proxy.waitForDeployment();
     collateralLiquidator = (await ethers.getContractAt(
       "ExternalCollateralLiquidator",
-      proxy.address
+      await proxy.getAddress()
     )) as ExternalCollateralLiquidator;
 
     /* Deploy test delegation registry v1 */
     delegateRegistryV1 = await delegateRegistryV1Factory.deploy();
-    await delegateRegistryV1.deployed();
+    await delegateRegistryV1.waitForDeployment();
 
     /* Deploy test delegation registry v2 */
     delegateRegistryV2 = await delegateRegistryV2Factory.deploy();
-    await delegateRegistryV2.deployed();
+    await delegateRegistryV2.waitForDeployment();
 
     /* Deploy erc20 deposit token implementation */
     erc20DepositTokenImpl = (await erc20DepositTokenImplFactory.deploy()) as ERC20DepositTokenImplementation;
-    await erc20DepositTokenImpl.deployed();
+    await erc20DepositTokenImpl.waitForDeployment();
 
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
-      collateralLiquidator.address,
-      delegateRegistryV1.address,
-      delegateRegistryV2.address,
-      erc20DepositTokenImpl.address,
+      await collateralLiquidator.getAddress(),
+      await delegateRegistryV1.getAddress(),
+      await delegateRegistryV2.getAddress(),
+      await erc20DepositTokenImpl.getAddress(),
       []
     )) as Pool;
-    await poolImpl.deployed();
+    await poolImpl.waitForDeployment();
 
     /* Deploy pool */
     proxy = await testProxyFactory.deploy(
-      poolImpl.address,
+      await poolImpl.getAddress(),
       poolImpl.interface.encodeFunctionData("initialize", [
-        ethers.utils.defaultAbiCoder.encode(
+        ethers.AbiCoder.defaultAbiCoder().encode(
           ["address[]", "address", "address", "uint64[]", "uint64[]"],
           [
-            [nft1.address],
-            tok1.address,
-            ethers.constants.AddressZero,
+            [await nft1.getAddress()],
+            await tok1.getAddress(),
+            ethers.ZeroAddress,
             [30 * 86400, 14 * 86400, 7 * 86400],
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
           ]
         ),
       ])
     );
-    await proxy.deployed();
-    pool = (await ethers.getContractAt("Pool", proxy.address)) as Pool;
+    await proxy.waitForDeployment();
+    pool = (await ethers.getContractAt("Pool", await proxy.getAddress())) as Pool;
 
     /* Arrange accounts */
     accountDepositors = accounts.slice(1, 4);
@@ -133,34 +134,34 @@ describe("Pool Basic", function () {
     /* Grant liquidator role to liquidator account */
     await collateralLiquidator.grantRole(
       await collateralLiquidator.COLLATERAL_LIQUIDATOR_ROLE(),
-      accountLiquidator.address
+      await accountLiquidator.getAddress()
     );
 
     /* Transfer TOK1 to depositors and approve Pool */
     for (const depositor of accountDepositors) {
-      await tok1.transfer(depositor.address, ethers.utils.parseEther("1000"));
-      await tok1.connect(depositor).approve(pool.address, ethers.constants.MaxUint256);
+      await tok1.transfer(await depositor.getAddress(), ethers.parseEther("1000"));
+      await tok1.connect(depositor).approve(await pool.getAddress(), ethers.MaxUint256);
     }
     /* Transfer TOK1 to liquidator and approve collateral liquidator */
-    await tok1.transfer(accountLiquidator.address, ethers.utils.parseEther("100"));
-    await tok1.connect(accountLiquidator).approve(collateralLiquidator.address, ethers.constants.MaxUint256);
+    await tok1.transfer(await accountLiquidator.getAddress(), ethers.parseEther("100"));
+    await tok1.connect(accountLiquidator).approve(await collateralLiquidator.getAddress(), ethers.MaxUint256);
 
     /* Mint NFT to borrower */
-    await nft1.mint(accountBorrower.address, 123);
-    await nft1.mint(accountBorrower.address, 124);
-    await nft1.mint(accountBorrower.address, 125);
+    await nft1.mint(await accountBorrower.getAddress(), 123);
+    await nft1.mint(await accountBorrower.getAddress(), 124);
+    await nft1.mint(await accountBorrower.getAddress(), 125);
 
     /* Mint token to borrower */
-    await tok1.transfer(accountBorrower.address, ethers.utils.parseEther("100"));
+    await tok1.transfer(await accountBorrower.getAddress(), ethers.parseEther("100"));
 
     /* Mint token to lender */
-    await tok1.transfer(accountLender.address, ethers.utils.parseEther("1000"));
+    await tok1.transfer(await accountLender.getAddress(), ethers.parseEther("1000"));
 
     /* Approve pool to transfer NFT */
-    await nft1.connect(accountBorrower).setApprovalForAll(pool.address, true);
+    await nft1.connect(accountBorrower).setApprovalForAll(await pool.getAddress(), true);
 
     /* Approve pool to transfer token (for repayment) */
-    await tok1.connect(accountBorrower).approve(pool.address, ethers.constants.MaxUint256);
+    await tok1.connect(accountBorrower).approve(await pool.getAddress(), ethers.MaxUint256);
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -190,7 +191,7 @@ describe("Pool Basic", function () {
 
   describe("getters", async function () {
     it("returns expected currency token", async function () {
-      expect(await pool.currencyToken()).to.equal(tok1.address);
+      expect(await pool.currencyToken()).to.equal(await tok1.getAddress());
     });
 
     it("returns expected admin fee rate", async function () {
@@ -199,21 +200,21 @@ describe("Pool Basic", function () {
 
     it("returns expected collateral wrappers", async function () {
       const collateralWrappers = await pool.collateralWrappers();
-      expect(collateralWrappers[0]).to.equal(ethers.constants.AddressZero);
-      expect(collateralWrappers[1]).to.equal(ethers.constants.AddressZero);
-      expect(collateralWrappers[2]).to.equal(ethers.constants.AddressZero);
+      expect(collateralWrappers[0]).to.equal(ethers.ZeroAddress);
+      expect(collateralWrappers[1]).to.equal(ethers.ZeroAddress);
+      expect(collateralWrappers[2]).to.equal(ethers.ZeroAddress);
     });
 
     it("returns expected collateral liquidator", async function () {
-      expect(await pool.collateralLiquidator()).to.equal(collateralLiquidator.address);
+      expect(await pool.collateralLiquidator()).to.equal(await collateralLiquidator.getAddress());
     });
 
     it("returns expected delegation registry v1", async function () {
-      expect(await pool.delegationRegistry()).to.equal(delegateRegistryV1.address);
+      expect(await pool.delegationRegistry()).to.equal(await delegateRegistryV1.getAddress());
     });
 
     it("returns expected delegation registry v2", async function () {
-      expect(await pool.delegationRegistryV2()).to.equal(delegateRegistryV2.address);
+      expect(await pool.delegationRegistryV2()).to.equal(await delegateRegistryV2.getAddress());
     });
 
     describe("#depositSharePrice", async function () {
@@ -236,10 +237,10 @@ describe("Pool Basic", function () {
         /* Deposit */
         const shares = await pool
           .connect(accountDepositors[1])
-          .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+          .deposit.staticCall(Tick.encode("10"), FixedPoint.from("1"), 0);
 
         /* Get actual deposit price */
-        const actualDepositPrice = FixedPoint.from("1").mul(FixedPoint.from("1")).div(shares);
+        const actualDepositPrice = (FixedPoint.from("1") * FixedPoint.from("1")) / shares;
 
         expect(expectedDepositPrice).to.equal(actualDepositPrice);
       });
@@ -261,10 +262,10 @@ describe("Pool Basic", function () {
         /* Deposit */
         const shares = await pool
           .connect(accountDepositors[1])
-          .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+          .deposit.staticCall(Tick.encode("10"), FixedPoint.from("1"), 0n);
 
         /* Get actual deposit price */
-        const actualDepositPrice = FixedPoint.from("1").mul(FixedPoint.from("1")).div(shares);
+        const actualDepositPrice = (FixedPoint.from("1") * FixedPoint.from("1")) / shares;
 
         expect(expectedDepositPrice).to.equal(actualDepositPrice);
       });
@@ -286,10 +287,10 @@ describe("Pool Basic", function () {
         /* Deposit */
         const shares = await pool
           .connect(accountDepositors[1])
-          .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+          .deposit.staticCall(Tick.encode("10"), FixedPoint.from("1"), 0);
 
         /* Get actual deposit price */
-        const actualDepositPrice = FixedPoint.from("1").mul(FixedPoint.from("1")).div(shares);
+        const actualDepositPrice = (FixedPoint.from("1") * FixedPoint.from("1")) / shares;
 
         expect(expectedDepositPrice).to.equal(actualDepositPrice);
       });
@@ -323,10 +324,10 @@ describe("Pool Basic", function () {
         /* Deposit */
         const shares = await pool
           .connect(accountDepositors[1])
-          .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+          .deposit.staticCall(Tick.encode("10"), FixedPoint.from("1"), 0);
 
         /* Get actual deposit price */
-        const actualDepositPrice = FixedPoint.from("1").mul(FixedPoint.from("1")).div(shares);
+        const actualDepositPrice = (FixedPoint.from("1") * FixedPoint.from("1")) / shares;
 
         expect(expectedDepositPrice).to.equal(actualDepositPrice);
       });
@@ -341,7 +342,7 @@ describe("Pool Basic", function () {
       it("returns correct redemption share price after borrow", async function () {
         const sharesMinted = await pool
           .connect(accountDepositors[0])
-          .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+          .deposit.staticCall(Tick.encode("10"), FixedPoint.from("1"), 0);
         await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
         await createActiveLoan(FixedPoint.from("1"));
 
@@ -356,7 +357,7 @@ describe("Pool Basic", function () {
         const redemptionShares = (await extractEvent(redemptionTx, pool, "Redeemed")).args.shares;
 
         /* Get actual redemption price */
-        const actualRedemptionPrice = FixedPoint.from("1").mul(FixedPoint.from("1")).div(FixedPoint.from("1"));
+        const actualRedemptionPrice = (FixedPoint.from("1") * FixedPoint.from("1")) / FixedPoint.from("1");
 
         expect(expectedRedemptionPrice).to.equal(actualRedemptionPrice);
       });
@@ -376,7 +377,7 @@ describe("Pool Basic", function () {
 
         /* Get actual redemption price */
         const node = await pool.liquidityNode(Tick.encode("10"));
-        const actualRedemptionPrice = node.value.mul(FixedPoint.from("1")).div(node.shares);
+        const actualRedemptionPrice = (node.value * FixedPoint.from("1")) / node.shares;
 
         expect(expectedRedemptionPrice).to.equal(actualRedemptionPrice);
       });
@@ -391,7 +392,7 @@ describe("Pool Basic", function () {
     it("successfully deposits", async function () {
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("1"), 0);
       const depositTx = await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Validate events */
@@ -404,58 +405,58 @@ describe("Pool Basic", function () {
 
       await expectEvent(depositTx, tok1, "Transfer", {
         from: accountDepositors[0].address,
-        to: pool.address,
+        to: await pool.getAddress(),
         value: FixedPoint.from("1"),
       });
 
       /* Validate deposit state */
       const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(sharesMinted);
-      expect(redemptionId).to.equal(ethers.constants.Zero);
+      expect(redemptionId).to.equal(0n);
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(redemption.pending).to.equal(ethers.constants.Zero);
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.pending).to.equal(0n);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
 
       /* Validate token balance */
-      expect(await tok1.balanceOf(accountDepositors[0].address)).to.equal(ethers.utils.parseEther("999"));
+      expect(await tok1.balanceOf(accountDepositors[0].address)).to.equal(ethers.parseEther("999"));
     });
 
     it("successfully deposits additional", async function () {
       /* Deposit 1 */
       const sharesMinted1 = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("1"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Deposit 2 */
       const sharesMinted2 = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("2"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("2"), 0);
 
       /* Validate deposit state */
       const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(sharesMinted1.add(sharesMinted2));
-      expect(redemptionId).to.equal(ethers.constants.Zero);
+      expect(shares).to.equal(sharesMinted1 + sharesMinted2);
+      expect(redemptionId).to.equal(0n);
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(redemption.pending).to.equal(ethers.constants.Zero);
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.pending).to.equal(0n);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
 
       /* Validate token balance */
-      expect(await tok1.balanceOf(accountDepositors[0].address)).to.equal(ethers.utils.parseEther("997"));
+      expect(await tok1.balanceOf(accountDepositors[0].address)).to.equal(ethers.parseEther("997"));
     });
 
     it("successfully deposits at new tick after garbage collecting old tick", async function () {
       /* Deposit 1 ETH */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("1"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Only two nodes (including head) */
@@ -519,7 +520,7 @@ describe("Pool Basic", function () {
 
       /* Out of bounds limit type field */
       await expect(
-        pool.connect(accountDepositors[0]).deposit(Tick.encode("10", 0, 0).add(2), FixedPoint.from("1"), 0)
+        pool.connect(accountDepositors[0]).deposit(Tick.encode("10", 0, 0) + 2n, FixedPoint.from("1"), 0)
       ).to.be.revertedWithPanic("0x21");
 
       /* Zero limit */
@@ -544,7 +545,7 @@ describe("Pool Basic", function () {
         .borrow(
           FixedPoint.from("1"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           FixedPoint.from("2"),
           await sourceLiquidity(FixedPoint.from("1")),
@@ -570,7 +571,7 @@ describe("Pool Basic", function () {
       /* Deposit 1 ETH */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("1"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Redeem 1 shares */
@@ -586,21 +587,21 @@ describe("Pool Basic", function () {
 
       /* Validate deposit state */
       const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(ethers.constants.Zero);
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(0n);
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
       expect(redemption.pending).to.equal(sharesMinted);
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
     });
 
     it("successfully redeems partial deposit from available cash", async function () {
       /* Deposit 1 ETH */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("1"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Redeem 0.5 shares */
@@ -616,21 +617,21 @@ describe("Pool Basic", function () {
 
       /* Validate deposit state */
       const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("0.5")));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(sharesMinted - FixedPoint.from("0.5"));
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
       expect(redemption.pending).to.equal(FixedPoint.from("0.5"));
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
     });
 
     it("successfully schedules redemption", async function () {
       /* Deposit */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("10"), 0);
 
@@ -642,19 +643,19 @@ describe("Pool Basic", function () {
 
       /* Validate deposit state */
       const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("5")));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(sharesMinted - FixedPoint.from("5"));
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
       expect(redemption.pending).to.equal(FixedPoint.from("5"));
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
 
       /* Validate tick state */
       const node = await pool.liquidityNode(Tick.encode("10"));
       expect(node.value).to.equal(FixedPoint.from("10"));
-      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.available).to.equal(0n);
       expect(node.redemptions).to.equal(FixedPoint.from("5"));
     });
 
@@ -662,7 +663,7 @@ describe("Pool Basic", function () {
       /* Deposit */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("10"), 0);
 
@@ -672,29 +673,29 @@ describe("Pool Basic", function () {
       /* Redeem 5 shares */
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("5"));
       /* Redeem remaining shares */
-      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), sharesMinted.sub(FixedPoint.from("5")));
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), sharesMinted - FixedPoint.from("5"));
 
       /* Validate deposit state */
       const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("0"));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("2"));
+      expect(redemptionId).to.equal(BigInt("2"));
 
       /* Validate redemption state */
       const redemption1 = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
       expect(redemption1.pending).to.equal(FixedPoint.from("5"));
-      expect(redemption1.index).to.equal(ethers.constants.Zero);
-      expect(redemption1.target).to.equal(ethers.constants.Zero);
+      expect(redemption1.index).to.equal(0n);
+      expect(redemption1.target).to.equal(0n);
 
       /* Validate redemption state */
       const redemption2 = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 1);
-      expect(redemption2.pending).to.equal(sharesMinted.sub(FixedPoint.from("5")));
-      expect(redemption2.index).to.equal(ethers.constants.Zero);
+      expect(redemption2.pending).to.equal(sharesMinted - FixedPoint.from("5"));
+      expect(redemption2.index).to.equal(0n);
       expect(redemption2.target).to.equal(FixedPoint.from("5"));
 
       /* Validate tick state */
       const node = await pool.liquidityNode(Tick.encode("10"));
       expect(node.value).to.equal(FixedPoint.from("10"));
-      expect(node.available).to.equal(ethers.constants.Zero);
+      expect(node.available).to.equal(0n);
       expect(node.redemptions).to.equal(sharesMinted);
     });
 
@@ -712,7 +713,7 @@ describe("Pool Basic", function () {
         .borrow(
           FixedPoint.from("1.999999999999999999"),
           3 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           FixedPoint.from("2.1"),
           await sourceLiquidity(FixedPoint.from("1.999999999999999999")),
@@ -727,7 +728,7 @@ describe("Pool Basic", function () {
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("2"), shares);
 
       /* Fast forward timestamp to loan maturity */
-      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity);
 
       /* Repay loan */
       await pool.connect(accountBorrower).repay(loanReceipt);
@@ -735,7 +736,7 @@ describe("Pool Basic", function () {
       /* Validate 2 ETH node has dust */
       let node = await pool.liquidityNode(Tick.encode("2"));
       expect(node.available).to.equal("1001096");
-      expect(node.shares).to.equal(FixedPoint.from("2").sub(shares));
+      expect(node.shares).to.equal(FixedPoint.from("2") - shares);
       expect(node.value).to.equal("1001096");
 
       /* Validate 2 ETH node unlinked */
@@ -763,9 +764,10 @@ describe("Pool Basic", function () {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Redeem 1.25 shares */
-      await expect(
-        pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), ethers.constants.Zero)
-      ).to.be.revertedWithCustomError(pool, "InsufficientShares");
+      await expect(pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), 0n)).to.be.revertedWithCustomError(
+        pool,
+        "InsufficientShares"
+      );
     });
   });
 
@@ -773,13 +775,13 @@ describe("Pool Basic", function () {
     it("returns redemption available from cash", async function () {
       /* No redemption available */
       let [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(shares).to.equal(ethers.constants.Zero);
-      expect(amount).to.equal(ethers.constants.Zero);
+      expect(shares).to.equal(0n);
+      expect(amount).to.equal(0n);
 
       /* Deposit 1 ETH */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("1"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Redeem 0.5 shares */
@@ -793,21 +795,21 @@ describe("Pool Basic", function () {
       /* Validate deposit state */
       let redemptionId;
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("0.5")));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(sharesMinted - FixedPoint.from("0.5"));
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
       expect(redemption.pending).to.equal(FixedPoint.from("0.5"));
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
     });
 
     it("returns full redemption available from repaid loan", async function () {
       /* Deposit */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
@@ -819,8 +821,8 @@ describe("Pool Basic", function () {
 
       /* No redemption available */
       let [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(shares).to.equal(ethers.constants.Zero);
-      expect(amount).to.equal(ethers.constants.Zero);
+      expect(shares).to.equal(0n);
+      expect(amount).to.equal(0n);
 
       /* Repay loan */
       await pool.connect(accountBorrower).repay(loanReceipt);
@@ -828,26 +830,26 @@ describe("Pool Basic", function () {
       /* Full redemption should be available */
       [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"), 0);
       expect(shares).to.equal(FixedPoint.from("5"));
-      expect(amount.sub(FixedPoint.from("5")).abs()).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(amount - FixedPoint.from("5"))).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
       let redemptionId;
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("5")));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(sharesMinted - FixedPoint.from("5"));
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
       expect(redemption.pending).to.equal(FixedPoint.from("5"));
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
     });
 
     it("returns partial redemption available from repaid loan", async function () {
       /* Deposit */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
@@ -862,16 +864,16 @@ describe("Pool Basic", function () {
 
       /* No redemption available */
       let [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(shares).to.equal(ethers.constants.Zero);
-      expect(amount).to.equal(ethers.constants.Zero);
+      expect(shares).to.equal(0n);
+      expect(amount).to.equal(0n);
 
       /* Repay loan 1 */
       await pool.connect(accountBorrower).repay(loanReceipt1);
 
       /* Partial redemption should be available */
       [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(shares.sub(FixedPoint.from("3")).abs()).to.be.lt(FixedPoint.from("0.1"));
-      expect(amount.sub(FixedPoint.from("3")).abs()).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(shares - FixedPoint.from("3"))).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(amount - FixedPoint.from("3"))).to.be.lt(FixedPoint.from("0.1"));
 
       /* Repay loan 2 */
       await pool.connect(accountBorrower).repay(loanReceipt2);
@@ -879,26 +881,26 @@ describe("Pool Basic", function () {
       /* Full redemption should be available */
       [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"), 0);
       expect(shares).to.equal(FixedPoint.from("8"));
-      expect(amount.sub(FixedPoint.from("8")).abs()).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(amount - FixedPoint.from("8"))).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
       let redemptionId;
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("8")));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(sharesMinted - FixedPoint.from("8"));
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
       expect(redemption.pending).to.equal(FixedPoint.from("8"));
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
     });
 
     it("returns written down redemption available from liquidated loan", async function () {
       /* Deposit */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
@@ -910,12 +912,12 @@ describe("Pool Basic", function () {
 
       /* No redemption available */
       let [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(shares).to.equal(ethers.constants.Zero);
-      expect(amount).to.equal(ethers.constants.Zero);
+      expect(shares).to.equal(0n);
+      expect(amount).to.equal(0n);
 
       /* Wait for loan expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity + 1n);
 
       /* Process expiration */
       await pool.liquidate(loanReceipt);
@@ -923,36 +925,51 @@ describe("Pool Basic", function () {
       /* Withdraw collateral */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
+        .withdrawCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt
+        );
 
       /* Liquidate collateral and process liquidation */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, ethers.constants.Zero);
+        .liquidateCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt,
+          0n
+        );
 
       /* Redemption should be available */
       [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"), 0);
       expect(shares).to.equal(FixedPoint.from("5"));
-      expect(amount).to.equal(ethers.constants.Zero);
+      expect(amount).to.equal(0n);
 
       /* Validate deposit state */
       let redemptionId;
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("5")));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(sharesMinted - FixedPoint.from("5"));
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
       expect(redemption.pending).to.equal(FixedPoint.from("5"));
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
     });
 
     it("returns partial redemption available from subsequent deposit", async function () {
       /* Deposit */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
@@ -964,35 +981,35 @@ describe("Pool Basic", function () {
 
       /* No redemption available */
       let [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(shares).to.equal(ethers.constants.Zero);
-      expect(amount).to.equal(ethers.constants.Zero);
+      expect(shares).to.equal(0n);
+      expect(amount).to.equal(0n);
 
       /* Subsequent deposit */
       await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("3"), 0);
 
       /* Full redemption should be available */
       [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(shares.sub(FixedPoint.from("3")).abs()).to.be.lt(FixedPoint.from("0.1"));
-      expect(amount.sub(FixedPoint.from("3")).abs()).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(shares - FixedPoint.from("3"))).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(amount - FixedPoint.from("3"))).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
       let redemptionId;
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("5")));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(sharesMinted - FixedPoint.from("5"));
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
       expect(redemption.pending).to.equal(FixedPoint.from("5"));
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
     });
 
     it("returns zero redemption available from dust cash", async function () {
       /* Deposit */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
 
       /* Create loan */
@@ -1003,28 +1020,28 @@ describe("Pool Basic", function () {
 
       /* No redemption available */
       let [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(shares).to.equal(ethers.constants.Zero);
-      expect(amount).to.equal(ethers.constants.Zero);
+      expect(shares).to.equal(0n);
+      expect(amount).to.equal(0n);
 
       /* Validate deposit state */
       let redemptionId;
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(ethers.constants.Zero);
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(0n);
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       let redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
       expect(redemption.pending).to.equal(sharesMinted);
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
 
       /* Deposit from depositor #2, causing a partial redemption of depositor #1 */
       await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("0.1"), 0);
 
       /* Validate partial redemption available for depositor #1 */
       [shares, amount] = await pool.redemptionAvailable(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(shares).to.be.gt(ethers.constants.Zero);
-      expect(amount).to.be.gt(ethers.constants.Zero);
+      expect(shares).to.be.gt(0n);
+      expect(amount).to.be.gt(0n);
 
       /* Validate tick has rounding dust in cash available */
       const node = await pool.liquidityNode(Tick.encode("10"));
@@ -1035,18 +1052,18 @@ describe("Pool Basic", function () {
 
       /* Validate zero redemption available for depositor #2, despite the dust cash available */
       [shares, amount] = await pool.redemptionAvailable(accountDepositors[1].address, Tick.encode("10"), 0);
-      expect(shares).to.equal(ethers.constants.Zero);
-      expect(amount).to.equal(ethers.constants.Zero);
+      expect(shares).to.equal(0n);
+      expect(amount).to.equal(0n);
 
       /* Validate deposit state */
       [shares, redemptionId] = await pool.deposits(accountDepositors[1].address, Tick.encode("10"));
       expect(shares).to.be.closeTo(FixedPoint.from("0.05"), FixedPoint.from("0.01"));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       redemption = await pool.redemptions(accountDepositors[1].address, Tick.encode("10"), 0);
       expect(redemption.pending).to.equal(FixedPoint.from("0.05"));
-      expect(redemption.index).to.equal(ethers.BigNumber.from("1"));
+      expect(redemption.index).to.equal(BigInt("1"));
       expect(redemption.target).to.be.closeTo(FixedPoint.from("10"), FixedPoint.from("0.1"));
     });
 
@@ -1062,7 +1079,15 @@ describe("Pool Basic", function () {
       /* Borrow 8 ETH */
       await pool
         .connect(accountBorrower)
-        .borrow(FixedPoint.from("8"), 30 * 86400, nft1.address, 123, FixedPoint.from("9"), [Tick.encode("10")], "0x");
+        .borrow(
+          FixedPoint.from("8"),
+          30 * 86400,
+          await nft1.getAddress(),
+          123,
+          FixedPoint.from("9"),
+          [Tick.encode("10")],
+          "0x"
+        );
 
       /* Depositor 1 redeems all shares */
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), shares1);
@@ -1076,7 +1101,7 @@ describe("Pool Basic", function () {
 
       /* Validate sharesAhead */
       expect(redemptionAvailable1[2]).to.equal(0);
-      expect(redemptionAvailable2[2]).to.equal(shares1.sub(FixedPoint.from("2")));
+      expect(redemptionAvailable2[2]).to.equal(shares1 - FixedPoint.from("2"));
 
       /* Depositor 2 deposits another 4 ETH */
       await pool.connect(accountDepositors[1]).deposit(Tick.encode("10"), FixedPoint.from("4"), 0);
@@ -1096,14 +1121,14 @@ describe("Pool Basic", function () {
       /* Deposit 1 ETH */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("1"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Redeem 0.5 shares */
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("0.5"));
 
       /* Simulated withdrawal should return 0.5 ETH and 500000000000000000 shares */
-      const withdrawal = await pool.connect(accountDepositors[0]).callStatic.withdraw(Tick.encode("10"), 0);
+      const withdrawal = await pool.connect(accountDepositors[0]).withdraw.staticCall(Tick.encode("10"), 0);
       expect(withdrawal[0]).to.equal(FixedPoint.from("0.5"));
       expect(withdrawal[1]).to.equal(FixedPoint.from("0.5"));
 
@@ -1119,31 +1144,31 @@ describe("Pool Basic", function () {
         amount: FixedPoint.from("0.5"),
       });
       await expectEvent(withdrawTx, tok1, "Transfer", {
-        from: pool.address,
+        from: await pool.getAddress(),
         to: accountDepositors[0].address,
         value: FixedPoint.from("0.5"),
       });
 
       /* Validate deposit state */
       let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("0.5")));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(sharesMinted - FixedPoint.from("0.5"));
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(redemption.pending).to.equal(ethers.constants.Zero);
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.pending).to.equal(0n);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
 
       /* Validate token balance */
-      expect(await tok1.balanceOf(accountDepositors[0].address)).to.equal(ethers.utils.parseEther("999.5"));
+      expect(await tok1.balanceOf(accountDepositors[0].address)).to.equal(ethers.parseEther("999.5"));
     });
 
     it("withdraws fully available redemption from repaid loan", async function () {
       /* Deposit */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
@@ -1167,31 +1192,31 @@ describe("Pool Basic", function () {
         shares: FixedPoint.from("5"),
       });
       await expectEvent(withdrawTx, tok1, "Transfer", {
-        from: pool.address,
+        from: await pool.getAddress(),
         to: accountDepositors[0].address,
       });
 
       /* Validate amount approximately */
       const amount = (await extractEvent(withdrawTx, pool, "Withdrawn")).args.amount;
-      expect(amount.sub(FixedPoint.from("5")).abs()).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(amount - FixedPoint.from("5"))).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
       const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("5")));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(sharesMinted - FixedPoint.from("5"));
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       const redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(redemption.pending).to.equal(ethers.constants.Zero);
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.pending).to.equal(0n);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
     });
 
     it("withdraws multiple fully available redemptions from repaid loan", async function () {
       /* Deposit */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
@@ -1201,7 +1226,7 @@ describe("Pool Basic", function () {
       /* Redeem 5 shares */
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), FixedPoint.from("5"));
       /* Redeem another remaining shares */
-      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), sharesMinted.sub(FixedPoint.from("5")));
+      await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), sharesMinted - FixedPoint.from("5"));
 
       /* Repay loan */
       await pool.connect(accountBorrower).repay(loanReceipt);
@@ -1217,13 +1242,13 @@ describe("Pool Basic", function () {
         shares: FixedPoint.from("5"),
       });
       await expectEvent(withdrawTx1, tok1, "Transfer", {
-        from: pool.address,
+        from: await pool.getAddress(),
         to: accountDepositors[0].address,
       });
 
       /* Validate amount approximately */
       const amount1 = (await extractEvent(withdrawTx1, pool, "Withdrawn")).args.amount;
-      expect(amount1.sub(FixedPoint.from("5")).abs()).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(amount1 - FixedPoint.from("5"))).to.be.lt(FixedPoint.from("0.1"));
 
       /* Withdraw second redemption */
       const withdrawTx2 = await pool.connect(accountDepositors[0]).withdraw(Tick.encode("10"), 1);
@@ -1233,40 +1258,40 @@ describe("Pool Basic", function () {
         account: accountDepositors[0].address,
         tick: Tick.encode("10"),
         redemptionId: 1,
-        shares: sharesMinted.sub(FixedPoint.from("5")),
+        shares: sharesMinted - FixedPoint.from("5"),
       });
       await expectEvent(withdrawTx2, tok1, "Transfer", {
-        from: pool.address,
+        from: await pool.getAddress(),
         to: accountDepositors[0].address,
       });
 
       /* Validate amount approximately */
       const amount2 = (await extractEvent(withdrawTx2, pool, "Withdrawn")).args.amount;
-      expect(amount2.sub(FixedPoint.from("5")).abs()).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(amount2 - FixedPoint.from("5"))).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
       const [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
       expect(shares).to.equal(FixedPoint.from("0"));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("2"));
+      expect(redemptionId).to.equal(BigInt("2"));
 
       /* Validate redemption state */
       const redemption1 = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(redemption1.pending).to.equal(ethers.constants.Zero);
-      expect(redemption1.index).to.equal(ethers.constants.Zero);
-      expect(redemption1.target).to.equal(ethers.constants.Zero);
+      expect(redemption1.pending).to.equal(0n);
+      expect(redemption1.index).to.equal(0n);
+      expect(redemption1.target).to.equal(0n);
 
       /* Validate redemption state */
       const redemption2 = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 1);
-      expect(redemption2.pending).to.equal(ethers.constants.Zero);
-      expect(redemption2.index).to.equal(ethers.constants.Zero);
-      expect(redemption2.target).to.equal(ethers.constants.Zero);
+      expect(redemption2.pending).to.equal(0n);
+      expect(redemption2.index).to.equal(0n);
+      expect(redemption2.target).to.equal(0n);
     });
 
     it("withdraws partially available redemption from repaid loan", async function () {
       /* Deposit */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
@@ -1292,26 +1317,26 @@ describe("Pool Basic", function () {
         redemptionId: 0,
       });
       await expectEvent(withdrawTx1, tok1, "Transfer", {
-        from: pool.address,
+        from: await pool.getAddress(),
         to: accountDepositors[0].address,
       });
 
       /* Validate shares and amount approximately */
       const shares1 = (await extractEvent(withdrawTx1, pool, "Withdrawn")).args.shares;
       const amount1 = (await extractEvent(withdrawTx1, pool, "Withdrawn")).args.amount;
-      expect(shares1.sub(FixedPoint.from("3")).abs()).to.be.lt(FixedPoint.from("0.1"));
-      expect(amount1.sub(FixedPoint.from("3")).abs()).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(shares1 - FixedPoint.from("3"))).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(amount1 - FixedPoint.from("3"))).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
       let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("8")));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(sharesMinted - FixedPoint.from("8"));
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       let redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(redemption.pending).to.equal(FixedPoint.from("8").sub(shares1));
+      expect(redemption.pending).to.equal(FixedPoint.from("8") - shares1);
       expect(redemption.index).to.equal(1);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.target).to.equal(0n);
 
       /* Repay loan 2 */
       await pool.connect(accountBorrower).repay(loanReceipt2);
@@ -1326,33 +1351,33 @@ describe("Pool Basic", function () {
         redemptionId: 0,
       });
       await expectEvent(withdrawTx2, tok1, "Transfer", {
-        from: pool.address,
+        from: await pool.getAddress(),
         to: accountDepositors[0].address,
       });
 
       /* Validate shares and amount approximately */
       const shares2 = (await extractEvent(withdrawTx2, pool, "Withdrawn")).args.shares;
       const amount2 = (await extractEvent(withdrawTx2, pool, "Withdrawn")).args.amount;
-      expect(shares2.sub(FixedPoint.from("5")).abs()).to.be.lt(FixedPoint.from("0.1"));
-      expect(amount2.sub(FixedPoint.from("5")).abs()).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(shares2 - FixedPoint.from("5"))).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(amount2 - FixedPoint.from("5"))).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("8")));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(sharesMinted - FixedPoint.from("8"));
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(redemption.pending).to.equal(ethers.constants.Zero);
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.pending).to.equal(0n);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
     });
 
     it("withdraws fully written down redemption from liquidated loan", async function () {
       /* Deposit */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
@@ -1364,7 +1389,7 @@ describe("Pool Basic", function () {
 
       /* Wait for loan expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity + 1n);
 
       /* Process expiration */
       await pool.liquidate(loanReceipt);
@@ -1372,12 +1397,27 @@ describe("Pool Basic", function () {
       /* Withdraw collateral */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
+        .withdrawCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt
+        );
 
       /* Liquidate collateral and process liquidation */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, ethers.constants.Zero);
+        .liquidateCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt,
+          0n
+        );
 
       /* Withdraw */
       const withdrawTx = await pool.connect(accountDepositors[0]).withdraw(Tick.encode("10"), 0);
@@ -1388,26 +1428,26 @@ describe("Pool Basic", function () {
         tick: Tick.encode("10"),
         redemptionId: 0,
         shares: FixedPoint.from("5"),
-        amount: ethers.constants.Zero,
+        amount: 0n,
       });
 
       /* Validate deposit state */
       let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("5")));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(sharesMinted - FixedPoint.from("5"));
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       let redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(redemption.pending).to.equal(ethers.constants.Zero);
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.pending).to.equal(0n);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
     });
 
     it("withdraws partially available redemption from subsequent deposit", async function () {
       /* Deposit */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("15"), FixedPoint.from("5"), 0);
 
@@ -1430,26 +1470,26 @@ describe("Pool Basic", function () {
         redemptionId: 0,
       });
       await expectEvent(withdrawTx1, tok1, "Transfer", {
-        from: pool.address,
+        from: await pool.getAddress(),
         to: accountDepositors[0].address,
       });
 
       /* Validate shares and amount approximately */
       const shares1 = (await extractEvent(withdrawTx1, pool, "Withdrawn")).args.shares;
       const amount1 = (await extractEvent(withdrawTx1, pool, "Withdrawn")).args.amount;
-      expect(shares1.sub(FixedPoint.from("3")).abs()).to.be.lt(FixedPoint.from("0.1"));
-      expect(amount1.sub(FixedPoint.from("3")).abs()).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(shares1 - FixedPoint.from("3"))).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(amount1 - FixedPoint.from("3"))).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
       let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("5")));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(sharesMinted - FixedPoint.from("5"));
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       let redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(redemption.pending).to.equal(FixedPoint.from("5").sub(shares1));
+      expect(redemption.pending).to.equal(FixedPoint.from("5") - shares1);
       expect(redemption.index).to.equal(1);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.target).to.equal(0n);
 
       /* Repay loan */
       await pool.connect(accountBorrower).repay(loanReceipt);
@@ -1464,26 +1504,26 @@ describe("Pool Basic", function () {
         redemptionId: 0,
       });
       await expectEvent(withdrawTx2, tok1, "Transfer", {
-        from: pool.address,
+        from: await pool.getAddress(),
         to: accountDepositors[0].address,
       });
 
       /* Validate shares and amount approximately */
       const shares2 = (await extractEvent(withdrawTx2, pool, "Withdrawn")).args.shares;
       const amount2 = (await extractEvent(withdrawTx2, pool, "Withdrawn")).args.amount;
-      expect(shares2.sub(FixedPoint.from("2")).abs()).to.be.lt(FixedPoint.from("0.1"));
-      expect(amount2.sub(FixedPoint.from("2")).abs()).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(shares2 - FixedPoint.from("2"))).to.be.lt(FixedPoint.from("0.1"));
+      expect(BigIntMath.abs(amount2 - FixedPoint.from("2"))).to.be.lt(FixedPoint.from("0.1"));
 
       /* Validate deposit state */
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(sharesMinted.sub(FixedPoint.from("5")));
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(sharesMinted - FixedPoint.from("5"));
+      expect(redemptionId).to.equal(BigInt("1"));
 
       /* Validate redemption state */
       redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(redemption.pending).to.equal(ethers.constants.Zero);
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.pending).to.equal(0n);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
     });
 
     it("advances redemption queue on withdraw", async function () {
@@ -1528,7 +1568,7 @@ describe("Pool Basic", function () {
       /* Validate redemption queue */
       redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("5"), 0);
       expect(redemption.index).to.equal(1);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.target).to.equal(0n);
       redemption = await pool.redemptions(accountDepositors[1].address, Tick.encode("5"), 0);
       expect(redemption.index).to.equal(1);
       expect(redemption.target).to.be.closeTo(FixedPoint.from("0.25"), FixedPoint.from("0.01"));
@@ -1555,12 +1595,12 @@ describe("Pool Basic", function () {
 
       /* Validate redemption queue */
       redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("5"), 0);
-      expect(redemption.pending).to.equal(ethers.constants.Zero);
+      expect(redemption.pending).to.equal(0n);
       expect(redemption.index).to.equal(0);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.target).to.equal(0n);
       redemption = await pool.redemptions(accountDepositors[1].address, Tick.encode("5"), 0);
       expect(redemption.index).to.equal(2);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.target).to.equal(0n);
       redemption = await pool.redemptions(accountDepositors[2].address, Tick.encode("5"), 0);
       expect(redemption.index).to.equal(2);
       expect(redemption.target).to.be.closeTo(FixedPoint.from("0.75"), FixedPoint.from("0.01"));
@@ -1582,12 +1622,12 @@ describe("Pool Basic", function () {
 
       /* Validate redemption queue */
       redemption = await pool.redemptions(accountDepositors[1].address, Tick.encode("5"), 0);
-      expect(redemption.pending).to.equal(ethers.constants.Zero);
+      expect(redemption.pending).to.equal(0n);
       expect(redemption.index).to.equal(0);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.target).to.equal(0n);
       redemption = await pool.redemptions(accountDepositors[2].address, Tick.encode("5"), 0);
       expect(redemption.index).to.equal(3);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.target).to.equal(0n);
 
       /* Deposit cash */
       await pool.connect(accountBorrower).deposit(Tick.encode("5"), FixedPoint.from("0.10"), 0);
@@ -1603,7 +1643,7 @@ describe("Pool Basic", function () {
       redemption = await pool.redemptions(accountDepositors[2].address, Tick.encode("5"), 0);
       expect(redemption.pending).to.be.closeTo(FixedPoint.from("0.05"), FixedPoint.from("0.01"));
       expect(redemption.index).to.equal(4);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.target).to.equal(0n);
     });
 
     it("fails on no pending redemption", async function () {
@@ -1623,9 +1663,9 @@ describe("Pool Basic", function () {
       /* Deposit 1 ETH */
       const sharesMinted1 = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("1"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
-      const amount1 = (await pool.liquidityNode(Tick.encode("10"))).value.mul(sharesMinted1).div(FixedPoint.from("1"));
+      const amount1 = ((await pool.liquidityNode(Tick.encode("10"))).value * sharesMinted1) / FixedPoint.from("1");
 
       /* Redeem all shares */
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("10"), sharesMinted1);
@@ -1654,41 +1694,41 @@ describe("Pool Basic", function () {
 
       /* Validate deposit state */
       let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(ethers.constants.Zero);
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(0n);
+      expect(redemptionId).to.equal(BigInt("1"));
 
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("15"));
       expect(shares).to.equal(sharesMinted2);
-      expect(redemptionId).to.equal(ethers.constants.Zero);
+      expect(redemptionId).to.equal(0n);
 
       /* Validate redemption state */
       let redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
-      expect(redemption.pending).to.equal(ethers.constants.Zero);
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.pending).to.equal(0n);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
 
       redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("15"), 0);
-      expect(redemption.pending).to.equal(ethers.constants.Zero);
-      expect(redemption.index).to.equal(ethers.constants.Zero);
-      expect(redemption.target).to.equal(ethers.constants.Zero);
+      expect(redemption.pending).to.equal(0n);
+      expect(redemption.index).to.equal(0n);
+      expect(redemption.target).to.equal(0n);
 
       /* Validate tick state */
       let node = await pool.liquidityNode(Tick.encode("10"));
-      expect(node.value).to.equal(FixedPoint.from("1").sub(amount1));
-      expect(node.available).to.equal(FixedPoint.from("1").sub(amount1));
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
+      expect(node.value).to.equal(FixedPoint.from("1") - amount1);
+      expect(node.available).to.equal(FixedPoint.from("1") - amount1);
+      expect(node.redemptions).to.equal(0n);
 
       node = await pool.liquidityNode(Tick.encode("15"));
       expect(node.value).to.equal(amount1);
       expect(node.available).to.equal(amount1);
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
+      expect(node.redemptions).to.equal(0n);
     });
 
     it("rebalances a partial redemption into another tick", async function () {
       /* Deposit */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
 
       /* Create loan 1 */
@@ -1721,30 +1761,30 @@ describe("Pool Basic", function () {
 
       /* Validate deposit state */
       let [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("10"));
-      expect(shares).to.equal(ethers.constants.Zero);
-      expect(redemptionId).to.equal(ethers.BigNumber.from("1"));
+      expect(shares).to.equal(0n);
+      expect(redemptionId).to.equal(BigInt("1"));
 
       [shares, redemptionId] = await pool.deposits(accountDepositors[0].address, Tick.encode("15"));
       expect(shares).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
-      expect(redemptionId).to.equal(ethers.constants.Zero);
+      expect(redemptionId).to.equal(0n);
 
       /* Validate redemption state */
       let redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("10"), 0);
       expect(redemption.pending).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
 
       redemption = await pool.redemptions(accountDepositors[0].address, Tick.encode("15"), 0);
-      expect(redemption.pending).to.equal(ethers.constants.Zero);
+      expect(redemption.pending).to.equal(0n);
 
       /* Validate tick state */
       let node = await pool.liquidityNode(Tick.encode("10"));
       expect(node.value).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
-      expect(node.available).to.be.closeTo(ethers.constants.Zero, 1);
+      expect(node.available).to.be.closeTo(0n, 1);
       expect(node.redemptions).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
 
       node = await pool.liquidityNode(Tick.encode("15"));
       expect(node.value).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
       expect(node.available).to.be.closeTo(FixedPoint.from("5.0"), FixedPoint.from("0.01"));
-      expect(node.redemptions).to.equal(ethers.constants.Zero);
+      expect(node.redemptions).to.equal(0n);
     });
 
     it("fails on no pending redemption", async function () {
@@ -1773,7 +1813,7 @@ describe("Pool Basic", function () {
       /* Deposit 1 ETH */
       const sharesMinted = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
+        .deposit.staticCall(Tick.encode("10"), FixedPoint.from("1"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
 
       /* Redeem all shares */
@@ -1796,7 +1836,7 @@ describe("Pool Basic", function () {
 
       /* Out of bounds limit type field */
       await expect(
-        pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15", 0, 0).add(2), 0, 0)
+        pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15", 0, 0) + 2n, 0, 0)
       ).to.be.revertedWithPanic("0x21");
     });
 
@@ -1804,19 +1844,27 @@ describe("Pool Basic", function () {
       /* Deposit 1 ETH */
       const sharesMinted1 = await pool
         .connect(accountDepositors[0])
-        .callStatic.deposit(Tick.encode("1"), FixedPoint.from("1"), 0);
+        .deposit.staticCall(Tick.encode("1"), FixedPoint.from("1"), 0);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("1"), FixedPoint.from("1"), 0);
 
       /* Deposit 1 ETH */
       const sharesMinted2 = await pool
         .connect(accountDepositors[1])
-        .callStatic.deposit(Tick.encode("2"), FixedPoint.from("1"), 0);
+        .deposit.staticCall(Tick.encode("2"), FixedPoint.from("1"), 0);
       await pool.connect(accountDepositors[1]).deposit(Tick.encode("2"), FixedPoint.from("1"), 0);
 
       /* Borrow 0.5 ETH */
       await pool
         .connect(accountBorrower)
-        .borrow(FixedPoint.from("1"), 30 * 86400, nft1.address, 123, FixedPoint.from("2"), [Tick.encode("1")], "0x");
+        .borrow(
+          FixedPoint.from("1"),
+          30 * 86400,
+          await nft1.getAddress(),
+          123,
+          FixedPoint.from("2"),
+          [Tick.encode("1")],
+          "0x"
+        );
 
       /* Redeem all shares */
       await pool.connect(accountDepositors[0]).redeem(Tick.encode("1"), sharesMinted1);
@@ -1847,7 +1895,7 @@ describe("Pool Basic", function () {
 
       /* Wait for loan expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity + 1n);
 
       /* Process expiration */
       await pool.liquidate(loanReceipt);
@@ -1855,12 +1903,27 @@ describe("Pool Basic", function () {
       /* Withdraw collateral */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
+        .withdrawCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt
+        );
 
       /* Liquidate collateral and process liquidation */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, ethers.constants.Zero);
+        .liquidateCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt,
+          0n
+        );
 
       /* Rebalance */
       await expect(pool.connect(accountDepositors[0]).rebalance(Tick.encode("10"), Tick.encode("15"), 0, 0)).to.be
@@ -1872,9 +1935,9 @@ describe("Pool Basic", function () {
   /* Liquidity and Loan Helper functions */
   /****************************************************************************/
 
-  const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
-  const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
-  const maxBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.gt(b) ? a : b);
+  const MaxUint128 = BigInt("0xffffffffffffffffffffffffffffffff");
+  const minBN = (a: bigint, b: bigint) => (a < b ? a : b);
+  const maxBN = (a: bigint, b: bigint) => (a > b ? a : b);
 
   async function setupLiquidity(): Promise<void> {
     const NUM_LIMITS = 35;
@@ -1883,11 +1946,11 @@ describe("Pool Basic", function () {
     let limit = FixedPoint.from("6.5");
     for (let i = 0; i < NUM_LIMITS; i++) {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode(limit), FixedPoint.from("25"), 0);
-      limit = limit.mul(TICK_LIMIT_SPACING_BASIS_POINTS.add(10000)).div(10000);
+      limit = (limit * (TICK_LIMIT_SPACING_BASIS_POINTS + 10000n)) / 10000n;
     }
   }
 
-  async function amendLiquidity(ticks: ethers.BigNumber[]): Promise<ethers.BigNumber[]> {
+  async function amendLiquidity(ticks: bigint[]): Promise<bigint[]> {
     /* Replace four ticks with alternate duration and rates */
     ticks[3] = Tick.encode(Tick.decode(ticks[3]).limit, 2, 0);
     ticks[5] = Tick.encode(Tick.decode(ticks[5]).limit, 1, 1);
@@ -1901,27 +1964,27 @@ describe("Pool Basic", function () {
   }
 
   async function sourceLiquidity(
-    amount: ethers.BigNumber,
-    multiplier?: number = 1,
+    amount: bigint,
+    multiplier?: bigint = 1n,
     duration?: number = 0,
     rate?: number = 0
-  ): Promise<ethers.BigNumber[]> {
+  ): Promise<bigint[]> {
     const nodes = await pool.liquidityNodes(0, MaxUint128);
     const ticks = [];
 
-    let taken = ethers.constants.Zero;
+    let taken = 0n;
     for (const node of nodes) {
       const limit = Tick.decode(node.tick).limit;
-      if (limit.isZero()) continue;
+      if (limit === 0n) continue;
 
-      const take = minBN(minBN(limit.mul(multiplier).sub(taken), node.available), amount.sub(taken));
-      if (take.isZero()) break;
+      const take = minBN(minBN(limit * multiplier - taken, node.available), amount - taken);
+      if (take === 0n) break;
 
       ticks.push(node.tick);
-      taken = taken.add(take);
+      taken = taken + take;
     }
 
-    if (!taken.eq(amount)) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
+    if (taken !== amount) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
 
     return ticks;
   }
@@ -1939,12 +2002,27 @@ describe("Pool Basic", function () {
     /* Withdraw collateral */
     await collateralLiquidator
       .connect(accountLiquidator)
-      .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
+      .withdrawCollateral(
+        await pool.getAddress(),
+        await tok1.getAddress(),
+        await nft1.getAddress(),
+        123,
+        "0x",
+        loanReceipt
+      );
 
     /* Liquidate collateral and process liquidation for 0.20 ETH */
     await collateralLiquidator
       .connect(accountLiquidator)
-      .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, FixedPoint.from("0.20"));
+      .liquidateCollateral(
+        await pool.getAddress(),
+        await tok1.getAddress(),
+        await nft1.getAddress(),
+        123,
+        "0x",
+        loanReceipt,
+        FixedPoint.from("0.20")
+      );
 
     /* 10 ETH tick price is 0.20 ETH / 5.0 shares = 0.04 */
   }
@@ -1964,51 +2042,63 @@ describe("Pool Basic", function () {
     /* Withdraw collateral */
     await collateralLiquidator
       .connect(accountLiquidator)
-      .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
+      .withdrawCollateral(
+        await pool.getAddress(),
+        await tok1.getAddress(),
+        await nft1.getAddress(),
+        123,
+        "0x",
+        loanReceipt
+      );
 
     /* Liquidate collateral and process liquidation */
     await collateralLiquidator
       .connect(accountLiquidator)
-      .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, FixedPoint.from("5"));
+      .liquidateCollateral(
+        await pool.getAddress(),
+        await tok1.getAddress(),
+        await nft1.getAddress(),
+        123,
+        "0x",
+        loanReceipt,
+        FixedPoint.from("5")
+      );
 
     /* Ticks 10 ETH and 15 ETH are now insolvent */
   }
 
-  async function createActiveLoan(
-    principal: ethers.BigNumber,
-    duration?: number = 30 * 86400
-  ): Promise<[string, string]> {
+  async function createActiveLoan(principal: bigint, duration?: number = 30 * 86400): Promise<[string, string]> {
     const tokenId =
-      (await nft1.ownerOf(123)) === accountBorrower.address
+      (await nft1.ownerOf(123)) === (await accountBorrower.getAddress())
         ? 123
-        : (await nft1.ownerOf(124)) === accountBorrower.address
+        : (await nft1.ownerOf(124)) === (await accountBorrower.getAddress())
           ? 124
           : 125;
 
     const ticks = await sourceLiquidity(principal);
 
-    const repayment = await pool.quote(principal, duration, nft1.address, tokenId, ticks, "0x");
+    const repayment = await pool.quote(principal, duration, await nft1.getAddress(), tokenId, ticks, "0x");
 
     const borrowTx = await pool
       .connect(accountBorrower)
-      .borrow(principal, duration, nft1.address, tokenId, repayment, ticks, "0x");
+      .borrow(principal, duration, await nft1.getAddress(), tokenId, repayment, ticks, "0x");
     const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
     const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
     return [loanReceipt, loanReceiptHash];
   }
 
-  async function createExpiredLoan(principal: ethers.BigNumber): Promise<[string, string]> {
+  async function createExpiredLoan(principal: bigint): Promise<[string, string]> {
     /* Create active loan */
     const [loanReceipt, loanReceiptHash] = await createActiveLoan(principal);
 
     /* Wait for loan expiration */
     const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-    await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
+    await helpers.time.increaseTo(decodedLoanReceipt.maturity + 1n);
 
     return [loanReceipt, loanReceiptHash];
   }
 
-  async function createRepaidLoan(principal: ethers.BigNumber): Promise<[string, string]> {
+  async function createRepaidLoan(principal: bigint): Promise<[string, string]> {
     /* Create active loan */
     const [loanReceipt, loanReceiptHash] = await createActiveLoan(principal);
 
@@ -2018,7 +2108,7 @@ describe("Pool Basic", function () {
     return [loanReceipt, loanReceiptHash];
   }
 
-  async function createLiquidatedLoan(principal: ethers.BigNumber): Promise<ethers.BigNumber> {
+  async function createLiquidatedLoan(principal: bigint): Promise<bigint> {
     /* Create expired loan */
     const [loanReceipt, loanReceiptHash] = await createExpiredLoan(principal);
 
@@ -2042,7 +2132,7 @@ describe("Pool Basic", function () {
         await pool.quote(
           FixedPoint.from("10"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
@@ -2053,7 +2143,7 @@ describe("Pool Basic", function () {
         await pool.quote(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
@@ -2064,7 +2154,7 @@ describe("Pool Basic", function () {
     it("quotes repayment from various duration and rate ticks", async function () {
       let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
 
-      expect(await pool.quote(FixedPoint.from("25"), 7 * 86400, nft1.address, 123, ticks, "0x")).to.equal(
+      expect(await pool.quote(FixedPoint.from("25"), 7 * 86400, await nft1.getAddress(), 123, ticks, "0x")).to.equal(
         FixedPoint.from("25.066700775731730214")
       );
     });
@@ -2074,7 +2164,7 @@ describe("Pool Basic", function () {
         pool.quote(
           FixedPoint.from("100"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           await sourceLiquidity(FixedPoint.from("25")),
           "0x"
@@ -2087,12 +2177,12 @@ describe("Pool Basic", function () {
         pool.quote(
           FixedPoint.from("10"),
           30 * 86400,
-          tok1.address,
+          await tok1.getAddress(),
           123,
           await sourceLiquidity(FixedPoint.from("10")),
           "0x"
         )
-      ).to.be.revertedWithCustomError(pool, "UnsupportedCollateral", 0);
+      ).to.be.revertedWithCustomError(pool, "UnsupportedCollateral");
     });
 
     it("fails with non-increasing tick", async function () {
@@ -2102,7 +2192,7 @@ describe("Pool Basic", function () {
       ticks[5] = temp;
 
       await expect(
-        pool.quote(FixedPoint.from("25"), 7 * 86400, nft1.address, 123, ticks, "0x")
+        pool.quote(FixedPoint.from("25"), 7 * 86400, await nft1.getAddress(), 123, ticks, "0x")
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
     });
 
@@ -2111,7 +2201,7 @@ describe("Pool Basic", function () {
       ticks[4] = ticks[5];
 
       await expect(
-        pool.quote(FixedPoint.from("35"), 7 * 86400, nft1.address, 123, ticks, "0x")
+        pool.quote(FixedPoint.from("35"), 7 * 86400, await nft1.getAddress(), 123, ticks, "0x")
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
     });
 
@@ -2119,7 +2209,7 @@ describe("Pool Basic", function () {
       let ticks = await amendLiquidity(await sourceLiquidity(FixedPoint.from("25")));
 
       await expect(
-        pool.quote(FixedPoint.from("35"), 8 * 86400, nft1.address, 123, ticks, "0x")
+        pool.quote(FixedPoint.from("35"), 8 * 86400, await nft1.getAddress(), 123, ticks, "0x")
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
     });
   });
@@ -2134,7 +2224,7 @@ describe("Pool Basic", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        nft1.address,
+        await nft1.getAddress(),
         123,
         await sourceLiquidity(FixedPoint.from("25")),
         "0x"
@@ -2143,10 +2233,10 @@ describe("Pool Basic", function () {
       /* Simulate borrow */
       const simulatedRepayment = await pool
         .connect(accountBorrower)
-        .callStatic.borrow(
+        .borrow.staticCall(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
@@ -2159,7 +2249,7 @@ describe("Pool Basic", function () {
         .borrow(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
@@ -2171,14 +2261,14 @@ describe("Pool Basic", function () {
 
       /* Validate events */
       await expectEvent(borrowTx, nft1, "Transfer", {
-        from: accountBorrower.address,
-        to: pool.address,
+        from: await accountBorrower.getAddress(),
+        to: await pool.getAddress(),
         tokenId: 123,
       });
 
       await expectEvent(borrowTx, tok1, "Transfer", {
-        from: pool.address,
-        to: accountBorrower.address,
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
         value: FixedPoint.from("25"),
       });
 
@@ -2194,21 +2284,21 @@ describe("Pool Basic", function () {
       /* Validate loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       expect(decodedLoanReceipt.version).to.equal(2);
-      expect(decodedLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedLoanReceipt.borrower).to.equal(await accountBorrower.getAddress());
       expect(decodedLoanReceipt.maturity).to.equal(
-        (await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp + 30 * 86400
+        BigInt((await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp) + 30n * 86400n
       );
       expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
-      expect(decodedLoanReceipt.collateralToken).to.equal(nft1.address);
+      expect(decodedLoanReceipt.collateralToken).to.equal(await nft1.getAddress());
       expect(decodedLoanReceipt.collateralTokenId).to.equal(123);
       expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
 
       /* Sum used and pending totals from node receipts */
-      let totalUsed = ethers.constants.Zero;
-      let totalPending = ethers.constants.Zero;
+      let totalUsed = 0n;
+      let totalPending = 0n;
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
-        totalUsed = totalUsed.add(nodeReceipt.used);
-        totalPending = totalPending.add(nodeReceipt.pending);
+        totalUsed = totalUsed + nodeReceipt.used;
+        totalPending = totalPending + nodeReceipt.pending;
       }
 
       /* Validate used and pending totals */
@@ -2225,7 +2315,7 @@ describe("Pool Basic", function () {
       /* Borrow */
       await pool
         .connect(accountBorrower)
-        .borrow(FixedPoint.from("25"), 7 * 86400, nft1.address, 123, FixedPoint.from("26"), ticks, "0x");
+        .borrow(FixedPoint.from("25"), 7 * 86400, await nft1.getAddress(), 123, FixedPoint.from("26"), ticks, "0x");
     });
 
     it("originates loan with v1 delegation", async function () {
@@ -2233,7 +2323,7 @@ describe("Pool Basic", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        nft1.address,
+        await nft1.getAddress(),
         123,
         await sourceLiquidity(FixedPoint.from("25")),
         "0x"
@@ -2242,14 +2332,14 @@ describe("Pool Basic", function () {
       /* Simulate borrow */
       const simulatedRepayment = await pool
         .connect(accountBorrower)
-        .callStatic.borrow(
+        .borrow.staticCall(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
-          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [3, 20, accountBorrower.address])
+          ethers.solidityPacked(["uint16", "uint16", "bytes20"], [3, 20, await accountBorrower.getAddress()])
         );
 
       /* Borrow */
@@ -2258,11 +2348,11 @@ describe("Pool Basic", function () {
         .borrow(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
-          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [3, 20, accountBorrower.address])
+          ethers.solidityPacked(["uint16", "uint16", "bytes20"], [3, 20, await accountBorrower.getAddress()])
         );
 
       /* Validate return value from borrow() */
@@ -2270,23 +2360,23 @@ describe("Pool Basic", function () {
 
       /* Validate events */
       await expectEvent(borrowTx, nft1, "Transfer", {
-        from: accountBorrower.address,
-        to: pool.address,
+        from: await accountBorrower.getAddress(),
+        to: await pool.getAddress(),
         tokenId: 123,
       });
 
       await expectEvent(borrowTx, tok1, "Transfer", {
-        from: pool.address,
-        to: accountBorrower.address,
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
         value: FixedPoint.from("25"),
       });
 
       await expect(borrowTx).to.emit(pool, "LoanOriginated");
 
       await expectEvent(borrowTx, delegateRegistryV1, "DelegateForToken", {
-        vault: pool.address,
-        delegate: accountBorrower.address,
-        contract_: nft1.address,
+        vault: await pool.getAddress(),
+        delegate: await accountBorrower.getAddress(),
+        contract_: await nft1.getAddress(),
         tokenId: 123,
         value: true,
       });
@@ -2301,21 +2391,21 @@ describe("Pool Basic", function () {
       /* Validate loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       expect(decodedLoanReceipt.version).to.equal(2);
-      expect(decodedLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedLoanReceipt.borrower).to.equal(await accountBorrower.getAddress());
       expect(decodedLoanReceipt.maturity).to.equal(
-        (await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp + 30 * 86400
+        BigInt((await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp) + 30n * 86400n
       );
       expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
-      expect(decodedLoanReceipt.collateralToken).to.equal(nft1.address);
+      expect(decodedLoanReceipt.collateralToken).to.equal(await nft1.getAddress());
       expect(decodedLoanReceipt.collateralTokenId).to.equal(123);
       expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
 
       /* Sum used and pending totals from node receipts */
-      let totalUsed = ethers.constants.Zero;
-      let totalPending = ethers.constants.Zero;
+      let totalUsed = 0n;
+      let totalPending = 0n;
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
-        totalUsed = totalUsed.add(nodeReceipt.used);
-        totalPending = totalPending.add(nodeReceipt.pending);
+        totalUsed = totalUsed + nodeReceipt.used;
+        totalPending = totalPending + nodeReceipt.pending;
       }
 
       /* Validate used and pending totals */
@@ -2327,7 +2417,12 @@ describe("Pool Basic", function () {
 
       /* Validate delegation */
       expect(
-        await delegateRegistryV1.checkDelegateForToken(accountBorrower.address, pool.address, nft1.address, 123)
+        await delegateRegistryV1.checkDelegateForToken(
+          await accountBorrower.getAddress(),
+          await pool.getAddress(),
+          await nft1.getAddress(),
+          123
+        )
       ).to.equal(true);
     });
 
@@ -2336,8 +2431,8 @@ describe("Pool Basic", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        nft1.address,
-        [123],
+        await nft1.getAddress(),
+        123,
         await sourceLiquidity(FixedPoint.from("25")),
         "0x"
       );
@@ -2345,14 +2440,14 @@ describe("Pool Basic", function () {
       /* Simulate borrow */
       const simulatedRepayment = await pool
         .connect(accountBorrower)
-        .callStatic.borrow(
+        .borrow.staticCall(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
-          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [4, 20, accountBorrower.address])
+          ethers.solidityPacked(["uint16", "uint16", "bytes20"], [4, 20, await accountBorrower.getAddress()])
         );
 
       /* Borrow */
@@ -2361,11 +2456,11 @@ describe("Pool Basic", function () {
         .borrow(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
-          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [4, 20, accountBorrower.address])
+          ethers.solidityPacked(["uint16", "uint16", "bytes20"], [4, 20, await accountBorrower.getAddress()])
         );
 
       /* Validate return value from borrow() */
@@ -2373,25 +2468,25 @@ describe("Pool Basic", function () {
 
       /* Validate events */
       await expectEvent(borrowTx, nft1, "Transfer", {
-        from: accountBorrower.address,
-        to: pool.address,
+        from: await accountBorrower.getAddress(),
+        to: await pool.getAddress(),
         tokenId: 123,
       });
 
       await expectEvent(borrowTx, tok1, "Transfer", {
-        from: pool.address,
-        to: accountBorrower.address,
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
         value: FixedPoint.from("25"),
       });
 
       await expect(borrowTx).to.emit(pool, "LoanOriginated");
 
       await expectEvent(borrowTx, delegateRegistryV2, "DelegateERC721", {
-        from: pool.address,
-        to: accountBorrower.address,
-        contract_: nft1.address,
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
+        contract_: await nft1.getAddress(),
         tokenId: 123,
-        rights: ethers.constants.HashZero,
+        rights: ethers.ZeroHash,
         enable: true,
       });
 
@@ -2405,21 +2500,21 @@ describe("Pool Basic", function () {
       /* Validate loan receipt */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       expect(decodedLoanReceipt.version).to.equal(2);
-      expect(decodedLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedLoanReceipt.borrower).to.equal(await accountBorrower.getAddress());
       expect(decodedLoanReceipt.maturity).to.equal(
-        (await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp + 30 * 86400
+        BigInt((await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp) + 30n * 86400n
       );
       expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
-      expect(decodedLoanReceipt.collateralToken).to.equal(nft1.address);
+      expect(decodedLoanReceipt.collateralToken).to.equal(await nft1.getAddress());
       expect(decodedLoanReceipt.collateralTokenId).to.equal(123);
       expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
 
       /* Sum used and pending totals from node receipts */
-      let totalUsed = ethers.constants.Zero;
-      let totalPending = ethers.constants.Zero;
+      let totalUsed = 0n;
+      let totalPending = 0n;
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
-        totalUsed = totalUsed.add(nodeReceipt.used);
-        totalPending = totalPending.add(nodeReceipt.pending);
+        totalUsed = totalUsed + nodeReceipt.used;
+        totalPending = totalPending + nodeReceipt.pending;
       }
 
       /* Validate used and pending totals */
@@ -2432,11 +2527,11 @@ describe("Pool Basic", function () {
       /* Validate delegation */
       expect(
         await delegateRegistryV2.checkDelegateForERC721(
-          accountBorrower.address,
-          pool.address,
-          nft1.address,
+          await accountBorrower.getAddress(),
+          await pool.getAddress(),
+          await nft1.getAddress(),
           123,
-          ethers.constants.HashZero
+          ethers.ZeroHash
         )
       ).to.equal(true);
     });
@@ -2449,7 +2544,7 @@ describe("Pool Basic", function () {
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        nft1.address,
+        await nft1.getAddress(),
         123,
         await sourceLiquidity(FixedPoint.from("25")),
         "0x"
@@ -2458,10 +2553,10 @@ describe("Pool Basic", function () {
       /* Simulate borrow */
       const simulatedRepayment = await pool
         .connect(accountBorrower)
-        .callStatic.borrow(
+        .borrow.staticCall(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
@@ -2474,7 +2569,7 @@ describe("Pool Basic", function () {
         .borrow(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
@@ -2486,14 +2581,14 @@ describe("Pool Basic", function () {
 
       /* Validate events */
       await expectEvent(borrowTx, nft1, "Transfer", {
-        from: accountBorrower.address,
-        to: pool.address,
+        from: await accountBorrower.getAddress(),
+        to: await pool.getAddress(),
         tokenId: 123,
       });
 
       await expectEvent(borrowTx, tok1, "Transfer", {
-        from: pool.address,
-        to: accountBorrower.address,
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
         value: FixedPoint.from("25"),
       });
 
@@ -2511,42 +2606,40 @@ describe("Pool Basic", function () {
       expect(decodedLoanReceipt.version).to.equal(2);
       expect(decodedLoanReceipt.principal).to.equal(FixedPoint.from("25"));
       expect(decodedLoanReceipt.repayment).to.equal(repayment);
-      expect(decodedLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedLoanReceipt.borrower).to.equal(await accountBorrower.getAddress());
       expect(decodedLoanReceipt.maturity).to.equal(
-        (await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp + 30 * 86400
+        BigInt((await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp) + 30n * 86400n
       );
       expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
-      expect(decodedLoanReceipt.collateralToken).to.equal(nft1.address);
+      expect(decodedLoanReceipt.collateralToken).to.equal(await nft1.getAddress());
       expect(decodedLoanReceipt.collateralTokenId).to.equal(123);
       expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
 
       /* Sum used and pending totals from node receipts */
-      let totalUsed = ethers.constants.Zero;
-      let totalPending = ethers.constants.Zero;
+      let totalUsed = 0n;
+      let totalPending = 0n;
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
-        totalUsed = totalUsed.add(nodeReceipt.used);
-        totalPending = totalPending.add(nodeReceipt.pending);
+        totalUsed = totalUsed + nodeReceipt.used;
+        totalPending = totalPending + nodeReceipt.pending;
       }
 
       /* Calculate admin fee */
-      const adminFee = ethers.BigNumber.from(await pool.adminFeeRate())
-        .mul(repayment.sub(FixedPoint.from("25")))
-        .div(10000);
+      const adminFee = (BigInt(await pool.adminFeeRate()) * (repayment - FixedPoint.from("25"))) / 10000n;
 
       /* Validate used and pending totals */
       expect(totalUsed).to.equal(FixedPoint.from("25"));
-      expect(totalPending).to.equal(repayment.sub(adminFee));
-      expect(repayment).to.equal(totalPending.add(adminFee));
+      expect(totalPending).to.equal(repayment - adminFee);
+      expect(repayment).to.equal(totalPending + adminFee);
 
       /* Validate loan state */
       expect(await pool.loans(loanReceiptHash)).to.equal(1);
 
       /* Repay */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity);
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Validate total adminFee balance */
-      expect(await pool.adminFeeBalance()).to.closeTo(adminFee.mul(9500).div(10000), "1");
+      expect(await pool.adminFeeBalance()).to.closeTo((adminFee * 9500n) / 10000n, "1");
 
       /* Validate events */
       await expectEvent(repayTx, pool, "LoanRepaid", {
@@ -2556,7 +2649,7 @@ describe("Pool Basic", function () {
 
       await expectEvent(repayTx, pool, "AdminFeeShareTransferred", {
         feeShareRecipient: accounts[2].address,
-        feeShareAmount: adminFee.mul(500).div(10000),
+        feeShareAmount: (adminFee * 500n) / 10000n,
       });
 
       /* Validate state */
@@ -2570,7 +2663,7 @@ describe("Pool Basic", function () {
           .borrow(
             0,
             30 * 86400,
-            nft1.address,
+            await nft1.getAddress(),
             123,
             FixedPoint.from("26"),
             await sourceLiquidity(FixedPoint.from("25")),
@@ -2586,13 +2679,13 @@ describe("Pool Basic", function () {
           .borrow(
             FixedPoint.from("25"),
             30 * 86400,
-            tok1.address,
+            await tok1.getAddress(),
             123,
             FixedPoint.from("26"),
             await sourceLiquidity(FixedPoint.from("25")),
             "0x"
           )
-      ).to.be.revertedWithCustomError(pool, "UnsupportedCollateral", 0);
+      ).to.be.revertedWithCustomError(pool, "UnsupportedCollateral");
     });
 
     it("fails on exceeded max repayment", async function () {
@@ -2602,7 +2695,7 @@ describe("Pool Basic", function () {
           .borrow(
             FixedPoint.from("25"),
             30 * 86400,
-            nft1.address,
+            await nft1.getAddress(),
             123,
             FixedPoint.from("25.01"),
             await sourceLiquidity(FixedPoint.from("25")),
@@ -2618,7 +2711,7 @@ describe("Pool Basic", function () {
           .borrow(
             FixedPoint.from("30"),
             30 * 86400,
-            nft1.address,
+            await nft1.getAddress(),
             123,
             FixedPoint.from("31"),
             await sourceLiquidity(FixedPoint.from("25")),
@@ -2636,7 +2729,7 @@ describe("Pool Basic", function () {
       await expect(
         pool
           .connect(accountBorrower)
-          .borrow(FixedPoint.from("25"), 30 * 86400, nft1.address, 123, FixedPoint.from("26"), ticks, "0x")
+          .borrow(FixedPoint.from("25"), 30 * 86400, await nft1.getAddress(), 123, FixedPoint.from("26"), ticks, "0x")
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
     });
 
@@ -2647,7 +2740,7 @@ describe("Pool Basic", function () {
       await expect(
         pool
           .connect(accountBorrower)
-          .borrow(FixedPoint.from("25"), 30 * 86400, nft1.address, 123, FixedPoint.from("26"), ticks, "0x")
+          .borrow(FixedPoint.from("25"), 30 * 86400, await nft1.getAddress(), 123, FixedPoint.from("26"), ticks, "0x")
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
     });
 
@@ -2658,7 +2751,7 @@ describe("Pool Basic", function () {
           .borrow(
             FixedPoint.from("150"),
             30 * 86400,
-            nft1.address,
+            await nft1.getAddress(),
             123,
             FixedPoint.from("151"),
             await sourceLiquidity(FixedPoint.from("150")),
@@ -2673,7 +2766,7 @@ describe("Pool Basic", function () {
       await expect(
         pool
           .connect(accountBorrower)
-          .borrow(FixedPoint.from("25"), 8 * 86400, nft1.address, 123, FixedPoint.from("26"), ticks, "0x")
+          .borrow(FixedPoint.from("25"), 8 * 86400, await nft1.getAddress(), 123, FixedPoint.from("26"), ticks, "0x")
       ).to.be.revertedWithCustomError(pool, "InvalidTick");
     });
 
@@ -2684,7 +2777,7 @@ describe("Pool Basic", function () {
           .borrow(
             FixedPoint.from("25"),
             0,
-            nft1.address,
+            await nft1.getAddress(),
             123,
             FixedPoint.from("26"),
             await sourceLiquidity(FixedPoint.from("25")),
@@ -2706,18 +2799,18 @@ describe("Pool Basic", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Repay */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity);
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Validate events */
       await expectEvent(repayTx, tok1, "Transfer", {
-        from: accountBorrower.address,
-        to: pool.address,
+        from: await accountBorrower.getAddress(),
+        to: await pool.getAddress(),
         value: decodedLoanReceipt.repayment,
       });
       await expectEvent(repayTx, nft1, "Transfer", {
-        from: pool.address,
-        to: accountBorrower.address,
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
         tokenId: 123,
       });
       await expectEvent(repayTx, pool, "LoanRepaid", {
@@ -2729,29 +2822,29 @@ describe("Pool Basic", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
 
       /* Validate ticks and liquidity statistics */
-      let totalPending = ethers.constants.Zero;
-      let totalUsed = ethers.constants.Zero;
+      let totalPending = 0n;
+      let totalUsed = 0n;
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
         const node = await pool.liquidityNode(nodeReceipt.tick);
-        const value = FixedPoint.from("25").add(nodeReceipt.pending).sub(nodeReceipt.used);
+        const value = FixedPoint.from("25") + nodeReceipt.pending - nodeReceipt.used;
         expect(node.value).to.equal(value);
         expect(node.available).to.equal(value);
-        expect(node.pending).to.equal(ethers.constants.Zero);
-        totalPending = totalPending.add(nodeReceipt.pending);
-        totalUsed = totalUsed.add(nodeReceipt.used);
+        expect(node.pending).to.equal(0n);
+        totalPending = totalPending + nodeReceipt.pending;
+        totalUsed = totalUsed + nodeReceipt.used;
       }
     });
 
     it("repays with admin fee", async function () {
       /* set admin fee */
-      await pool.setAdminFee(500, ethers.constants.AddressZero, 0);
+      await pool.setAdminFee(500, ethers.ZeroAddress, 0);
 
       const borrowTx = await pool
         .connect(accountBorrower)
         .borrow(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           124,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
@@ -2763,24 +2856,22 @@ describe("Pool Basic", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Repay */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity);
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Calculate prorated repayment amount */
-      const repayment = decodedLoanReceipt.repayment
-        .sub(decodedLoanReceipt.principal)
-        .add(decodedLoanReceipt.principal);
+      const repayment = decodedLoanReceipt.repayment - decodedLoanReceipt.principal + decodedLoanReceipt.principal;
 
       /* Validate events */
       await expectEvent(repayTx, tok1, "Transfer", {
-        from: accountBorrower.address,
-        to: pool.address,
+        from: await accountBorrower.getAddress(),
+        to: await pool.getAddress(),
         value: repayment,
       });
 
       await expectEvent(repayTx, nft1, "Transfer", {
-        from: pool.address,
-        to: accountBorrower.address,
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
         tokenId: 124,
       });
 
@@ -2797,7 +2888,7 @@ describe("Pool Basic", function () {
         .borrow(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           124,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
@@ -2809,43 +2900,22 @@ describe("Pool Basic", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Repay */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity);
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Calculate prorated repayment amount */
       const repayment = decodedLoanReceipt.repayment;
 
-      /* Calculate fee share */
-      const feeShare = await pool.adminFeeBalance();
-
       /* Validate events */
-      await expectEvent(
-        repayTx,
-        tok1,
-        "Transfer",
-        {
-          from: accountBorrower.address,
-          to: pool.address,
-          value: repayment,
-        },
-        0
-      );
-
-      await expectEvent(
-        repayTx,
-        tok1,
-        "Transfer",
-        {
-          from: pool.address,
-          to: accounts[2].address,
-          value: feeShare.sub(1),
-        },
-        1
-      );
+      await expectEvent(repayTx, tok1, "Transfer", {
+        from: await accountBorrower.getAddress(),
+        to: await pool.getAddress(),
+        value: repayment,
+      });
 
       await expectEvent(repayTx, nft1, "Transfer", {
-        from: pool.address,
-        to: accountBorrower.address,
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
         tokenId: 124,
       });
 
@@ -2860,18 +2930,18 @@ describe("Pool Basic", function () {
         .borrow(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           124,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
-          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [3, 20, accountBorrower.address])
+          ethers.solidityPacked(["uint16", "uint16", "bytes20"], [3, 20, await accountBorrower.getAddress()])
         );
 
       /* Validate events */
       await expectEvent(borrowTx, delegateRegistryV1, "DelegateForToken", {
-        vault: pool.address,
-        delegate: accountBorrower.address,
-        contract_: nft1.address,
+        vault: await pool.getAddress(),
+        delegate: await accountBorrower.getAddress(),
+        contract_: await nft1.getAddress(),
         tokenId: 124,
         value: true,
       });
@@ -2881,14 +2951,14 @@ describe("Pool Basic", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Repay */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity);
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Validate events */
       await expectEvent(repayTx, delegateRegistryV1, "DelegateForToken", {
-        vault: pool.address,
-        delegate: accountBorrower.address,
-        contract_: nft1.address,
+        vault: await pool.getAddress(),
+        delegate: await accountBorrower.getAddress(),
+        contract_: await nft1.getAddress(),
         tokenId: 124,
         value: false,
       });
@@ -2896,7 +2966,12 @@ describe("Pool Basic", function () {
       /* Validate loan state */
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
       expect(
-        await delegateRegistryV1.checkDelegateForToken(accountBorrower.address, pool.address, nft1.address, 124)
+        await delegateRegistryV1.checkDelegateForToken(
+          await accountBorrower.getAddress(),
+          await pool.getAddress(),
+          await nft1.getAddress(),
+          124
+        )
       ).to.equal(false);
     });
 
@@ -2907,20 +2982,20 @@ describe("Pool Basic", function () {
         .borrow(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           124,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
-          ethers.utils.solidityPack(["uint16", "uint16", "bytes20"], [4, 20, accountBorrower.address])
+          ethers.solidityPacked(["uint16", "uint16", "bytes20"], [4, 20, await accountBorrower.getAddress()])
         );
 
       /* Validate events */
       await expectEvent(borrowTx, delegateRegistryV2, "DelegateERC721", {
-        from: pool.address,
-        to: accountBorrower.address,
-        contract_: nft1.address,
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
+        contract_: await nft1.getAddress(),
         tokenId: 124,
-        rights: ethers.constants.HashZero,
+        rights: ethers.ZeroHash,
         enable: true,
       });
 
@@ -2929,16 +3004,16 @@ describe("Pool Basic", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Repay */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity);
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Validate events */
       await expectEvent(repayTx, delegateRegistryV2, "DelegateERC721", {
-        from: pool.address,
-        to: accountBorrower.address,
-        contract_: nft1.address,
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
+        contract_: await nft1.getAddress(),
         tokenId: 124,
-        rights: ethers.constants.HashZero,
+        rights: ethers.ZeroHash,
         enable: false,
       });
 
@@ -2946,11 +3021,11 @@ describe("Pool Basic", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
       expect(
         await delegateRegistryV2.checkDelegateForERC721(
-          accountBorrower.address,
-          pool.address,
-          nft1.address,
+          await accountBorrower.getAddress(),
+          await pool.getAddress(),
+          await nft1.getAddress(),
           124,
-          ethers.constants.HashZero
+          ethers.ZeroHash
         )
       ).to.equal(false);
     });
@@ -2966,33 +3041,31 @@ describe("Pool Basic", function () {
 
         /* Repay */
         await helpers.time.setNextBlockTimestamp(
-          decodedLoanReceipt.maturity - decodedLoanReceipt.duration + timeElapsed
+          decodedLoanReceipt.maturity - decodedLoanReceipt.duration + BigInt(timeElapsed)
         );
         const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
         /* Calculate proration */
-        const repayTxTimestamp = (await ethers.provider.getBlock((await repayTx.wait()).blockNumber)).timestamp;
-        const proration = FixedPoint.from(
-          repayTxTimestamp - (decodedLoanReceipt.maturity - decodedLoanReceipt.duration)
-        ).div(decodedLoanReceipt.duration);
+        const repayTxTimestamp = BigInt((await ethers.provider.getBlock((await repayTx.wait()).blockNumber)).timestamp);
+        const proration =
+          FixedPoint.from(repayTxTimestamp - (decodedLoanReceipt.maturity - decodedLoanReceipt.duration)) /
+          decodedLoanReceipt.duration;
 
         /* Calculate prorated repayment amount */
-        const repayment = decodedLoanReceipt.repayment
-          .sub(decodedLoanReceipt.principal)
-          .mul(proration)
-          .div(ethers.constants.WeiPerEther)
-          .add(decodedLoanReceipt.principal);
+        const repayment =
+          ((decodedLoanReceipt.repayment - decodedLoanReceipt.principal) * proration) / ethers.WeiPerEther +
+          decodedLoanReceipt.principal;
 
         /* Validate events */
         await expectEvent(repayTx, tok1, "Transfer", {
-          from: accountBorrower.address,
-          to: pool.address,
+          from: await accountBorrower.getAddress(),
+          to: await pool.getAddress(),
           value: repayment,
         });
 
         await expectEvent(repayTx, nft1, "Transfer", {
-          from: pool.address,
-          to: accountBorrower.address,
+          from: await pool.getAddress(),
+          to: await accountBorrower.getAddress(),
           tokenId: 123,
         });
 
@@ -3005,14 +3078,14 @@ describe("Pool Basic", function () {
         expect(await pool.loans(loanReceiptHash)).to.equal(2);
 
         /* Validate ticks */
-        let totalDelta = ethers.constants.Zero;
+        let totalDelta = 0n;
         for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
-          const delta = nodeReceipt.pending.sub(nodeReceipt.used).mul(proration).div(ethers.constants.WeiPerEther);
+          const delta = ((nodeReceipt.pending - nodeReceipt.used) * proration) / ethers.WeiPerEther;
           const node = await pool.liquidityNode(nodeReceipt.tick);
-          expect(node.value).to.equal(FixedPoint.from("25").add(delta));
-          expect(node.available).to.equal(FixedPoint.from("25").add(delta));
-          expect(node.pending).to.equal(ethers.constants.Zero);
-          totalDelta = totalDelta.add(delta);
+          expect(node.value).to.equal(FixedPoint.from("25") + delta);
+          expect(node.available).to.equal(FixedPoint.from("25") + delta);
+          expect(node.pending).to.equal(0n);
+          totalDelta = totalDelta + delta;
         }
       });
     }
@@ -3024,7 +3097,7 @@ describe("Pool Basic", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
       const repayment = decodedLoanReceipt.repayment;
 
-      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity + 1n);
 
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
@@ -3035,22 +3108,27 @@ describe("Pool Basic", function () {
       });
 
       /* Validate ticks and liquidity statistics */
-      let totalPending = ethers.constants.Zero;
-      let totalUsed = ethers.constants.Zero;
+      let totalPending = 0n;
+      let totalUsed = 0n;
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
         const node = await pool.liquidityNode(nodeReceipt.tick);
-        const value = FixedPoint.from("25").add(nodeReceipt.pending).sub(nodeReceipt.used);
+        const value = FixedPoint.from("25") + nodeReceipt.pending - nodeReceipt.used;
         expect(node.value).to.equal(value);
         expect(node.available).to.equal(value);
-        expect(node.pending).to.equal(ethers.constants.Zero);
-        totalPending = totalPending.add(nodeReceipt.pending);
-        totalUsed = totalUsed.add(nodeReceipt.used);
+        expect(node.pending).to.equal(0n);
+        totalPending = totalPending + nodeReceipt.pending;
+        totalUsed = totalUsed + nodeReceipt.used;
       }
 
       /* Validate loan state */
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
       expect(
-        await delegateRegistryV1.checkDelegateForToken(accountBorrower.address, pool.address, nft1.address, 124)
+        await delegateRegistryV1.checkDelegateForToken(
+          await accountBorrower.getAddress(),
+          await pool.getAddress(),
+          await nft1.getAddress(),
+          124
+        )
       ).to.equal(false);
     });
 
@@ -3061,7 +3139,9 @@ describe("Pool Basic", function () {
 
     it("fails on invalid loan receipt", async function () {
       await expect(
-        pool.connect(accountBorrower).repay(ethers.utils.randomBytes(141 + 48 * 3))
+        pool
+          .connect(accountBorrower)
+          .repay("0xa9059cbb0000000000000000000000001f9090aae28b8a3dceadf281b0f12828e676c326")
       ).to.be.revertedWithCustomError(pool, "InvalidLoanReceipt");
     });
 
@@ -3079,7 +3159,7 @@ describe("Pool Basic", function () {
 
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity + 1n);
 
       /* Process expiration */
       await pool.liquidate(loanReceipt);
@@ -3102,9 +3182,9 @@ describe("Pool Basic", function () {
 
       /* Get token id */
       const tokenId =
-        (await nft1.ownerOf(123)) === accountBorrower.address
+        (await nft1.ownerOf(123)) === (await accountBorrower.getAddress())
           ? 123
-          : (await nft1.ownerOf(124)) === accountBorrower.address
+          : (await nft1.ownerOf(124)) === (await accountBorrower.getAddress())
             ? 124
             : 125;
 
@@ -3114,8 +3194,8 @@ describe("Pool Basic", function () {
         .borrow(
           FixedPoint.from("1"),
           1,
-          nft1.address,
-          [tokenId],
+          await nft1.getAddress(),
+          tokenId,
           FixedPoint.from("2"),
           await sourceLiquidity(FixedPoint.from("1")),
           "0x"
@@ -3128,10 +3208,26 @@ describe("Pool Basic", function () {
       const decodedExistingLoanReceipt = await loanReceiptLib.decode(encodedLoanReceipt);
 
       /* Mutate NFT address in loan receipt and encode it */
-      const nodeReceipt = { ...decodedExistingLoanReceipt };
-      nodeReceipt.collateralToken = nft1.address;
-      nodeReceipt.borrower = accountBorrower.address;
-      nodeReceipt.maturity = ethers.BigNumber.from("10000000001");
+      const nodeReceipt = {
+        version: decodedExistingLoanReceipt.version,
+        principal: decodedExistingLoanReceipt.principal,
+        repayment: decodedExistingLoanReceipt.repayment,
+        adminFee: decodedExistingLoanReceipt.adminFee,
+        borrower: decodedExistingLoanReceipt.borrower,
+        maturity: BigInt("10000000001"),
+        duration: decodedExistingLoanReceipt.duration,
+        collateralToken: decodedExistingLoanReceipt.collateralToken,
+        collateralTokenId: decodedExistingLoanReceipt.collateralTokenId,
+        collateralWrapperContextLen: decodedExistingLoanReceipt.collateralWrapperContextLen,
+        collateralWrapperContext: decodedExistingLoanReceipt.collateralWrapperContext,
+        nodeReceipts: [
+          {
+            tick: decodedExistingLoanReceipt.nodeReceipts[0].tick,
+            used: decodedExistingLoanReceipt.nodeReceipts[0].used,
+            pending: decodedExistingLoanReceipt.nodeReceipts[0].pending,
+          },
+        ],
+      };
       encodedLoanReceipt = await loanReceiptLib.encode(nodeReceipt);
 
       /* Force timestamp so maturity timestamp is constant and give us the same loanReceipt from borrow() */
@@ -3145,8 +3241,8 @@ describe("Pool Basic", function () {
             pool.interface.encodeFunctionData("borrow", [
               FixedPoint.from("1"),
               1,
-              nft1.address,
-              [tokenId],
+              await nft1.getAddress(),
+              tokenId,
               FixedPoint.from("2"),
               await sourceLiquidity(FixedPoint.from("25")),
               "0x",
@@ -3176,7 +3272,7 @@ describe("Pool Basic", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Refinance */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity);
       const refinanceTx = await pool
         .connect(accountBorrower)
         .refinance(
@@ -3191,9 +3287,8 @@ describe("Pool Basic", function () {
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
 
       /* Calculate admin fee */
-      const adminFee = ethers.BigNumber.from(await pool.adminFeeRate())
-        .mul(decodedLoanReceipt.repayment.sub(FixedPoint.from("25")))
-        .div(10000);
+      const adminFee =
+        (BigInt(await pool.adminFeeRate()) * (decodedLoanReceipt.repayment - FixedPoint.from("25"))) / 10000n;
 
       /* Validate hash */
       expect(loanReceiptHash).to.equal(await loanReceiptLib.hash(loanReceipt));
@@ -3201,20 +3296,20 @@ describe("Pool Basic", function () {
       /* Validate loan receipt */
       const decodedNewLoanReceipt = await loanReceiptLib.decode(newLoanReceipt);
       expect(decodedNewLoanReceipt.version).to.equal(2);
-      expect(decodedNewLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedNewLoanReceipt.borrower).to.equal(await accountBorrower.getAddress());
       expect(decodedNewLoanReceipt.maturity).to.equal(
-        (await ethers.provider.getBlock(refinanceTx.blockHash!)).timestamp + 15 * 86400
+        BigInt((await ethers.provider.getBlock(refinanceTx.blockHash!)).timestamp) + 15n * 86400n
       );
       expect(decodedNewLoanReceipt.duration).to.equal(15 * 86400);
-      expect(decodedNewLoanReceipt.collateralToken).to.equal(nft1.address);
+      expect(decodedNewLoanReceipt.collateralToken).to.equal(await nft1.getAddress());
       expect(decodedNewLoanReceipt.collateralTokenId).to.equal(123);
       expect(decodedNewLoanReceipt.nodeReceipts.length).to.equal(16);
 
       /* Validate events */
       await expectEvent(refinanceTx, tok1, "Transfer", {
-        from: accountBorrower.address,
-        to: pool.address,
-        value: decodedLoanReceipt.repayment.sub(decodedLoanReceipt.principal),
+        from: await accountBorrower.getAddress(),
+        to: await pool.getAddress(),
+        value: decodedLoanReceipt.repayment - decodedLoanReceipt.principal,
       });
 
       await expectEvent(refinanceTx, pool, "LoanRepaid", {
@@ -3224,7 +3319,7 @@ describe("Pool Basic", function () {
 
       await expectEvent(refinanceTx, pool, "AdminFeeShareTransferred", {
         feeShareRecipient: accounts[2].address,
-        feeShareAmount: adminFee.div(2),
+        feeShareAmount: adminFee / 2n,
       });
 
       await expect(refinanceTx).to.emit(pool, "LoanOriginated");
@@ -3232,12 +3327,12 @@ describe("Pool Basic", function () {
       /* Validate state */
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
       expect(await pool.loans(newLoanReceiptHash)).to.equal(1);
-      expect(await pool.adminFeeBalance()).to.closeTo(adminFee.div(2), "1");
+      expect(await pool.adminFeeBalance()).to.closeTo(adminFee / 2n, "1");
     });
 
     it("refinance loan at maturity with admin fee and smaller principal (1 ETH less)", async function () {
       /* Set Admin Fee */
-      await pool.setAdminFee(500, ethers.constants.AddressZero, 0);
+      await pool.setAdminFee(500, ethers.ZeroAddress, 0);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
@@ -3246,12 +3341,12 @@ describe("Pool Basic", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Refinance */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity);
       const refinanceTx = await pool
         .connect(accountBorrower)
         .refinance(
           loanReceipt,
-          decodedLoanReceipt.principal.sub(FixedPoint.from("1")),
+          decodedLoanReceipt.principal - FixedPoint.from("1"),
           15 * 86400,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
@@ -3261,9 +3356,8 @@ describe("Pool Basic", function () {
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
 
       /* Calculate admin fee */
-      const adminFee = ethers.BigNumber.from(await pool.adminFeeRate())
-        .mul(decodedLoanReceipt.repayment.sub(FixedPoint.from("25")))
-        .div(10000);
+      const adminFee =
+        (BigInt(await pool.adminFeeRate()) * (decodedLoanReceipt.repayment - FixedPoint.from("25"))) / 10000n;
 
       /* Validate hash */
       expect(loanReceiptHash).to.equal(await loanReceiptLib.hash(loanReceipt));
@@ -3271,20 +3365,20 @@ describe("Pool Basic", function () {
       /* Validate loan receipt */
       const decodedNewLoanReceipt = await loanReceiptLib.decode(newLoanReceipt);
       expect(decodedNewLoanReceipt.version).to.equal(2);
-      expect(decodedNewLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedNewLoanReceipt.borrower).to.equal(await accountBorrower.getAddress());
       expect(decodedNewLoanReceipt.maturity).to.equal(
-        (await ethers.provider.getBlock(refinanceTx.blockHash!)).timestamp + 15 * 86400
+        BigInt((await ethers.provider.getBlock(refinanceTx.blockHash!)).timestamp) + 15n * 86400n
       );
       expect(decodedNewLoanReceipt.duration).to.equal(15 * 86400);
-      expect(decodedNewLoanReceipt.collateralToken).to.equal(nft1.address);
+      expect(decodedNewLoanReceipt.collateralToken).to.equal(await nft1.getAddress());
       expect(decodedNewLoanReceipt.collateralTokenId).to.equal(123);
       expect(decodedNewLoanReceipt.nodeReceipts.length).to.equal(15);
 
       /* Validate events */
       await expectEvent(refinanceTx, tok1, "Transfer", {
-        from: accountBorrower.address,
-        to: pool.address,
-        value: decodedLoanReceipt.repayment.sub(decodedNewLoanReceipt.principal),
+        from: await accountBorrower.getAddress(),
+        to: await pool.getAddress(),
+        value: decodedLoanReceipt.repayment - decodedNewLoanReceipt.principal,
       });
 
       await expectEvent(refinanceTx, pool, "LoanRepaid", {
@@ -3302,7 +3396,7 @@ describe("Pool Basic", function () {
 
     it("refinance loan at maturity with admin fee and bigger principal (1 ETH more)", async function () {
       /* Set Admin Fee */
-      await pool.setAdminFee(500, ethers.constants.AddressZero, 0);
+      await pool.setAdminFee(500, ethers.ZeroAddress, 0);
 
       /* Create Loan */
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
@@ -3311,12 +3405,12 @@ describe("Pool Basic", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Refinance */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity);
       const refinanceTx = await pool
         .connect(accountBorrower)
         .refinance(
           loanReceipt,
-          decodedLoanReceipt.principal.add(FixedPoint.from("1")),
+          decodedLoanReceipt.principal + FixedPoint.from("1"),
           15 * 86400,
           FixedPoint.from("27"),
           await sourceLiquidity(FixedPoint.from("25")),
@@ -3326,9 +3420,8 @@ describe("Pool Basic", function () {
       const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
 
       /* Calculate admin fee */
-      const adminFee = ethers.BigNumber.from(await pool.adminFeeRate())
-        .mul(decodedLoanReceipt.repayment.sub(FixedPoint.from("25")))
-        .div(10000);
+      const adminFee =
+        (BigInt(await pool.adminFeeRate()) * (decodedLoanReceipt.repayment - FixedPoint.from("25"))) / 10000n;
 
       /* Validate hash */
       expect(loanReceiptHash).to.equal(await loanReceiptLib.hash(loanReceipt));
@@ -3336,20 +3429,20 @@ describe("Pool Basic", function () {
       /* Validate loan receipt */
       const decodedNewLoanReceipt = await loanReceiptLib.decode(newLoanReceipt);
       expect(decodedNewLoanReceipt.version).to.equal(2);
-      expect(decodedNewLoanReceipt.borrower).to.equal(accountBorrower.address);
+      expect(decodedNewLoanReceipt.borrower).to.equal(await accountBorrower.getAddress());
       expect(decodedNewLoanReceipt.maturity).to.equal(
-        (await ethers.provider.getBlock(refinanceTx.blockHash!)).timestamp + 15 * 86400
+        BigInt((await ethers.provider.getBlock(refinanceTx.blockHash!)).timestamp) + 15n * 86400n
       );
       expect(decodedNewLoanReceipt.duration).to.equal(15 * 86400);
-      expect(decodedNewLoanReceipt.collateralToken).to.equal(nft1.address);
+      expect(decodedNewLoanReceipt.collateralToken).to.equal(await nft1.getAddress());
       expect(decodedNewLoanReceipt.collateralTokenId).to.equal(123);
       expect(decodedNewLoanReceipt.nodeReceipts.length).to.equal(16);
 
       /* Validate events */
       await expectEvent(refinanceTx, tok1, "Transfer", {
-        from: pool.address,
-        to: accountBorrower.address,
-        value: decodedNewLoanReceipt.principal.sub(decodedLoanReceipt.repayment),
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
+        value: decodedNewLoanReceipt.principal - decodedLoanReceipt.repayment,
       });
 
       await expectEvent(refinanceTx, pool, "LoanRepaid", {
@@ -3409,9 +3502,9 @@ describe("Pool Basic", function () {
 
       /* Get token id */
       const tokenId =
-        (await nft1.ownerOf(123)) === accountBorrower.address
+        (await nft1.ownerOf(123)) === (await accountBorrower.getAddress())
           ? 123
-          : (await nft1.ownerOf(124)) === accountBorrower.address
+          : (await nft1.ownerOf(124)) === (await accountBorrower.getAddress())
             ? 124
             : 125;
 
@@ -3421,8 +3514,8 @@ describe("Pool Basic", function () {
         .borrow(
           FixedPoint.from("1"),
           1,
-          nft1.address,
-          [tokenId],
+          await nft1.getAddress(),
+          tokenId,
           FixedPoint.from("2"),
           await sourceLiquidity(FixedPoint.from("1")),
           "0x"
@@ -3435,10 +3528,26 @@ describe("Pool Basic", function () {
       const decodedExistingLoanReceipt = await loanReceiptLib.decode(encodedLoanReceipt);
 
       /* Mutate NFT address in loan receipt and encode it */
-      const nodeReceipt = { ...decodedExistingLoanReceipt };
-      nodeReceipt.collateralToken = nft1.address;
-      nodeReceipt.borrower = accountBorrower.address;
-      nodeReceipt.maturity = ethers.BigNumber.from("10000000001");
+      const nodeReceipt = {
+        version: decodedExistingLoanReceipt.version,
+        principal: decodedExistingLoanReceipt.principal,
+        repayment: decodedExistingLoanReceipt.repayment,
+        adminFee: decodedExistingLoanReceipt.adminFee,
+        borrower: decodedExistingLoanReceipt.borrower,
+        maturity: BigInt("10000000001"),
+        duration: decodedExistingLoanReceipt.duration,
+        collateralToken: decodedExistingLoanReceipt.collateralToken,
+        collateralTokenId: decodedExistingLoanReceipt.collateralTokenId,
+        collateralWrapperContextLen: decodedExistingLoanReceipt.collateralWrapperContextLen,
+        collateralWrapperContext: decodedExistingLoanReceipt.collateralWrapperContext,
+        nodeReceipts: [
+          {
+            tick: decodedExistingLoanReceipt.nodeReceipts[0].tick,
+            used: decodedExistingLoanReceipt.nodeReceipts[0].used,
+            pending: decodedExistingLoanReceipt.nodeReceipts[0].pending,
+          },
+        ],
+      };
       encodedLoanReceipt = await loanReceiptLib.encode(nodeReceipt);
 
       /* Force timestamp so maturity timestamp is constant and give us the same loanReceipt from borrow() */
@@ -3452,8 +3561,8 @@ describe("Pool Basic", function () {
             pool.interface.encodeFunctionData("borrow", [
               FixedPoint.from("1"),
               1,
-              nft1.address,
-              [tokenId],
+              await nft1.getAddress(),
+              tokenId,
               FixedPoint.from("2"),
               await sourceLiquidity(FixedPoint.from("25")),
               "0x",
@@ -3502,7 +3611,7 @@ describe("Pool Basic", function () {
         pool
           .connect(accountBorrower)
           .refinance(
-            ethers.utils.randomBytes(141 + 48 * 3),
+            "0xa9059cbb0000000000000000000000001f9090aae28b8a3dceadf281b0f12828e676c326",
             FixedPoint.from("25"),
             15 * 86400,
             FixedPoint.from("26"),
@@ -3543,7 +3652,7 @@ describe("Pool Basic", function () {
 
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity + 1n);
 
       /* Process expiration */
       await pool.liquidate(loanReceipt);
@@ -3578,15 +3687,15 @@ describe("Pool Basic", function () {
 
       /* Wait for expiration */
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await helpers.time.increaseTo(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity + 1n);
 
       /* Process expiration */
       const liquidateTx = await pool.liquidate(loanReceipt);
 
       /* Validate events */
       await expectEvent(liquidateTx, nft1, "Transfer", {
-        from: pool.address,
-        to: collateralLiquidator.address,
+        from: await pool.getAddress(),
+        to: await collateralLiquidator.getAddress(),
         tokenId: 123,
       });
       await expectEvent(liquidateTx, pool, "LoanLiquidated", {
@@ -3620,7 +3729,7 @@ describe("Pool Basic", function () {
       [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
 
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber() + 1);
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity + 1n);
 
       /* Repay */
       await pool.connect(accountBorrower).repay(loanReceipt);
@@ -3655,16 +3764,31 @@ describe("Pool Basic", function () {
       /* Withdraw collateral */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
+        .withdrawCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt
+        );
 
       /* Liquidate collateral and process liquidation */
       const onCollateralLiquidatedTx = await collateralLiquidator
         .connect(accountLiquidator)
-        .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, FixedPoint.from("30"));
+        .liquidateCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt,
+          FixedPoint.from("30")
+        );
 
       /* Compute borrower surplus and lender proceeds */
-      const borrowerSurplus = FixedPoint.from("30").sub(decodedLoanReceipt.repayment);
-      const lendersProceeds = FixedPoint.from("30").sub(borrowerSurplus);
+      const borrowerSurplus = FixedPoint.from("30") - decodedLoanReceipt.repayment;
+      const lendersProceeds = FixedPoint.from("30") - borrowerSurplus;
 
       /* Validate events */
       await expectEvent(
@@ -3672,8 +3796,8 @@ describe("Pool Basic", function () {
         tok1,
         "Transfer",
         {
-          from: collateralLiquidator.address,
-          to: pool.address,
+          from: await collateralLiquidator.getAddress(),
+          to: await pool.getAddress(),
           value: FixedPoint.from("30"),
         },
         1
@@ -3683,7 +3807,7 @@ describe("Pool Basic", function () {
         tok1,
         "Transfer",
         {
-          from: pool.address,
+          from: await pool.getAddress(),
           to: decodedLoanReceipt.borrower,
           value: borrowerSurplus,
         },
@@ -3699,7 +3823,7 @@ describe("Pool Basic", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(4);
 
       /* Compute total pending */
-      const totalPending = decodedLoanReceipt.repayment.sub(decodedLoanReceipt.adminFee);
+      const totalPending = decodedLoanReceipt.repayment - decodedLoanReceipt.adminFee;
 
       /* Validate ticks */
       let i = 0;
@@ -3709,19 +3833,19 @@ describe("Pool Basic", function () {
         const proceeds =
           i == decodedLoanReceipt.nodeReceipts.length - 1
             ? proceedsRemaining
-            : lendersProceeds.mul(nodeReceipt.pending).div(totalPending);
-        const value = FixedPoint.from("25").sub(nodeReceipt.used).add(proceeds);
-        proceedsRemaining = proceedsRemaining.sub(proceeds);
+            : (lendersProceeds * nodeReceipt.pending) / totalPending;
+        const value = FixedPoint.from("25") - nodeReceipt.used + proceeds;
+        proceedsRemaining = proceedsRemaining - proceeds;
         expect(node.value).to.equal(value);
         expect(node.available).to.equal(value);
-        expect(node.pending).to.equal(ethers.constants.Zero);
+        expect(node.pending).to.equal(0n);
         i += 1;
       }
     });
 
     it("processes liquidated loan for higher proceeds with lender surplus and borrower surplus", async function () {
       /* Set admin fee rate */
-      await pool.setAdminFee(5000, ethers.constants.AddressZero, 0);
+      await pool.setAdminFee(5000, ethers.ZeroAddress, 0);
 
       /* Borrow */
       [loanReceipt, loanReceiptHash] = await createExpiredLoan(FixedPoint.from("25"));
@@ -3735,17 +3859,32 @@ describe("Pool Basic", function () {
       /* Withdraw collateral */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
+        .withdrawCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt
+        );
 
       /* Liquidate collateral and process liquidation */
       const onCollateralLiquidatedTx = await collateralLiquidator
         .connect(accountLiquidator)
-        .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, FixedPoint.from("30"));
+        .liquidateCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt,
+          FixedPoint.from("30")
+        );
 
       /* Compute borrower surplus and lender proceeds */
-      const borrowerSurplus = FixedPoint.from("30").sub(decodedLoanReceipt.repayment);
+      const borrowerSurplus = FixedPoint.from("30") - decodedLoanReceipt.repayment;
       const lendersSurplus = decodedLoanReceipt.adminFee;
-      const lendersProceeds = FixedPoint.from("30").sub(borrowerSurplus).sub(lendersSurplus);
+      const lendersProceeds = FixedPoint.from("30") - borrowerSurplus - lendersSurplus;
 
       /* Validate events */
       await expectEvent(
@@ -3753,8 +3892,8 @@ describe("Pool Basic", function () {
         tok1,
         "Transfer",
         {
-          from: collateralLiquidator.address,
-          to: pool.address,
+          from: await collateralLiquidator.getAddress(),
+          to: await pool.getAddress(),
           value: FixedPoint.from("30"),
         },
         1
@@ -3764,7 +3903,7 @@ describe("Pool Basic", function () {
         tok1,
         "Transfer",
         {
-          from: pool.address,
+          from: await pool.getAddress(),
           to: decodedLoanReceipt.borrower,
           value: borrowerSurplus,
         },
@@ -3780,33 +3919,33 @@ describe("Pool Basic", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(4);
 
       /* Compute total pending */
-      const totalPending = decodedLoanReceipt.repayment.sub(decodedLoanReceipt.adminFee);
+      const totalPending = decodedLoanReceipt.repayment - decodedLoanReceipt.adminFee;
 
       /* Compute total interest */
-      const totalInterest = totalPending.sub(decodedLoanReceipt.principal);
+      const totalInterest = totalPending - decodedLoanReceipt.principal;
 
       /* Validate ticks */
       let i = 0;
       let proceedsRemaining = lendersProceeds;
       let lendersSurplusRemaining = lendersSurplus;
-      let totalAdminFee = ethers.constants.Zero;
+      let totalAdminFee = 0n;
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
         const node = await pool.liquidityNode(nodeReceipt.tick);
         const surplus =
           i == decodedLoanReceipt.nodeReceipts.length - 1
             ? lendersSurplusRemaining
-            : nodeReceipt.pending.sub(nodeReceipt.used).mul(lendersSurplus).div(totalInterest);
+            : ((nodeReceipt.pending - nodeReceipt.used) * lendersSurplus) / totalInterest;
         const proceeds =
           i == decodedLoanReceipt.nodeReceipts.length - 1
             ? proceedsRemaining
-            : lendersProceeds.mul(nodeReceipt.pending).div(totalPending);
-        const value = FixedPoint.from("25").sub(nodeReceipt.used).add(proceeds).add(surplus);
-        proceedsRemaining = proceedsRemaining.sub(proceeds);
-        lendersSurplusRemaining = lendersSurplusRemaining.sub(surplus);
+            : (lendersProceeds * nodeReceipt.pending) / totalPending;
+        const value = FixedPoint.from("25") - nodeReceipt.used + proceeds + surplus;
+        proceedsRemaining = proceedsRemaining - proceeds;
+        lendersSurplusRemaining = lendersSurplusRemaining - surplus;
         expect(node.value).to.equal(value);
         expect(node.available).to.equal(value);
-        expect(node.pending).to.equal(ethers.constants.Zero);
-        totalAdminFee = totalAdminFee.add(surplus);
+        expect(node.pending).to.equal(0n);
+        totalAdminFee = totalAdminFee + surplus;
         i += 1;
       }
 
@@ -3816,7 +3955,7 @@ describe("Pool Basic", function () {
 
     it("processes liquidated loan for higher proceeds with lender surplus but no borrower surplus", async function () {
       /* Set admin fee rate */
-      await pool.setAdminFee(5000, ethers.constants.AddressZero, 0);
+      await pool.setAdminFee(5000, ethers.ZeroAddress, 0);
 
       /* Borrow */
       [loanReceipt, loanReceiptHash] = await createExpiredLoan(FixedPoint.from("25"));
@@ -3830,17 +3969,32 @@ describe("Pool Basic", function () {
       /* Withdraw collateral */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
+        .withdrawCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt
+        );
 
       /* Liquidate collateral and process liquidation */
-      const proceeds = ethers.BigNumber.from("25203000000000000000");
+      const proceeds = BigInt("25203000000000000000");
       const onCollateralLiquidatedTx = await collateralLiquidator
         .connect(accountLiquidator)
-        .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, proceeds);
+        .liquidateCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt,
+          proceeds
+        );
 
       /* Compute borrower surplus and lender proceeds */
-      const lendersSurplus = proceeds.sub(decodedLoanReceipt.repayment.sub(decodedLoanReceipt.adminFee));
-      const lendersProceeds = proceeds.sub(lendersSurplus);
+      const lendersSurplus = proceeds - (decodedLoanReceipt.repayment - decodedLoanReceipt.adminFee);
+      const lendersProceeds = proceeds - lendersSurplus;
 
       /* Validate events */
       await expectEvent(
@@ -3848,8 +4002,8 @@ describe("Pool Basic", function () {
         tok1,
         "Transfer",
         {
-          from: collateralLiquidator.address,
-          to: pool.address,
+          from: await collateralLiquidator.getAddress(),
+          to: await pool.getAddress(),
           value: proceeds,
         },
         1
@@ -3857,40 +4011,40 @@ describe("Pool Basic", function () {
       await expectEvent(onCollateralLiquidatedTx, pool, "CollateralLiquidated", {
         loanReceiptHash,
         proceeds,
-        borrowerProceeds: ethers.constants.Zero,
+        borrowerProceeds: 0n,
       });
 
       /* Validate state */
       expect(await pool.loans(loanReceiptHash)).to.equal(4);
 
       /* Compute total pending */
-      const totalPending = decodedLoanReceipt.repayment.sub(decodedLoanReceipt.adminFee);
+      const totalPending = decodedLoanReceipt.repayment - decodedLoanReceipt.adminFee;
 
       /* Compute total interest */
-      const totalInterest = totalPending.sub(decodedLoanReceipt.principal);
+      const totalInterest = totalPending - decodedLoanReceipt.principal;
 
       /* Validate ticks */
       let i = 0;
       let proceedsRemaining = lendersProceeds;
       let lendersSurplusRemaining = lendersSurplus;
-      let totalAdminFee = ethers.constants.Zero;
+      let totalAdminFee = 0n;
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
         const node = await pool.liquidityNode(nodeReceipt.tick);
         const surplus =
           i == decodedLoanReceipt.nodeReceipts.length - 1
             ? lendersSurplusRemaining
-            : nodeReceipt.pending.sub(nodeReceipt.used).mul(lendersSurplus).div(totalInterest);
+            : ((nodeReceipt.pending - nodeReceipt.used) * lendersSurplus) / totalInterest;
         const proceeds =
           i == decodedLoanReceipt.nodeReceipts.length - 1
             ? proceedsRemaining
-            : lendersProceeds.mul(nodeReceipt.pending).div(totalPending);
-        const value = FixedPoint.from("25").sub(nodeReceipt.used).add(proceeds).add(surplus);
-        proceedsRemaining = proceedsRemaining.sub(proceeds);
-        lendersSurplusRemaining = lendersSurplusRemaining.sub(surplus);
+            : (lendersProceeds * nodeReceipt.pending) / totalPending;
+        const value = FixedPoint.from("25") - nodeReceipt.used + proceeds + surplus;
+        proceedsRemaining = proceedsRemaining - proceeds;
+        lendersSurplusRemaining = lendersSurplusRemaining - surplus;
         expect(node.value).to.equal(value);
         expect(node.available).to.equal(value);
-        expect(node.pending).to.equal(ethers.constants.Zero);
-        totalAdminFee = totalAdminFee.add(surplus);
+        expect(node.pending).to.equal(0n);
+        totalAdminFee = totalAdminFee + surplus;
         i += 1;
       }
 
@@ -3900,7 +4054,7 @@ describe("Pool Basic", function () {
 
     it("processes liquidated loan for lower proceeds", async function () {
       /* Set admin fee rate */
-      await pool.setAdminFee(5000, ethers.constants.AddressZero, 0);
+      await pool.setAdminFee(5000, ethers.ZeroAddress, 0);
 
       /* Borrow */
       [loanReceipt, loanReceiptHash] = await createExpiredLoan(FixedPoint.from("25"));
@@ -3914,13 +4068,28 @@ describe("Pool Basic", function () {
       /* Withdraw collateral */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .withdrawCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt);
+        .withdrawCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt
+        );
 
       /* Liquidate collateral and process liquidation */
-      const proceeds = decodedLoanReceipt.nodeReceipts[0].pending.add(decodedLoanReceipt.nodeReceipts[1].pending);
+      const proceeds = decodedLoanReceipt.nodeReceipts[0].pending + decodedLoanReceipt.nodeReceipts[1].pending;
       await collateralLiquidator
         .connect(accountLiquidator)
-        .liquidateCollateral(pool.address, tok1.address, nft1.address, 123, "0x", loanReceipt, proceeds);
+        .liquidateCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt,
+          proceeds
+        );
 
       /* Validate state */
       expect(await pool.loans(loanReceiptHash)).to.equal(4);
@@ -3928,16 +4097,16 @@ describe("Pool Basic", function () {
       /* Validate ticks */
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts.slice(0, 2)) {
         const node = await pool.liquidityNode(nodeReceipt.tick);
-        const value = FixedPoint.from("25").sub(nodeReceipt.used).add(nodeReceipt.pending);
+        const value = FixedPoint.from("25") - nodeReceipt.used + nodeReceipt.pending;
         expect(node.value).to.equal(value);
         expect(node.available).to.equal(value);
-        expect(node.pending).to.equal(ethers.constants.Zero);
+        expect(node.pending).to.equal(0n);
       }
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts.slice(2, 0)) {
         const node = await pool.liquidityNode(nodeReceipt.tick);
         expect(node.value).to.equal(FixedPoint.from("25"));
         expect(node.available).to.equal(FixedPoint.from("25"));
-        expect(node.pending).to.equal(ethers.constants.Zero);
+        expect(node.pending).to.equal(0n);
       }
     });
   });
@@ -3988,13 +4157,13 @@ describe("Pool Basic", function () {
 
     it("withdraws admin fees with repayment at loan maturity", async function () {
       /* set admin fee */
-      await pool.setAdminFee(500, ethers.constants.AddressZero, 0);
+      await pool.setAdminFee(500, ethers.ZeroAddress, 0);
 
       /* Quote repayment */
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        nft1.address,
+        await nft1.getAddress(),
         123,
         await sourceLiquidity(FixedPoint.from("25")),
         "0x"
@@ -4006,7 +4175,7 @@ describe("Pool Basic", function () {
         .borrow(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
@@ -4021,27 +4190,25 @@ describe("Pool Basic", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Sum used and pending totals from node receipts */
-      let totalUsed = ethers.constants.Zero;
-      let totalPending = ethers.constants.Zero;
+      let totalUsed = 0n;
+      let totalPending = 0n;
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
-        totalUsed = totalUsed.add(nodeReceipt.used);
-        totalPending = totalPending.add(nodeReceipt.pending);
+        totalUsed = totalUsed + nodeReceipt.used;
+        totalPending = totalPending + nodeReceipt.pending;
       }
 
       /* Calculate admin fee */
-      const adminFee = ethers.BigNumber.from(await pool.adminFeeRate())
-        .mul(repayment.sub(FixedPoint.from("25")))
-        .div(10000);
+      const adminFee = (BigInt(await pool.adminFeeRate()) * (repayment - FixedPoint.from("25"))) / 10000n;
 
       /* Validate used and pending totals */
       expect(totalUsed).to.equal(FixedPoint.from("25"));
-      expect(totalPending).to.equal(repayment.sub(adminFee));
+      expect(totalPending).to.equal(repayment - adminFee);
 
       /* Validate loan state */
       expect(await pool.loans(loanReceiptHash)).to.equal(1);
 
       /* Repay */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity);
       await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Validate total adminFee balance */
@@ -4054,7 +4221,7 @@ describe("Pool Basic", function () {
 
       /* Validate events */
       await expectEvent(withdrawTx, tok1, "Transfer", {
-        from: pool.address,
+        from: await pool.getAddress(),
         to: accounts[1].address,
         value: adminFee,
       });
@@ -4065,7 +4232,7 @@ describe("Pool Basic", function () {
       });
 
       /* Validate balance in account */
-      expect(await tok1.balanceOf(accounts[1].address)).to.equal(startingBalance.add(adminFee));
+      expect(await tok1.balanceOf(accounts[1].address)).to.equal(startingBalance + adminFee);
 
       /* Validate total admin fee balance */
       expect(await pool.adminFeeBalance()).to.equal(0);
@@ -4073,13 +4240,13 @@ describe("Pool Basic", function () {
 
     it("withdraws admin fees with repayment after one third of loan maturity", async function () {
       /* Set admin fee */
-      await pool.setAdminFee(500, ethers.constants.AddressZero, 0);
+      await pool.setAdminFee(500, ethers.ZeroAddress, 0);
 
       /* Quote repayment */
       const repayment = await pool.quote(
         FixedPoint.from("25"),
         30 * 86400,
-        nft1.address,
+        await nft1.getAddress(),
         123,
         await sourceLiquidity(FixedPoint.from("25")),
         "0x"
@@ -4091,7 +4258,7 @@ describe("Pool Basic", function () {
         .borrow(
           FixedPoint.from("25"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           FixedPoint.from("26"),
           await sourceLiquidity(FixedPoint.from("25")),
@@ -4103,21 +4270,19 @@ describe("Pool Basic", function () {
       const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
 
       /* Repay */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity.toNumber() - (2 * 30 * 86400) / 3);
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity - (2n * 30n * 86400n) / 3n);
       const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
 
       /* Calculate repayment proration */
-      const repayTxTimestamp = (await ethers.provider.getBlock((await repayTx.wait()).blockNumber)).timestamp;
-      const proration = FixedPoint.from(
-        repayTxTimestamp - (decodedLoanReceipt.maturity - decodedLoanReceipt.duration)
-      ).div(decodedLoanReceipt.duration);
+      const repayTxTimestamp = BigInt((await ethers.provider.getBlock((await repayTx.wait()).blockNumber)).timestamp);
+      const proration =
+        FixedPoint.from(repayTxTimestamp - (decodedLoanReceipt.maturity - decodedLoanReceipt.duration)) /
+        decodedLoanReceipt.duration;
 
       /* Calculate admin fee */
-      const adminFee = ethers.BigNumber.from(await pool.adminFeeRate())
-        .mul(repayment.sub(FixedPoint.from("25")))
-        .div(10000)
-        .mul(proration)
-        .div(ethers.constants.WeiPerEther);
+      const adminFee =
+        (((BigInt(await pool.adminFeeRate()) * (repayment - FixedPoint.from("25"))) / 10000n) * proration) /
+        ethers.WeiPerEther;
 
       /* Validate total admin fee balance */
       expect(await pool.adminFeeBalance()).to.equal(adminFee);
@@ -4155,10 +4320,7 @@ describe("Pool Basic", function () {
       /* Create repaid loan */
       await createRepaidLoan(FixedPoint.from("25"));
 
-      await expect(pool.withdrawAdminFees(ethers.constants.AddressZero)).to.be.revertedWithCustomError(
-        pool,
-        "InvalidParameters"
-      );
+      await expect(pool.withdrawAdminFees(ethers.ZeroAddress)).to.be.revertedWithCustomError(pool, "InvalidParameters");
     });
   });
 
@@ -4169,7 +4331,7 @@ describe("Pool Basic", function () {
   describe("#supportsInterface", async function () {
     it("returns true on supported interfaces", async function () {
       /* ERC165 */
-      expect(await pool.supportsInterface(pool.interface.getSighash("supportsInterface"))).to.equal(true);
+      expect(await pool.supportsInterface(ethers.id("supportsInterface(bytes4)").substring(0, 10))).to.equal(true);
     });
 
     it("returns false on unsupported interfaces", async function () {

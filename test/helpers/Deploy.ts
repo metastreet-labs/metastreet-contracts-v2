@@ -8,8 +8,8 @@ export async function getContractFactoryWithLibraries(
   let libraries: { [key: string]: string } = {};
   for (const libraryName of libraryNames) {
     const lib = await (await ethers.getContractFactory(libraryName, signer)).deploy();
-    await lib.deployed();
-    libraries[libraryName] = lib.address;
+    await lib.waitForDeployment();
+    libraries[libraryName] = await lib.getAddress();
   }
   return ethers.getContractFactory(name, { libraries, signer });
 }

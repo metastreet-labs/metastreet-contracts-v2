@@ -61,85 +61,85 @@ describe("PoolFactory", function () {
     ]);
 
     /* Deploy test currency token */
-    tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("10000"))) as TestERC20;
-    await tok1.deployed();
+    tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.parseEther("10000"))) as TestERC20;
+    await tok1.waitForDeployment();
 
     /* Deploy test NFT */
     nft1 = (await testERC721Factory.deploy("NFT 1", "NFT1", "https://nft1.com/token/")) as TestERC721;
-    await nft1.deployed();
+    await nft1.waitForDeployment();
 
     /* Deploy loan receipt library */
     loanReceiptLib = await testLoanReceiptFactory.deploy();
-    await loanReceiptLib.deployed();
+    await loanReceiptLib.waitForDeployment();
 
     /* Deploy collateral liquidator implementation */
     const collateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
-    await collateralLiquidatorImpl.deployed();
+    await collateralLiquidatorImpl.waitForDeployment();
 
     /* Deploy collateral liquidator */
     let proxy = await testProxyFactory.deploy(
-      collateralLiquidatorImpl.address,
+      await collateralLiquidatorImpl.getAddress(),
       collateralLiquidatorImpl.interface.encodeFunctionData("initialize")
     );
-    await proxy.deployed();
+    await proxy.waitForDeployment();
     collateralLiquidator = (await ethers.getContractAt(
       "ExternalCollateralLiquidator",
-      proxy.address
+      await proxy.getAddress()
     )) as ExternalCollateralLiquidator;
 
     /* Deploy test delegation registry v1 */
     delegateRegistryV1 = await delegateRegistryV1Factory.deploy();
-    await delegateRegistryV1.deployed();
+    await delegateRegistryV1.waitForDeployment();
 
     /* Deploy test delegation registry v2 */
     delegateRegistryV2 = await delegateRegistryV2Factory.deploy();
-    await delegateRegistryV2.deployed();
+    await delegateRegistryV2.waitForDeployment();
 
     /* Deploy bundle collateral wrapper */
     bundleCollateralWrapper = await bundleCollateralWrapperFactory.deploy();
-    await bundleCollateralWrapper.deployed();
+    await bundleCollateralWrapper.waitForDeployment();
 
     /* Deploy erc20 deposit token implementation */
     erc20DepositTokenImpl = (await erc20DepositTokenImplFactory.deploy()) as ERC20DepositTokenImplementation;
-    await erc20DepositTokenImpl.deployed();
+    await erc20DepositTokenImpl.waitForDeployment();
 
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
-      collateralLiquidator.address,
-      delegateRegistryV1.address,
-      delegateRegistryV2.address,
-      erc20DepositTokenImpl.address,
-      [bundleCollateralWrapper.address]
+      await collateralLiquidator.getAddress(),
+      await delegateRegistryV1.getAddress(),
+      await delegateRegistryV2.getAddress(),
+      await erc20DepositTokenImpl.getAddress(),
+      [await bundleCollateralWrapper.getAddress()]
     )) as Pool;
-    await poolImpl.deployed();
+    await poolImpl.waitForDeployment();
 
     /* Deploy pool factory implementation */
     poolFactoryImpl = await poolFactoryImplFactory.deploy();
-    await poolFactoryImpl.deployed();
+    await poolFactoryImpl.waitForDeployment();
 
     /* Deploy pool factory */
     proxy = await erc1967ProxyFactory.deploy(
-      poolFactoryImpl.address,
+      await poolFactoryImpl.getAddress(),
       poolFactoryImpl.interface.encodeFunctionData("initialize")
     );
-    await proxy.deployed();
-    poolFactory = (await ethers.getContractAt("PoolFactory", proxy.address)) as PoolFactory;
+    await proxy.waitForDeployment();
+    poolFactory = (await ethers.getContractAt("PoolFactory", await proxy.getAddress())) as PoolFactory;
 
     accountDepositor = accounts[0];
     accountBorrower = accounts[1];
 
     /* Transfer TOK1 to depositors and approve Pool */
-    await tok1.transfer(accountDepositor.address, ethers.utils.parseEther("1000"));
+    await tok1.transfer(await accountDepositor.getAddress(), ethers.parseEther("1000"));
 
     /* Mint NFT to borrower */
-    await nft1.mint(accountBorrower.address, 123);
-    await nft1.mint(accountBorrower.address, 124);
+    await nft1.mint(await accountBorrower.getAddress(), 123);
+    await nft1.mint(await accountBorrower.getAddress(), 124);
 
     /* Mint token to borrower */
-    await tok1.transfer(accountBorrower.address, ethers.utils.parseEther("100"));
+    await tok1.transfer(await accountBorrower.getAddress(), ethers.parseEther("100"));
 
     /* Mint token to lender */
-    await tok1.transfer(accountDepositor.address, ethers.utils.parseEther("1000"));
+    await tok1.transfer(await accountDepositor.getAddress(), ethers.parseEther("1000"));
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -164,32 +164,32 @@ describe("PoolFactory", function () {
   /* Liquidity Helper functions */
   /****************************************************************************/
 
-  const MaxUint128 = ethers.BigNumber.from("0xffffffffffffffffffffffffffffffff");
-  const minBN = (a: ethers.BigNumber, b: ethers.BigNumber) => (a.lt(b) ? a : b);
+  const MaxUint128 = BigInt("0xffffffffffffffffffffffffffffffff");
+  const minBN = (a: bigint, b: bigint) => (a < b ? a : b);
 
   async function sourceLiquidity(
     pool: Pool,
-    amount: ethers.BigNumber,
-    multiplier?: number = 1,
+    amount: bigint,
+    multiplier?: bigint = 1n,
     duration?: number = 0,
     rate?: number = 0
-  ): Promise<ethers.BigNumber[]> {
+  ): Promise<bigint[]> {
     const nodes = await pool.liquidityNodes(0, MaxUint128);
     const ticks = [];
 
-    let taken = ethers.constants.Zero;
+    let taken = 0n;
     for (const node of nodes) {
       const limit = Tick.decode(node.tick).limit;
-      if (limit.isZero()) continue;
+      if (limit === 0n) continue;
 
-      const take = minBN(minBN(limit.mul(multiplier).sub(taken), node.available), amount.sub(taken));
-      if (take.isZero()) break;
+      const take = minBN(minBN(limit * multiplier - taken, node.available), amount - taken);
+      if (take === 0n) break;
 
       ticks.push(node.tick);
-      taken = taken.add(take);
+      taken = taken + take;
     }
 
-    if (!taken.eq(amount)) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
+    if (taken !== amount) throw new Error(`Insufficient liquidity for amount ${amount.toString()}`);
 
     return ticks;
   }
@@ -201,24 +201,24 @@ describe("PoolFactory", function () {
   describe("#create", async function () {
     it("creates a pool", async function () {
       /* Add pool implementation to allowlist */
-      await poolFactory.addPoolImplementation(poolImpl.address);
+      await poolFactory.addPoolImplementation(await poolImpl.getAddress());
 
       /* Create a pool */
-      const params = ethers.utils.defaultAbiCoder.encode(
+      const params = ethers.AbiCoder.defaultAbiCoder().encode(
         ["address[]", "address", "address", "uint64[]", "uint64[]"],
         [
-          [nft1.address],
-          tok1.address,
-          ethers.constants.AddressZero,
+          [await nft1.getAddress()],
+          await tok1.getAddress(),
+          ethers.ZeroAddress,
           [30 * 86400, 14 * 86400, 7 * 86400],
           [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
         ]
       );
-      const createTx = await poolFactory.connect(accounts[5]).create(poolImpl.address, params);
+      const createTx = await poolFactory.connect(accounts[5]).create(await poolImpl.getAddress(), params);
 
       /* Validate events */
       await expectEvent(createTx, poolFactory, "PoolCreated", {
-        implementation: poolImpl.address,
+        implementation: await poolImpl.getAddress(),
       });
 
       /* Get pool instance */
@@ -226,65 +226,64 @@ describe("PoolFactory", function () {
       const pool = (await ethers.getContractAt("Pool", poolAddress)) as Pool;
 
       /* Check pool factory is admin */
-      expect(await pool.admin()).to.equal(poolFactory.address);
+      expect(await pool.admin()).to.equal(await poolFactory.getAddress());
     });
 
     it("fails on invalid pool implementation", async function () {
       /* Remove pool implementation from allowlist */
-      await poolFactory.removePoolImplementation(poolImpl.address);
+      await poolFactory.removePoolImplementation(await poolImpl.getAddress());
 
       /* Create a pool */
-      const params = ethers.utils.defaultAbiCoder.encode(
+      const params = ethers.AbiCoder.defaultAbiCoder().encode(
         ["address[]", "address", "address", "uint64[]", "uint64[]"],
         [
-          [nft1.address],
-          tok1.address,
-          ethers.constants.AddressZero,
+          [await nft1.getAddress()],
+          await tok1.getAddress(),
+          ethers.ZeroAddress,
           [30 * 86400, 14 * 86400, 7 * 86400],
           [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
         ]
       );
-      await expect(poolFactory.connect(accounts[5]).create(poolImpl.address, params)).to.be.revertedWithCustomError(
-        poolFactory,
-        "UnsupportedImplementation"
-      );
+      await expect(
+        poolFactory.connect(accounts[5]).create(await poolImpl.getAddress(), params)
+      ).to.be.revertedWithCustomError(poolFactory, "UnsupportedImplementation");
     });
 
     it("fails on invalid params", async function () {
       /* Add pool implementation to allowlist */
-      await poolFactory.addPoolImplementation(poolImpl.address);
+      await poolFactory.addPoolImplementation(await poolImpl.getAddress());
 
       /* Create a pool */
-      const params = ethers.utils.defaultAbiCoder.encode(
+      const params = ethers.AbiCoder.defaultAbiCoder().encode(
         ["address", "address", "address"],
         [
-          nft1.address,
-          tok1.address,
-          ethers.constants.AddressZero,
+          await nft1.getAddress(),
+          await tok1.getAddress(),
+          ethers.ZeroAddress,
           /* Missing duration and rate params */
         ]
       );
-      await expect(poolFactory.create(poolImpl.address, params)).to.be.reverted;
+      await expect(poolFactory.create(await poolImpl.getAddress(), params)).to.be.reverted;
     });
 
     it("fails on invalid token decimals", async function () {
       /* Create token with 6 decimals */
       const testERC20Factory = await ethers.getContractFactory("TestERC20");
-      const tok2 = (await testERC20Factory.deploy("Token 2", "TOK2", 6, ethers.utils.parseEther("10000"))) as TestERC20;
-      await tok2.deployed();
+      const tok2 = (await testERC20Factory.deploy("Token 2", "TOK2", 6, ethers.parseEther("10000"))) as TestERC20;
+      await tok2.waitForDeployment();
 
       /* Create a pool */
-      const params = ethers.utils.defaultAbiCoder.encode(
+      const params = ethers.AbiCoder.defaultAbiCoder().encode(
         ["address[]", "address", "address", "uint64[]", "uint64[]"],
         [
-          [nft1.address],
-          tok2.address,
-          ethers.constants.AddressZero,
+          [await nft1.getAddress()],
+          await tok2.getAddress(),
+          ethers.ZeroAddress,
           [30 * 86400, 14 * 86400, 7 * 86400],
           [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
         ]
       );
-      await expect(poolFactory.create(poolImpl.address, params)).to.be.reverted;
+      await expect(poolFactory.create(await poolImpl.getAddress(), params)).to.be.reverted;
     });
   });
 
@@ -293,30 +292,30 @@ describe("PoolFactory", function () {
 
     beforeEach("sets up pool beacon", async function () {
       const upgradeableBeaconFactory = await ethers.getContractFactory("UpgradeableBeacon");
-      poolBeacon = await upgradeableBeaconFactory.deploy(poolImpl.address);
-      await poolBeacon.deployed();
+      poolBeacon = await upgradeableBeaconFactory.deploy(await poolImpl.getAddress());
+      await poolBeacon.waitForDeployment();
     });
 
     it("creates a proxied pool", async function () {
       /* Add pool beacon to allowlist */
-      await poolFactory.addPoolImplementation(poolBeacon.address);
+      await poolFactory.addPoolImplementation(await poolBeacon.getAddress());
 
       /* Create a pool */
-      const params = ethers.utils.defaultAbiCoder.encode(
+      const params = ethers.AbiCoder.defaultAbiCoder().encode(
         ["address[]", "address", "address", "uint64[]", "uint64[]"],
         [
-          [nft1.address],
-          tok1.address,
-          ethers.constants.AddressZero,
+          [await nft1.getAddress()],
+          await tok1.getAddress(),
+          ethers.ZeroAddress,
           [30 * 86400, 14 * 86400, 7 * 86400],
           [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
         ]
       );
-      const createTx = await poolFactory.connect(accounts[5]).createProxied(poolBeacon.address, params);
+      const createTx = await poolFactory.connect(accounts[5]).createProxied(await poolBeacon.getAddress(), params);
 
       /* Validate events */
       await expectEvent(createTx, poolFactory, "PoolCreated", {
-        implementation: poolBeacon.address,
+        implementation: await poolBeacon.getAddress(),
       });
 
       /* Get pool instance */
@@ -324,45 +323,45 @@ describe("PoolFactory", function () {
       const pool = (await ethers.getContractAt("Pool", poolAddress)) as Pool;
 
       /* Check pool factory is admin */
-      expect(await pool.admin()).to.equal(poolFactory.address);
+      expect(await pool.admin()).to.equal(await poolFactory.getAddress());
     });
 
     it("fails on invalid pool beacon", async function () {
       /* Remove pool beacon from allowlist */
-      await poolFactory.removePoolImplementation(poolBeacon.address);
+      await poolFactory.removePoolImplementation(await poolBeacon.getAddress());
 
       /* Create a pool */
-      const params = ethers.utils.defaultAbiCoder.encode(
+      const params = ethers.AbiCoder.defaultAbiCoder().encode(
         ["address[]", "address", "address", "uint64[]", "uint64[]"],
         [
-          [nft1.address],
-          tok1.address,
-          ethers.constants.AddressZero,
+          [await nft1.getAddress()],
+          await tok1.getAddress(),
+          ethers.ZeroAddress,
           [30 * 86400, 14 * 86400, 7 * 86400],
           [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
         ]
       );
       await expect(
-        poolFactory.connect(accounts[5]).createProxied(poolBeacon.address, params)
+        poolFactory.connect(accounts[5]).createProxied(await poolBeacon.getAddress(), params)
       ).to.be.revertedWithCustomError(poolFactory, "UnsupportedImplementation");
     });
 
     it("fails on invalid params", async function () {
       /* Add pool beacon to allowlist */
-      await poolFactory.addPoolImplementation(poolBeacon.address);
+      await poolFactory.addPoolImplementation(await poolBeacon.getAddress());
 
       /* Create a pool */
-      const params = ethers.utils.defaultAbiCoder.encode(
+      const params = ethers.AbiCoder.defaultAbiCoder().encode(
         ["address[]", "address", "address", "uint64"],
         [
-          [nft1.address],
-          tok1.address,
-          ethers.constants.AddressZero,
+          [await nft1.getAddress()],
+          await tok1.getAddress(),
+          ethers.ZeroAddress,
           30 * 86400,
           /* Missing interest rate model params */
         ]
       );
-      await expect(poolFactory.create(poolBeacon.address, params)).to.be.reverted;
+      await expect(poolFactory.create(await poolBeacon.getAddress(), params)).to.be.reverted;
     });
   });
 
@@ -372,24 +371,24 @@ describe("PoolFactory", function () {
 
   /* Helper function to create a pool */
   async function createPool(): Promise<string> {
-    const params = ethers.utils.defaultAbiCoder.encode(
+    const params = ethers.AbiCoder.defaultAbiCoder().encode(
       ["address[]", "address", "address", "uint64[]", "uint64[]"],
       [
-        [nft1.address],
-        tok1.address,
-        ethers.constants.AddressZero,
+        [await nft1.getAddress()],
+        await tok1.getAddress(),
+        ethers.ZeroAddress,
         [30 * 86400, 14 * 86400, 7 * 86400],
         [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
       ]
     );
-    const createTx = await poolFactory.connect(accounts[5]).create(poolImpl.address, params);
+    const createTx = await poolFactory.connect(accounts[5]).create(await poolImpl.getAddress(), params);
     return (await extractEvent(createTx, poolFactory, "PoolCreated")).args.pool;
   }
 
   describe("#isPool", async function () {
     beforeEach("add pool implementation to allowlist", async function () {
       /* Add pool implementation to allowlist */
-      await poolFactory.addPoolImplementation(poolImpl.address);
+      await poolFactory.addPoolImplementation(await poolImpl.getAddress());
     });
 
     it("returns true for created pools", async function () {
@@ -398,14 +397,14 @@ describe("PoolFactory", function () {
 
       expect(await poolFactory.isPool(pool1)).to.equal(true);
       expect(await poolFactory.isPool(pool2)).to.equal(true);
-      expect(await poolFactory.isPool(collateralLiquidator.address)).to.equal(false);
+      expect(await poolFactory.isPool(await collateralLiquidator.getAddress())).to.equal(false);
     });
   });
 
   describe("#getPools,getPoolCount,getPoolAt", async function () {
     beforeEach("add pool implementation to allowlist", async function () {
       /* Add pool implementation to allowlist */
-      await poolFactory.addPoolImplementation(poolImpl.address);
+      await poolFactory.addPoolImplementation(await poolImpl.getAddress());
     });
 
     it("returns created pools", async function () {
@@ -433,21 +432,24 @@ describe("PoolFactory", function () {
 
     beforeEach("sets up pool beacon", async function () {
       const upgradeableBeaconFactory = await ethers.getContractFactory("UpgradeableBeacon");
-      poolBeacon = await upgradeableBeaconFactory.deploy(poolImpl.address);
-      await poolBeacon.deployed();
+      poolBeacon = await upgradeableBeaconFactory.deploy(await poolImpl.getAddress());
+      await poolBeacon.waitForDeployment();
     });
 
     it("returns current implementations", async function () {
       expect(await poolFactory.getPoolImplementations()).to.deep.equal([]);
 
-      await poolFactory.addPoolImplementation(poolImpl.address);
-      await poolFactory.addPoolImplementation(poolBeacon.address);
+      await poolFactory.addPoolImplementation(await poolImpl.getAddress());
+      await poolFactory.addPoolImplementation(await poolBeacon.getAddress());
 
-      expect(await poolFactory.getPoolImplementations()).to.deep.equal([poolImpl.address, poolBeacon.address]);
+      expect(await poolFactory.getPoolImplementations()).to.deep.equal([
+        await poolImpl.getAddress(),
+        await poolBeacon.getAddress(),
+      ]);
 
-      await poolFactory.removePoolImplementation(poolBeacon.address);
+      await poolFactory.removePoolImplementation(await poolBeacon.getAddress());
 
-      expect(await poolFactory.getPoolImplementations()).to.deep.equal([poolImpl.address]);
+      expect(await poolFactory.getPoolImplementations()).to.deep.equal([await poolImpl.getAddress()]);
     });
   });
 
@@ -457,7 +459,7 @@ describe("PoolFactory", function () {
 
   describe("#getImplementation", async function () {
     it("returns correct implementation", async function () {
-      expect(await poolFactory.getImplementation()).to.equal(poolFactoryImpl.address);
+      expect(await poolFactory.getImplementation()).to.equal(await poolFactoryImpl.getAddress());
     });
   });
 
@@ -465,20 +467,20 @@ describe("PoolFactory", function () {
     it("upgrades to new implementation contract", async function () {
       const poolFactoryImplFactory = await ethers.getContractFactory("PoolFactory");
       const newPoolFactoryImpl = await poolFactoryImplFactory.deploy();
-      await newPoolFactoryImpl.deployed();
+      await newPoolFactoryImpl.waitForDeployment();
 
-      const upgradeToAndCallTx = await poolFactory.upgradeToAndCall(newPoolFactoryImpl.address, "0x");
+      const upgradeToAndCallTx = await poolFactory.upgradeToAndCall(await newPoolFactoryImpl.getAddress(), "0x");
 
       /* Validate events */
       await expectEvent(upgradeToAndCallTx, poolFactory, "Upgraded", {
-        implementation: newPoolFactoryImpl.address,
+        implementation: await newPoolFactoryImpl.getAddress(),
       });
 
       /* Validate state */
-      expect(await poolFactory.getImplementation()).to.equal(newPoolFactoryImpl.address);
+      expect(await poolFactory.getImplementation()).to.equal(await newPoolFactoryImpl.getAddress());
     });
     it("fails on invalid owner", async function () {
-      await expect(poolFactory.connect(accounts[1]).upgradeToAndCall(tok1.address, "0x")).to.be.revertedWith(
+      await expect(poolFactory.connect(accounts[1]).upgradeToAndCall(await tok1.getAddress(), "0x")).to.be.revertedWith(
         "Ownable: caller is not the owner"
       );
     });
@@ -487,48 +489,48 @@ describe("PoolFactory", function () {
   describe("#addPoolImplementation", async function () {
     it("adds pool implementation", async function () {
       /* Add pool implementation */
-      const addPoolImplTx = await poolFactory.addPoolImplementation(poolImpl.address);
+      const addPoolImplTx = await poolFactory.addPoolImplementation(await poolImpl.getAddress());
 
       /* Validate events */
       await expectEvent(addPoolImplTx, poolFactory, "PoolImplementationAdded", {
-        implementation: poolImpl.address,
+        implementation: await poolImpl.getAddress(),
       });
 
       /* Validate state */
-      expect(await poolFactory.getPoolImplementations()).to.deep.equal([poolImpl.address]);
+      expect(await poolFactory.getPoolImplementations()).to.deep.equal([await poolImpl.getAddress()]);
 
       /* Subsequent add does nothing */
-      const addPoolImplTx2 = await poolFactory.addPoolImplementation(poolImpl.address);
+      const addPoolImplTx2 = await poolFactory.addPoolImplementation(await poolImpl.getAddress());
       expect((await addPoolImplTx2.wait()).logs.length).to.equal(0);
 
       /* Validate state */
-      expect(await poolFactory.getPoolImplementations()).to.deep.equal([poolImpl.address]);
+      expect(await poolFactory.getPoolImplementations()).to.deep.equal([await poolImpl.getAddress()]);
     });
     it("fails on invalid owner", async function () {
-      await expect(poolFactory.connect(accounts[1]).addPoolImplementation(poolImpl.address)).to.be.revertedWith(
-        "Ownable: caller is not the owner"
-      );
+      await expect(
+        poolFactory.connect(accounts[1]).addPoolImplementation(await poolImpl.getAddress())
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
   });
 
   describe("#removePoolImplementation", async function () {
     it("removes pool implementation", async function () {
       /* Add pool implementation */
-      await poolFactory.addPoolImplementation(poolImpl.address);
+      await poolFactory.addPoolImplementation(await poolImpl.getAddress());
 
       /* Remove pool implementation */
-      const removePoolImplTx = await poolFactory.removePoolImplementation(poolImpl.address);
+      const removePoolImplTx = await poolFactory.removePoolImplementation(await poolImpl.getAddress());
 
       /* Validate events */
       await expectEvent(removePoolImplTx, poolFactory, "PoolImplementationRemoved", {
-        implementation: poolImpl.address,
+        implementation: await poolImpl.getAddress(),
       });
 
       /* Validate state */
       expect(await poolFactory.getPoolImplementations()).to.deep.equal([]);
 
       /* Subsequent remove does nothing */
-      const removePoolImplTx2 = await poolFactory.removePoolImplementation(poolImpl.address);
+      const removePoolImplTx2 = await poolFactory.removePoolImplementation(await poolImpl.getAddress());
       expect((await removePoolImplTx2.wait()).logs.length).to.equal(0);
 
       /* Validate state */
@@ -536,9 +538,9 @@ describe("PoolFactory", function () {
     });
 
     it("fails on invalid owner", async function () {
-      await expect(poolFactory.connect(accounts[1]).removePoolImplementation(poolImpl.address)).to.be.revertedWith(
-        "Ownable: caller is not the owner"
-      );
+      await expect(
+        poolFactory.connect(accounts[1]).removePoolImplementation(await poolImpl.getAddress())
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
   });
 
@@ -548,7 +550,7 @@ describe("PoolFactory", function () {
 
     beforeEach("add pool implementation to allowlist", async function () {
       /* Add pool implementation to allowlist */
-      await poolFactory.addPoolImplementation(poolImpl.address);
+      await poolFactory.addPoolImplementation(await poolImpl.getAddress());
 
       pool1 = (await ethers.getContractAt("Pool", await createPool())) as Pool;
       pool2 = (await ethers.getContractAt("Pool", await createPool())) as Pool;
@@ -560,13 +562,13 @@ describe("PoolFactory", function () {
       expect(await pool2.adminFeeRate()).to.equal(0);
 
       /* Set admin fee rate */
-      const setAdminFeeRateTx1 = await poolFactory.setAdminFee(pool1.address, 500, ethers.constants.AddressZero, 0);
-      const setAdminFeeRateTx2 = await poolFactory.setAdminFee(pool2.address, 700, accounts[2].address, 500);
+      const setAdminFeeRateTx1 = await poolFactory.setAdminFee(await pool1.getAddress(), 500, ethers.ZeroAddress, 0);
+      const setAdminFeeRateTx2 = await poolFactory.setAdminFee(await pool2.getAddress(), 700, accounts[2].address, 500);
 
       /* Validate events */
       await expectEvent(setAdminFeeRateTx1, pool1, "AdminFeeUpdated", {
         rate: 500,
-        feeShareRecipient: ethers.constants.AddressZero,
+        feeShareRecipient: ethers.ZeroAddress,
         feeShareSplit: 0,
       });
       await expectEvent(setAdminFeeRateTx2, pool2, "AdminFeeUpdated", {
@@ -580,12 +582,12 @@ describe("PoolFactory", function () {
       expect(await pool2.adminFeeRate()).to.equal(700);
 
       /* Set admin fee rate */
-      const setAdminFeeRateTx3 = await poolFactory.setAdminFee(pool1.address, 0, ethers.constants.AddressZero, 0);
+      const setAdminFeeRateTx3 = await poolFactory.setAdminFee(await pool1.getAddress(), 0, ethers.ZeroAddress, 0);
 
       /* Validate events */
       await expectEvent(setAdminFeeRateTx3, pool1, "AdminFeeUpdated", {
         rate: 0,
-        feeShareRecipient: ethers.constants.AddressZero,
+        feeShareRecipient: ethers.ZeroAddress,
         feeShareSplit: 0,
       });
 
@@ -595,22 +597,22 @@ describe("PoolFactory", function () {
 
     it("fails on invalid pool address", async function () {
       await expect(
-        poolFactory.setAdminFee(poolFactory.address, 700, ethers.constants.AddressZero, 0)
+        poolFactory.setAdminFee(await poolFactory.getAddress(), 700, ethers.ZeroAddress, 0)
       ).to.be.revertedWithCustomError(poolFactory, "InvalidPool");
     });
 
     it("fails on invalid caller", async function () {
       await expect(
-        poolFactory.connect(accounts[1]).setAdminFee(pool2.address, 700, ethers.constants.AddressZero, 0)
+        poolFactory.connect(accounts[1]).setAdminFee(await pool2.getAddress(), 700, ethers.ZeroAddress, 0)
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
     it("fails on invalid rate", async function () {
       await expect(
-        poolFactory.setAdminFee(pool2.address, 10000, ethers.constants.AddressZero, 0)
+        poolFactory.setAdminFee(await pool2.getAddress(), 10000, ethers.ZeroAddress, 0)
       ).to.be.revertedWithCustomError(pool2, "InvalidParameters");
       await expect(
-        poolFactory.setAdminFee(pool2.address, 500, ethers.constants.AddressZero, 10001)
+        poolFactory.setAdminFee(await pool2.getAddress(), 500, ethers.ZeroAddress, 10001)
       ).to.be.revertedWithCustomError(pool2, "InvalidParameters");
     });
   });
@@ -621,32 +623,32 @@ describe("PoolFactory", function () {
 
     beforeEach("add pool implementation to allowlist and set admin fee rate", async function () {
       /* Add pool implementation to allowlist */
-      await poolFactory.addPoolImplementation(poolImpl.address);
+      await poolFactory.addPoolImplementation(await poolImpl.getAddress());
 
       pool1 = (await ethers.getContractAt("Pool", await createPool())) as Pool;
       pool2 = (await ethers.getContractAt("Pool", await createPool())) as Pool;
 
       /* Set admin fee rate */
-      await poolFactory.setAdminFee(pool1.address, 500, ethers.constants.AddressZero, 0);
-      await poolFactory.setAdminFee(pool2.address, 700, accounts[2].address, 500);
+      await poolFactory.setAdminFee(await pool1.getAddress(), 500, ethers.ZeroAddress, 0);
+      await poolFactory.setAdminFee(await pool2.getAddress(), 700, accounts[2].address, 500);
 
       /* Approve pools to transfer NFT */
-      await nft1.connect(accountBorrower).setApprovalForAll(pool1.address, true);
-      await nft1.connect(accountBorrower).setApprovalForAll(pool2.address, true);
+      await nft1.connect(accountBorrower).setApprovalForAll(await pool1.getAddress(), true);
+      await nft1.connect(accountBorrower).setApprovalForAll(await pool2.getAddress(), true);
 
       /* Approve pools to transfer token */
-      await tok1.connect(accountBorrower).approve(pool1.address, ethers.constants.MaxUint256);
-      await tok1.connect(accountBorrower).approve(pool2.address, ethers.constants.MaxUint256);
-      await tok1.connect(accountDepositor).approve(pool1.address, ethers.constants.MaxUint256);
-      await tok1.connect(accountDepositor).approve(pool2.address, ethers.constants.MaxUint256);
+      await tok1.connect(accountBorrower).approve(await pool1.getAddress(), ethers.MaxUint256);
+      await tok1.connect(accountBorrower).approve(await pool2.getAddress(), ethers.MaxUint256);
+      await tok1.connect(accountDepositor).approve(await pool1.getAddress(), ethers.MaxUint256);
+      await tok1.connect(accountDepositor).approve(await pool2.getAddress(), ethers.MaxUint256);
 
       /* Deposit into pools */
       await pool1.connect(accountDepositor).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool2.connect(accountDepositor).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
 
       /* Set admin fee rate */
-      await poolFactory.setAdminFee(pool1.address, 500, ethers.constants.AddressZero, 0);
-      await poolFactory.setAdminFee(pool2.address, 700, accounts[2].address, 500);
+      await poolFactory.setAdminFee(await pool1.getAddress(), 500, ethers.ZeroAddress, 0);
+      await poolFactory.setAdminFee(await pool2.getAddress(), 700, accounts[2].address, 500);
 
       /* Borrow */
       const borrowTx1 = await pool1
@@ -654,7 +656,7 @@ describe("PoolFactory", function () {
         .borrow(
           FixedPoint.from("5"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           FixedPoint.from("6"),
           await sourceLiquidity(pool1, FixedPoint.from("5")),
@@ -668,7 +670,7 @@ describe("PoolFactory", function () {
       const decodedLoanReceipt1 = await loanReceiptLib.decode(loanReceipt1);
 
       /* Repay */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt1.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt1.maturity);
       await pool1.connect(accountBorrower).repay(loanReceipt1);
 
       /* Borrow */
@@ -677,7 +679,7 @@ describe("PoolFactory", function () {
         .borrow(
           FixedPoint.from("5"),
           30 * 86400,
-          nft1.address,
+          await nft1.getAddress(),
           123,
           FixedPoint.from("6"),
           await sourceLiquidity(pool1, FixedPoint.from("5")),
@@ -691,7 +693,7 @@ describe("PoolFactory", function () {
       const decodedLoanReceipt2 = await loanReceiptLib.decode(loanReceipt2);
 
       /* Repay */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt2.maturity.toNumber());
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt2.maturity);
       await pool2.connect(accountBorrower).repay(loanReceipt2);
     });
 
@@ -701,24 +703,24 @@ describe("PoolFactory", function () {
 
       const startingBalance = await tok1.balanceOf(accounts[2].address);
 
-      await poolFactory.withdrawAdminFees(pool1.address, accounts[2].address);
+      await poolFactory.withdrawAdminFees(await pool1.getAddress(), accounts[2].address);
 
-      expect(await tok1.balanceOf(accounts[2].address)).to.equal(startingBalance.add(adminFees1));
+      expect(await tok1.balanceOf(accounts[2].address)).to.equal(startingBalance + adminFees1);
 
-      await poolFactory.withdrawAdminFees(pool2.address, accounts[2].address);
+      await poolFactory.withdrawAdminFees(await pool2.getAddress(), accounts[2].address);
 
-      expect(await tok1.balanceOf(accounts[2].address)).to.equal(startingBalance.add(adminFees1).add(adminFees2));
+      expect(await tok1.balanceOf(accounts[2].address)).to.equal(startingBalance + adminFees1 + adminFees2);
     });
 
     it("fails on invalid pool address", async function () {
       await expect(
-        poolFactory.withdrawAdminFees(poolFactory.address, accounts[2].address)
+        poolFactory.withdrawAdminFees(await poolFactory.getAddress(), accounts[2].address)
       ).to.be.revertedWithCustomError(poolFactory, "InvalidPool");
     });
 
     it("fails on invalid caller", async function () {
       await expect(
-        poolFactory.connect(accounts[1]).withdrawAdminFees(pool1.address, accounts[2].address)
+        poolFactory.connect(accounts[1]).withdrawAdminFees(await pool1.getAddress(), accounts[2].address)
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
   });

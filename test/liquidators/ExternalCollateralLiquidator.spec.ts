@@ -26,7 +26,7 @@ describe("ExternalCollateralLiquidator", function () {
   let snapshotId: string;
   let accountLiquidator: SignerWithAddress;
   let accountEOA: SignerWithAddress;
-  let bundleTokenId: ethers.BigNumber;
+  let bundleTokenId: bigint;
 
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
@@ -42,52 +42,52 @@ describe("ExternalCollateralLiquidator", function () {
     );
 
     /* Deploy test currency token */
-    tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.utils.parseEther("1000"))) as TestERC20;
-    await tok1.deployed();
+    tok1 = (await testERC20Factory.deploy("Token 1", "TOK1", 18, ethers.parseEther("1000"))) as TestERC20;
+    await tok1.waitForDeployment();
 
     /* Deploy test NFT */
     nft1 = (await testERC721Factory.deploy("NFT 1", "NFT1", "https://nft1.com/token/")) as TestERC721;
-    await nft1.deployed();
+    await nft1.waitForDeployment();
 
     /* Deploy loan receipt library */
     loanReceiptLibrary = await testLoanReceiptFactory.deploy();
-    await loanReceiptLibrary.deployed();
+    await loanReceiptLibrary.waitForDeployment();
 
     /* Deploy collateral liquidator implementation */
     const collateralLiquidatorImpl = await externalCollateralLiquidatorFactory.deploy();
-    await collateralLiquidatorImpl.deployed();
+    await collateralLiquidatorImpl.waitForDeployment();
 
     /* Deploy collateral liquidator */
     const proxy = await testProxyFactory.deploy(
-      collateralLiquidatorImpl.address,
+      await collateralLiquidatorImpl.getAddress(),
       collateralLiquidatorImpl.interface.encodeFunctionData("initialize", [])
     );
-    await proxy.deployed();
+    await proxy.waitForDeployment();
     collateralLiquidator = (await ethers.getContractAt(
       "ExternalCollateralLiquidator",
-      proxy.address
+      await proxy.getAddress()
     )) as ExternalCollateralLiquidator;
 
     /* Deploy collateral liquidator testing jig */
     testCollateralLiquidatorJig = await testCollateralLiquidatorJigFactory.deploy(
-      tok1.address,
-      collateralLiquidator.address
+      await tok1.getAddress(),
+      await collateralLiquidator.getAddress()
     );
-    await testCollateralLiquidatorJig.deployed();
+    await testCollateralLiquidatorJig.waitForDeployment();
 
     /* Deploy collateral liquidator testing jig that reverts onCollateralLiquidate */
     testCollateralLiquidatorJigRevert = await testCollateralLiquidatorJigFactory.deploy(
-      tok1.address,
-      collateralLiquidator.address
+      await tok1.getAddress(),
+      await collateralLiquidator.getAddress()
     );
-    await testCollateralLiquidatorJigRevert.deployed();
+    await testCollateralLiquidatorJigRevert.waitForDeployment();
 
     /* Deploy collateral liquidator testing jig that does not implement onCollateralLiquidate */
     testCollateralLiquidatorJigTruncated = await testCollateralLiquidatorJigTruncatedFactory.deploy(
-      tok1.address,
-      collateralLiquidator.address
+      await tok1.getAddress(),
+      await collateralLiquidator.getAddress()
     );
-    await testCollateralLiquidatorJigRevert.deployed();
+    await testCollateralLiquidatorJigRevert.waitForDeployment();
 
     accountLiquidator = accounts[0];
     accountEOA = accounts[1];
@@ -95,29 +95,29 @@ describe("ExternalCollateralLiquidator", function () {
     /* Grant liquidator role to liquidator account */
     await collateralLiquidator.grantRole(
       await collateralLiquidator.COLLATERAL_LIQUIDATOR_ROLE(),
-      accountLiquidator.address
+      await accountLiquidator.getAddress()
     );
 
     /* Mint NFT to testing jig to simulate default */
-    await nft1.mint(testCollateralLiquidatorJig.address, 122);
+    await nft1.mint(await testCollateralLiquidatorJig.getAddress(), 122);
 
     /* Mint NFT to an EOA */
-    await nft1.mint(accountEOA.address, 129);
-    await nft1.connect(accountEOA).approve(collateralLiquidator.address, 129);
+    await nft1.mint(await accountEOA.getAddress(), 129);
+    await nft1.connect(accountEOA).approve(await collateralLiquidator.getAddress(), 129);
 
     /* Mint NFT to a testing jig that reverts onCollateralLiquidate() */
-    await nft1.mint(testCollateralLiquidatorJigRevert.address, 130);
+    await nft1.mint(await testCollateralLiquidatorJigRevert.getAddress(), 130);
 
     /* Mint NFT to a testing jig that does not implement onCollateralLiquidate() */
-    await nft1.mint(testCollateralLiquidatorJigTruncated.address, 131);
+    await nft1.mint(await testCollateralLiquidatorJigTruncated.getAddress(), 131);
 
     /* Transfer token to liquidator account and EOA account */
-    await tok1.transfer(accountLiquidator.address, ethers.utils.parseEther("100"));
-    await tok1.transfer(accountEOA.address, ethers.utils.parseEther("100"));
+    await tok1.transfer(await accountLiquidator.getAddress(), ethers.parseEther("100"));
+    await tok1.transfer(await accountEOA.getAddress(), ethers.parseEther("100"));
 
     /* Approve collateral liquidator to transfer token */
-    await tok1.connect(accountLiquidator).approve(collateralLiquidator.address, ethers.constants.MaxUint256);
-    await tok1.connect(accountEOA).approve(collateralLiquidator.address, ethers.constants.MaxUint256);
+    await tok1.connect(accountLiquidator).approve(await collateralLiquidator.getAddress(), ethers.MaxUint256);
+    await tok1.connect(accountEOA).approve(await collateralLiquidator.getAddress(), ethers.MaxUint256);
   });
 
   beforeEach("snapshot blockchain", async () => {
@@ -147,31 +147,31 @@ describe("ExternalCollateralLiquidator", function () {
 
   const loanReceiptTemplate = {
     version: 2,
-    principal: ethers.BigNumber.from("3000000000000000000"),
-    repayment: ethers.BigNumber.from("3040000000000000000"),
-    adminFee: ethers.BigNumber.from("2000000000000000"),
+    principal: BigInt("3000000000000000000"),
+    repayment: BigInt("3040000000000000000"),
+    adminFee: BigInt("2000000000000000"),
     borrower: "0x0CD36Fa7D9634994231Bc76Fb36938D56C6FE70E",
     maturity: 1685595600,
     duration: 2592000,
-    collateralToken: ethers.constants.AddressZero /* To be populated */,
+    collateralToken: ethers.ZeroAddress /* To be populated */,
     collateralTokenId: 0 /* To be populated */,
     collateralWrapperContextLen: 0,
     collateralWrapperContext: "0x",
     nodeReceipts: [
       {
-        tick: ethers.BigNumber.from("1000000000000000000"),
-        used: ethers.BigNumber.from("1000000000000000000"),
-        pending: ethers.BigNumber.from("1010000000000000000"),
+        tick: BigInt("1000000000000000000"),
+        used: BigInt("1000000000000000000"),
+        pending: BigInt("1010000000000000000"),
       },
       {
-        tick: ethers.BigNumber.from("2000000000000000000"),
-        used: ethers.BigNumber.from("1000000000000000000"),
-        pending: ethers.BigNumber.from("1010000000000000000"),
+        tick: BigInt("2000000000000000000"),
+        used: BigInt("1000000000000000000"),
+        pending: BigInt("1010000000000000000"),
       },
       {
-        tick: ethers.BigNumber.from("3000000000000000000"),
-        used: ethers.BigNumber.from("1000000000000000000"),
-        pending: ethers.BigNumber.from("1020000000000000000"),
+        tick: BigInt("3000000000000000000"),
+        used: BigInt("1000000000000000000"),
+        pending: BigInt("1020000000000000000"),
       },
     ],
   };
@@ -198,7 +198,7 @@ describe("ExternalCollateralLiquidator", function () {
   describe("#liquidate", async function () {
     it("succeeds calling liquidate on collateral", async function () {
       /* Construct loan reciept */
-      const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
+      const loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(await nft1.getAddress(), 122, 0, "0x"));
 
       /* Calling liquidate() */
       const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
@@ -213,21 +213,21 @@ describe("ExternalCollateralLiquidator", function () {
 
     it("fails with invalid token", async function () {
       /* Construct loan reciept */
-      const loanReceipt1 = await loanReceiptLibrary.encode(makeLoanReceipt(ethers.constants.AddressZero, 122, 0, "0x"));
+      const loanReceipt1 = await loanReceiptLibrary.encode(makeLoanReceipt(ethers.ZeroAddress, 122, 0, "0x"));
 
       /* Liquidate with invalid collateral token */
       await expect(
-        collateralLiquidator.liquidate(tok1.address, ethers.constants.AddressZero, 122, "0x", loanReceipt1)
+        collateralLiquidator.liquidate(await tok1.getAddress(), ethers.ZeroAddress, 122, "0x", loanReceipt1)
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidToken");
 
       /* Construct loan reciept */
-      const loanReceipt2 = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
+      const loanReceipt2 = await loanReceiptLibrary.encode(makeLoanReceipt(await nft1.getAddress(), 122, 0, "0x"));
 
       /* Liquidate with invalid currency token */
       await expect(
         collateralLiquidator
           .connect(accountEOA)
-          .liquidate(ethers.constants.AddressZero, nft1.address, 122, "0x", loanReceipt2)
+          .liquidate(ethers.ZeroAddress, await nft1.getAddress(), 122, "0x", loanReceipt2)
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidToken");
     });
   });
@@ -238,7 +238,7 @@ describe("ExternalCollateralLiquidator", function () {
 
     beforeEach("liquidate collateral", async function () {
       /* Construct loan reciept */
-      loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
+      loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(await nft1.getAddress(), 122, 0, "0x"));
 
       /* Calling liquidate() */
       const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
@@ -251,18 +251,25 @@ describe("ExternalCollateralLiquidator", function () {
       /* Withdraw collateral */
       const withdrawTx = await collateralLiquidator
         .connect(accountLiquidator)
-        .withdrawCollateral(testCollateralLiquidatorJig.address, tok1.address, nft1.address, 122, "0x", loanReceipt);
+        .withdrawCollateral(
+          await testCollateralLiquidatorJig.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          122,
+          "0x",
+          loanReceipt
+        );
 
       /* Validate events */
       await expectEvent(withdrawTx, nft1, "Transfer", {
-        from: collateralLiquidator.address,
-        to: accountLiquidator.address,
+        from: await collateralLiquidator.getAddress(),
+        to: await accountLiquidator.getAddress(),
         tokenId: 122,
       });
       await expectEvent(withdrawTx, collateralLiquidator, "CollateralWithdrawn", {
         collateralHash,
-        source: testCollateralLiquidatorJig.address,
-        collateralToken: nft1.address,
+        source: await testCollateralLiquidatorJig.getAddress(),
+        collateralToken: await nft1.getAddress(),
         collateralTokenId: 122,
       });
 
@@ -271,16 +278,16 @@ describe("ExternalCollateralLiquidator", function () {
     });
     it("fails on non-existent collateral", async function () {
       /* Construct loan reciept */
-      const absentLoanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 1, 0, "0x"));
+      const absentLoanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(await nft1.getAddress(), 1, 0, "0x"));
 
       /* Try to withdraw non-existent collateral */
       await expect(
         collateralLiquidator
           .connect(accountLiquidator)
           .withdrawCollateral(
-            testCollateralLiquidatorJig.address,
-            tok1.address,
-            nft1.address,
+            await testCollateralLiquidatorJig.getAddress(),
+            await tok1.getAddress(),
+            await nft1.getAddress(),
             1,
             "0x",
             absentLoanReceipt
@@ -292,20 +299,41 @@ describe("ExternalCollateralLiquidator", function () {
       /* Withdraw collateral */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .withdrawCollateral(testCollateralLiquidatorJig.address, tok1.address, nft1.address, 122, "0x", loanReceipt);
+        .withdrawCollateral(
+          await testCollateralLiquidatorJig.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          122,
+          "0x",
+          loanReceipt
+        );
 
       /* Try to withdraw collateral again */
       await expect(
         collateralLiquidator
           .connect(accountLiquidator)
-          .withdrawCollateral(testCollateralLiquidatorJig.address, tok1.address, nft1.address, 122, "0x", loanReceipt)
+          .withdrawCollateral(
+            await testCollateralLiquidatorJig.getAddress(),
+            await tok1.getAddress(),
+            await nft1.getAddress(),
+            122,
+            "0x",
+            loanReceipt
+          )
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidCollateralState");
     });
     it("fails on invalid caller", async function () {
       await expect(
         collateralLiquidator
           .connect(accountEOA)
-          .withdrawCollateral(testCollateralLiquidatorJig.address, tok1.address, nft1.address, 122, "0x", loanReceipt)
+          .withdrawCollateral(
+            await testCollateralLiquidatorJig.getAddress(),
+            await tok1.getAddress(),
+            await nft1.getAddress(),
+            122,
+            "0x",
+            loanReceipt
+          )
       ).to.be.revertedWith(/AccessControl: account .* is missing role .*/);
     });
   });
@@ -316,7 +344,7 @@ describe("ExternalCollateralLiquidator", function () {
 
     beforeEach("liquidate collateral", async function () {
       /* Construct loan reciept */
-      loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 122, 0, "0x"));
+      loanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(await nft1.getAddress(), 122, 0, "0x"));
 
       /* Calling liquidate() */
       const liquidateTx = await testCollateralLiquidatorJig.liquidate(loanReceipt);
@@ -329,19 +357,26 @@ describe("ExternalCollateralLiquidator", function () {
       /* Withdraw collateral */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .withdrawCollateral(testCollateralLiquidatorJig.address, tok1.address, nft1.address, 122, "0x", loanReceipt);
+        .withdrawCollateral(
+          await testCollateralLiquidatorJig.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          122,
+          "0x",
+          loanReceipt
+        );
 
       /* Liquidate collateral for 2.5 ETH */
       const liquidateTx = await collateralLiquidator
         .connect(accountLiquidator)
         .liquidateCollateral(
-          testCollateralLiquidatorJig.address,
-          tok1.address,
-          nft1.address,
+          await testCollateralLiquidatorJig.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
           122,
           "0x",
           loanReceipt,
-          ethers.utils.parseEther("2.5")
+          ethers.parseEther("2.5")
         );
 
       /* Validate events */
@@ -350,9 +385,9 @@ describe("ExternalCollateralLiquidator", function () {
         tok1,
         "Transfer",
         {
-          from: accountLiquidator.address,
-          to: collateralLiquidator.address,
-          value: ethers.utils.parseEther("2.5"),
+          from: await accountLiquidator.getAddress(),
+          to: await collateralLiquidator.getAddress(),
+          value: ethers.parseEther("2.5"),
         },
         0
       );
@@ -361,18 +396,18 @@ describe("ExternalCollateralLiquidator", function () {
         tok1,
         "Transfer",
         {
-          from: collateralLiquidator.address,
-          to: testCollateralLiquidatorJig.address,
-          value: ethers.utils.parseEther("2.5"),
+          from: await collateralLiquidator.getAddress(),
+          to: await testCollateralLiquidatorJig.getAddress(),
+          value: ethers.parseEther("2.5"),
         },
         1
       );
 
       await expectEvent(liquidateTx, collateralLiquidator, "CollateralLiquidated", {
         collateralHash,
-        collateralToken: nft1.address,
+        collateralToken: await nft1.getAddress(),
         collateralTokenId: 122,
-        proceeds: ethers.utils.parseEther("2.5"),
+        proceeds: ethers.parseEther("2.5"),
       });
 
       /* Valiate state */
@@ -384,32 +419,32 @@ describe("ExternalCollateralLiquidator", function () {
         collateralLiquidator
           .connect(accountLiquidator)
           .liquidateCollateral(
-            testCollateralLiquidatorJig.address,
-            tok1.address,
-            nft1.address,
+            await testCollateralLiquidatorJig.getAddress(),
+            await tok1.getAddress(),
+            await nft1.getAddress(),
             122,
             "0x",
             loanReceipt,
-            ethers.utils.parseEther("2.5")
+            ethers.parseEther("2.5")
           )
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidCollateralState");
     });
     it("fails on non-existent collateral", async function () {
       /* Construct loan reciept */
-      const absentLoanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(nft1.address, 1, 0, "0x"));
+      const absentLoanReceipt = await loanReceiptLibrary.encode(makeLoanReceipt(await nft1.getAddress(), 1, 0, "0x"));
 
       /* Try to liquidate non-existent collateral */
       await expect(
         collateralLiquidator
           .connect(accountLiquidator)
           .liquidateCollateral(
-            testCollateralLiquidatorJig.address,
-            tok1.address,
-            nft1.address,
+            await testCollateralLiquidatorJig.getAddress(),
+            await tok1.getAddress(),
+            await nft1.getAddress(),
             1,
             "0x",
             loanReceipt,
-            ethers.utils.parseEther("2.5")
+            ethers.parseEther("2.5")
           )
       ).to.be.revertedWithCustomError(collateralLiquidator, "InvalidCollateralState");
     });
@@ -418,19 +453,26 @@ describe("ExternalCollateralLiquidator", function () {
       /* Withdraw collateral */
       await collateralLiquidator
         .connect(accountLiquidator)
-        .withdrawCollateral(testCollateralLiquidatorJig.address, tok1.address, nft1.address, 122, "0x", loanReceipt);
+        .withdrawCollateral(
+          await testCollateralLiquidatorJig.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          122,
+          "0x",
+          loanReceipt
+        );
 
       await expect(
         collateralLiquidator
           .connect(accountEOA)
           .liquidateCollateral(
-            testCollateralLiquidatorJig.address,
-            tok1.address,
-            nft1.address,
+            await testCollateralLiquidatorJig.getAddress(),
+            await tok1.getAddress(),
+            await nft1.getAddress(),
             122,
             "0x",
             loanReceipt,
-            ethers.utils.parseEther("2.5")
+            ethers.parseEther("2.5")
           )
       ).to.be.revertedWith(/AccessControl: account .* is missing role .*/);
     });
