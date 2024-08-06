@@ -5,7 +5,7 @@ import { BigNumber } from "@ethersproject/bignumber";
 export class FixedPoint {
   static Zero = ethers.constants.Zero;
 
-  static from(x: string | number | BigNumber, decimals?: number = 18): BigNumber {
+  static from(x: string | number | BigNumber, decimals: number = 18): BigNumber {
     if (typeof x === "string") {
       return ethers.utils.parseEther(x).div(10 ** (18 - decimals));
     } else if (typeof x === "number") {
