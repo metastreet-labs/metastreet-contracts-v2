@@ -342,6 +342,7 @@ class LoanReceipt {
   nodeReceipts: NodeReceipt[];
   principal: BigInt;
   repayment: BigInt;
+  adminFee: BigInt;
   borrower: Address;
   maturity: BigInt;
   duration: BigInt;
@@ -353,6 +354,7 @@ class LoanReceipt {
     nodeReceipts: NodeReceipt[],
     principal: BigInt,
     repayment: BigInt,
+    adminFee: BigInt,
     borrower: Address,
     maturity: BigInt,
     duration: BigInt,
@@ -363,6 +365,7 @@ class LoanReceipt {
     this.nodeReceipts = nodeReceipts;
     this.principal = principal;
     this.repayment = repayment;
+    this.adminFee = adminFee;
     this.borrower = borrower;
     this.maturity = maturity;
     this.duration = duration;
@@ -407,6 +410,7 @@ function createLoanEntity(
   loanEntity.interests = interests;
   loanEntity.principal = loanReceipt.principal;
   loanEntity.repayment = loanReceipt.repayment;
+  loanEntity.adminFee = loanReceipt.adminFee;
   loanEntity.loanReceipt = encodedReceipt;
   loanEntity.collateralToken = poolEntity.collateralToken;
 
@@ -574,6 +578,7 @@ export function handleLoanOriginated(event: LoanOriginatedEvent): void {
       changetype<NodeReceipt[]>(r.nodeReceipts),
       r.principal,
       r.repayment,
+      ZERO,
       r.borrower,
       r.maturity,
       r.duration,
@@ -587,6 +592,7 @@ export function handleLoanOriginated(event: LoanOriginatedEvent): void {
       r.nodeReceipts,
       r.principal,
       r.repayment,
+      r.adminFee,
       r.borrower,
       r.maturity,
       r.duration,

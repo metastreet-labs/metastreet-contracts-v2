@@ -195,6 +195,7 @@ type Loan @entity {
   interests: [BigInt!]! # uint128[]
   principal: BigInt! # uint256
   repayment: BigInt! # uint256
+  adminFee: BigInt! # uint256
   proceeds: BigInt # uint256, if collateral is liquidated
   collateralWrapperContext: Bytes!
   # Raw Loan Receipt
