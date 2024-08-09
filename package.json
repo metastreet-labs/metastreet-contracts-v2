@@ -24,7 +24,7 @@
     "@openzeppelin/merkle-tree": "^1.0.5",
     "@typescript-eslint/eslint-plugin": "^8.0.1",
     "@typescript-eslint/parser": "^8.0.1",
-    "commander": "^10.0.0",
+    "commander": "^12.1.0",
     "dotenv": "^16.0.3",
     "eslint": "^8.31.0",
     "eslint-config-prettier": "^9.1.0",
