@@ -1982,8 +1982,8 @@ describe("Pool Basic", function () {
       (await nft1.ownerOf(123)) === accountBorrower.address
         ? 123
         : (await nft1.ownerOf(124)) === accountBorrower.address
-        ? 124
-        : 125;
+          ? 124
+          : 125;
 
     const ticks = await sourceLiquidity(principal);
 
@@ -3105,8 +3105,8 @@ describe("Pool Basic", function () {
         (await nft1.ownerOf(123)) === accountBorrower.address
           ? 123
           : (await nft1.ownerOf(124)) === accountBorrower.address
-          ? 124
-          : 125;
+            ? 124
+            : 125;
 
       /* Borrow to get loan receipt object */
       const borrowTx = await pool
@@ -3412,8 +3412,8 @@ describe("Pool Basic", function () {
         (await nft1.ownerOf(123)) === accountBorrower.address
           ? 123
           : (await nft1.ownerOf(124)) === accountBorrower.address
-          ? 124
-          : 125;
+            ? 124
+            : 125;
 
       /* Borrow to get loan receipt object */
       const borrowTx = await pool

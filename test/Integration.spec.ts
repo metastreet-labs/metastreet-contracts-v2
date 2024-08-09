@@ -330,7 +330,7 @@ describe("Integration", function () {
       ethers.BigNumber,
       ethers.BigNumber,
       ethers.BigNumber,
-      SignerWithAddress
+      SignerWithAddress,
     ][] = [];
     deposits.forEach(
       async (

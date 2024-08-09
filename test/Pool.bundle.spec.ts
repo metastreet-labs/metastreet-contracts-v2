@@ -280,8 +280,8 @@ describe("Pool Bundle", function () {
       (await nft1.ownerOf(123)) === accountBorrower.address
         ? 123
         : (await nft1.ownerOf(124)) === accountBorrower.address
-        ? 124
-        : 125;
+          ? 124
+          : 125;
 
     const ticks = await sourceLiquidity(principal);
 
