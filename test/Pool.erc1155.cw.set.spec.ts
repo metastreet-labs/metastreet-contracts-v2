@@ -21,7 +21,7 @@ import { extractEvent, expectEvent } from "./helpers/EventUtilities";
 import { FixedPoint } from "./helpers/FixedPoint";
 import { Tick } from "./helpers/Tick";
 
-describe("Pool ERC1155 Set Collection", function () {
+describe("Pool ERC1155 Collateral Wrapper Set Collection", function () {
   let accounts: SignerWithAddress[];
   let tok1: TestERC20;
   let nft1: TestERC1155;

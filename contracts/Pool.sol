@@ -659,6 +659,38 @@ abstract contract Pool is
         return (value % factor == 0 || !isRoundUp) ? value / factor : value / factor + 1;
     }
 
+    /**
+     * @dev Helper function to transfer collateral
+     * @param from From
+     * @param to To
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
+     */
+    function _transferCollateral(
+        address from,
+        address to,
+        address collateralToken,
+        uint256 collateralTokenId
+    ) internal virtual {
+        IERC721(collateralToken).transferFrom(from, to, collateralTokenId);
+    }
+
+    /**
+     * @dev Helper function to approve collateral transfer
+     * @param operator Operator
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
+     * @param isApprove True if granting permission, otherwise ignore
+     */
+    function _approveCollateral(
+        address operator,
+        address collateralToken,
+        uint256 collateralTokenId,
+        bool isApprove
+    ) internal virtual {
+        if (isApprove) IERC721(collateralToken).approve(operator, collateralTokenId);
+    }
+
     /**************************************************************************/
     /* Lend API */
     /**************************************************************************/
@@ -743,7 +775,7 @@ abstract contract Pool is
         );
 
         /* Transfer collateral from borrower to pool */
-        IERC721(collateralToken).transferFrom(msg.sender, address(this), collateralTokenId);
+        _transferCollateral(msg.sender, address(this), collateralToken, collateralTokenId);
 
         /* Transfer principal from pool to borrower */
         _storage.currencyToken.safeTransfer(msg.sender, principal);
@@ -783,9 +815,10 @@ abstract contract Pool is
         _storage.currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), unscaledRepayment);
 
         /* Transfer collateral from pool to borrower */
-        IERC721(loanReceipt.collateralToken).transferFrom(
+        _transferCollateral(
             address(this),
             loanReceipt.borrower,
+            loanReceipt.collateralToken,
             loanReceipt.collateralTokenId
         );
 
@@ -906,7 +939,12 @@ abstract contract Pool is
         );
 
         /* Approve collateral for transfer to _collateralLiquidator */
-        IERC721(loanReceipt.collateralToken).approve(address(_collateralLiquidator), loanReceipt.collateralTokenId);
+        _approveCollateral(
+            address(_collateralLiquidator),
+            loanReceipt.collateralToken,
+            loanReceipt.collateralTokenId,
+            true
+        );
 
         /* Start liquidation with collateral liquidator */
         _collateralLiquidator.liquidate(
@@ -915,6 +953,14 @@ abstract contract Pool is
             loanReceipt.collateralTokenId,
             loanReceipt.collateralWrapperContext,
             encodedLoanReceipt
+        );
+
+        /* Remove approval for collateral transfer to _collateralLiquidator */
+        _approveCollateral(
+            address(_collateralLiquidator),
+            loanReceipt.collateralToken,
+            loanReceipt.collateralTokenId,
+            false
         );
 
         /* Emit Loan Liquidated */
@@ -1125,7 +1171,7 @@ abstract contract Pool is
     /**
      * @inheritdoc IERC165
      */
-    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165) returns (bool) {
         return interfaceId == type(ICollateralLiquidationReceiver).interfaceId || super.supportsInterface(interfaceId);
     }
 }

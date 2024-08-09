@@ -948,7 +948,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await liquidateTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(200000);
+      expect(gasUsed).to.be.lt(201000);
     });
 
     describe("english auction collateral liquidator", async function () {
@@ -1165,7 +1165,7 @@ describe("Pool Gas", function () {
         const gasUsed = (await claimTx.wait()).gasUsed;
         gasReport.push([this.test.title, gasUsed]);
 
-        expect(gasUsed).to.be.lt(510000);
+        expect(gasUsed).to.be.lt(511000);
       });
 
       it("claim (first / middle / last of bundle, english auction)", async function () {

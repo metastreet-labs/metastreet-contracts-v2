@@ -4,8 +4,12 @@ pragma solidity 0.8.25;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 import "../interfaces/ICollateralLiquidationReceiver.sol";
 import "../interfaces/ICollateralLiquidator.sol";
@@ -15,7 +19,7 @@ import "../interfaces/IPool.sol";
  * @title External Collateral Liquidator (trusted)
  * @author MetaStreet Labs
  */
-contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, ReentrancyGuard {
+contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, ReentrancyGuard, ERC1155Holder {
     using SafeERC20 for IERC20;
 
     /**************************************************************************/
@@ -244,7 +248,11 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
         if (_collateralTracker[collateralHash] != CollateralStatus.Absent) revert InvalidLiquidation();
 
         /* Transfer collateral token from source to this contract */
-        IERC721(collateralToken).transferFrom(msg.sender, address(this), collateralTokenId);
+        if (ERC165Checker.supportsInterface(collateralToken, type(IERC1155).interfaceId)) {
+            IERC1155(collateralToken).safeTransferFrom(msg.sender, address(this), collateralTokenId, 1, "");
+        } else {
+            IERC721(collateralToken).transferFrom(msg.sender, address(this), collateralTokenId);
+        }
 
         /* Update collateral tracker */
         _collateralTracker[collateralHash] = CollateralStatus.Present;
@@ -287,7 +295,11 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
         if (_collateralTracker[collateralHash] != CollateralStatus.Present) revert InvalidCollateralState();
 
         /* Transfer collateral to caller */
-        IERC721(collateralToken).safeTransferFrom(address(this), msg.sender, collateralTokenId);
+        if (ERC165Checker.supportsInterface(collateralToken, type(IERC1155).interfaceId)) {
+            IERC1155(collateralToken).safeTransferFrom(address(this), msg.sender, collateralTokenId, 1, "");
+        } else {
+            IERC721(collateralToken).safeTransferFrom(address(this), msg.sender, collateralTokenId);
+        }
 
         /* Update collateral tracker */
         _collateralTracker[collateralHash] = CollateralStatus.Withdrawn;
@@ -343,5 +355,16 @@ contract ExternalCollateralLiquidator is AccessControl, ICollateralLiquidator, R
 
         /* Delete underlying collateral */
         delete _collateralTracker[collateralHash];
+    }
+
+    /******************************************************/
+    /* ERC165 interface */
+    /******************************************************/
+
+    /**
+     * @inheritdoc IERC165
+     */
+    function supportsInterface(bytes4 interfaceId) public view override(ERC1155Receiver, AccessControl) returns (bool) {
+        return super.supportsInterface(interfaceId);
     }
 }
