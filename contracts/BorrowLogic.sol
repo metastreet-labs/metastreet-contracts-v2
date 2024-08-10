@@ -436,8 +436,13 @@ library BorrowLogic {
             uint256 restored = (i == lastIndex)
                 ? proceedsRemaining
                 : Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining) +
-                    (lendersSurplus * (loanReceipt.nodeReceipts[i].pending - loanReceipt.nodeReceipts[i].used)) /
-                    totalInterest;
+                    (
+                        totalInterest != 0
+                            ? (lendersSurplus *
+                                (loanReceipt.nodeReceipts[i].pending - loanReceipt.nodeReceipts[i].used)) /
+                                totalInterest
+                            : 0
+                    );
 
             /* Restore node */
             self.liquidity.restore(

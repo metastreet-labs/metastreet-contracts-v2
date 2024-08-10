@@ -4109,6 +4109,55 @@ describe("Pool Basic", function () {
         expect(node.pending).to.equal(0n);
       }
     });
+
+    it("processes liquidated loan with zero interest using two ticks", async function () {
+      /* Create two new ticks */
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode(500n), FixedPoint.from("25"), 0);
+      await pool.connect(accountDepositors[0]).deposit(Tick.encode(1000n), FixedPoint.from("25"), 0);
+
+      /* Borrow */
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(1000n, 1);
+
+      /* Decode loan receipt */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      /* Validate total interest is zero */
+      expect(decodedLoanReceipt.repayment - decodedLoanReceipt.principal).to.equal(0n);
+
+      /* Validate two ticks used */
+      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(2);
+
+      /* Wait for loan expiration */
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity + 1n);
+
+      /* Process expiration */
+      await pool.liquidate(loanReceipt);
+
+      /* Withdraw collateral */
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .withdrawCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt
+        );
+
+      /* Liquidate collateral and process liquidation */
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .liquidateCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt,
+          1000n
+        );
+    });
   });
 
   /****************************************************************************/
