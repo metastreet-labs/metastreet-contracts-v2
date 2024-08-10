@@ -4,10 +4,16 @@ import fs from "fs";
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-ethers";
+import "@nomicfoundation/hardhat-ledger";
 import "hardhat-tracer";
 import "hardhat-contract-sizer";
 
 dotenv.config();
+
+const accountsConfig = {
+  accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : undefined,
+  ledgerAccounts: [process.env.LEDGER_ADDRESS].filter((x) => x !== undefined),
+};
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -50,23 +56,23 @@ const config: HardhatUserConfig = {
     },
     mainnet: {
       url: process.env.MAINNET_URL || "",
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      ...accountsConfig,
     },
     goerli: {
       url: process.env.GOERLI_URL || "",
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      ...accountsConfig,
     },
     sepolia: {
       url: process.env.SEPOLIA_URL || "",
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      ...accountsConfig,
     },
     blast: {
       url: process.env.BLAST_URL || "",
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      ...accountsConfig,
     },
     base: {
       url: process.env.BASE_URL || "",
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      ...accountsConfig,
     },
   },
   etherscan: {
