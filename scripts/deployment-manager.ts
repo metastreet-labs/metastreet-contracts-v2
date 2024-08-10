@@ -1,25 +1,20 @@
-import { ethers, artifacts } from "hardhat";
+import { ethers } from "ethers";
+import { default as hre, artifacts } from "hardhat";
 import { Command, InvalidArgumentError } from "commander";
 import fs from "fs";
-
-import { ContractFactory } from "@ethersproject/contracts";
-import { BigNumber } from "@ethersproject/bignumber";
-import { Network } from "@ethersproject/networks";
-import { Signer } from "@ethersproject/abstract-signer";
-import { LedgerSigner } from "@anders-t/ethers-ledger";
 
 import { PoolFactory, UpgradeableBeacon, ITransparentUpgradeableProxy, Ownable } from "../typechain";
 
 interface LoanReceipt {
-  version: number;
-  principal: BigNumber;
-  repayment: BigNumber;
+  version: bigint;
+  principal: bigint;
+  repayment: bigint;
   borrower: string;
-  maturity: BigNumber;
-  duration: BigNumber;
+  maturity: bigint;
+  duration: bigint;
   collateralToken: string;
-  collateralTokenId: BigNumber;
-  collateralWrapperContextLen: number;
+  collateralTokenId: bigint;
+  collateralWrapperContextLen: bigint;
   collateralWrapperContext: string;
   nodeReceipts: any[];
 }
@@ -28,7 +23,7 @@ interface LoanReceipt {
 /* Global Signer */
 /******************************************************************************/
 
-let signer: Signer | undefined;
+let signer: ethers.Signer | undefined;
 
 /******************************************************************************/
 /* Deployment */
@@ -36,7 +31,7 @@ let signer: Signer | undefined;
 
 class Deployment {
   name?: string;
-  chainId?: number;
+  chainId?: bigint;
   poolFactory?: string;
   /* Contract Name to Proxy and Beacon Addresses */
   collateralLiquidators: { [name: string]: { address: string; beacon: string } };
@@ -51,7 +46,7 @@ class Deployment {
 
   constructor(
     name?: string,
-    chainId?: number,
+    chainId?: bigint,
     poolFactory?: string,
     collateralLiquidators?: { [name: string]: { address: string; beacon: string } },
     collateralWrappers?: { [name: string]: string },
@@ -73,7 +68,7 @@ class Deployment {
     const obj: Deployment = JSON.parse(fs.readFileSync(path, "utf-8"));
     return new Deployment(
       obj.name,
-      obj.chainId,
+      obj.chainId ? BigInt(obj.chainId) : undefined,
       obj.poolFactory,
       obj.collateralLiquidators,
       obj.collateralWrappers,
@@ -83,12 +78,12 @@ class Deployment {
     );
   }
 
-  static fromScratch(network: Network): Deployment {
+  static fromScratch(network: ethers.Network): Deployment {
     return new Deployment(network.name, network.chainId);
   }
 
   toFile(path: string) {
-    fs.writeFileSync(path, JSON.stringify(this), { encoding: "utf-8" });
+    fs.writeFileSync(path, JSON.stringify({ ...this, chainId: Number(this.chainId) }), { encoding: "utf-8" });
   }
 
   dump() {
@@ -108,44 +103,44 @@ class Deployment {
 /******************************************************************************/
 
 async function getImplementationVersion(address: string): Promise<string> {
-  const contract = await ethers.getContractAt(["function IMPLEMENTATION_VERSION() view returns (string)"], address);
+  const contract = await hre.ethers.getContractAt(["function IMPLEMENTATION_VERSION() view returns (string)"], address);
   return await contract.IMPLEMENTATION_VERSION();
 }
 
 async function getOwner(address: string): Promise<string> {
-  const ownableContract = (await ethers.getContractAt("Ownable", address)) as Ownable;
+  const ownableContract = (await hre.ethers.getContractAt("Ownable", address)) as Ownable;
   return await ownableContract.owner();
 }
 
 async function getBeaconImplementation(address: string): Promise<string> {
-  const upgradeableBeacon = (await ethers.getContractAt("UpgradeableBeacon", address)) as UpgradeableBeacon;
+  const upgradeableBeacon = (await hre.ethers.getContractAt("UpgradeableBeacon", address)) as UpgradeableBeacon;
   return await upgradeableBeacon.implementation();
 }
 
 async function getTransparentProxyImplementation(address: string): Promise<string> {
   const implementationSlot = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
-  const implementationSlotData = await ethers.provider.getStorageAt(address, implementationSlot);
-  return ethers.utils.getAddress(ethers.utils.hexDataSlice(implementationSlotData, 12));
+  const implementationSlotData = await hre.ethers.provider.getStorage(address, implementationSlot);
+  return ethers.getAddress(ethers.dataSlice(implementationSlotData, 12));
 }
 
 async function getTransparentProxyAdmin(address: string): Promise<string> {
   const adminSlot = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
-  const adminSlotData = await ethers.provider.getStorageAt(address, adminSlot);
-  return ethers.utils.getAddress(ethers.utils.hexDataSlice(adminSlotData, 12));
+  const adminSlotData = await hre.ethers.provider.getStorage(address, adminSlot);
+  return ethers.getAddress(ethers.dataSlice(adminSlotData, 12));
 }
 
 async function getCollateralWrappers(address: string): Promise<string[]> {
-  const contract = await ethers.getContractAt(["function collateralWrappers() view returns (address[])"], address);
-  return (await contract.collateralWrappers()).filter((e: string) => e !== ethers.constants.AddressZero);
+  const contract = await hre.ethers.getContractAt(["function collateralWrappers() view returns (address[])"], address);
+  return (await contract.collateralWrappers()).filter((e: string) => e !== ethers.ZeroAddress);
 }
 
 async function getCollateralWrapperName(address: string): Promise<string> {
-  const contract = await ethers.getContractAt(["function name() view returns (string)"], address);
+  const contract = await hre.ethers.getContractAt(["function name() view returns (string)"], address);
   return await contract.name();
 }
 
 async function getAddressType(address: string): Promise<"EOA" | "Contract"> {
-  return (await ethers.provider.getCode(address)) === "0x" ? "EOA" : "Contract";
+  return (await hre.ethers.provider.getCode(address)) === "0x" ? "EOA" : "Contract";
 }
 
 function decodeArgs(args: string[]): (string | string[])[] {
@@ -169,10 +164,10 @@ async function deploymentShow(deployment: Deployment) {
   console.log("Pool Factory");
   console.log(`  Address: ${deployment.poolFactory || "Not Deployed"}`);
   if (deployment.poolFactory) {
-    const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory)) as PoolFactory;
+    const poolFactory = (await hre.ethers.getContractAt("PoolFactory", deployment.poolFactory)) as PoolFactory;
     const impl = await poolFactory.getImplementation();
     const version = await getImplementationVersion(impl);
-    const owner = await getOwner(poolFactory.address);
+    const owner = await getOwner(await poolFactory.getAddress());
     console.log(`  Impl:    ${impl}`);
     console.log(`  Version: ${version}`);
     console.log(`  Owner:   ${owner} (${await getAddressType(owner)})`);
@@ -261,22 +256,22 @@ async function poolFactoryDeploy(deployment: Deployment) {
     return;
   }
 
-  const poolFactoryFactory = await ethers.getContractFactory("PoolFactory", signer);
-  const erc1967ProxyFactory = await ethers.getContractFactory("ERC1967Proxy", signer);
+  const poolFactoryFactory = await hre.ethers.getContractFactory("PoolFactory", signer);
+  const erc1967ProxyFactory = await hre.ethers.getContractFactory("ERC1967Proxy", signer);
 
   /* Deploy Pool Factory implementation */
   const poolFactoryImpl = await poolFactoryFactory.deploy();
-  await poolFactoryImpl.deployed();
+  await poolFactoryImpl.waitForDeployment();
 
   /* Deploy Pool Factory */
   const poolFactory = await erc1967ProxyFactory.deploy(
-    poolFactoryImpl.address,
+    await poolFactoryImpl.getAddress(),
     poolFactoryImpl.interface.encodeFunctionData("initialize")
   );
-  await poolFactory.deployed();
-  console.log(`Pool Factory: ${poolFactory.address}`);
+  await poolFactory.waitForDeployment();
+  console.log(`Pool Factory: ${await poolFactory.getAddress()}`);
 
-  deployment.poolFactory = poolFactory.address;
+  deployment.poolFactory = await poolFactory.getAddress();
 }
 
 async function poolFactoryUpgrade(deployment: Deployment) {
@@ -285,8 +280,8 @@ async function poolFactoryUpgrade(deployment: Deployment) {
     return;
   }
 
-  const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
-  const poolFactoryFactory = await ethers.getContractFactory("PoolFactory", signer);
+  const poolFactory = (await hre.ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
+  const poolFactoryFactory = await hre.ethers.getContractFactory("PoolFactory", signer);
 
   console.log(`Old Pool Factory Implementation: ${await poolFactory.getImplementation()}`);
   console.log(
@@ -295,18 +290,19 @@ async function poolFactoryUpgrade(deployment: Deployment) {
 
   /* Deploy Pool Factory implementation */
   const poolFactoryImpl = await poolFactoryFactory.deploy();
-  await poolFactoryImpl.deployed();
+  await poolFactoryImpl.waitForDeployment();
 
-  console.log(`New Pool Factory Implementation: ${poolFactoryImpl.address}`);
-  console.log(`New Pool Factory Version:        ${await getImplementationVersion(poolFactoryImpl.address)}`);
+  console.log(`New Pool Factory Implementation: ${await poolFactoryImpl.getAddress()}`);
+  console.log(`New Pool Factory Version:        ${await getImplementationVersion(await poolFactoryImpl.getAddress())}`);
 
   /* Upgrade Pool Factory implementation */
-  if ((await signer!.getAddress()) === (await getOwner(poolFactory.address))) {
-    await poolFactory.upgradeToAndCall(poolFactoryImpl.address, "0x");
+  if ((await signer!.getAddress()) === (await getOwner(await poolFactory.getAddress()))) {
+    await poolFactory.upgradeToAndCall(await poolFactoryImpl.getAddress(), "0x");
   } else {
-    const calldata = (await poolFactory.populateTransaction.upgradeToAndCall(poolFactoryImpl.address, "0x")).data;
+    const calldata = (await poolFactory.upgradeToAndCall.populateTransaction(await poolFactoryImpl.getAddress(), "0x"))
+      .data;
     console.log(`\nUpgrade Calldata`);
-    console.log(`  Target:   ${poolFactory.address}`);
+    console.log(`  Target:   ${await poolFactory.getAddress()}`);
     console.log(`  Calldata: ${calldata}`);
   }
 }
@@ -317,7 +313,7 @@ async function poolFactoryList(deployment: Deployment) {
     return;
   }
 
-  const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory)) as PoolFactory;
+  const poolFactory = (await hre.ethers.getContractAt("PoolFactory", deployment.poolFactory)) as PoolFactory;
 
   const pools = await poolFactory.getPools();
 
@@ -333,7 +329,7 @@ async function poolFactoryListImplementations(deployment: Deployment) {
     return;
   }
 
-  const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory)) as PoolFactory;
+  const poolFactory = (await hre.ethers.getContractAt("PoolFactory", deployment.poolFactory)) as PoolFactory;
 
   const impls = await poolFactory.getPoolImplementations();
 
@@ -349,14 +345,14 @@ async function poolFactoryAddImplementation(deployment: Deployment, implementati
     return;
   }
 
-  const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
+  const poolFactory = (await hre.ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
 
-  if ((await signer!.getAddress()) === (await getOwner(poolFactory.address))) {
+  if ((await signer!.getAddress()) === (await getOwner(await poolFactory.getAddress()))) {
     await poolFactory.addPoolImplementation(implementation);
   } else {
-    const calldata = (await poolFactory.populateTransaction.addPoolImplementation(implementation)).data;
+    const calldata = (await poolFactory.addPoolImplementation.populateTransaction(implementation)).data;
     console.log(`Add Pool Implementation Calldata`);
-    console.log(`  Target:   ${poolFactory.address}`);
+    console.log(`  Target:   ${await poolFactory.getAddress()}`);
     console.log(`  Calldata: ${calldata}`);
   }
 }
@@ -367,14 +363,14 @@ async function poolFactoryRemoveImplementation(deployment: Deployment, implement
     return;
   }
 
-  const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
+  const poolFactory = (await hre.ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
 
-  if ((await signer!.getAddress()) === (await getOwner(poolFactory.address))) {
+  if ((await signer!.getAddress()) === (await getOwner(await poolFactory.getAddress()))) {
     await poolFactory.removePoolImplementation(implementation);
   } else {
-    const calldata = (await poolFactory.populateTransaction.removePoolImplementation(implementation)).data;
+    const calldata = (await poolFactory.removePoolImplementation.populateTransaction(implementation)).data;
     console.log(`Remove Pool Implementation Calldata`);
-    console.log(`  Target:   ${poolFactory.address}`);
+    console.log(`  Target:   ${await poolFactory.getAddress()}`);
     console.log(`  Calldata: ${calldata}`);
   }
 }
@@ -391,15 +387,15 @@ async function poolFactorySetAdminFee(
     return;
   }
 
-  const poolFactory = (await ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
+  const poolFactory = (await hre.ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
 
-  if ((await signer!.getAddress()) === (await getOwner(poolFactory.address))) {
+  if ((await signer!.getAddress()) === (await getOwner(await poolFactory.getAddress()))) {
     await poolFactory.setAdminFee(pool, rate, feeShareRecipient, feeShareSplit);
   } else {
-    const calldata = (await poolFactory.populateTransaction.setAdminFee(pool, rate, feeShareRecipient, feeShareSplit))
+    const calldata = (await poolFactory.setAdminFee.populateTransaction(pool, rate, feeShareRecipient, feeShareSplit))
       .data;
     console.log(`Set Admin Fee Calldata`);
-    console.log(`  Target:   ${poolFactory.address}`);
+    console.log(`  Target:   ${await poolFactory.getAddress()}`);
     console.log(`  Calldata: ${calldata}`);
   }
 }
@@ -419,29 +415,32 @@ async function collateralLiquidatorDeploy(
     return;
   }
 
-  const collateralLiquidatorFactory = await ethers.getContractFactory(contractName, signer);
-  const upgradeableBeaconFactory = await ethers.getContractFactory("UpgradeableBeacon", signer);
-  const beaconProxyFactory = await ethers.getContractFactory("BeaconProxy", signer);
+  const collateralLiquidatorFactory = await hre.ethers.getContractFactory(contractName, signer);
+  const upgradeableBeaconFactory = await hre.ethers.getContractFactory("UpgradeableBeacon", signer);
+  const beaconProxyFactory = await hre.ethers.getContractFactory("BeaconProxy", signer);
 
   /* Deploy implementation contract */
   const collateralLiquidatorImpl = await collateralLiquidatorFactory.deploy(...decodeArgs(ctorArgs));
-  await collateralLiquidatorImpl.deployed();
-  console.log(`Collateral Liquidator Implementation: ${collateralLiquidatorImpl.address}`);
+  await collateralLiquidatorImpl.waitForDeployment();
+  console.log(`Collateral Liquidator Implementation: ${await collateralLiquidatorImpl.getAddress()}`);
 
   /* Deploy upgradeable beacon */
-  const upgradeableBeacon = await upgradeableBeaconFactory.deploy(collateralLiquidatorImpl.address);
-  await upgradeableBeacon.deployed();
-  console.log(`Collateral Liquidator Beacon:         ${upgradeableBeacon.address}`);
+  const upgradeableBeacon = await upgradeableBeaconFactory.deploy(await collateralLiquidatorImpl.getAddress());
+  await upgradeableBeacon.waitForDeployment();
+  console.log(`Collateral Liquidator Beacon:         ${await upgradeableBeacon.getAddress()}`);
 
   /* Deploy beacon proxy */
   const beaconProxy = await beaconProxyFactory.deploy(
-    upgradeableBeacon.address,
+    await upgradeableBeacon.getAddress(),
     collateralLiquidatorImpl.interface.encodeFunctionData("initialize", decodeArgs(initArgs))
   );
-  await beaconProxy.deployed();
-  console.log(`Collateral Liquidator Proxy:          ${beaconProxy.address}`);
+  await beaconProxy.waitForDeployment();
+  console.log(`Collateral Liquidator Proxy:          ${await beaconProxy.getAddress()}`);
 
-  deployment.collateralLiquidators[contractName] = { address: beaconProxy.address, beacon: upgradeableBeacon.address };
+  deployment.collateralLiquidators[contractName] = {
+    address: await beaconProxy.getAddress(),
+    beacon: await upgradeableBeacon.getAddress(),
+  };
 }
 
 async function collateralLiquidatorUpgrade(deployment: Deployment, contractName: string, args: string[]) {
@@ -450,12 +449,12 @@ async function collateralLiquidatorUpgrade(deployment: Deployment, contractName:
     return;
   }
 
-  const upgradeableBeacon = (await ethers.getContractAt(
+  const upgradeableBeacon = (await hre.ethers.getContractAt(
     "UpgradeableBeacon",
     deployment.collateralLiquidators[contractName].beacon,
     signer
   )) as UpgradeableBeacon;
-  const collateralLiquidatorFactory = await ethers.getContractFactory(contractName, signer);
+  const collateralLiquidatorFactory = await hre.ethers.getContractFactory(contractName, signer);
 
   console.log(`Old Collateral Liquidator Implementation: ${await upgradeableBeacon.implementation()}`);
   console.log(
@@ -466,20 +465,22 @@ async function collateralLiquidatorUpgrade(deployment: Deployment, contractName:
 
   /* Deploy new implementation contract */
   const collateralLiquidatorImpl = await collateralLiquidatorFactory.deploy(...decodeArgs(args));
-  await collateralLiquidatorImpl.deployed();
+  await collateralLiquidatorImpl.waitForDeployment();
 
-  console.log(`New Collateral Liquidator Implementation: ${collateralLiquidatorImpl.address}`);
+  console.log(`New Collateral Liquidator Implementation: ${await collateralLiquidatorImpl.getAddress()}`);
   console.log(
-    `New Collateral Liquidator Version:        ${await getImplementationVersion(collateralLiquidatorImpl.address)}`
+    `New Collateral Liquidator Version:        ${await getImplementationVersion(await collateralLiquidatorImpl.getAddress())}`
   );
 
   /* Upgrade beacon */
-  if ((await signer!.getAddress()) === (await getOwner(upgradeableBeacon.address))) {
-    await upgradeableBeacon.upgradeTo(collateralLiquidatorImpl.address);
+  if ((await signer!.getAddress()) === (await getOwner(await upgradeableBeacon.getAddress()))) {
+    await upgradeableBeacon.upgradeTo(await collateralLiquidatorImpl.getAddress());
   } else {
-    const calldata = (await upgradeableBeacon.populateTransaction.upgradeTo(collateralLiquidatorImpl.address)).data;
+    const calldata = (
+      await upgradeableBeacon.upgradeTo.populateTransaction(await collateralLiquidatorImpl.getAddress())
+    ).data;
     console.log(`\nUpgrade Calldata`);
-    console.log(`  Target:   ${upgradeableBeacon.address}`);
+    console.log(`  Target:   ${await upgradeableBeacon.getAddress()}`);
     console.log(`  Calldata: ${calldata}`);
   }
 }
@@ -494,24 +495,24 @@ async function collateralWrapperDeploy(deployment: Deployment, contractName: str
     return;
   }
 
-  const collateralWrapperFactory = await ethers.getContractFactory(contractName, signer);
-  const transparentUpgradeableProxyFactory = await ethers.getContractFactory("TransparentUpgradeableProxy", signer);
+  const collateralWrapperFactory = await hre.ethers.getContractFactory(contractName, signer);
+  const transparentUpgradeableProxyFactory = await hre.ethers.getContractFactory("TransparentUpgradeableProxy", signer);
 
   /* Deploy implementation contract */
   const collateralWrapperImpl = await collateralWrapperFactory.deploy(...decodeArgs(args));
-  await collateralWrapperImpl.deployed();
-  console.log(`Collateral Wrapper Implementation: ${collateralWrapperImpl.address}`);
+  await collateralWrapperImpl.waitForDeployment();
+  console.log(`Collateral Wrapper Implementation: ${await collateralWrapperImpl.getAddress()}`);
 
   /* Deploy transparent proxy */
   const collateralWrapper = await transparentUpgradeableProxyFactory.deploy(
-    collateralWrapperImpl.address,
+    await collateralWrapperImpl.getAddress(),
     await signer!.getAddress(),
     "0x"
   );
-  await collateralWrapper.deployed();
-  console.log(`Collateral Wrapper Proxy:          ${collateralWrapper.address}`);
+  await collateralWrapper.waitForDeployment();
+  console.log(`Collateral Wrapper Proxy:          ${await collateralWrapper.getAddress()}`);
 
-  deployment.collateralWrappers[contractName] = collateralWrapper.address;
+  deployment.collateralWrappers[contractName] = await collateralWrapper.getAddress();
 }
 
 async function collateralWrapperUpgrade(deployment: Deployment, contractName: string, args: string[]) {
@@ -520,30 +521,32 @@ async function collateralWrapperUpgrade(deployment: Deployment, contractName: st
     return;
   }
 
-  const collateralWrapperProxy = (await ethers.getContractAt(
+  const collateralWrapperProxy = (await hre.ethers.getContractAt(
     "ITransparentUpgradeableProxy",
     deployment.collateralWrappers[contractName],
     signer
   )) as ITransparentUpgradeableProxy;
-  const collateralWrapperFactory = await ethers.getContractFactory(contractName, signer);
+  const collateralWrapperFactory = await hre.ethers.getContractFactory(contractName, signer);
 
   console.log(
-    `Old Collateral Wrapper Implementation: ${await getTransparentProxyImplementation(collateralWrapperProxy.address)}`
+    `Old Collateral Wrapper Implementation: ${await getTransparentProxyImplementation(await collateralWrapperProxy.getAddress())}`
   );
 
   /* Deploy new implementation contract */
   const collateralWrapperImpl = await collateralWrapperFactory.deploy(...decodeArgs(args));
-  await collateralWrapperImpl.deployed();
+  await collateralWrapperImpl.waitForDeployment();
 
-  console.log(`New Collateral Wrapper Implementation: ${collateralWrapperImpl.address}`);
+  console.log(`New Collateral Wrapper Implementation: ${await collateralWrapperImpl.getAddress()}`);
 
   /* Upgrade proxy */
-  if ((await signer!.getAddress()) === (await getTransparentProxyAdmin(collateralWrapperProxy.address))) {
-    await collateralWrapperProxy.upgradeTo(collateralWrapperImpl.address);
+  if ((await signer!.getAddress()) === (await getTransparentProxyAdmin(await collateralWrapperProxy.getAddress()))) {
+    await collateralWrapperProxy.upgradeTo(await collateralWrapperImpl.getAddress());
   } else {
-    const calldata = (await collateralWrapperProxy.populateTransaction.upgradeTo(collateralWrapperImpl.address)).data;
+    const calldata = (
+      await collateralWrapperProxy.upgradeTo.populateTransaction(await collateralWrapperImpl.getAddress())
+    ).data;
     console.log(`\nUpgrade Calldata`);
-    console.log(`  Target:   ${collateralWrapperProxy.address}`);
+    console.log(`  Target:   ${await collateralWrapperProxy.getAddress()}`);
     console.log(`  Calldata: ${calldata}`);
   }
 }
@@ -569,7 +572,10 @@ async function libraryCacheStore(deployment: Deployment, bytecodeHash: string, d
   fs.writeFileSync(path, JSON.stringify(cache), { encoding: "utf-8" });
 }
 
-async function poolImplementationFactory(deployment: Deployment, contractName: string): Promise<ContractFactory> {
+async function poolImplementationFactory(
+  deployment: Deployment,
+  contractName: string
+): Promise<ethers.ContractFactory> {
   /* Lookup libraries for Pool implementation contract */
   const poolImplLinkReferences = (await artifacts.readArtifact(contractName)).linkReferences;
   const libraryEntries = Object.entries(poolImplLinkReferences).flatMap(([k, v]) =>
@@ -580,8 +586,8 @@ async function poolImplementationFactory(deployment: Deployment, contractName: s
   const libraries: { [key: string]: string } = {};
   console.log();
   for (const libraryEntry of libraryEntries) {
-    const libFactory = await ethers.getContractFactory(libraryEntry.fullName, signer);
-    const libBytecodeHash = ethers.utils.keccak256(libFactory.bytecode);
+    const libFactory = await hre.ethers.getContractFactory(libraryEntry.fullName, signer);
+    const libBytecodeHash = ethers.keccak256(libFactory.bytecode);
 
     const cachedAddress = await libraryCacheLookup(deployment, libBytecodeHash);
     if (cachedAddress) {
@@ -590,18 +596,18 @@ async function poolImplementationFactory(deployment: Deployment, contractName: s
       libraries[libraryEntry.fullName] = cachedAddress;
     } else {
       const lib = await libFactory.deploy();
-      await lib.deployed();
+      await lib.waitForDeployment();
 
-      console.log(`Library ${libraryEntry.name}: ${lib.address}`);
+      console.log(`Library ${libraryEntry.name}: ${await lib.getAddress()}`);
 
-      await libraryCacheStore(deployment, libBytecodeHash, lib.address);
+      await libraryCacheStore(deployment, libBytecodeHash, await lib.getAddress());
 
-      libraries[libraryEntry.fullName] = lib.address;
+      libraries[libraryEntry.fullName] = await lib.getAddress();
     }
   }
   console.log();
 
-  return await ethers.getContractFactory(contractName, { libraries, signer });
+  return await hre.ethers.getContractFactory(contractName, { libraries, signer });
 }
 
 async function poolImplementationDeploy(deployment: Deployment, name: string, contractName: string, args: string[]) {
@@ -613,16 +619,16 @@ async function poolImplementationDeploy(deployment: Deployment, name: string, co
   /* Deploy implementation contract */
   const poolFactory = await poolImplementationFactory(deployment, contractName);
   const poolImpl = await poolFactory.deploy(...decodeArgs(args));
-  await poolImpl.deployed();
-  console.log(`Pool Implementation: ${poolImpl.address}`);
+  await poolImpl.waitForDeployment();
+  console.log(`Pool Implementation: ${await poolImpl.getAddress()}`);
 
   /* Deploy upgradeable beacon */
-  const upgradeableBeaconFactory = await ethers.getContractFactory("UpgradeableBeacon", signer);
-  const upgradeableBeacon = await upgradeableBeaconFactory.deploy(poolImpl.address);
-  await upgradeableBeacon.deployed();
-  console.log(`Pool Beacon:         ${upgradeableBeacon.address}`);
+  const upgradeableBeaconFactory = await hre.ethers.getContractFactory("UpgradeableBeacon", signer);
+  const upgradeableBeacon = await upgradeableBeaconFactory.deploy(await poolImpl.getAddress());
+  await upgradeableBeacon.waitForDeployment();
+  console.log(`Pool Beacon:         ${await upgradeableBeacon.getAddress()}`);
 
-  deployment.poolBeacons[name] = upgradeableBeacon.address;
+  deployment.poolBeacons[name] = await upgradeableBeacon.getAddress();
 }
 
 async function poolImplementationUpgrade(deployment: Deployment, name: string, contractName: string, args: string[]) {
@@ -631,7 +637,7 @@ async function poolImplementationUpgrade(deployment: Deployment, name: string, c
     return;
   }
 
-  const upgradeableBeacon = (await ethers.getContractAt(
+  const upgradeableBeacon = (await hre.ethers.getContractAt(
     "UpgradeableBeacon",
     deployment.poolBeacons[name],
     signer
@@ -643,11 +649,11 @@ async function poolImplementationUpgrade(deployment: Deployment, name: string, c
   /* Deploy new implementation contract */
   const poolFactory = await poolImplementationFactory(deployment, contractName);
   const poolImpl = await poolFactory.deploy(...decodeArgs(args));
-  await poolImpl.deployed();
+  await poolImpl.waitForDeployment();
 
   /* Validate major version number of upgrade */
   const oldPoolVersion = await getImplementationVersion(await upgradeableBeacon.implementation());
-  const newPoolVersion = await getImplementationVersion(poolImpl.address);
+  const newPoolVersion = await getImplementationVersion(await poolImpl.getAddress());
   const [oldPoolVersionMajor, newPoolVersionMajor] = [oldPoolVersion.split(".")[0], newPoolVersion.split(".")[0]];
   if (oldPoolVersionMajor !== "0" && oldPoolVersionMajor !== newPoolVersionMajor) {
     console.error(
@@ -656,16 +662,16 @@ async function poolImplementationUpgrade(deployment: Deployment, name: string, c
     return;
   }
 
-  console.log(`New Pool Implementation: ${poolImpl.address}`);
-  console.log(`New Pool Version:        ${await getImplementationVersion(poolImpl.address)}`);
+  console.log(`New Pool Implementation: ${await poolImpl.getAddress()}`);
+  console.log(`New Pool Version:        ${await getImplementationVersion(await poolImpl.getAddress())}`);
 
   /* Upgrade beacon */
-  if ((await signer!.getAddress()) === (await getOwner(upgradeableBeacon.address))) {
-    await upgradeableBeacon.upgradeTo(poolImpl.address);
+  if ((await signer!.getAddress()) === (await getOwner(await upgradeableBeacon.getAddress()))) {
+    await upgradeableBeacon.upgradeTo(await poolImpl.getAddress());
   } else {
-    const calldata = (await upgradeableBeacon.populateTransaction.upgradeTo(poolImpl.address)).data;
+    const calldata = (await upgradeableBeacon.upgradeTo.populateTransaction(await poolImpl.getAddress())).data;
     console.log(`\nUpgrade Calldata`);
-    console.log(`  Target:   ${upgradeableBeacon.address}`);
+    console.log(`  Target:   ${await upgradeableBeacon.getAddress()}`);
     console.log(`  Calldata: ${calldata}`);
   }
 }
@@ -681,7 +687,7 @@ async function poolImplementationPause(deployment: Deployment, name: string) {
     return;
   }
 
-  const upgradeableBeacon = (await ethers.getContractAt(
+  const upgradeableBeacon = (await hre.ethers.getContractAt(
     "UpgradeableBeacon",
     deployment.poolBeacons[name],
     signer
@@ -694,12 +700,12 @@ async function poolImplementationPause(deployment: Deployment, name: string) {
   console.log(`New Pool Version:        ${await getImplementationVersion(deployment.noopPoolImpl)}`);
 
   /* Upgrade beacon to noop pool */
-  if ((await signer!.getAddress()) === (await getOwner(upgradeableBeacon.address))) {
+  if ((await signer!.getAddress()) === (await getOwner(await upgradeableBeacon.getAddress()))) {
     await upgradeableBeacon.upgradeTo(deployment.noopPoolImpl);
   } else {
-    const calldata = (await upgradeableBeacon.populateTransaction.upgradeTo(deployment.noopPoolImpl)).data;
+    const calldata = (await upgradeableBeacon.upgradeTo.populateTransaction(deployment.noopPoolImpl)).data;
     console.log(`\nUpgrade Calldata`);
-    console.log(`  Target:   ${upgradeableBeacon.address}`);
+    console.log(`  Target:   ${await upgradeableBeacon.getAddress()}`);
     console.log(`  Calldata: ${calldata}`);
   }
 }
@@ -712,7 +718,7 @@ async function decodeLoanReceipt(deployment: Deployment, loanReceipt: string) {
   const poolImplementation = deployment.poolBeacons["v2.x-collection"];
   const address = await getBeaconImplementation(poolImplementation);
 
-  const contract = await ethers.getContractAt("Pool", address);
+  const contract = await hre.ethers.getContractAt("Pool", address);
 
   const result: LoanReceipt = await contract.decodeLoanReceipt(loanReceipt);
 
@@ -730,14 +736,14 @@ async function noopPoolImplementationDeploy(deployment: Deployment) {
     return;
   }
 
-  const noopPoolFactory = await ethers.getContractFactory("NoopPool", signer);
+  const noopPoolFactory = await hre.ethers.getContractFactory("NoopPool", signer);
 
   /* Deploy noop pool implementation */
   const noopPoolImpl = await noopPoolFactory.deploy();
-  await noopPoolImpl.deployed();
-  console.log(`Noop Pool Implementation: ${noopPoolImpl.address}`);
+  await noopPoolImpl.waitForDeployment();
+  console.log(`Noop Pool Implementation: ${await noopPoolImpl.getAddress()}`);
 
-  deployment.noopPoolImpl = noopPoolImpl.address;
+  deployment.noopPoolImpl = await noopPoolImpl.getAddress();
 }
 
 /******************************************************************************/
@@ -750,14 +756,14 @@ async function erc20DepositTokenImplementationDeploy(deployment: Deployment) {
     return;
   }
 
-  const erc20DepositTokenImplFactory = await ethers.getContractFactory("ERC20DepositTokenImplementation", signer);
+  const erc20DepositTokenImplFactory = await hre.ethers.getContractFactory("ERC20DepositTokenImplementation", signer);
 
   /* Deploy ERC20 Deposit Token Implementation */
   const erc20DepositTokenImpl = await erc20DepositTokenImplFactory.deploy();
-  await erc20DepositTokenImpl.deployed();
-  console.log(`ERC20 Deposit Token Implementation: ${erc20DepositTokenImpl.address}`);
+  await erc20DepositTokenImpl.waitForDeployment();
+  console.log(`ERC20 Deposit Token Implementation: ${await erc20DepositTokenImpl.getAddress()}`);
 
-  deployment.erc20DepositTokenImpl = erc20DepositTokenImpl.address;
+  deployment.erc20DepositTokenImpl = await erc20DepositTokenImpl.getAddress();
 }
 
 /******************************************************************************/
@@ -765,49 +771,49 @@ async function erc20DepositTokenImplementationDeploy(deployment: Deployment) {
 /******************************************************************************/
 
 async function priceOracleDeploy(contractName: string, args: string[]) {
-  const priceOracleFactory = await ethers.getContractFactory(contractName, signer);
-  const transparentUpgradeableProxyFactory = await ethers.getContractFactory("TransparentUpgradeableProxy", signer);
+  const priceOracleFactory = await hre.ethers.getContractFactory(contractName, signer);
+  const transparentUpgradeableProxyFactory = await hre.ethers.getContractFactory("TransparentUpgradeableProxy", signer);
 
   /* Deploy implementation contract */
   const priceOracleImpl = await priceOracleFactory.deploy(...decodeArgs(args));
-  await priceOracleImpl.deployed();
-  console.log(`${contractName} Implementation: ${priceOracleImpl.address}`);
+  await priceOracleImpl.waitForDeployment();
+  console.log(`${contractName} Implementation: ${await priceOracleImpl.getAddress()}`);
 
   /* Deploy transparent proxy */
   const priceOracle = await transparentUpgradeableProxyFactory.deploy(
-    priceOracleImpl.address,
+    await priceOracleImpl.getAddress(),
     await signer!.getAddress(),
     priceOracleImpl.interface.encodeFunctionData("initialize")
   );
-  await priceOracle.deployed();
-  console.log(`${contractName} Proxy:          ${priceOracle.address}`);
+  await priceOracle.waitForDeployment();
+  console.log(`${contractName} Proxy:          ${await priceOracle.getAddress()}`);
 }
 
 async function priceOracleUpgrade(proxyAddress: string, contractName: string, args: string[]) {
-  const priceOracleProxy = (await ethers.getContractAt(
+  const priceOracleProxy = (await hre.ethers.getContractAt(
     "ITransparentUpgradeableProxy",
     proxyAddress,
     signer
   )) as ITransparentUpgradeableProxy;
-  const priceOracleFactory = await ethers.getContractFactory(contractName, signer);
+  const priceOracleFactory = await hre.ethers.getContractFactory(contractName, signer);
 
   console.log(
-    `Old ${contractName} Implementation: ${await getTransparentProxyImplementation(priceOracleProxy.address)}`
+    `Old ${contractName} Implementation: ${await getTransparentProxyImplementation(await priceOracleProxy.getAddress())}`
   );
 
   /* Deploy new implementation contract */
   const priceOracleImpl = await priceOracleFactory.deploy(...decodeArgs(args));
-  await priceOracleImpl.deployed();
+  await priceOracleImpl.waitForDeployment();
 
-  console.log(`New ${contractName} Implementation: ${priceOracleImpl.address}`);
+  console.log(`New ${contractName} Implementation: ${await priceOracleImpl.getAddress()}`);
 
   /* Upgrade proxy */
-  if ((await signer!.getAddress()) === (await getTransparentProxyAdmin(priceOracleProxy.address))) {
-    await priceOracleProxy.upgradeTo(priceOracleImpl.address);
+  if ((await signer!.getAddress()) === (await getTransparentProxyAdmin(await priceOracleProxy.getAddress()))) {
+    await priceOracleProxy.upgradeTo(await priceOracleImpl.getAddress());
   } else {
-    const calldata = (await priceOracleProxy.populateTransaction.upgradeTo(priceOracleImpl.address)).data;
+    const calldata = (await priceOracleProxy.upgradeTo.populateTransaction(await priceOracleImpl.getAddress())).data;
     console.log(`\nUpgrade Calldata`);
-    console.log(`  Target:   ${priceOracleProxy.address}`);
+    console.log(`  Target:   ${await priceOracleProxy.getAddress()}`);
     console.log(`  Calldata: ${calldata}`);
   }
 }
@@ -817,12 +823,12 @@ async function priceOracleUpgrade(proxyAddress: string, contractName: string, ar
 /******************************************************************************/
 
 async function contractDeploy(contractName: string, args: string[]) {
-  const contractFactory = await ethers.getContractFactory(contractName, signer);
+  const contractFactory = await hre.ethers.getContractFactory(contractName, signer);
 
   /* Deploy Contract */
   const contract = await contractFactory.deploy(...decodeArgs(args));
-  await contract.deployed();
-  console.log(`${contractName}: ${contract.address}`);
+  await contract.waitForDeployment();
+  console.log(`${contractName}: ${await contract.getAddress()}`);
 }
 
 /******************************************************************************/
@@ -851,10 +857,10 @@ async function transferOwnership(proxy: string, account: string) {
 
   /* Transfer ownership */
   if (proxyType === "Ownable") {
-    const proxyContract = (await ethers.getContractAt("Ownable", proxy, signer)) as Ownable;
+    const proxyContract = (await hre.ethers.getContractAt("Ownable", proxy, signer)) as Ownable;
     await proxyContract.transferOwnership(account);
   } else if (proxyType === "Transparent") {
-    const proxyContract = (await ethers.getContractAt(
+    const proxyContract = (await hre.ethers.getContractAt(
       "ITransparentUpgradeableProxy",
       proxy,
       signer
@@ -870,10 +876,10 @@ async function transferOwnership(proxy: string, account: string) {
 /******************************************************************************/
 
 function parseAddress(address: string, _: string): string {
-  if (!ethers.utils.isAddress(address)) {
+  if (!ethers.isAddress(address)) {
     throw new InvalidArgumentError("Invalid address.");
   }
-  return ethers.utils.getAddress(address);
+  return ethers.getAddress(address);
 }
 
 function parseNumber(value: string, _: string): number {
@@ -884,19 +890,11 @@ function parseNumber(value: string, _: string): number {
   }
 }
 
-function parseDecimal(decimal: string, _: string): BigNumber {
+function parseDecimal(decimal: string, _: string): bigint {
   try {
     return ethers.parseEther(decimal);
   } catch (e) {
     throw new InvalidArgumentError("Invalid decimal: " + e);
-  }
-}
-
-function parseBigNumber(value: string, _: string): BigNumber {
-  try {
-    return ethers.BigNumber.from(value);
-  } catch (e) {
-    throw new InvalidArgumentError("Invalid number: " + e);
   }
 }
 
@@ -906,7 +904,7 @@ function parseBigNumber(value: string, _: string): BigNumber {
 
 async function main() {
   /* Load deployment */
-  const network = await ethers.provider.getNetwork();
+  const network = await hre.ethers.provider.getNetwork();
 
   const deploymentPath = `deployments/${network.name}-${network.chainId}.json`;
   const deployment: Deployment = fs.existsSync(deploymentPath)
@@ -914,13 +912,7 @@ async function main() {
     : Deployment.fromScratch(network);
 
   /* Load signer */
-  if (signer === undefined) {
-    if (process.env.LEDGER_DERIVATION_PATH) {
-      signer = new LedgerSigner(ethers.provider, process.env.LEDGER_DERIVATION_PATH);
-    } else {
-      signer = (await ethers.getSigners())[0];
-    }
-  }
+  signer = (await hre.ethers.getSigners())[0];
 
   /* Program Commands */
   const program = new Command();
