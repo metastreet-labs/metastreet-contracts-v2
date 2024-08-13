@@ -1,3 +1,7 @@
+* Pool v2.13 - 08/12/2024
+    * Fix divide-by-zero during collateral liquidation for zero interest loans
+      caused by very small principals.
+
 * PoolFactory v1.3 - 07/30/2024
     * Rename `setAdminFeeRate()` API to `setAdminFee()`.
     * Add support for setting admin fee share.
