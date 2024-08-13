@@ -1,3 +1,6 @@
+* ERC20DepositTokenImplementation v1.1 - 08/12/2024
+    * Add ratio tick formatting to token name and symbol.
+
 * Pool v2.13 - 08/12/2024
     * Fix divide-by-zero during collateral liquidation for zero interest loans
       caused by very small principals.
