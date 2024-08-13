@@ -751,11 +751,6 @@ async function noopPoolImplementationDeploy(deployment: Deployment) {
 /******************************************************************************/
 
 async function erc20DepositTokenImplementationDeploy(deployment: Deployment) {
-  if (deployment.erc20DepositTokenImpl) {
-    console.error(`ERC20 Deposit Token Implementation already deployed.`);
-    return;
-  }
-
   const erc20DepositTokenImplFactory = await hre.ethers.getContractFactory("ERC20DepositTokenImplementation", signer);
 
   /* Deploy ERC20 Deposit Token Implementation */
