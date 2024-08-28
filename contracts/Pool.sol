@@ -631,6 +631,21 @@ abstract contract Pool is
     }
 
     /**
+     * @dev Helper function to transfer fee share
+     * @param feeShareRecipient Fee share recipient
+     * @param feeShareAmount Fee share amount
+     */
+    function _transferFeeShare(address feeShareRecipient, uint256 feeShareAmount) internal {
+        /* Transfer currency token to fee share recipient */
+        uint256 unscaledFeeShareAmount = _unscale(feeShareAmount, false);
+
+        _storage.currencyToken.safeTransfer(feeShareRecipient, unscaledFeeShareAmount);
+
+        /* Emit Admin Fee Share Transferred */
+        emit AdminFeeShareTransferred(feeShareRecipient, unscaledFeeShareAmount);
+    }
+
+    /**
      * @dev Helper function to get currency token scaling factor
      * @return Factor
      */
@@ -758,16 +773,13 @@ abstract contract Pool is
      * @inheritdoc IPool
      */
     function repay(bytes calldata encodedLoanReceipt) external nonReentrant returns (uint256) {
-        /* Get fee share storage */
-        FeeShareStorage storage feeShareStorage = _getFeeShareStorage();
-
         /* Handle repay accounting */
         (
             uint256 repayment,
             uint256 feeShareAmount,
             LoanReceipt.LoanReceiptV2 memory loanReceipt,
             bytes32 loanReceiptHash
-        ) = BorrowLogic._repay(_storage, feeShareStorage, encodedLoanReceipt);
+        ) = BorrowLogic._repay(_storage, _getFeeShareStorage(), encodedLoanReceipt);
         uint256 unscaledRepayment = _unscale(repayment, true);
 
         /* Revoke delegates */
@@ -790,14 +802,7 @@ abstract contract Pool is
         );
 
         /* Transfer currency token to fee share recipient */
-        if (feeShareAmount != 0) {
-            uint256 unscaledFeeShareAmount = _unscale(feeShareAmount, false);
-
-            _storage.currencyToken.safeTransfer(feeShareStorage.recipient, unscaledFeeShareAmount);
-
-            /* Emit Admin Fee Share Transferred */
-            emit AdminFeeShareTransferred(feeShareStorage.recipient, unscaledFeeShareAmount);
-        }
+        if (feeShareAmount != 0) _transferFeeShare(_getFeeShareStorage().recipient, feeShareAmount);
 
         /* Emit Loan Repaid */
         emit LoanRepaid(loanReceiptHash, unscaledRepayment);
@@ -818,16 +823,13 @@ abstract contract Pool is
     ) external nonReentrant returns (uint256) {
         uint256 scaledPrincipal = _scale(principal);
 
-        /* Get fee share storage */
-        FeeShareStorage storage feeShareStorage = _getFeeShareStorage();
-
         /* Handle repay accounting */
         (
             uint256 repayment,
             uint256 feeShareAmount,
             LoanReceipt.LoanReceiptV2 memory loanReceipt,
             bytes32 loanReceiptHash
-        ) = BorrowLogic._repay(_storage, feeShareStorage, encodedLoanReceipt);
+        ) = BorrowLogic._repay(_storage, _getFeeShareStorage(), encodedLoanReceipt);
         uint256 unscaledRepayment = _unscale(repayment, true);
 
         /* Quote new repayment, admin fee, and liquidity nodes */
@@ -868,14 +870,7 @@ abstract contract Pool is
         }
 
         /* Transfer currency token to fee share recipient */
-        if (feeShareAmount != 0) {
-            uint256 unscaledFeeShareAmount = _unscale(feeShareAmount, false);
-
-            _storage.currencyToken.safeTransfer(feeShareStorage.recipient, unscaledFeeShareAmount);
-
-            /* Emit Admin Fee Share Transferred */
-            emit AdminFeeShareTransferred(feeShareStorage.recipient, unscaledFeeShareAmount);
-        }
+        if (feeShareAmount != 0) _transferFeeShare(_getFeeShareStorage().recipient, feeShareAmount);
 
         /* Emit Loan Repaid */
         emit LoanRepaid(loanReceiptHash, unscaledRepayment);
