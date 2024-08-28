@@ -659,6 +659,23 @@ abstract contract Pool is
         return (value % factor == 0 || !isRoundUp) ? value / factor : value / factor + 1;
     }
 
+    /**
+     * @dev Helper function to transfer fee share
+     * @param feeShareRecipient Fee share recipient
+     * @param feeShareAmount Fee share amount
+     */
+    function _transferFeeShare(address feeShareRecipient, uint256 feeShareAmount) internal {
+        /* Transfer currency token to fee share recipient */
+        if (feeShareAmount != 0) {
+            uint256 unscaledFeeShareAmount = _unscale(feeShareAmount, false);
+
+            _storage.currencyToken.safeTransfer(feeShareRecipient, unscaledFeeShareAmount);
+
+            /* Emit Admin Fee Share Transferred */
+            emit AdminFeeShareTransferred(feeShareRecipient, unscaledFeeShareAmount);
+        }
+    }
+
     /**************************************************************************/
     /* Lend API */
     /**************************************************************************/
@@ -790,14 +807,7 @@ abstract contract Pool is
         );
 
         /* Transfer currency token to fee share recipient */
-        if (feeShareAmount != 0) {
-            uint256 unscaledFeeShareAmount = _unscale(feeShareAmount, false);
-
-            _storage.currencyToken.safeTransfer(feeShareStorage.recipient, unscaledFeeShareAmount);
-
-            /* Emit Admin Fee Share Transferred */
-            emit AdminFeeShareTransferred(feeShareStorage.recipient, unscaledFeeShareAmount);
-        }
+        _transferFeeShare(feeShareStorage.recipient, feeShareAmount);
 
         /* Emit Loan Repaid */
         emit LoanRepaid(loanReceiptHash, unscaledRepayment);
@@ -868,14 +878,7 @@ abstract contract Pool is
         }
 
         /* Transfer currency token to fee share recipient */
-        if (feeShareAmount != 0) {
-            uint256 unscaledFeeShareAmount = _unscale(feeShareAmount, false);
-
-            _storage.currencyToken.safeTransfer(feeShareStorage.recipient, unscaledFeeShareAmount);
-
-            /* Emit Admin Fee Share Transferred */
-            emit AdminFeeShareTransferred(feeShareStorage.recipient, unscaledFeeShareAmount);
-        }
+        _transferFeeShare(feeShareStorage.recipient, feeShareAmount);
 
         /* Emit Loan Repaid */
         emit LoanRepaid(loanReceiptHash, unscaledRepayment);
