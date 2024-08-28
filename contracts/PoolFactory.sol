@@ -195,6 +195,18 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
     }
 
     /**
+     * @notice Set pool rates
+     * @param pool Pool address
+     * @param rates List of rates in interest per second
+     */
+    function setRates(address pool, uint64[] memory rates) external onlyOwner {
+        /* Validate pool */
+        if (!isPool(pool)) revert InvalidPool();
+
+        Address.functionCall(pool, abi.encodeWithSignature("setRates(uint64[])", rates));
+    }
+
+    /**
      * @notice Add pool implementation to allowlist
      * @param poolImplementation Pool implementation
      */
