@@ -53,6 +53,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       allowUnlimitedContractSize: true,
       chainId: 1,
+      initialBaseFeePerGas: 1,
     },
     mainnet: {
       url: process.env.MAINNET_URL || "",
