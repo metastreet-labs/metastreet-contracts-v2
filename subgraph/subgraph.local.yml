@@ -241,6 +241,8 @@ templates:
           handler: handleCollateralLiquidated
         - event: AdminFeeUpdated(uint32,indexed address,uint16)
           handler: handleAdminFeeUpdated
+        - event: RatesUpdated(uint64[])
+          handler: handleRatesUpdated
         - event: TokenCreated(indexed address,indexed address,indexed uint128)
           handler: handleTokenCreated
         - event: Transferred(indexed address,indexed address,indexed uint128,uint256)
