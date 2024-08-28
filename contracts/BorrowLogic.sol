@@ -512,4 +512,20 @@ library BorrowLogic {
 
         return amount;
     }
+
+    function _setRates(Pool.PoolStorage storage self, uint64[] memory rates) external {
+        /* Validate caller is pool admin */
+        if (msg.sender != self.admin) revert IPool.InvalidCaller();
+
+        /* Validate rates length */
+        if (rates.length > Tick.MAX_NUM_RATES) revert IPool.InvalidParameters();
+
+        /* Validate rates are monotonic */
+        for (uint256 i; i < rates.length; i++) {
+            if (i != 0 && rates[i] <= rates[i - 1]) revert IPool.InvalidParameters();
+        }
+
+        /* Assign rates */
+        self.rates = rates;
+    }
 }

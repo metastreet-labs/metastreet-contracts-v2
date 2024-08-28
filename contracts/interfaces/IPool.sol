@@ -158,6 +158,12 @@ interface IPool {
      */
     event AdminFeeShareTransferred(address indexed feeShareRecipient, uint256 feeShareAmount);
 
+    /**
+     * @notice Emitted when rates are updated
+     * @param rates List of rates in interest per second
+     */
+    event RatesUpdated(uint64[] rates);
+
     /**************************************************************************/
     /* Getters */
     /**************************************************************************/

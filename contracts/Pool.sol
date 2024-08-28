@@ -1085,7 +1085,7 @@ abstract contract Pool is
     }
 
     /**************************************************************************/
-    /* Admin Fees API */
+    /* Admin API */
     /**************************************************************************/
 
     /**
@@ -1119,9 +1119,22 @@ abstract contract Pool is
         emit AdminFeesWithdrawn(recipient, amount);
     }
 
-    /******************************************************/
+    /**
+     * @notice Set rates for the pool
+     *
+     * Emits a {RatesUpdated} event.
+     *
+     * @param rates_ List of rates in interest per second
+     */
+    function setRates(uint64[] memory rates_) external nonReentrant {
+        BorrowLogic._setRates(_storage, rates_);
+
+        emit RatesUpdated(rates_);
+    }
+
+    /**************************************************************************/
     /* ERC165 interface */
-    /******************************************************/
+    /**************************************************************************/
 
     /**
      * @inheritdoc IERC165

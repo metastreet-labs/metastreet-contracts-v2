@@ -4374,6 +4374,66 @@ describe("Pool Basic", function () {
   });
 
   /****************************************************************************/
+  /* Admin Set Rates API */
+  /****************************************************************************/
+
+  describe("#setRates", async function () {
+    it("admin set rates successfully", async function () {
+      const rates = [
+        FixedPoint.normalizeRate("0.05"),
+        FixedPoint.normalizeRate("0.1"),
+        FixedPoint.normalizeRate("0.15"),
+      ];
+
+      /* Set admin fee rate */
+      const tx = await pool.setRates(rates);
+
+      /* Validate events */
+      const rates_ = (await extractEvent(tx, pool, "RatesUpdated")).args.rates;
+      expect(rates_).to.be.eql(rates);
+
+      /* Validate rate was successfully set */
+      expect(await pool.rates()).to.be.eql(rates);
+    });
+
+    it("fails on invalid rates length", async function () {
+      const rates = [
+        FixedPoint.normalizeRate("0.05"),
+        FixedPoint.normalizeRate("0.1"),
+        FixedPoint.normalizeRate("0.15"),
+        FixedPoint.normalizeRate("0.2"),
+        FixedPoint.normalizeRate("0.25"),
+        FixedPoint.normalizeRate("0.3"),
+        FixedPoint.normalizeRate("0.35"),
+        FixedPoint.normalizeRate("0.4"),
+        FixedPoint.normalizeRate("0.45"),
+      ];
+
+      await expect(pool.setRates(rates)).to.be.revertedWithCustomError(pool, "InvalidParameters");
+    });
+
+    it("fails on rates not monotonic", async function () {
+      const rates = [
+        FixedPoint.normalizeRate("0.05"),
+        FixedPoint.normalizeRate("0.15"),
+        FixedPoint.normalizeRate("0.1"),
+      ];
+
+      await expect(pool.setRates(rates)).to.be.revertedWithCustomError(pool, "InvalidParameters");
+    });
+
+    it("fails on invalid caller", async function () {
+      const rates = [
+        FixedPoint.normalizeRate("0.05"),
+        FixedPoint.normalizeRate("0.1"),
+        FixedPoint.normalizeRate("0.15"),
+      ];
+
+      await expect(pool.connect(accountBorrower).setRates(rates)).to.be.revertedWithCustomError(pool, "InvalidCaller");
+    });
+  });
+
+  /****************************************************************************/
   /* ERC165 Interface */
   /****************************************************************************/
 
