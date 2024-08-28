@@ -724,4 +724,97 @@ describe("PoolFactory", function () {
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
   });
+
+  describe("#setRates", async function () {
+    let pool1: Pool;
+    let pool2: Pool;
+
+    beforeEach("add pool implementation to allowlist", async function () {
+      /* Add pool implementation to allowlist */
+      await poolFactory.addPoolImplementation(await poolImpl.getAddress());
+
+      pool1 = (await ethers.getContractAt("Pool", await createPool())) as Pool;
+      pool2 = (await ethers.getContractAt("Pool", await createPool())) as Pool;
+    });
+
+    it("set rates", async function () {
+      const rates1 = [
+        FixedPoint.normalizeRate("0.05"),
+        FixedPoint.normalizeRate("0.1"),
+        FixedPoint.normalizeRate("0.15"),
+      ];
+
+      const rates2 = [
+        FixedPoint.normalizeRate("0.15"),
+        FixedPoint.normalizeRate("0.2"),
+        FixedPoint.normalizeRate("0.25"),
+      ];
+
+      /* Set admin fee rate */
+      const setRatesTx1 = await poolFactory.setRates(await pool1.getAddress(), rates1);
+      const setRatesTx2 = await poolFactory.setRates(await pool2.getAddress(), rates2);
+
+      /* Validate events */
+      const rates1_ = (await extractEvent(setRatesTx1, pool1, "RatesUpdated")).args.rates;
+      expect(rates1_).to.be.eql(rates1);
+      const rates2_ = (await extractEvent(setRatesTx2, pool2, "RatesUpdated")).args.rates;
+      expect(rates2_).to.be.eql(rates2);
+
+      /* Validate rate was successfully set */
+      expect(await pool1.rates()).to.be.eql(rates1);
+      expect(await pool2.rates()).to.be.eql(rates2);
+    });
+
+    it("fails on invalid pool address", async function () {
+      const rates = [
+        FixedPoint.normalizeRate("0.15"),
+        FixedPoint.normalizeRate("0.2"),
+        FixedPoint.normalizeRate("0.25"),
+      ];
+
+      await expect(poolFactory.setRates(await poolFactory.getAddress(), rates)).to.be.revertedWithCustomError(
+        poolFactory,
+        "InvalidPool"
+      );
+    });
+
+    it("fails on invalid caller", async function () {
+      const rates = [
+        FixedPoint.normalizeRate("0.15"),
+        FixedPoint.normalizeRate("0.2"),
+        FixedPoint.normalizeRate("0.25"),
+      ];
+
+      await expect(poolFactory.connect(accounts[1]).setRates(await pool2.getAddress(), rates)).to.be.revertedWith(
+        "Ownable: caller is not the owner"
+      );
+    });
+
+    it("fails on invalid rate", async function () {
+      const rates1 = [
+        FixedPoint.normalizeRate("0.05"),
+        FixedPoint.normalizeRate("0.15"),
+        FixedPoint.normalizeRate("0.1"),
+      ];
+      const rates2 = [
+        FixedPoint.normalizeRate("0.05"),
+        FixedPoint.normalizeRate("0.1"),
+        FixedPoint.normalizeRate("0.15"),
+        FixedPoint.normalizeRate("0.2"),
+        FixedPoint.normalizeRate("0.25"),
+        FixedPoint.normalizeRate("0.3"),
+        FixedPoint.normalizeRate("0.35"),
+        FixedPoint.normalizeRate("0.4"),
+        FixedPoint.normalizeRate("0.45"),
+      ];
+      await expect(poolFactory.setRates(await pool2.getAddress(), rates1)).to.be.revertedWithCustomError(
+        pool2,
+        "InvalidParameters"
+      );
+      await expect(poolFactory.setRates(await pool2.getAddress(), rates2)).to.be.revertedWithCustomError(
+        pool2,
+        "InvalidParameters"
+      );
+    });
+  });
 });
