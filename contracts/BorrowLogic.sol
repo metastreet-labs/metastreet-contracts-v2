@@ -481,6 +481,7 @@ library BorrowLogic {
     ) external {
         /* Validate caller is pool admin */
         if (msg.sender != self.admin) revert IPool.InvalidCaller();
+
         /* Validate rate and fee share split */
         if (rate >= LiquidityLogic.BASIS_POINTS_SCALE) revert IPool.InvalidParameters();
         if (feeShareSplit > LiquidityLogic.BASIS_POINTS_SCALE) revert IPool.InvalidParameters();
@@ -498,7 +499,10 @@ library BorrowLogic {
      * @return Withdraw amount
      */
     function _withdrawAdminFees(Pool.PoolStorage storage self, address recipient) external returns (uint256) {
+        /* Validate caller is pool admin */
         if (msg.sender != self.admin) revert IPool.InvalidCaller();
+
+        /* Validate recipient */
         if (recipient == address(0)) revert IPool.InvalidParameters();
 
         uint256 amount = self.adminFeeBalance;
