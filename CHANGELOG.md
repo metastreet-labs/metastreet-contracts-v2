@@ -1,3 +1,6 @@
+* PoolFactory v1.4 - 08/29/2024
+    * Add `setRates()` API.
+
 * Pool v2.14 - 08/29/2024
     * Add `setRates()` API.
 
