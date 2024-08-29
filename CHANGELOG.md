@@ -1,3 +1,6 @@
+* Pool v2.14 - 08/29/2024
+    * Add `setRates()` API.
+
 * ERC20DepositTokenImplementation v1.1 - 08/12/2024
     * Add ratio tick formatting to token name and symbol.
 
