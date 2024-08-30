@@ -406,14 +406,20 @@ abstract contract Pool is
      * @param account Account
      * @param tick Tick
      * @param redemptionId Redemption ID
-     * @return Redemption
+     * @return pending Redemption quantity pending
+     * @return index Redemption index
+     * @return target Redemption quantity target
      */
     function redemptions(
         address account,
         uint128 tick,
         uint128 redemptionId
-    ) external view returns (Redemption memory) {
-        return _storage.deposits[account][tick].redemptions[redemptionId];
+    ) external view returns (uint128 pending, uint128 index, uint128 target) {
+        return (
+            _storage.deposits[account][tick].redemptions[redemptionId].pending,
+            _storage.deposits[account][tick].redemptions[redemptionId].index,
+            _storage.deposits[account][tick].redemptions[redemptionId].target
+        );
     }
 
     /**
