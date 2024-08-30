@@ -513,6 +513,11 @@ library BorrowLogic {
         return amount;
     }
 
+    /**
+     * @dev Helper function to set rates
+     * @param self Pool storage
+     * @param rates List of rates in interest per second
+     */
     function _setRates(Pool.PoolStorage storage self, uint64[] memory rates) external {
         /* Validate caller is pool admin */
         if (msg.sender != self.admin) revert IPool.InvalidCaller();
