@@ -198,7 +198,7 @@ abstract contract Pool is
     /**
      * @notice Pool Storage
      * @param currencyToken Currency token contract
-     * @param adminFeeRate Admin free rate in basis points
+     * @param adminFeeRate Admin fee rate in basis points
      * @param durations Durations
      * @param rates Rates
      * @param admin Admin
