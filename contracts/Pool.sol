@@ -637,6 +637,48 @@ abstract contract Pool is
     }
 
     /**
+     * @dev Helper function to transfer collateral
+     * @param from From
+     * @param to To
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
+     */
+    function _transferCollateral(
+        address from,
+        address to,
+        address collateralToken,
+        uint256 collateralTokenId
+    ) internal virtual {
+        IERC721(collateralToken).transferFrom(from, to, collateralTokenId);
+    }
+
+    /**
+     * @dev Helper function to liquidate collateral
+     * @param collateralToken Collateral token
+     * @param collateralTokenId Collateral token ID
+     * @param collateralWrapperContext Collateral wrapper context
+     * @param encodedLoanReceipt Encoded loan receipt
+     */
+    function _liquidateCollateral(
+        address collateralToken,
+        uint256 collateralTokenId,
+        bytes memory collateralWrapperContext,
+        bytes calldata encodedLoanReceipt
+    ) internal virtual {
+        /* Approve collateral for transfer to _collateralLiquidator */
+        IERC721(collateralToken).approve(address(_collateralLiquidator), collateralTokenId);
+
+        /* Start liquidation with collateral liquidator */
+        _collateralLiquidator.liquidate(
+            address(_storage.currencyToken),
+            collateralToken,
+            collateralTokenId,
+            collateralWrapperContext,
+            encodedLoanReceipt
+        );
+    }
+
+    /**
      * @dev Helper function to transfer fee share
      * @param feeShareRecipient Fee share recipient
      * @param feeShareAmount Fee share amount
@@ -764,7 +806,7 @@ abstract contract Pool is
         );
 
         /* Transfer collateral from borrower to pool */
-        IERC721(collateralToken).transferFrom(msg.sender, address(this), collateralTokenId);
+        _transferCollateral(msg.sender, address(this), collateralToken, collateralTokenId);
 
         /* Transfer principal from pool to borrower */
         _storage.currencyToken.safeTransfer(msg.sender, principal);
@@ -801,9 +843,10 @@ abstract contract Pool is
         _storage.currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), unscaledRepayment);
 
         /* Transfer collateral from pool to borrower */
-        IERC721(loanReceipt.collateralToken).transferFrom(
+        _transferCollateral(
             address(this),
             loanReceipt.borrower,
+            loanReceipt.collateralToken,
             loanReceipt.collateralTokenId
         );
 
@@ -906,12 +949,8 @@ abstract contract Pool is
             _delegateRegistryV2
         );
 
-        /* Approve collateral for transfer to _collateralLiquidator */
-        IERC721(loanReceipt.collateralToken).approve(address(_collateralLiquidator), loanReceipt.collateralTokenId);
-
-        /* Start liquidation with collateral liquidator */
-        _collateralLiquidator.liquidate(
-            address(_storage.currencyToken),
+        /* Liquidate collateral */
+        _liquidateCollateral(
             loanReceipt.collateralToken,
             loanReceipt.collateralTokenId,
             loanReceipt.collateralWrapperContext,
