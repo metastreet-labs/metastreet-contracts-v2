@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 export class FixedPoint {
   static Zero = 0n;
 
-  static from(x: string | number | bigint, decimals?: number = 18): bigint {
+  static from(x: string | number | bigint, decimals: number = 18): bigint {
     if (typeof x === "string") {
       return ethers.parseEther(x) / BigInt(10 ** (18 - decimals));
     } else if (typeof x === "number") {
