@@ -107,6 +107,14 @@ contract ERC1155CollateralWrapper is ICollateralWrapper, ERC721, ERC1155Holder, 
     }
 
     /**
+     * @notice Get current nonce
+     * @return Nonce
+     */
+    function nonce() external view returns (uint256) {
+        return _nonce;
+    }
+
+    /**
      * @notice Check if token ID exists
      * @param tokenId Token ID
      * @return True if token ID exists, otherwise false

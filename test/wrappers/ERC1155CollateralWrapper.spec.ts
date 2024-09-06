@@ -287,6 +287,7 @@ describe("ERC1155CollateralWrapper", function () {
       expect(await ERC1155CollateralWrapper.exists(tokenId2)).to.equal(true);
       expect(await ERC1155CollateralWrapper.ownerOf(tokenId1)).to.equal(await accountBorrower.getAddress());
       expect(await ERC1155CollateralWrapper.ownerOf(tokenId2)).to.equal(await accountBorrower.getAddress());
+      expect(await ERC1155CollateralWrapper.nonce()).to.equal(2);
 
       expect(await nft1.balanceOf(await ERC1155CollateralWrapper.getAddress(), 123)).to.equal(1);
       expect(await nft1.balanceOf(await ERC1155CollateralWrapper.getAddress(), 124)).to.equal(2);
