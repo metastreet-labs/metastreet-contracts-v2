@@ -296,6 +296,25 @@ describe("Storage Layout", function () {
       expect(lookupVariableStorage(contractName, "_metadataURI")).to.be.eql({ slot: "11", offset: 0 });
       expect(computeLinearStorageSize(contractName)).to.be.eql(384);
     });
+
+    it("WeightedRateERC1155CollectionPool storage layout", async function () {
+      const contractName = "WeightedRateERC1155CollectionPool";
+
+      expect(lookupVariableStorage(contractName, "_status")).to.be.eql({ slot: "0", offset: 0 });
+      expect(lookupVariableStorage(contractName, "_storage")).to.be.eql({ slot: "1", offset: 0 });
+      expect(lookupStructFieldStorage(contractName, "_storage", "currencyToken")).to.be.eql({ slot: "1", offset: 0 });
+      expect(lookupStructFieldStorage(contractName, "_storage", "adminFeeRate")).to.be.eql({ slot: "1", offset: 20 });
+      expect(lookupStructFieldStorage(contractName, "_storage", "durations")).to.be.eql({ slot: "2", offset: 0 });
+      expect(lookupStructFieldStorage(contractName, "_storage", "rates")).to.be.eql({ slot: "3", offset: 0 });
+      expect(lookupStructFieldStorage(contractName, "_storage", "admin")).to.be.eql({ slot: "4", offset: 0 });
+      expect(lookupStructFieldStorage(contractName, "_storage", "adminFeeBalance")).to.be.eql({ slot: "5", offset: 0 });
+      expect(lookupStructFieldStorage(contractName, "_storage", "liquidity")).to.be.eql({ slot: "6", offset: 0 });
+      expect(lookupStructFieldStorage(contractName, "_storage", "deposits")).to.be.eql({ slot: "7", offset: 0 });
+      expect(lookupStructFieldStorage(contractName, "_storage", "loans")).to.be.eql({ slot: "8", offset: 0 });
+      expect(lookupVariableStorage(contractName, "_token")).to.be.eql({ slot: "9", offset: 0 });
+      expect(lookupVariableStorage(contractName, "_aliases")).to.be.eql({ slot: "10", offset: 0 });
+      expect(computeLinearStorageSize(contractName)).to.be.eql(384);
+    });
   });
 
   describe("#liquidator", async function () {
