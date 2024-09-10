@@ -601,7 +601,7 @@ abstract contract Pool is
 
         /* Lookup duration index */
         uint256 durationIndex = durations_.length - 1;
-        for (; durationIndex > 0; durationIndex--) {
+        for (; durationIndex != 0; durationIndex--) {
             if (duration <= durations_[durationIndex]) break;
         }
 
