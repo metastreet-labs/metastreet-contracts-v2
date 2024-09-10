@@ -241,7 +241,7 @@ library LiquidityLogic {
     function liquidityNodeWithAccrual(
         Liquidity storage liquidity,
         uint128 tick
-    ) internal view returns (ILiquidity.NodeInfo memory, ILiquidity.AccrualInfo memory) {
+    ) external view returns (ILiquidity.NodeInfo memory, ILiquidity.AccrualInfo memory) {
         Node storage node = liquidity.nodes[tick];
 
         return (
