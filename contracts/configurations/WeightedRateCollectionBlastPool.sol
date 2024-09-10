@@ -30,17 +30,17 @@ contract WeightedRateCollectionBlastPool is
     /**
      * @notice Blast Contract
      */
-    IBlast internal constant BLAST = IBlast(0x4300000000000000000000000000000000000002);
+    IBlast internal immutable BLAST = IBlast(0x4300000000000000000000000000000000000002);
 
     /**
      * @notice Blast Points Contract (Testnet)
      */
-    IBlastPoints internal constant BLAST_POINTS_TESTNET = IBlastPoints(0x2fc95838c71e76ec69ff817983BFf17c710F34E0);
+    IBlastPoints internal immutable BLAST_POINTS_TESTNET = IBlastPoints(0x2fc95838c71e76ec69ff817983BFf17c710F34E0);
 
     /**
      * @notice Blast Points Contract (Mainnet)
      */
-    IBlastPoints internal constant BLAST_POINTS_MAINNET = IBlastPoints(0x2536FE9ab3F511540F2f9e2eC2A805005C3Dd800);
+    IBlastPoints internal immutable BLAST_POINTS_MAINNET = IBlastPoints(0x2536FE9ab3F511540F2f9e2eC2A805005C3Dd800);
 
     /**************************************************************************/
     /* Immutable State */
