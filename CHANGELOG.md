@@ -1,3 +1,7 @@
+* Pool v2.15 - 09/09/2024
+    * Factor out collateral transfer and liquidation logic.
+    * Make `supportsInterface()` virtual.
+
 * PoolFactory v1.4 - 08/29/2024
     * Add `setRates()` API.
 
