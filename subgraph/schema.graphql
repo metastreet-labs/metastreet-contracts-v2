@@ -176,6 +176,7 @@ type Loan @entity {
   pool: Pool!
   status: LoanStatus!
   transactionHash: Bytes!
+  completionTransactionHash: Bytes
   timestamp: BigInt! # uint64 (in seconds since epoch)
   completion: BigInt # uint64 (in seconds since epoch)
   bundle: Bundle # set only if this is a bundle loan

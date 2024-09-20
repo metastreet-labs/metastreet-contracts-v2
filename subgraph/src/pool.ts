@@ -630,6 +630,7 @@ export function handleLoanRepaid(event: LoanRepaidEvent): void {
     FixedPoint.DECIMALS - (currencyTokenEntity.decimals as u8)
   );
   loanEntity.completion = event.block.timestamp;
+  loanEntity.completionTransactionHash = event.transaction.hash;
   loanEntity.save();
 
   const poolEntity = updatePoolEntity(event);
@@ -680,6 +681,7 @@ export function handleCollateralLiquidated(event: CollateralLiquidatedEvent): vo
   loanEntity.status = LoanStatus.CollateralLiquidated;
   loanEntity.proceeds = proceeds;
   loanEntity.completion = event.block.timestamp;
+  loanEntity.completionTransactionHash = event.transaction.hash;
   loanEntity.save();
 
   const poolEntity = updatePoolEntity(event);
