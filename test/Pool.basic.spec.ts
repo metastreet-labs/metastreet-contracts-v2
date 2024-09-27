@@ -3927,30 +3927,20 @@ describe("Pool Basic", function () {
       /* Validate ticks */
       let i = 0;
       let proceedsRemaining = lendersProceeds;
-      let lendersSurplusRemaining = lendersSurplus;
-      let totalAdminFee = 0n;
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
         const node = await pool.liquidityNode(nodeReceipt.tick);
-        const surplus =
-          i == decodedLoanReceipt.nodeReceipts.length - 1
-            ? lendersSurplusRemaining
-            : ((nodeReceipt.pending - nodeReceipt.used) * lendersSurplus) / totalInterest;
+        const surplus = ((nodeReceipt.pending - nodeReceipt.used) * lendersSurplus) / totalInterest;
         const proceeds =
           i == decodedLoanReceipt.nodeReceipts.length - 1
             ? proceedsRemaining
             : (lendersProceeds * nodeReceipt.pending) / totalPending;
-        const value = FixedPoint.from("25") - nodeReceipt.used + proceeds + surplus;
-        proceedsRemaining = proceedsRemaining - proceeds;
-        lendersSurplusRemaining = lendersSurplusRemaining - surplus;
+        const value = FixedPoint.from("25") - nodeReceipt.used + proceeds;
         expect(node.value).to.equal(value);
         expect(node.available).to.equal(value);
         expect(node.pending).to.equal(0n);
-        totalAdminFee = totalAdminFee + surplus;
+        proceedsRemaining = proceedsRemaining - proceeds;
         i += 1;
       }
-
-      /* Validate admin fee is accounted for */
-      expect(totalAdminFee).to.equal(decodedLoanReceipt.adminFee);
     });
 
     it("processes liquidated loan for higher proceeds with lender surplus but no borrower surplus", async function () {
@@ -4026,30 +4016,20 @@ describe("Pool Basic", function () {
       /* Validate ticks */
       let i = 0;
       let proceedsRemaining = lendersProceeds;
-      let lendersSurplusRemaining = lendersSurplus;
-      let totalAdminFee = 0n;
       for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
         const node = await pool.liquidityNode(nodeReceipt.tick);
-        const surplus =
-          i == decodedLoanReceipt.nodeReceipts.length - 1
-            ? lendersSurplusRemaining
-            : ((nodeReceipt.pending - nodeReceipt.used) * lendersSurplus) / totalInterest;
+        const surplus = ((nodeReceipt.pending - nodeReceipt.used) * lendersSurplus) / totalInterest;
         const proceeds =
           i == decodedLoanReceipt.nodeReceipts.length - 1
             ? proceedsRemaining
             : (lendersProceeds * nodeReceipt.pending) / totalPending;
-        const value = FixedPoint.from("25") - nodeReceipt.used + proceeds + surplus;
-        proceedsRemaining = proceedsRemaining - proceeds;
-        lendersSurplusRemaining = lendersSurplusRemaining - surplus;
+        const value = FixedPoint.from("25") - nodeReceipt.used + proceeds;
         expect(node.value).to.equal(value);
         expect(node.available).to.equal(value);
         expect(node.pending).to.equal(0n);
-        totalAdminFee = totalAdminFee + surplus;
+        proceedsRemaining = proceedsRemaining - proceeds;
         i += 1;
       }
-
-      /* Validate admin fee is accounted for */
-      expect(totalAdminFee).to.equal(lendersSurplus);
     });
 
     it("processes liquidated loan for lower proceeds", async function () {
@@ -4157,6 +4137,116 @@ describe("Pool Basic", function () {
           loanReceipt,
           1000n
         );
+    });
+
+    it("vests lender surplus from liquidation to ticks", async function () {
+      /* Set admin fee rate */
+      await pool.setAdminFee(5000, ethers.ZeroAddress, 0);
+
+      /* Borrow */
+      [loanReceipt, loanReceiptHash] = await createExpiredLoan(FixedPoint.from("25"));
+
+      /* Decode loan receipt */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      /* Process expiration */
+      await pool.liquidate(loanReceipt);
+
+      /* Withdraw collateral */
+      await collateralLiquidator
+        .connect(accountLiquidator)
+        .withdrawCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt
+        );
+
+      /* Liquidate collateral and process liquidation */
+      const proceeds = BigInt("25203000000000000000");
+      const onCollateralLiquidatedTx = await collateralLiquidator
+        .connect(accountLiquidator)
+        .liquidateCollateral(
+          await pool.getAddress(),
+          await tok1.getAddress(),
+          await nft1.getAddress(),
+          123,
+          "0x",
+          loanReceipt,
+          proceeds
+        );
+
+      /* Compute lender surplus */
+      const lendersSurplus = proceeds - (decodedLoanReceipt.repayment - decodedLoanReceipt.adminFee);
+      const lendersProceeds = proceeds - lendersSurplus;
+
+      /* Compute total pending */
+      const totalPending = decodedLoanReceipt.repayment - decodedLoanReceipt.adminFee;
+
+      /* Compute total interest */
+      const totalInterest = totalPending - decodedLoanReceipt.principal;
+
+      /* Wait for vesting to partially elapse */
+      const liquidatedTimestamp = BigInt(
+        (await ethers.provider.getBlock((await onCollateralLiquidatedTx.wait()).blockNumber)).timestamp
+      );
+      await helpers.time.increaseTo(liquidatedTimestamp + 3n * 86400n);
+
+      /* Deposit 1 ether into each tick */
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+        await pool.connect(accountDepositors[0]).deposit(nodeReceipt.tick, FixedPoint.from("1"), 0);
+      }
+
+      /* Validate ticks */
+      let i = 0;
+      let proceedsRemaining = lendersProceeds;
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+        const node = await pool.liquidityNode(nodeReceipt.tick);
+        const surplus = ((nodeReceipt.pending - nodeReceipt.used) * lendersSurplus) / totalInterest;
+        const proceeds =
+          i == decodedLoanReceipt.nodeReceipts.length - 1
+            ? proceedsRemaining
+            : (lendersProceeds * nodeReceipt.pending) / totalPending;
+        const value =
+          FixedPoint.from("25") +
+          FixedPoint.from("1") -
+          nodeReceipt.used +
+          proceeds +
+          (surplus / (86400n * 7n)) * (86400n * 3n + BigInt(i + 1));
+        expect(node.value).to.equal(value);
+        expect(node.available).to.equal(value);
+        expect(node.pending).to.equal(0n);
+        proceedsRemaining = proceedsRemaining - proceeds;
+        i += 1;
+      }
+
+      /* Wait for vesting to full elapse */
+      await helpers.time.increase(7n * 86400n);
+
+      /* Deposit 1 ether into each tick */
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+        await pool.connect(accountDepositors[0]).deposit(nodeReceipt.tick, FixedPoint.from("1"), 0);
+      }
+
+      /* Validate ticks */
+      i = 0;
+      proceedsRemaining = lendersProceeds;
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+        const node = await pool.liquidityNode(nodeReceipt.tick);
+        const surplus = ((nodeReceipt.pending - nodeReceipt.used) * lendersSurplus) / totalInterest;
+        const proceeds =
+          i == decodedLoanReceipt.nodeReceipts.length - 1
+            ? proceedsRemaining
+            : (lendersProceeds * nodeReceipt.pending) / totalPending;
+        const value = FixedPoint.from("25") + FixedPoint.from("2") - nodeReceipt.used + proceeds + surplus;
+        expect(node.value).to.equal(value);
+        expect(node.available).to.equal(value);
+        expect(node.pending).to.equal(0n);
+        proceedsRemaining = proceedsRemaining - proceeds;
+        i += 1;
+      }
     });
   });
 
