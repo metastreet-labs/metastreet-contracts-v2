@@ -139,6 +139,9 @@ describe("Pool Gas", function () {
       await proxy.getAddress()
     )) as WeightedRateCollectionPool;
 
+    /* Set 5% admin fee */
+    //await pool.setAdminFee(500, ethers.ZeroAddress, 0);
+
     /* Arrange accounts */
     accountDepositors = accounts.slice(1, 4);
     accountBorrower = accounts[4];
@@ -278,7 +281,7 @@ describe("Pool Gas", function () {
 
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
-      expect(gasUsed).to.be.lt(248000);
+      expect(gasUsed).to.be.lt(253000);
     });
 
     it("deposit (existing tick)", async function () {
@@ -287,7 +290,7 @@ describe("Pool Gas", function () {
 
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
-      expect(gasUsed).to.be.lt(110000n);
+      expect(gasUsed).to.be.lt(115000);
     });
 
     it("deposit (existing deposit)", async function () {
@@ -297,7 +300,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await depositTx.wait()).gasUsed;
 
       gasReport.push([this.test.title, gasUsed]);
-      expect(gasUsed).to.be.lt(95000);
+      expect(gasUsed).to.be.lt(98000);
     });
 
     it("multicall deposit + tokenize (new tick)", async function () {
@@ -327,7 +330,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await depositTx.wait()).gasUsed;
 
       gasReport.push([this.test.title, gasUsed]);
-      expect(gasUsed).to.be.lt(122000);
+      expect(gasUsed).to.be.lt(127000);
     });
 
     it("deposit (existing deposit, tokenized)", async function () {
@@ -343,7 +346,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await depositTx.wait()).gasUsed;
 
       gasReport.push([this.test.title, gasUsed]);
-      expect(gasUsed).to.be.lt(105000);
+      expect(gasUsed).to.be.lt(110000);
     });
   });
 
@@ -356,7 +359,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(130000);
+      expect(gasUsed).to.be.lt(137000);
     });
     it("redeem (entire)", async function () {
       await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("1"), 0);
@@ -367,7 +370,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(135000);
+      expect(gasUsed).to.be.lt(143000);
     });
   });
 
@@ -402,7 +405,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(275000);
+      expect(gasUsed).to.be.lt(285000);
     });
 
     it("multicall redeem + rebalance (existing tick)", async function () {
@@ -421,7 +424,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(195000);
+      expect(gasUsed).to.be.lt(210000);
     });
   });
 

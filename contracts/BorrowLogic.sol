@@ -429,20 +429,13 @@ library BorrowLogic {
         uint64 elapsed = uint64(block.timestamp + loanReceipt.duration - loanReceipt.maturity);
 
         /* Restore liquidity nodes */
-        uint256 proceedsRemaining = proceeds - borrowerSurplus;
+        uint256 proceedsRemaining = proceeds - borrowerSurplus - lendersSurplus;
         uint256 lastIndex = loanReceipt.nodeReceipts.length - 1;
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
-            /* Compute amount to restore, prorating any lenders' surplus */
+            /* Compute amount to restore */
             uint256 restored = (i == lastIndex)
                 ? proceedsRemaining
-                : Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining) +
-                    (
-                        totalInterest != 0
-                            ? (lendersSurplus *
-                                (loanReceipt.nodeReceipts[i].pending - loanReceipt.nodeReceipts[i].used)) /
-                                totalInterest
-                            : 0
-                    );
+                : Math.min(loanReceipt.nodeReceipts[i].pending, proceedsRemaining);
 
             /* Restore node */
             self.liquidity.restore(
@@ -453,6 +446,15 @@ library BorrowLogic {
                 loanReceipt.duration,
                 elapsed
             );
+
+            /* Vest prorated lenders' surplus */
+            if (lendersSurplus != 0 && totalInterest != 0) {
+                self.liquidity.vest(
+                    loanReceipt.nodeReceipts[i].tick,
+                    ((lendersSurplus * (loanReceipt.nodeReceipts[i].pending - loanReceipt.nodeReceipts[i].used)) /
+                        totalInterest).toUint128()
+                );
+            }
 
             /* Update proceeds remaining */
             proceedsRemaining -= restored;

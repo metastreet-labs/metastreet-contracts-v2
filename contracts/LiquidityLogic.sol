@@ -74,6 +74,11 @@ library LiquidityLogic {
      */
     uint128 private constant LOCKED_SHARES = 1e6;
 
+    /**
+     * @notice Duration of vested amounts
+     */
+    uint256 internal constant VESTING_DURATION = 30 * 86400;
+
     /**************************************************************************/
     /* Structures */
     /**************************************************************************/
@@ -125,6 +130,30 @@ library LiquidityLogic {
     }
 
     /**
+     * @notice Vesting entry
+     * @param amount Vesting amount
+     * @param timestamp Start timestamp
+     * @param expiration Expiration timestamp
+     */
+    struct VestingEntry {
+        uint128 amount;
+        uint64 timestamp;
+        uint64 expiration;
+    }
+
+    /**
+     * @notice Vesting state
+     * @param headIndex Head index
+     * @param tailIndex Tail index
+     * @param entries Vesting entries
+     */
+    struct Vesting {
+        uint128 headIndex;
+        uint128 tailIndex;
+        mapping(uint128 => VestingEntry) entries;
+    }
+
+    /**
      * @notice Liquidity node
      * @param value Liquidity value
      * @param shares Liquidity shares outstanding
@@ -144,6 +173,7 @@ library LiquidityLogic {
         uint128 next;
         Redemptions redemptions;
         Accrual accrual;
+        Vesting vesting;
     }
 
     /**
@@ -555,6 +585,59 @@ library LiquidityLogic {
     }
 
     /**************************************************************************/
+    /* Vesting API */
+    /**************************************************************************/
+
+    /**
+     * @notice Vest an amount to a liquidity tick over time
+     * @param liquidity Liquidity state
+     * @param tick Tick
+     * @param amount Amount
+     */
+    function vest(Liquidity storage liquidity, uint128 tick, uint128 amount) internal {
+        Node storage node = liquidity.nodes[tick];
+
+        /* Record new vesting entry */
+        node.vesting.entries[node.vesting.tailIndex++] = VestingEntry({
+            amount: amount,
+            timestamp: uint64(block.timestamp),
+            expiration: uint64(block.timestamp + VESTING_DURATION)
+        });
+
+        /* Update accrual rate */
+        uint256 rate = amount / VESTING_DURATION;
+        node.accrual.rate += rate.toUint64();
+    }
+
+    /**
+     * @notice Process completed vestings in a liquidity tick
+     * @dev Assumes _accrue() has already been called on node.
+     * @param node Liquidity node
+     */
+    function _processVests(Node storage node) internal {
+        /* Visit active vesting entries */
+        uint128 index;
+        for (index = node.vesting.headIndex; index < node.vesting.tailIndex; index++) {
+            VestingEntry memory entry = node.vesting.entries[index];
+
+            /* Break on unexpired vest */
+            if (entry.expiration > block.timestamp) break;
+
+            /* Add to node value */
+            node.value += entry.amount;
+            node.available += entry.amount;
+
+            /* Remove from accrual */
+            uint256 rate = entry.amount / (entry.expiration - entry.timestamp);
+            node.accrual.rate -= rate.toUint64();
+            node.accrual.accrued -= uint128(rate * (block.timestamp - entry.timestamp));
+        }
+
+        /* Update head index */
+        node.vesting.headIndex = index;
+    }
+
+    /**************************************************************************/
     /* Primary API */
     /**************************************************************************/
 
@@ -584,8 +667,9 @@ library LiquidityLogic {
         /* Instantiate node, if necessary */
         _instantiate(liquidity, node, tick);
 
-        /* Process accrual */
+        /* Process accrual and vesting */
         _accrue(node);
+        _processVests(node);
 
         /* Compute deposit price */
         uint256 price = node.shares == 0
@@ -678,6 +762,10 @@ library LiquidityLogic {
      */
     function redeem(Liquidity storage liquidity, uint128 tick, uint128 shares) internal returns (uint128, uint128) {
         Node storage node = liquidity.nodes[tick];
+
+        /* Process accrual and vesting */
+        _accrue(node);
+        _processVests(node);
 
         /* Redemption from inactive liquidity nodes is allowed to facilitate
          * restoring garbage collected nodes */
