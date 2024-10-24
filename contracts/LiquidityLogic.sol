@@ -210,7 +210,7 @@ library LiquidityLogic {
         Liquidity storage liquidity,
         uint128 startTick,
         uint128 endTick
-    ) public view returns (uint256 count) {
+    ) internal view returns (uint256 count) {
         /* Validate start tick has active liquidity */
         if (liquidity.nodes[startTick].next == 0) revert ILiquidity.InactiveLiquidity();
 
