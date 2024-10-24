@@ -201,7 +201,7 @@ contract WeightedRateERC1155CollectionPool is
     /* ERC1155Holder */
     /**************************************************************************/
 
-    function onERC1155Received(address, address, uint256, uint256, bytes memory) public pure returns (bytes4) {
+    function onERC1155Received(address, address, uint256, uint256, bytes memory) external pure returns (bytes4) {
         return this.onERC1155Received.selector;
     }
 
@@ -211,7 +211,7 @@ contract WeightedRateERC1155CollectionPool is
         uint256[] memory,
         uint256[] memory,
         bytes memory
-    ) public pure returns (bytes4) {
+    ) external pure returns (bytes4) {
         /* Batch transfers not supported */
         return 0;
     }
