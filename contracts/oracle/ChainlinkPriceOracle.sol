@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.25;
 
-import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import "../interfaces/IPriceOracle.sol";
 
 import "../integrations/Chainlink/AggregatorV3Interface.sol";
-import "../integrations/Chainlink/FeedRegistryInterface.sol";
 
 /**
  * @title Chainlink Price Oracle
@@ -14,47 +13,32 @@ import "../integrations/Chainlink/FeedRegistryInterface.sol";
  */
 contract ChainlinkPriceOracle is IPriceOracle {
     /**************************************************************************/
-    /* Constants */
-    /**************************************************************************/
-
-    /**
-     * @notice Fixed point scale
-     */
-    uint256 internal constant FIXED_POINT_SCALE = 1e18;
-
-    /**************************************************************************/
     /* Errors */
     /**************************************************************************/
 
     /**
-     * @notice Invalid rate
+     * @notice Invalid price feed
      */
-    error InvalidRate();
+    error InvalidPriceFeed();
 
     /**
-     * @notice Invalid floor price
+     * @notice Invalid price
      */
-    error InvalidFloorPrice();
+    error InvalidPrice();
 
     /**************************************************************************/
     /* State */
     /**************************************************************************/
 
     /**
-     * @notice NFT price oracle
+     * @notice Base price feed
      */
-    AggregatorV3Interface internal immutable _nftPriceOracle;
+    AggregatorV3Interface internal immutable _base;
 
     /**
-     * @notice Currency price feed registry
+     * @notice Quote price feed
      */
-    FeedRegistryInterface internal immutable _priceFeedRegistry;
-
-    /**
-     * @notice Currency of oracle price
-     * @dev Address for ETH: 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
-     */
-    address internal immutable _oracleCurrency;
+    AggregatorV3Interface internal immutable _quote;
 
     /**************************************************************************/
     /* Constructor */
@@ -62,14 +46,18 @@ contract ChainlinkPriceOracle is IPriceOracle {
 
     /**
      * @notice Chainlink Price Oracle constructor
-     * @param nftPriceOracle_ Address for price oracle of a given NFT collection
-     * @param priceFeedRegistry_ Address for registry of currency price feeds
-     * @param oracleCurrency_ Currency the oracle price is denominated in
+     * @dev Example: To get the price of BTC in EUR, we need
+     * @dev 1) Base price feed: BTC / USD
+     * @dev 2) Quote price feed: EUR / USD
+     * @param base_ Base price feed
+     * @param quote_ Quote price feed
      */
-    constructor(address nftPriceOracle_, address priceFeedRegistry_, address oracleCurrency_) {
-        _nftPriceOracle = AggregatorV3Interface(nftPriceOracle_);
-        _priceFeedRegistry = FeedRegistryInterface(priceFeedRegistry_);
-        _oracleCurrency = oracleCurrency_;
+    constructor(address base_, address quote_) {
+        /* Validate price feeds */
+        if (base_ == address(0) || quote_ == address(0)) revert InvalidPriceFeed();
+
+        _base = AggregatorV3Interface(base_);
+        _quote = AggregatorV3Interface(quote_);
     }
 
     /**************************************************************************/
@@ -77,27 +65,19 @@ contract ChainlinkPriceOracle is IPriceOracle {
     /**************************************************************************/
 
     /**
-     * @notice Get address of NFT price oracle
-     * @return NFT price oracle
+     * @notice Get address of base price feed
+     * @return Base price feed
      */
-    function nftPriceOracle() external view returns (address) {
-        return address(_nftPriceOracle);
+    function base() external view returns (address) {
+        return address(_base);
     }
 
     /**
-     * @notice Get address of price feed registry
-     * @return Price feed registry
+     * @notice Get address of quote price feed
+     * @return Quote price feed
      */
-    function priceFeedRegistry() external view returns (address) {
-        return address(_priceFeedRegistry);
-    }
-
-    /**
-     * @notice Get address of the NFT price oracle currency
-     * @return Currency of the NFT price oracle
-     */
-    function oracleCurrency() external view returns (address) {
-        return _oracleCurrency;
+    function quote() external view returns (address) {
+        return address(_quote);
     }
 
     /**************************************************************************/
@@ -105,19 +85,40 @@ contract ChainlinkPriceOracle is IPriceOracle {
     /**************************************************************************/
 
     /**
-     * @notice Get value of given currency in oracle currency
-     * @dev Price feed registry will revert if feed does not exist
-     * @param currencyToken Currency token
-     * @return Value of given currency in oracle currency
+     * @notice Get derived price
+     * @dev Adapted from https://docs.chain.link/data-feeds/using-data-feeds#getting-a-different-price-denomination
+     * @param _decimals Decimals of the price
+     * @return Derived price
      */
-    function _exchangeRate(address currencyToken) internal view returns (uint256) {
-        /* Get price of currency token in terms of oracle currency */
-        (, int256 rate, , , ) = _priceFeedRegistry.latestRoundData(currencyToken, _oracleCurrency);
+    function getDerivedPrice(uint8 _decimals) internal view returns (int256) {
+        require(_decimals > uint8(0) && _decimals <= uint8(18), "Invalid _decimals");
+        int256 decimals = int256(10 ** uint256(_decimals));
+        (, int256 basePrice, , , ) = _base.latestRoundData();
+        uint8 baseDecimals = _base.decimals();
+        basePrice = scalePrice(basePrice, baseDecimals, _decimals);
 
-        /* Validate rate is non-zero and non-negative */
-        if (rate <= 0) revert InvalidRate();
+        (, int256 quotePrice, , , ) = _quote.latestRoundData();
+        uint8 quoteDecimals = _quote.decimals();
+        quotePrice = scalePrice(quotePrice, quoteDecimals, _decimals);
 
-        return uint256(rate);
+        return (basePrice * decimals) / quotePrice;
+    }
+
+    /**
+     * @notice Scale price
+     * @dev Adapted from https://docs.chain.link/data-feeds/using-data-feeds#getting-a-different-price-denomination
+     * @param _price Price to scale
+     * @param _priceDecimals Decimals of the price
+     * @param _decimals Decimals to scale to
+     * @return Scaled price
+     */
+    function scalePrice(int256 _price, uint8 _priceDecimals, uint8 _decimals) internal pure returns (int256) {
+        if (_priceDecimals < _decimals) {
+            return _price * int256(10 ** uint256(_decimals - _priceDecimals));
+        } else if (_priceDecimals > _decimals) {
+            return _price / int256(10 ** uint256(_priceDecimals - _decimals));
+        }
+        return _price;
     }
 
     /**************************************************************************/
@@ -134,13 +135,16 @@ contract ChainlinkPriceOracle is IPriceOracle {
         uint256[] memory,
         bytes calldata
     ) external view override returns (uint256) {
-        /* Get floor price in oracle currency, reverts if feed does not exist */
-        (, int256 floorPrice, , , ) = _nftPriceOracle.latestRoundData();
+        /* Get decimals of pool currency token */
+        uint8 decimals = IERC20Metadata(currencyToken).decimals();
 
-        /* Validate floor price is non-zero and non-negative */
-        if (floorPrice <= 0) revert InvalidFloorPrice();
+        /* Get price of NFT scaled to pool currency token decimals */
+        int256 nftPrice = getDerivedPrice(decimals);
 
-        /* Return floor price denominated in given currency token */
-        return Math.mulDiv(uint256(floorPrice), FIXED_POINT_SCALE, _exchangeRate(currencyToken)) / FIXED_POINT_SCALE;
+        /* Validate price is non-zero and non-negative */
+        if (nftPrice <= 0) revert InvalidPrice();
+
+        /* Return price in terms of pool currency token */
+        return uint256(nftPrice);
     }
 }
