@@ -7,6 +7,8 @@ import "../interfaces/IPriceOracle.sol";
 
 import "../integrations/Chainlink/AggregatorV3Interface.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @title Chainlink Price Oracle
  * @author MetaStreet Labs
@@ -93,11 +95,16 @@ contract ChainlinkPriceOracle is IPriceOracle {
     function getDerivedPrice(uint8 _decimals) internal view returns (int256) {
         require(_decimals > uint8(0) && _decimals <= uint8(18), "Invalid _decimals");
         int256 decimals = int256(10 ** uint256(_decimals));
+        console.log("decimals:", uint256(decimals));
         (, int256 basePrice, , , ) = _base.latestRoundData();
+        console.log("basePrice:", uint256(basePrice));
+
         uint8 baseDecimals = _base.decimals();
         basePrice = scalePrice(basePrice, baseDecimals, _decimals);
 
         (, int256 quotePrice, , , ) = _quote.latestRoundData();
+        console.log("quotePrice:", uint256(quotePrice));
+
         uint8 quoteDecimals = _quote.decimals();
         quotePrice = scalePrice(quotePrice, quoteDecimals, _decimals);
 

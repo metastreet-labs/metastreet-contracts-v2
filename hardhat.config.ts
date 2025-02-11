@@ -51,9 +51,10 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
-      allowUnlimitedContractSize: true,
-      chainId: 1,
-      initialBaseFeePerGas: 1,
+      forking: {
+        url: `https://base-mainnet.g.alchemy.com/v2/9Lq-48khyZrYoZPrn-y6-x9r7CQ9Po5g`,
+        blockNumber: 23655407,
+      },
     },
     mainnet: {
       url: process.env.MAINNET_URL || "",
