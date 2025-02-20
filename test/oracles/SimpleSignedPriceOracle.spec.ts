@@ -66,6 +66,18 @@ describe("SimpleSignedPriceOracle", function () {
     ],
   };
 
+  const QUOTE_TYPEHASH_V2 = {
+    QuoteV2: [
+      { name: "token", type: "address" },
+      { name: "startTokenId", type: "uint256" },
+      { name: "endTokenId", type: "uint256" },
+      { name: "currency", type: "address" },
+      { name: "price", type: "uint256" },
+      { name: "timestamp", type: "uint64" },
+      { name: "duration", type: "uint64" },
+    ],
+  };
+
   async function createSignedQuote(
     signer: SignerWithAddress,
     token: string,
@@ -100,28 +112,74 @@ describe("SimpleSignedPriceOracle", function () {
     return [[token, tokenId, currency, price, timestamp, duration], signature];
   }
 
+  async function createSignedQuoteV2(
+    signer: SignerWithAddress,
+    token: string,
+    startTokenId: bigint,
+    endTokenId: bigint,
+    price: bigint,
+    currency?: string = WETH_ADDRESS
+  ) {
+    const DOMAIN = {
+      name: "testName" /* TBD */,
+      version: "1.2" /* TBD */,
+      chainId: 1,
+      verifyingContract: await simpleSignedPriceOracle.getAddress(),
+    };
+
+    /* Time now */
+    const timestamp = await helpers.time.latest();
+
+    /* 5 minutes */
+    const duration = 60 * 5;
+
+    let quote = {
+      token,
+      startTokenId,
+      endTokenId,
+      currency,
+      price,
+      timestamp,
+      duration,
+    };
+
+    const signature = await signer.signTypedData(DOMAIN, QUOTE_TYPEHASH_V2, quote);
+
+    return [[token, startTokenId, endTokenId, currency, price, timestamp, duration], signature];
+  }
+
   /****************************************************************************/
   /* Admin API */
   /****************************************************************************/
 
   describe("#setSigner", async function () {
     it("set signer successfully", async function () {
-      await simpleSignedPriceOracle.setSigner(WPUNKS_ADDRESS, accounts[0].address);
-      await simpleSignedPriceOracle.setSigner(DOODLES_ADDRESS, accounts[1].address);
+      await simpleSignedPriceOracle.setSigner(WPUNKS_ADDRESS, accounts[0].address, 0);
+      await simpleSignedPriceOracle.setSigner(DOODLES_ADDRESS, accounts[1].address, 0);
 
-      expect(await simpleSignedPriceOracle.priceOracleSigner(WPUNKS_ADDRESS)).to.be.equal(accounts[0].address);
-      expect(await simpleSignedPriceOracle.priceOracleSigner(DOODLES_ADDRESS)).to.be.equal(accounts[1].address);
+      expect((await simpleSignedPriceOracle.priceOracleSigner(WPUNKS_ADDRESS)).signer).to.be.equal(accounts[0].address);
+      expect((await simpleSignedPriceOracle.priceOracleSigner(WPUNKS_ADDRESS)).quoteType).to.be.equal(0);
+      expect((await simpleSignedPriceOracle.priceOracleSigner(DOODLES_ADDRESS)).signer).to.be.equal(
+        accounts[1].address
+      );
+      expect((await simpleSignedPriceOracle.priceOracleSigner(DOODLES_ADDRESS)).quoteType).to.be.equal(0);
 
-      await simpleSignedPriceOracle.setSigner(WPUNKS_ADDRESS, ethers.ZeroAddress);
-      await simpleSignedPriceOracle.setSigner(DOODLES_ADDRESS, ethers.ZeroAddress);
+      await simpleSignedPriceOracle.setSigner(WPUNKS_ADDRESS, accounts[0].address, 1);
+      await simpleSignedPriceOracle.setSigner(DOODLES_ADDRESS, accounts[1].address, 1);
 
-      expect(await simpleSignedPriceOracle.priceOracleSigner(WPUNKS_ADDRESS)).to.be.equal(ethers.ZeroAddress);
-      expect(await simpleSignedPriceOracle.priceOracleSigner(DOODLES_ADDRESS)).to.be.equal(ethers.ZeroAddress);
+      expect((await simpleSignedPriceOracle.priceOracleSigner(WPUNKS_ADDRESS)).quoteType).to.be.equal(1);
+      expect((await simpleSignedPriceOracle.priceOracleSigner(DOODLES_ADDRESS)).quoteType).to.be.equal(1);
+
+      await simpleSignedPriceOracle.setSigner(WPUNKS_ADDRESS, ethers.ZeroAddress, 0);
+      await simpleSignedPriceOracle.setSigner(DOODLES_ADDRESS, ethers.ZeroAddress, 0);
+
+      expect((await simpleSignedPriceOracle.priceOracleSigner(WPUNKS_ADDRESS)).signer).to.be.equal(ethers.ZeroAddress);
+      expect((await simpleSignedPriceOracle.priceOracleSigner(DOODLES_ADDRESS)).signer).to.be.equal(ethers.ZeroAddress);
     });
 
     it("fails on non-owner setting signer", async function () {
       await expect(
-        simpleSignedPriceOracle.connect(accounts[1]).setSigner(WPUNKS_ADDRESS, accounts[0].address)
+        simpleSignedPriceOracle.connect(accounts[1]).setSigner(WPUNKS_ADDRESS, accounts[0].address, 0)
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
   });
@@ -132,7 +190,7 @@ describe("SimpleSignedPriceOracle", function () {
 
   describe("#price", async function () {
     beforeEach("set signer for WPUNKs", async function () {
-      await simpleSignedPriceOracle.setSigner(WPUNKS_ADDRESS, accounts[0].address);
+      await simpleSignedPriceOracle.setSigner(WPUNKS_ADDRESS, accounts[0].address, 0);
     });
 
     it("successfully return price", async function () {
@@ -182,6 +240,37 @@ describe("SimpleSignedPriceOracle", function () {
       ).to.be.equal(ethers.parseEther("3.2"));
     });
 
+    it("successfully return price for ranged token IDs", async function () {
+      await simpleSignedPriceOracle.setSigner(WPUNKS_ADDRESS, accounts[0].address, 1);
+
+      const message = await createSignedQuoteV2(
+        accounts[0],
+        WPUNKS_ADDRESS,
+        WPUNK_ID_1,
+        WPUNK_ID_2,
+        ethers.parseEther("2")
+      );
+
+      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["((address,uint256,uint256,address,uint256,uint64,uint64),bytes)"],
+        [message]
+      );
+
+      /* Fast forward 30 seconds */
+      await helpers.time.increase(30);
+
+      /* Validate for 2 collateral token IDs */
+      expect(
+        await simpleSignedPriceOracle.price(
+          WPUNKS_ADDRESS,
+          WETH_ADDRESS,
+          [WPUNK_ID_1, WPUNK_ID_2],
+          [1, 1],
+          oracleContext
+        )
+      ).to.be.equal(ethers.parseEther("2"));
+    });
+
     it("fails on invalid token", async function () {
       const message = await createSignedQuote(
         accounts[0],
@@ -205,7 +294,7 @@ describe("SimpleSignedPriceOracle", function () {
     });
 
     it("fails on invalid token ID", async function () {
-      const message = await createSignedQuote(
+      let message = await createSignedQuote(
         accounts[0],
         WPUNKS_ADDRESS,
         WPUNK_ID_2,
@@ -223,6 +312,23 @@ describe("SimpleSignedPriceOracle", function () {
       /* Validate for invalid token ID */
       await expect(
         simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1], [1], oracleContext)
+      ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "InvalidQuote");
+
+      await simpleSignedPriceOracle.setSigner(WPUNKS_ADDRESS, accounts[0].address, 1);
+
+      message = await createSignedQuoteV2(accounts[0], WPUNKS_ADDRESS, WPUNK_ID_1, WPUNK_ID_1, ethers.parseEther("2"));
+
+      oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["((address,uint256,uint256,address,uint256,uint64,uint64),bytes)"],
+        [message]
+      );
+
+      /* Fast forward 30 seconds */
+      await helpers.time.increase(30);
+
+      /* Validate for invalid token ID */
+      await expect(
+        simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1, WPUNK_ID_2], [1, 1], oracleContext)
       ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "InvalidQuote");
     });
 
