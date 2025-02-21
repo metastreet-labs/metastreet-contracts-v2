@@ -22,6 +22,7 @@ import {
   Withdrawn as WithdrawnEntity,
 } from "../generated/schema";
 import { ERC721 as ERC721Contract } from "../generated/templates/Pool/ERC721";
+import { IERC165 } from "../generated/templates/Pool/IERC165";
 import { ICollateralWrapper } from "../generated/templates/Pool/ICollateralWrapper";
 import {
   AdminFeeUpdated as AdminFeeUpdatedEvent,
@@ -275,6 +276,12 @@ function updateTickEntitiesFromLoanEntity(loanEntity: LoanEntity, factor: i8): v
 /**************************************************************************/
 /* Other entity updaters */
 /**************************************************************************/
+
+function isCollateralWrapper(address: Address): boolean {
+  const supportsInterface = IERC165.bind(address).try_supportsInterface(Bytes.fromHexString("0x9b210ac6"));
+  return supportsInterface.reverted ? false : supportsInterface.value;
+}
+
 function createPoolEventEntity(
   event: ethereum.Event,
   type: string,
@@ -422,28 +429,37 @@ function createLoanEntity(
     loanEntity.collateralTokenIds = [loanReceipt.collateralTokenId];
   } else {
     const collateralWrapperSymbol = ERC721Contract.bind(loanReceipt.collateralToken).symbol();
-    const wrappedEntityId = loanReceipt.collateralTokenId.toString();
 
+    // Handle bundles recognized by subgraph
     if (collateralWrapperSymbol == "MSBCW") {
-      const bundleEntity = BundleEntity.load(wrappedEntityId);
+      const bundleEntity = BundleEntity.load(loanReceipt.collateralTokenId.toString());
       if (!bundleEntity) throw new Error("Bundle entity not found");
       loanEntity.bundle = bundleEntity.id;
+
       loanEntity.collateralTokenIds = bundleEntity.underlyingCollateralTokenIds;
+      loanEntity.collateralWrapperToken = loanReceipt.collateralToken;
+      loanEntity.collateralWrapperTokenId = loanReceipt.collateralTokenId;
     } else if (collateralWrapperSymbol == "MSMTCW") {
-      const batchEntity = BatchEntity.load(wrappedEntityId);
+      const batchEntity = BatchEntity.load(loanReceipt.collateralTokenId.toString());
       if (!batchEntity) throw new Error("Batch entity not found");
       loanEntity.batch = batchEntity.id;
+
       loanEntity.collateralTokenIds = batchEntity.underlyingCollateralTokenIds;
-    } else {
+      loanEntity.collateralWrapperToken = loanReceipt.collateralToken;
+      loanEntity.collateralWrapperTokenId = loanReceipt.collateralTokenId;
+    } else if (isCollateralWrapper(loanReceipt.collateralToken)) {
       const result = ICollateralWrapper.bind(loanReceipt.collateralToken).enumerate(
         loanReceipt.collateralTokenId,
         loanReceipt.collateralWrapperContext
       );
-      loanEntity.collateralTokenIds = result.value1;
-    }
 
-    loanEntity.collateralWrapperToken = loanReceipt.collateralToken;
-    loanEntity.collateralWrapperTokenId = loanReceipt.collateralTokenId;
+      loanEntity.collateralTokenIds = result.value1;
+      loanEntity.collateralWrapperToken = loanReceipt.collateralToken;
+      loanEntity.collateralWrapperTokenId = loanReceipt.collateralTokenId;
+    } else {
+      // Special collateral filter
+      loanEntity.collateralTokenIds = [loanReceipt.collateralTokenId];
+    }
   }
 
   const delegates = getDelegatesFromReceipt(event.receipt);
