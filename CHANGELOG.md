@@ -1,3 +1,6 @@
+* SimpleSignedPriceOracle v1.4 - 02/20/2025
+    * Add token id range quote type.
+
 * NodePassCollectionCollateralFilter v1.0 - 02/12/2025
     * Initial release.
 
