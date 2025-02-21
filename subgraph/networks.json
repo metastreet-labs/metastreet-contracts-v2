@@ -1,0 +1,178 @@
+{
+  "sepolia": {
+    "PoolFactory": {
+      "address": "0x5FC53D3C3B108aD1c1D27399AcB8124b65229eD6",
+      "startBlock": 3702826
+    },
+    "BundleCollateralWrapper": {
+      "address": "0x83c7bc92bcFF43b9F682B7C2eE897A7130a36543",
+      "startBlock": 3702828
+    },
+    "ERC1155CollateralWrapper": {
+      "address": "0x5ea2fEfE67992D9e9e65FaF1B566731081d46a73",
+      "startBlock": 4371776
+    },
+    "EnglishAuctionCollateralLiquidatorV1": {
+      "address": "0xC29a8D5AE1Deb4B5985125C63e457b682e1E8Dd4",
+      "startBlock": 3702836
+    },
+    "EnglishAuctionCollateralLiquidator": {
+      "address": "0xC29a8D5AE1Deb4B5985125C63e457b682e1E8Dd4",
+      "startBlock": 3702836
+    }
+  },
+  "mainnet": {
+    "PoolFactory": {
+      "address": "0x1c91c822F6C5e117A2abe2B33B0E64b850e67095",
+      "startBlock": 17497132
+    },
+    "BundleCollateralWrapper": {
+      "address": "0xc4dC9eF8763433aAe26635bc5a09e362605fAd18",
+      "startBlock": 17497140
+    },
+    "ERC1155CollateralWrapper": {
+      "address": "0x4512b49d3081e1D258EebEF7c435f2310e7d3090",
+      "startBlock": 18039647
+    },
+    "EnglishAuctionCollateralLiquidatorV1": {
+      "address": "0xE0194F47040E2424b8a65cB5F7112a5DBE1F93Bf",
+      "startBlock": 17497152
+    },
+    "EnglishAuctionCollateralLiquidator": {
+      "address": "0xE0194F47040E2424b8a65cB5F7112a5DBE1F93Bf",
+      "startBlock": 17497152
+    }
+  },
+  "arbitrum-sepolia": {
+    "PoolFactory": {
+      "address": "0x12a12a1346d84615b0a30B583632312e9e373402",
+      "startBlock": 99726793
+    },
+    "BundleCollateralWrapper": {
+      "address": "0x25dEeD6fBF3d03d6282550d7493cf23265e1bC82",
+      "startBlock": 99726628
+    },
+    "ERC1155CollateralWrapper": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 99726793
+    },
+    "EnglishAuctionCollateralLiquidatorV1": {
+      "address": "0xE7968F42EF0601F89306d8Eb9Cd2FA42669029ff",
+      "startBlock": 99726766
+    },
+    "EnglishAuctionCollateralLiquidator": {
+      "address": "0xE7968F42EF0601F89306d8Eb9Cd2FA42669029ff",
+      "startBlock": 99726766
+    }
+  },
+  "arbitrum-one": {
+    "PoolFactory": {
+      "address": "0x41cF7ea4Ba650191e829A6bD31B9e2049C78D858",
+      "startBlock": 284135562
+    },
+    "BundleCollateralWrapper": {
+      "address": "0xC2356bf42c8910fD6c28Ee6C843bc0E476ee5D26",
+      "startBlock": 284135001
+    },
+    "ERC1155CollateralWrapper": {
+      "address": "0xD3954A8fCDF90Db6018CC2D0b96B77E88A749363",
+      "startBlock": 284508372
+    },
+    "EnglishAuctionCollateralLiquidatorV1": {
+      "address": "0xceb5856C525bbb654EEA75A8852A0F51073C4a58",
+      "startBlock": 284135192
+    },
+    "EnglishAuctionCollateralLiquidator": {
+      "address": "0xceb5856C525bbb654EEA75A8852A0F51073C4a58",
+      "startBlock": 284135192
+    }
+  },
+  "base": {
+    "PoolFactory": {
+      "address": "0x41cF7ea4Ba650191e829A6bD31B9e2049C78D858",
+      "startBlock": 14769808
+    },
+    "BundleCollateralWrapper": {
+      "address": "0xC2356bf42c8910fD6c28Ee6C843bc0E476ee5D26",
+      "startBlock": 14769556
+    },
+    "ERC1155CollateralWrapper": {
+      "address": "0xE8b7A46855Df35470ef00D1F71a8Ad2178d21893",
+      "startBlock": 24016035
+    },
+    "EnglishAuctionCollateralLiquidatorV1": {
+      "address": "0xceb5856C525bbb654EEA75A8852A0F51073C4a58",
+      "startBlock": 14769652
+    },
+    "EnglishAuctionCollateralLiquidator": {
+      "address": "0xceb5856C525bbb654EEA75A8852A0F51073C4a58",
+      "startBlock": 14769652
+    }
+  },
+  "blast-testnet": {
+    "PoolFactory": {
+      "address": "0x12a12a1346d84615b0a30B583632312e9e373402",
+      "startBlock": 1996131
+    },
+    "BundleCollateralWrapper": {
+      "address": "0x25dEeD6fBF3d03d6282550d7493cf23265e1bC82",
+      "startBlock": 1996068
+    },
+    "ERC1155CollateralWrapper": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 1996131
+    },
+    "EnglishAuctionCollateralLiquidatorV1": {
+      "address": "0xE7968F42EF0601F89306d8Eb9Cd2FA42669029ff",
+      "startBlock": 1996110
+    },
+    "EnglishAuctionCollateralLiquidator": {
+      "address": "0xE7968F42EF0601F89306d8Eb9Cd2FA42669029ff",
+      "startBlock": 1996110
+    }
+  },
+  "blast-mainnet": {
+    "PoolFactory": {
+      "address": "0x5F42c24Af1227c3c669035a6cB549579ed0F99dF",
+      "startBlock": 3109870
+    },
+    "BundleCollateralWrapper": {
+      "address": "0xD3954A8fCDF90Db6018CC2D0b96B77E88A749363",
+      "startBlock": 3109414
+    },
+    "ERC1155CollateralWrapper": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 3109870
+    },
+    "EnglishAuctionCollateralLiquidatorV1": {
+      "address": "0x7953D3408c4362F94fff0193745Ee34A361319F9",
+      "startBlock": 3109532
+    },
+    "EnglishAuctionCollateralLiquidator": {
+      "address": "0x7953D3408c4362F94fff0193745Ee34A361319F9",
+      "startBlock": 3109532
+    }
+  },
+  "plume": {
+    "PoolFactory": {
+      "address": "0x538d69531bFBf081AFBEC1aAA7551A28dEC9d195",
+      "startBlock": 99254
+    },
+    "BundleCollateralWrapper": {
+      "address": "0xC2356bf42c8910fD6c28Ee6C843bc0E476ee5D26",
+      "startBlock": 99235
+    },
+    "ERC1155CollateralWrapper": {
+      "address": "0xBc138C5061104b5c5886F99EFaBe1eC848588f89",
+      "startBlock": 99241
+    },
+    "EnglishAuctionCollateralLiquidatorV1": {
+      "address": "0x74C6E545DF9E4B725f28fb322F7f8121E1DD7ef5",
+      "startBlock": 99244
+    },
+    "EnglishAuctionCollateralLiquidator": {
+      "address": "0x74C6E545DF9E4B725f28fb322F7f8121E1DD7ef5",
+      "startBlock": 99244
+    }
+  }
+}

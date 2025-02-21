@@ -6,9 +6,9 @@ dataSources:
     name: PoolFactory
     network: mainnet
     source:
-      address: "0x1c91c822F6C5e117A2abe2B33B0E64b850e67095"
+      address: "0x0000000000000000000000000000000000000000"
       abi: PoolFactory
-      startBlock: 17497132
+      startBlock: 0
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.8
@@ -40,9 +40,9 @@ dataSources:
     name: BundleCollateralWrapper
     network: mainnet
     source:
-      address: "0xc4dC9eF8763433aAe26635bc5a09e362605fAd18"
+      address: "0x0000000000000000000000000000000000000000"
       abi: BundleCollateralWrapper
-      startBlock: 17497140
+      startBlock: 0
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.8
@@ -62,9 +62,9 @@ dataSources:
     name: ERC1155CollateralWrapper
     network: mainnet
     source:
-      address: "0x4512b49d3081e1D258EebEF7c435f2310e7d3090"
+      address: "0x0000000000000000000000000000000000000000"
       abi: ERC1155CollateralWrapper
-      startBlock: 18039647
+      startBlock: 0
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.8
@@ -84,9 +84,9 @@ dataSources:
     name: EnglishAuctionCollateralLiquidatorV1
     network: mainnet
     source:
-      address: "0xE0194F47040E2424b8a65cB5F7112a5DBE1F93Bf"
+      address: "0x0000000000000000000000000000000000000000"
       abi: EnglishAuctionCollateralLiquidatorV1
-      startBlock: 17497152
+      startBlock: 0
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.8
@@ -110,9 +110,9 @@ dataSources:
     name: EnglishAuctionCollateralLiquidator
     network: mainnet
     source:
-      address: "0xE0194F47040E2424b8a65cB5F7112a5DBE1F93Bf"
+      address: "0x0000000000000000000000000000000000000000"
       abi: EnglishAuctionCollateralLiquidator
-      startBlock: 17497152
+      startBlock: 0
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.8
