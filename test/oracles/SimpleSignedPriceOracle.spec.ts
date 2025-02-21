@@ -44,7 +44,7 @@ describe("SimpleSignedPriceOracle", function () {
 
   describe("constants", async function () {
     it("matches price oracle implementation version", async function () {
-      expect(await simpleSignedPriceOracle.IMPLEMENTATION_VERSION()).to.be.equal("1.3");
+      expect(await simpleSignedPriceOracle.IMPLEMENTATION_VERSION()).to.be.equal("1.4");
     });
     it("matches price oracle domain version", async function () {
       expect(await simpleSignedPriceOracle.DOMAIN_VERSION()).to.be.equal("1.2");
