@@ -46,6 +46,11 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
     error InvalidQuote();
 
     /**
+     * @notice No quote found
+     */
+    error QuoteNotFound();
+
+    /**
      * @notice Invalid timestamp
      */
     error InvalidTimestamp();
@@ -303,6 +308,7 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
      * @notice Verify quote and signer
      * @param collateralToken Collateral token
      * @param collateralTokenIds Collateral token IDs
+     * @param collateralTokenQuantities Collateral token quantities
      * @param poolCurrency Pool currency
      * @param oracleContext Oracle context
      * @return Oracle price
@@ -310,52 +316,74 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
     function _verifyQuoteV2(
         address collateralToken,
         uint256[] memory collateralTokenIds,
+        uint256[] memory collateralTokenQuantities,
         address poolCurrency,
         bytes calldata oracleContext
     ) internal view returns (uint256) {
         /* Decode oracle context into a SignedQuoteV2 */
-        SignedQuoteV2 memory signedQuote = abi.decode(oracleContext, (SignedQuoteV2));
-        QuoteV2 memory quote = signedQuote.quote;
+        SignedQuoteV2[] memory signedQuotes = abi.decode(oracleContext, (SignedQuoteV2[]));
 
-        /* Validate token and currency */
-        if (collateralToken != quote.token || poolCurrency != quote.currency) revert InvalidQuote();
-
-        /* Validate quote price is non-zero */
-        if (quote.price == 0) revert InvalidQuote();
-
-        /* Validate quote timestamp */
-        if (quote.timestamp > block.timestamp || quote.timestamp + quote.duration < block.timestamp)
-            revert InvalidTimestamp();
-
-        /* Validate token IDs are within range */
+        /* Validate and aggregate oracle prices */
+        uint256 totalOraclePrice;
+        uint256 count;
         for (uint256 i; i < collateralTokenIds.length; i++) {
-            if (collateralTokenIds[i] < quote.startTokenId || collateralTokenIds[i] > quote.endTokenId)
-                revert InvalidQuote();
+            /* Find quote for token ID */
+            QuoteV2 memory quote;
+            bytes memory signature;
+            for (uint256 j; j < signedQuotes.length; j++) {
+                /* Continue if token ID is outside quote range */
+                if (
+                    collateralTokenIds[i] < signedQuotes[j].quote.startTokenId ||
+                    collateralTokenIds[i] > signedQuotes[j].quote.endTokenId
+                ) continue;
+
+                /* Set quote and signature */
+                quote = signedQuotes[j].quote;
+                signature = signedQuotes[j].signature;
+                break;
+            }
+
+            /* Validate quote was found */
+            if (signature.length == 0) revert QuoteNotFound();
+
+            /* Validate token and currency */
+            if (collateralToken != quote.token || poolCurrency != quote.currency) revert InvalidQuote();
+
+            /* Validate quote price is non-zero */
+            if (quote.price == 0) revert InvalidQuote();
+
+            /* Validate quote timestamp */
+            if (quote.timestamp > block.timestamp || quote.timestamp + quote.duration < block.timestamp)
+                revert InvalidTimestamp();
+
+            /* Recover quote signer */
+            address signerAddress = ECDSA.recover(
+                _hashTypedDataV4(
+                    keccak256(
+                        abi.encode(
+                            QUOTE_TYPEHASH_V2,
+                            collateralToken,
+                            quote.startTokenId,
+                            quote.endTokenId,
+                            poolCurrency,
+                            quote.price,
+                            quote.timestamp,
+                            quote.duration
+                        )
+                    )
+                ),
+                signature
+            );
+
+            /* Validate signer */
+            if (signerAddress != _priceOracleSigners[collateralToken].signer) revert InvalidSigner();
+
+            /* Update total oracle price and collateral token count */
+            totalOraclePrice += quote.price * collateralTokenQuantities[i];
+            count += collateralTokenQuantities[i];
         }
 
-        /* Recover quote signer */
-        address signerAddress = ECDSA.recover(
-            _hashTypedDataV4(
-                keccak256(
-                    abi.encode(
-                        QUOTE_TYPEHASH_V2,
-                        collateralToken,
-                        quote.startTokenId,
-                        quote.endTokenId,
-                        poolCurrency,
-                        quote.price,
-                        quote.timestamp,
-                        quote.duration
-                    )
-                )
-            ),
-            signedQuote.signature
-        );
-
-        /* Validate signer */
-        if (signerAddress != _priceOracleSigners[collateralToken].signer) revert InvalidSigner();
-
-        return quote.price;
+        return totalOraclePrice / count;
     }
 
     /**************************************************************************/
@@ -387,7 +415,13 @@ contract SimpleSignedPriceOracle is Ownable2Step, EIP712, IPriceOracle {
                     currencyToken,
                     oracleContext
                 )
-                : _verifyQuoteV2(collateralToken, collateralTokenIds, currencyToken, oracleContext);
+                : _verifyQuoteV2(
+                    collateralToken,
+                    collateralTokenIds,
+                    collateralTokenQuantities,
+                    currencyToken,
+                    oracleContext
+                );
     }
 
     /**************************************************************************/
