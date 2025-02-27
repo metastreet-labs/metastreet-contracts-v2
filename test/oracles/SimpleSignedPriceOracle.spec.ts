@@ -188,7 +188,7 @@ describe("SimpleSignedPriceOracle", function () {
   /* Primary API */
   /****************************************************************************/
 
-  describe("#price", async function () {
+  describe("#price (quote v1)", async function () {
     beforeEach("set signer for WPUNKs", async function () {
       await simpleSignedPriceOracle.setSigner(WPUNKS_ADDRESS, accounts[0].address, 0);
     });
@@ -240,45 +240,6 @@ describe("SimpleSignedPriceOracle", function () {
       ).to.be.equal(ethers.parseEther("3.2"));
     });
 
-    it("successfully return price for ranged token IDs", async function () {
-      await simpleSignedPriceOracle.setSigner(WPUNKS_ADDRESS, accounts[0].address, 1);
-
-      const message_1 = await createSignedQuoteV2(
-        accounts[0],
-        WPUNKS_ADDRESS,
-        WPUNK_ID_1,
-        WPUNK_ID_1,
-        ethers.parseEther("1")
-      );
-
-      const message_2 = await createSignedQuoteV2(
-        accounts[0],
-        WPUNKS_ADDRESS,
-        WPUNK_ID_2,
-        WPUNK_ID_2,
-        ethers.parseEther("4")
-      );
-
-      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
-        ["((address,uint256,uint256,address,uint256,uint64,uint64),bytes)[]"],
-        [[message_1, message_2]]
-      );
-
-      /* Fast forward 30 seconds */
-      await helpers.time.increase(30);
-
-      /* Validate for 2 collateral token IDs */
-      expect(
-        await simpleSignedPriceOracle.price(
-          WPUNKS_ADDRESS,
-          WETH_ADDRESS,
-          [WPUNK_ID_1, WPUNK_ID_2],
-          [2, 1],
-          oracleContext
-        )
-      ).to.be.equal(ethers.parseEther("2"));
-    });
-
     it("fails on unsupported token", async function () {
       const message = await createSignedQuote(accounts[0], DOODLES_ADDRESS, DOODLES_ID, ethers.parseEther("2"));
       const oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
@@ -289,31 +250,10 @@ describe("SimpleSignedPriceOracle", function () {
       /* Fast forward 30 seconds */
       await helpers.time.increase(30);
 
-      /* Validate invalid signature */
+      /* Validate unsupported token */
       await expect(
         simpleSignedPriceOracle.price(DOODLES_ADDRESS, WETH_ADDRESS, [DOODLES_ID], [1], oracleContext)
       ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "UnsupportedToken");
-    });
-
-    it("fails on no quote found", async function () {
-      await simpleSignedPriceOracle.setSigner(WPUNKS_ADDRESS, accounts[0].address, 1);
-
-      const message_1 = await createSignedQuoteV2(accounts[0], WPUNKS_ADDRESS, 1, 10, ethers.parseEther("2"));
-
-      const message_2 = await createSignedQuoteV2(accounts[0], WPUNKS_ADDRESS, 20, 30, ethers.parseEther("2"));
-
-      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
-        ["((address,uint256,uint256,address,uint256,uint64,uint64),bytes)[]"],
-        [[message_1, message_2]]
-      );
-
-      /* Fast forward 30 seconds */
-      await helpers.time.increase(30);
-
-      /* Validate quote not found */
-      await expect(
-        simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1, WPUNK_ID_2], [1, 1], oracleContext)
-      ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "QuoteNotFound");
     });
 
     it("fails on invalid token", async function () {
@@ -392,7 +332,7 @@ describe("SimpleSignedPriceOracle", function () {
       /* Fast forward 6 minutes */
       await helpers.time.increase(360);
 
-      /* Validate invalid quote */
+      /* Validate invalid price */
       await expect(
         simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1], [1], oracleContext)
       ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "InvalidQuote");
@@ -431,18 +371,251 @@ describe("SimpleSignedPriceOracle", function () {
     });
 
     it("fails on invalid length", async function () {
-      const message = await createSignedQuote(accounts[0], WPUNKS_ADDRESS, WPUNK_ID_1, ethers.parseEther("2"));
+      /* Validate invalid length */
+      await expect(
+        simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1], [], "0x")
+      ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "InvalidLength");
+    });
+  });
+
+  describe("#price (quote v2)", async function () {
+    beforeEach("set signer for WPUNKs", async function () {
+      await simpleSignedPriceOracle.setSigner(WPUNKS_ADDRESS, accounts[0].address, 1);
+    });
+
+    it("successfully return price for ranged token IDs", async function () {
+      const message_1 = await createSignedQuoteV2(
+        accounts[0],
+        WPUNKS_ADDRESS,
+        WPUNK_ID_1,
+        WPUNK_ID_1,
+        ethers.parseEther("1")
+      );
+      const message_2 = await createSignedQuoteV2(
+        accounts[0],
+        WPUNKS_ADDRESS,
+        WPUNK_ID_2,
+        WPUNK_ID_2,
+        ethers.parseEther("4")
+      );
       let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
-        ["((address,uint256,address,uint256,uint64,uint64),bytes)[]"],
-        [[message]]
+        ["((address,uint256,uint256,address,uint256,uint64,uint64),bytes)[]"],
+        [[message_1, message_2]]
       );
 
       /* Fast forward 30 seconds */
       await helpers.time.increase(30);
 
+      /* Validate for 2 collateral token IDs */
+      expect(
+        await simpleSignedPriceOracle.price(
+          WPUNKS_ADDRESS,
+          WETH_ADDRESS,
+          [WPUNK_ID_2, WPUNK_ID_1],
+          [1, 2],
+          oracleContext
+        )
+      ).to.be.equal(ethers.parseEther("2"));
+    });
+
+    it("fails on unsupported token", async function () {
+      const message_1 = await createSignedQuoteV2(
+        accounts[0],
+        WPUNKS_ADDRESS,
+        WPUNK_ID_1,
+        WPUNK_ID_1,
+        ethers.parseEther("1")
+      );
+      const message_2 = await createSignedQuoteV2(
+        accounts[0],
+        WPUNKS_ADDRESS,
+        WPUNK_ID_2,
+        WPUNK_ID_2,
+        ethers.parseEther("4")
+      );
+      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["((address,uint256,uint256,address,uint256,uint64,uint64),bytes)[]"],
+        [[message_1, message_2]]
+      );
+
+      /* Fast forward 30 seconds */
+      await helpers.time.increase(30);
+
+      /* Validate unsupported token */
+      await expect(
+        simpleSignedPriceOracle.price(DOODLES_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1, WPUNK_ID_2], [1, 1], oracleContext)
+      ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "UnsupportedToken");
+    });
+
+    it("fails on no quote found", async function () {
+      await simpleSignedPriceOracle.setSigner(WPUNKS_ADDRESS, accounts[0].address, 1);
+
+      const message_1 = await createSignedQuoteV2(accounts[0], WPUNKS_ADDRESS, 1, 10, ethers.parseEther("2"));
+      const message_2 = await createSignedQuoteV2(accounts[0], WPUNKS_ADDRESS, 20, 30, ethers.parseEther("2"));
+      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["((address,uint256,uint256,address,uint256,uint64,uint64),bytes)[]"],
+        [[message_1, message_2]]
+      );
+
+      /* Fast forward 30 seconds */
+      await helpers.time.increase(30);
+
+      /* Validate quote not found */
+      await expect(
+        simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1, WPUNK_ID_2], [1, 1], oracleContext)
+      ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "QuoteNotFound");
+    });
+
+    it("fails on invalid token", async function () {
+      const message_1 = await createSignedQuoteV2(
+        accounts[0],
+        DOODLES_ADDRESS,
+        WPUNK_ID_1,
+        WPUNK_ID_1,
+        ethers.parseEther("1")
+      );
+      const message_2 = await createSignedQuoteV2(
+        accounts[0],
+        WPUNKS_ADDRESS,
+        WPUNK_ID_2,
+        WPUNK_ID_2,
+        ethers.parseEther("4")
+      );
+      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["((address,uint256,uint256,address,uint256,uint64,uint64),bytes)[]"],
+        [[message_1, message_2]]
+      );
+
+      /* Fast forward 30 seconds */
+      await helpers.time.increase(30);
+
+      /* Validate invalid token */
+      await expect(
+        simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1, WPUNK_ID_2], [1, 1], oracleContext)
+      ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "InvalidQuote");
+    });
+
+    it("fails on invalid currency", async function () {
+      const message_1 = await createSignedQuoteV2(
+        accounts[0],
+        WPUNKS_ADDRESS,
+        WPUNK_ID_1,
+        WPUNK_ID_1,
+        ethers.parseEther("1"),
+        USDC_ADDRESS
+      );
+      const message_2 = await createSignedQuoteV2(
+        accounts[0],
+        WPUNKS_ADDRESS,
+        WPUNK_ID_2,
+        WPUNK_ID_2,
+        ethers.parseEther("4")
+      );
+      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["((address,uint256,uint256,address,uint256,uint64,uint64),bytes)[]"],
+        [[message_1, message_2]]
+      );
+
+      /* Fast forward 30 seconds */
+      await helpers.time.increase(30);
+
+      /* Validate invalid currency */
+      await expect(
+        simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1, WPUNK_ID_2], [1, 1], oracleContext)
+      ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "InvalidQuote");
+    });
+
+    it("fails on invalid price", async function () {
+      const message_1 = await createSignedQuoteV2(
+        accounts[0],
+        WPUNKS_ADDRESS,
+        WPUNK_ID_1,
+        WPUNK_ID_1,
+        ethers.parseEther("1")
+      );
+      const message_2 = await createSignedQuoteV2(
+        accounts[0],
+        WPUNKS_ADDRESS,
+        WPUNK_ID_2,
+        WPUNK_ID_2,
+        ethers.parseEther("0")
+      );
+      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["((address,uint256,uint256,address,uint256,uint64,uint64),bytes)[]"],
+        [[message_1, message_2]]
+      );
+
+      /* Fast forward 30 seconds */
+      await helpers.time.increase(30);
+
+      /* Validate invalid price */
+      await expect(
+        simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1, WPUNK_ID_2], [1, 1], oracleContext)
+      ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "InvalidQuote");
+    });
+
+    it("fails on invalid timestamp", async function () {
+      const message_1 = await createSignedQuoteV2(
+        accounts[0],
+        WPUNKS_ADDRESS,
+        WPUNK_ID_1,
+        WPUNK_ID_1,
+        ethers.parseEther("1")
+      );
+      const message_2 = await createSignedQuoteV2(
+        accounts[0],
+        WPUNKS_ADDRESS,
+        WPUNK_ID_2,
+        WPUNK_ID_2,
+        ethers.parseEther("4")
+      );
+      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["((address,uint256,uint256,address,uint256,uint64,uint64),bytes)[]"],
+        [[message_1, message_2]]
+      );
+
+      /* Fast forward 6 minutes seconds */
+      await helpers.time.increase(360);
+
+      /* Validate invalid timestamp (expired) */
+      await expect(
+        simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1, WPUNK_ID_2], [1, 1], oracleContext)
+      ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "InvalidTimestamp");
+    });
+
+    it("fails on invalid signer", async function () {
+      const message_1 = await createSignedQuoteV2(
+        accounts[1],
+        WPUNKS_ADDRESS,
+        WPUNK_ID_1,
+        WPUNK_ID_1,
+        ethers.parseEther("1")
+      );
+      const message_2 = await createSignedQuoteV2(
+        accounts[1],
+        WPUNKS_ADDRESS,
+        WPUNK_ID_2,
+        WPUNK_ID_2,
+        ethers.parseEther("4")
+      );
+      let oracleContext = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["((address,uint256,uint256,address,uint256,uint64,uint64),bytes)[]"],
+        [[message_1, message_2]]
+      );
+
+      /* Fast forward 30 seconds */
+      await helpers.time.increase(30);
+
+      /* Validate invalid signer */
+      await expect(
+        simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1, WPUNK_ID_2], [1, 1], oracleContext)
+      ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "InvalidSigner");
+    });
+
+    it("fails on invalid length", async function () {
       /* Validate invalid length */
       await expect(
-        simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1], [], oracleContext)
+        simpleSignedPriceOracle.price(WPUNKS_ADDRESS, WETH_ADDRESS, [WPUNK_ID_1], [], "0x")
       ).to.be.revertedWithCustomError(simpleSignedPriceOracle, "InvalidLength");
     });
   });
