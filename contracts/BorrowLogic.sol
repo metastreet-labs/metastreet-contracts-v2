@@ -34,6 +34,16 @@ library BorrowLogic {
      */
     uint256 internal constant BORROW_OPTIONS_LENGTH_SIZE = 2;
 
+    /**
+     * @notice Grace period duration
+     */
+    uint256 internal constant GRACE_PERIOD_DURATION = 30 days;
+
+    /**
+     * @notice Grace period interest rate per second (15% APR)
+     */
+    uint256 internal constant GRACE_PERIOD_INTEREST_RATE_PER_SECOND = 47_564_687_976;
+
     /**************************************************************************/
     /* Helpers */
     /**************************************************************************/
@@ -187,15 +197,35 @@ library BorrowLogic {
     }
 
     /**
-     * @dev Helper function to calculated prorated repayment
+     * @notice Helper function to calculated prorated repayment
+     *
+     * @dev Interest earned during grace period does not accrue to admin fee
+     *
      * @param loanReceipt Decoded loan receipt
      * @return repayment Repayment amount in currency tokens
+     * @return gracePeriodInterest Grace period interest amount in currency tokens
      * @return adminFee Admin fee amount in currency tokens
      * @return proration Proration based on elapsed duration
      */
     function _prorateRepayment(
         LoanReceipt.LoanReceiptV2 memory loanReceipt
-    ) internal view returns (uint256 repayment, uint256 adminFee, uint256 proration) {
+    ) internal view returns (uint256 repayment, uint256 gracePeriodInterest, uint256 adminFee, uint256 proration) {
+        /* Compute grace period interest */
+        if (block.timestamp > loanReceipt.maturity) {
+            /* Compute duration into grace period */
+            uint256 durationIntoGracePeriod = block.timestamp - loanReceipt.maturity;
+
+            /* Compute base interest */
+            uint256 interest = ((loanReceipt.repayment - loanReceipt.principal) * durationIntoGracePeriod) / loanReceipt.duration;
+
+            /* Compute additional grace period interest */
+            uint256 gracePeriodInterest = (loanReceipt.principal * GRACE_PERIOD_INTEREST_RATE_PER_SECOND * durationIntoGracePeriod) /
+                LiquidityLogic.FIXED_POINT_SCALE;
+
+            /* Compute total grace period interest */
+            gracePeriodInterest = interest + gracePeriodInterest;
+        }
+
         /* Minimum of proration and 1.0 */
         proration = Math.min(
             ((block.timestamp - (loanReceipt.maturity - loanReceipt.duration)) * LiquidityLogic.FIXED_POINT_SCALE) /
@@ -206,10 +236,11 @@ library BorrowLogic {
         /* Compute prorated admin fee */
         adminFee = (loanReceipt.adminFee * proration) / LiquidityLogic.FIXED_POINT_SCALE;
 
-        /* Compute repayment using prorated interest */
+        /* Compute repayment using prorated interest and grace period interest */
         repayment =
             loanReceipt.principal +
-            (((loanReceipt.repayment - loanReceipt.principal) * proration) / LiquidityLogic.FIXED_POINT_SCALE);
+            (((loanReceipt.repayment - loanReceipt.principal) * proration) / LiquidityLogic.FIXED_POINT_SCALE) +
+            gracePeriodInterest;
     }
 
     /**
@@ -328,13 +359,16 @@ library BorrowLogic {
         /* Validate caller is borrower */
         if (msg.sender != loanReceipt.borrower) revert IPool.InvalidCaller();
 
-        /* Compute prorated repayment using prorated interest, prorated admin fee and proration */
-        (uint256 repayment, uint256 adminFee, uint256 proration) = _prorateRepayment(loanReceipt);
+        /* Compute prorated repayment using prorated interest, grace period interest, prorated admin fee and proration */
+        (uint256 repayment, uint256 gracePeriodInterest, uint256 adminFee, uint256 proration) = _prorateRepayment(
+            loanReceipt
+        );
 
         /* Compute elapsed time since loan origination */
         uint64 elapsed = uint64(block.timestamp + loanReceipt.duration - loanReceipt.maturity);
 
         /* Restore liquidity nodes */
+        uint256 totalInterest = loanReceipt.repayment - loanReceipt.adminFee - loanReceipt.principal;
         for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
             /* Restore node */
             self.liquidity.restore(
@@ -345,7 +379,14 @@ library BorrowLogic {
                     uint128(
                         ((loanReceipt.nodeReceipts[i].pending - loanReceipt.nodeReceipts[i].used) * proration) /
                             LiquidityLogic.FIXED_POINT_SCALE
-                    ),
+                    ) +
+                    gracePeriodInterest !=
+                    0
+                    ? uint128(
+                        ((loanReceipt.nodeReceipts[i].pending - loanReceipt.nodeReceipts[i].used) *
+                            gracePeriodInterest) / totalInterest
+                    )
+                    : 0,
                 loanReceipt.duration,
                 elapsed
             );
@@ -384,8 +425,8 @@ library BorrowLogic {
         /* Decode loan receipt */
         LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
 
-        /* Validate loan is expired */
-        if (block.timestamp <= loanReceipt.maturity) revert IPool.LoanNotExpired();
+        /* Validate loan is past grace period */
+        if (block.timestamp - loanReceipt.maturity <= GRACE_PERIOD_DURATION) revert IPool.LoanNotExpired();
 
         /* Mark loan status liquidated */
         self.loans[loanReceiptHash] = Pool.LoanStatus.Liquidated;
