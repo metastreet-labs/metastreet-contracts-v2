@@ -152,6 +152,13 @@ interface IPool {
     event AdminFeesWithdrawn(address indexed recipient, uint256 amount);
 
     /**
+     * @notice Emitted when admin fees are distributed
+     * @param amount Amount of admin fees
+     * @param loanReceiptHash Loan receipt hash
+     */
+    event AdminFeesDistributed(uint256 amount, bytes32 loanReceiptHash);
+
+    /**
      * @notice Emitted when admin fee share is transferred to recipient
      * @param feeShareRecipient Fee share recipient
      * @param feeShareAmount Fee share amount

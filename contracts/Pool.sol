@@ -1159,6 +1159,20 @@ abstract contract Pool is
     }
 
     /**
+     * @notice Distribute admin fees
+     *
+     * Emits a {AdminFeesDistributed} event.
+     *
+     * @param amount Amount of admin fees
+     * @param encodedLoanReceipt Encoded loan receipt
+     */
+    function distributeAdminFees(uint256 amount, bytes calldata encodedLoanReceipt) external virtual nonReentrant {
+        bytes32 loanReceiptHash = BorrowLogic._distributeAdminFees(_storage, _scale(amount), encodedLoanReceipt);
+
+        emit AdminFeesDistributed(amount, loanReceiptHash);
+    }
+
+    /**
      * @notice Set rates for the pool
      *
      * Emits a {RatesUpdated} event.

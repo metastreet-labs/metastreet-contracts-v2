@@ -514,6 +514,52 @@ library BorrowLogic {
     }
 
     /**
+     * @dev Helper function to distribute admin fees
+     * @param self Pool storage
+     * @param amount Amount of admin fees to distribute
+     * @param encodedLoanReceipt Encoded loan receipt
+     * @return loan receipt hash
+     */
+    function _distributeAdminFees(Pool.PoolStorage storage self, uint256 amount, bytes calldata encodedLoanReceipt) external returns (bytes32){
+        /* Validate caller is pool admin */
+        if (msg.sender != self.admin) revert IPool.InvalidCaller();
+
+        /* Validate recipient */
+        if (amount == 0) revert IPool.InvalidParameters();
+
+        /* Decode loan receipt and compute hash */
+        LoanReceipt.LoanReceiptV2 memory loanReceipt = LoanReceipt.decode(encodedLoanReceipt);
+        bytes32 loanReceiptHash = LoanReceipt.hash(encodedLoanReceipt);
+
+        /* Validate loan receipt */
+        if (self.loans[loanReceiptHash] != Pool.LoanStatus.Repaid) revert IPool.InvalidLoanReceipt();
+
+        /* Compute total pending */
+        uint256 totalPending;
+        for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
+            totalPending += loanReceipt.nodeReceipts[i].pending;
+        }
+
+        /* Distribute admin fees */
+        for (uint256 i; i < loanReceipt.nodeReceipts.length; i++) {
+            /* Restore admin fees to node */
+            self.liquidity.restore(
+                loanReceipt.nodeReceipts[i].tick,
+                0,
+                0,
+                uint128(amount * loanReceipt.nodeReceipts[i].pending / totalPending),
+                loanReceipt.duration,
+                0
+            );
+        }
+
+        /* Update admin fees balance */
+        self.adminFeeBalance -= amount;
+
+        return loanReceiptHash;
+    }
+
+    /**
      * @dev Helper function to set rates
      * @param self Pool storage
      * @param rates List of rates in interest per second

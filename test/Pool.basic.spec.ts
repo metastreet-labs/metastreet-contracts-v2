@@ -2879,6 +2879,73 @@ describe("Pool Basic", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
     });
 
+    it("repays with admin fee and admin fee distributed", async function () {
+      /* set admin fee */
+      await pool.setAdminFee(500, ethers.ZeroAddress, 0);
+
+      const borrowTx = await pool
+        .connect(accountBorrower)
+        .borrow(
+          FixedPoint.from("25"),
+          30 * 86400,
+          await nft1.getAddress(),
+          124,
+          FixedPoint.from("26"),
+          await sourceLiquidity(FixedPoint.from("25")),
+          "0x"
+        );
+      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
+      const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
+
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      /* Repay */
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity);
+      const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
+
+      /* Calculate prorated repayment amount */
+      const repayment = decodedLoanReceipt.repayment - decodedLoanReceipt.principal + decodedLoanReceipt.principal;
+
+      /* Validate events */
+      await expectEvent(repayTx, tok1, "Transfer", {
+        from: await accountBorrower.getAddress(),
+        to: await pool.getAddress(),
+        value: repayment,
+      });
+
+      await expectEvent(repayTx, nft1, "Transfer", {
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
+        tokenId: 124,
+      });
+
+      /* Validate loan state */
+      expect(await pool.loans(loanReceiptHash)).to.equal(2);
+
+      const adminFeeBalanceBefore = await pool.adminFeeBalance();
+
+      const valuesBefore = [];
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+        const node = await pool.liquidityNode(nodeReceipt.tick);
+        valuesBefore.push(node.value);
+      }
+
+      await pool.distributeAdminFees(adminFeeBalanceBefore, loanReceipt);
+
+      const adminFeeBalanceAfter = await pool.adminFeeBalance();
+      expect(adminFeeBalanceAfter).to.equal(0);
+
+      var totalIncrease = BigInt(0);
+      for (let i = 0; i < decodedLoanReceipt.nodeReceipts.length; i++) {
+        const node = await pool.liquidityNode(decodedLoanReceipt.nodeReceipts[i].tick);
+        expect(node.value).to.gt(valuesBefore[i]);
+
+        totalIncrease = totalIncrease + (node.value - valuesBefore[i]);
+      }
+
+      expect(totalIncrease).to.be.closeTo(adminFeeBalanceBefore, 9);
+    });
+
     it("repays with admin fee and fee share", async function () {
       /* set admin fee */
       await pool.setAdminFee(4400, accounts[2].address, 5000);
