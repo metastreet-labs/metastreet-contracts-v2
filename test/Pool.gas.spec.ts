@@ -278,7 +278,7 @@ describe("Pool Gas", function () {
 
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
-      expect(gasUsed).to.be.lt(248000);
+      expect(gasUsed).to.be.lt(250000);
     });
 
     it("deposit (existing tick)", async function () {
@@ -287,7 +287,7 @@ describe("Pool Gas", function () {
 
       const gasUsed = (await depositTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
-      expect(gasUsed).to.be.lt(110000n);
+      expect(gasUsed).to.be.lt(120000n);
     });
 
     it("deposit (existing deposit)", async function () {
@@ -297,7 +297,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await depositTx.wait()).gasUsed;
 
       gasReport.push([this.test.title, gasUsed]);
-      expect(gasUsed).to.be.lt(95000);
+      expect(gasUsed).to.be.lt(96000);
     });
 
     it("multicall deposit + tokenize (new tick)", async function () {
@@ -327,7 +327,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await depositTx.wait()).gasUsed;
 
       gasReport.push([this.test.title, gasUsed]);
-      expect(gasUsed).to.be.lt(122000);
+      expect(gasUsed).to.be.lt(125000);
     });
 
     it("deposit (existing deposit, tokenized)", async function () {
@@ -343,7 +343,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await depositTx.wait()).gasUsed;
 
       gasReport.push([this.test.title, gasUsed]);
-      expect(gasUsed).to.be.lt(105000);
+      expect(gasUsed).to.be.lt(108000);
     });
   });
 
@@ -367,7 +367,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(135000);
+      expect(gasUsed).to.be.lt(136000);
     });
   });
 
@@ -421,7 +421,7 @@ describe("Pool Gas", function () {
       const gasUsed = (await redeemRebalanceTx.wait()).gasUsed;
       gasReport.push([this.test.title, gasUsed]);
 
-      expect(gasUsed).to.be.lt(195000);
+      expect(gasUsed).to.be.lt(200000);
     });
   });
 

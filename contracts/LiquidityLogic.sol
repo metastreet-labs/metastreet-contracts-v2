@@ -74,6 +74,11 @@ library LiquidityLogic {
      */
     uint128 private constant LOCKED_SHARES = 1e6;
 
+    /**
+     * @notice Duration of vested amounts
+     */
+    uint256 private constant VESTING_DURATION = 7 * 86400;
+
     /**************************************************************************/
     /* Structures */
     /**************************************************************************/
@@ -144,6 +149,7 @@ library LiquidityLogic {
         uint128 next;
         Redemptions redemptions;
         Accrual accrual;
+        Vesting vesting;
     }
 
     /**
@@ -152,6 +158,18 @@ library LiquidityLogic {
      */
     struct Liquidity {
         mapping(uint256 => Node) nodes;
+    }
+
+    /**
+     * @notice Vesting state
+     * @param amount Vesting amount
+     * @param reserved Reserved
+     * @param timestamp Last vested timestamp
+     */
+    struct Vesting {
+        uint128 amount;
+        uint64 reserved;
+        uint64 timestamp;
     }
 
     /**************************************************************************/
@@ -337,7 +355,8 @@ library LiquidityLogic {
         return
             node.shares == 0
                 ? FIXED_POINT_SCALE
-                : (Math.min(node.value + accrued, node.available + node.pending) * FIXED_POINT_SCALE) / node.shares;
+                : ((Math.min(node.value + accrued, node.available + node.pending) + node.vesting.amount) *
+                    FIXED_POINT_SCALE) / node.shares;
     }
 
     /**
@@ -349,11 +368,17 @@ library LiquidityLogic {
     function redemptionSharePrice(Liquidity storage liquidity, uint128 tick) external view returns (uint256) {
         Node storage node = liquidity.nodes[tick];
 
+        /* Simulate vesting */
+        uint256 vested = node.vesting.amount / VESTING_DURATION * (block.timestamp - node.vesting.timestamp);
+
+        /* Compute node value */
+        uint256 nodeValue = node.value + vested;
+
         /* Revert if node is empty */
-        if (node.value == 0 || node.shares == 0) revert ILiquidity.InactiveLiquidity();
+        if (nodeValue == 0 || node.shares == 0) revert ILiquidity.InactiveLiquidity();
 
         /* Return redemption price */
-        return (node.value * FIXED_POINT_SCALE) / node.shares;
+        return (nodeValue * FIXED_POINT_SCALE) / node.shares;
     }
 
     /**************************************************************************/
@@ -555,6 +580,42 @@ library LiquidityLogic {
     }
 
     /**************************************************************************/
+    /* Vesting API */
+    /**************************************************************************/
+
+    /**
+     * @notice Vest an amount to a liquidity tick over time
+     * @param liquidity Liquidity state
+     * @param tick Tick
+     * @param amount Amount to vest
+     */
+    function vest(Liquidity storage liquidity, uint128 tick, uint128 amount) internal {
+        _vest(liquidity.nodes[tick], amount);
+    }
+
+    /**
+     * @notice Vest an amount to a liquidity tick over time
+     * @param node Liquidity node
+     * @param amount Additional amount to vest
+     */
+    function _vest(Node storage node, uint128 amount) internal {
+        if (node.vesting.amount + amount == 0) return;
+
+        /* Compute vested amount */
+        uint256 rate = node.vesting.amount / VESTING_DURATION;
+        uint256 elapsed = block.timestamp - node.vesting.timestamp;
+        uint128 vested = Math.min(rate * elapsed, node.vesting.amount).toUint128();
+
+        /* Add to node value */
+        node.value += vested;
+        node.available += vested;
+
+        /* Update vesting state */
+        node.vesting.amount = node.vesting.amount - vested + amount;
+        node.vesting.timestamp = uint64(block.timestamp);
+    }
+
+    /**************************************************************************/
     /* Primary API */
     /**************************************************************************/
 
@@ -587,10 +648,13 @@ library LiquidityLogic {
         /* Process accrual */
         _accrue(node);
 
+        /* Process vesting */
+        _vest(node, 0);
+
         /* Compute deposit price */
         uint256 price = node.shares == 0
             ? FIXED_POINT_SCALE
-            : (Math.min(node.value + node.accrual.accrued, node.available + node.pending) * FIXED_POINT_SCALE) /
+            : ((Math.min(node.value + node.accrual.accrued, node.available + node.pending) + node.vesting.amount) * FIXED_POINT_SCALE) /
                 node.shares;
 
         /* Compute shares and depositor's shares */
@@ -678,6 +742,9 @@ library LiquidityLogic {
      */
     function redeem(Liquidity storage liquidity, uint128 tick, uint128 shares) internal returns (uint128, uint128) {
         Node storage node = liquidity.nodes[tick];
+
+        /* Process vesting */
+        _vest(node, 0);
 
         /* Redemption from inactive liquidity nodes is allowed to facilitate
          * restoring garbage collected nodes */
