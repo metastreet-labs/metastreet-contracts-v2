@@ -390,6 +390,20 @@ abstract contract Pool is
     }
 
     /**
+     * @inheritdoc IPool
+     */
+    function gracePeriodDuration() public view virtual returns (uint256) {
+        return 0;
+    }
+
+    /**
+     * @inheritdoc IPool
+     */
+    function gracePeriodRate() public view virtual returns (uint256) {
+        return 0;
+    }
+
+    /**
      * @notice Get deposit
      * @param account Account
      * @param tick Tick
@@ -827,7 +841,7 @@ abstract contract Pool is
             uint256 feeShareAmount,
             LoanReceipt.LoanReceiptV2 memory loanReceipt,
             bytes32 loanReceiptHash
-        ) = BorrowLogic._repay(_storage, _getFeeShareStorage(), encodedLoanReceipt);
+        ) = BorrowLogic._repay(_storage, _getFeeShareStorage(), encodedLoanReceipt, gracePeriodRate());
         uint256 unscaledRepayment = _unscale(repayment, true);
 
         /* Revoke delegates */
@@ -878,7 +892,7 @@ abstract contract Pool is
             uint256 feeShareAmount,
             LoanReceipt.LoanReceiptV2 memory loanReceipt,
             bytes32 loanReceiptHash
-        ) = BorrowLogic._repay(_storage, _getFeeShareStorage(), encodedLoanReceipt);
+        ) = BorrowLogic._repay(_storage, _getFeeShareStorage(), encodedLoanReceipt, gracePeriodRate());
         uint256 unscaledRepayment = _unscale(repayment, true);
 
         /* Quote new repayment, admin fee, and liquidity nodes */
@@ -937,7 +951,8 @@ abstract contract Pool is
         /* Handle liquidate accounting */
         (LoanReceipt.LoanReceiptV2 memory loanReceipt, bytes32 loanReceiptHash) = BorrowLogic._liquidate(
             _storage,
-            encodedLoanReceipt
+            encodedLoanReceipt,
+            gracePeriodDuration()
         );
 
         /* Revoke delegates */

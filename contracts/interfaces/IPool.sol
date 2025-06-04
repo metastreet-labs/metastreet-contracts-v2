@@ -228,6 +228,18 @@ interface IPool {
      */
     function delegationRegistryV2() external view returns (address);
 
+    /**
+     * @notice Get grace period duration
+     * @return Grace period duration
+     */
+    function gracePeriodDuration() external view returns (uint256);
+
+    /**
+     * @notice Get grace period interest rate per second
+     * @return Grace period interest rate per second
+     */
+    function gracePeriodRate() external view returns (uint256);
+
     /**************************************************************************/
     /* Deposit API */
     /**************************************************************************/
