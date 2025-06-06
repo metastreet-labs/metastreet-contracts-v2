@@ -235,7 +235,7 @@ library LiquidityLogic {
         Liquidity storage liquidity,
         uint128 startTick,
         uint128 endTick
-    ) external view returns (ILiquidity.NodeInfo[] memory) {
+    ) internal view returns (ILiquidity.NodeInfo[] memory) {
         ILiquidity.NodeInfo[] memory nodes = new ILiquidity.NodeInfo[](
             liquidityNodesCount(liquidity, startTick, endTick)
         );
