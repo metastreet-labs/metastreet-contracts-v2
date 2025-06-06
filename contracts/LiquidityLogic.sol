@@ -356,7 +356,8 @@ library LiquidityLogic {
         return
             node.shares == 0
                 ? FIXED_POINT_SCALE
-                : (Math.min(node.value + accrued, node.available + node.pending) * FIXED_POINT_SCALE) / node.shares;
+                : ((Math.min(node.value + accrued, node.available + node.pending) + node.vesting.amount) *
+                    FIXED_POINT_SCALE) / node.shares;
     }
 
     /**
@@ -368,11 +369,14 @@ library LiquidityLogic {
     function redemptionSharePrice(Liquidity storage liquidity, uint128 tick) external view returns (uint256) {
         Node storage node = liquidity.nodes[tick];
 
+        /* Simulate vesting */
+        uint256 vested = (node.vesting.amount / VESTING_DURATION) * (block.timestamp - node.vesting.timestamp);
+
         /* Revert if node is empty */
-        if (node.value == 0 || node.shares == 0) revert ILiquidity.InactiveLiquidity();
+        if ((node.value + vested) == 0 || node.shares == 0) revert ILiquidity.InactiveLiquidity();
 
         /* Return redemption price */
-        return (node.value * FIXED_POINT_SCALE) / node.shares;
+        return ((node.value + vested) * FIXED_POINT_SCALE) / node.shares;
     }
 
     /**************************************************************************/
@@ -647,8 +651,8 @@ library LiquidityLogic {
         /* Compute deposit price */
         uint256 price = node.shares == 0
             ? FIXED_POINT_SCALE
-            : (Math.min(node.value + node.accrual.accrued, node.available + node.pending) * FIXED_POINT_SCALE) /
-                node.shares;
+            : ((Math.min(node.value + node.accrual.accrued, node.available + node.pending) + node.vesting.amount) *
+                FIXED_POINT_SCALE) / node.shares;
 
         /* Compute shares and depositor's shares */
         uint128 shares = ((amount * FIXED_POINT_SCALE) / price).toUint128();
