@@ -1,3 +1,7 @@
+* Pool v2.16 - 06/16/2025
+    * Add vesting of lender surplus to ticks in collateral liquidation.
+    * Add support for grace period repayment with additional interest.
+
 * SimpleSignedPriceOracle v1.4 - 02/20/2025
     * Add token id range quote type.
 
