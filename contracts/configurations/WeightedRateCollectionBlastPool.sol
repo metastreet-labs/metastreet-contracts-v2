@@ -7,7 +7,6 @@ import "../filters/CollectionCollateralFilter.sol";
 import "../tokenization/ERC20DepositToken.sol";
 import "../oracle/ExternalPriceOracle.sol";
 
-import "../integrations/Blast/IBlastPoints.sol";
 import "../integrations/Blast/IBlast.sol";
 import "../integrations/Blast/IERC20Rebasing.sol";
 
@@ -32,25 +31,6 @@ contract WeightedRateCollectionBlastPool is
      */
     IBlast internal immutable BLAST = IBlast(0x4300000000000000000000000000000000000002);
 
-    /**
-     * @notice Blast Points Contract (Testnet)
-     */
-    IBlastPoints internal immutable BLAST_POINTS_TESTNET = IBlastPoints(0x2fc95838c71e76ec69ff817983BFf17c710F34E0);
-
-    /**
-     * @notice Blast Points Contract (Mainnet)
-     */
-    IBlastPoints internal immutable BLAST_POINTS_MAINNET = IBlastPoints(0x2536FE9ab3F511540F2f9e2eC2A805005C3Dd800);
-
-    /**************************************************************************/
-    /* Immutable State */
-    /**************************************************************************/
-
-    /**
-     * @notice Blast Points Operator
-     */
-    address internal immutable _blastPointsOperator;
-
     /**************************************************************************/
     /* Constructor */
     /**************************************************************************/
@@ -60,7 +40,6 @@ contract WeightedRateCollectionBlastPool is
      * @param collateralLiquidator Collateral liquidator
      * @param delegateRegistryV1 Delegation registry v1 contract
      * @param delegateRegistryV2 Delegation registry v2 contract
-     * @param blastPointsOperator Blast points operator
      * @param erc20DepositTokenImplementation ERC20 Deposit Token implementation address
      * @param collateralWrappers Collateral wrappers
      */
@@ -68,7 +47,6 @@ contract WeightedRateCollectionBlastPool is
         address collateralLiquidator,
         address delegateRegistryV1,
         address delegateRegistryV2,
-        address blastPointsOperator,
         address erc20DepositTokenImplementation,
         address[] memory collateralWrappers
     )
@@ -79,9 +57,6 @@ contract WeightedRateCollectionBlastPool is
     {
         /* Disable initialization of implementation contract */
         _storage.currencyToken = IERC20(address(1));
-
-        /* Set blast points operator */
-        _blastPointsOperator = blastPointsOperator;
     }
 
     /**************************************************************************/
@@ -124,10 +99,6 @@ contract WeightedRateCollectionBlastPool is
 
         /* Configure Blast Governor */
         BLAST.configureGovernor(_storage.admin);
-
-        /* Configure Blast Points Operator */
-        if (block.chainid == 81457) BLAST_POINTS_MAINNET.configurePointsOperator(_blastPointsOperator);
-        else if (block.chainid == 168587773) BLAST_POINTS_TESTNET.configurePointsOperator(_blastPointsOperator);
     }
 
     /**************************************************************************/
