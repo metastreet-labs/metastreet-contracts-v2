@@ -124,7 +124,6 @@ describe("Pool Node Pass Collection", function () {
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       await collateralLiquidator.getAddress(),
-      await delegateRegistryV1.getAddress(),
       await delegateRegistryV2.getAddress(),
       YIELD_PASS_FACTORY,
       await erc20DepositTokenImpl.getAddress(),
@@ -241,10 +240,6 @@ describe("Pool Node Pass Collection", function () {
 
     it("returns expected collateral liquidator", async function () {
       expect(await pool.collateralLiquidator()).to.equal(await collateralLiquidator.getAddress());
-    });
-
-    it("returns expected delegation registry v1", async function () {
-      expect(await pool.delegationRegistry()).to.equal(await delegateRegistryV1.getAddress());
     });
 
     it("returns expected delegation registry v2", async function () {

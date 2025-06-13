@@ -100,7 +100,6 @@ describe("Pool Basic Grace Period", function () {
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       await collateralLiquidator.getAddress(),
-      await delegateRegistryV1.getAddress(),
       await delegateRegistryV2.getAddress(),
       await erc20DepositTokenImpl.getAddress(),
       []

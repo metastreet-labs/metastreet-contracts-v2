@@ -175,11 +175,6 @@ abstract contract Pool is
     ICollateralLiquidator internal immutable _collateralLiquidator;
 
     /**
-     * @notice Delegate registry v1 contract
-     */
-    address internal immutable _delegateRegistryV1;
-
-    /**
      * @notice Delegate registry v2 contract
      */
     address internal immutable _delegateRegistryV2;
@@ -246,20 +241,17 @@ abstract contract Pool is
     /**
      * @notice Pool constructor
      * @param collateralLiquidator_ Collateral liquidator
-     * @param delegateRegistryV1_ Delegate registry v1 contract
      * @param delegateRegistryV2_ Delegate registry v2 contract
      * @param collateralWrappers_ Collateral wrappers
      */
     constructor(
         address collateralLiquidator_,
-        address delegateRegistryV1_,
         address delegateRegistryV2_,
         address[] memory collateralWrappers_
     ) {
         if (collateralWrappers_.length > 3) revert InvalidParameters();
 
         _collateralLiquidator = ICollateralLiquidator(collateralLiquidator_);
-        _delegateRegistryV1 = delegateRegistryV1_;
         _delegateRegistryV2 = delegateRegistryV2_;
         _collateralWrapper1 = (collateralWrappers_.length > 0) ? collateralWrappers_[0] : address(0);
         _collateralWrapper2 = (collateralWrappers_.length > 1) ? collateralWrappers_[1] : address(0);
@@ -388,13 +380,6 @@ abstract contract Pool is
      */
     function collateralLiquidator() external view returns (address) {
         return address(_collateralLiquidator);
-    }
-
-    /**
-     * @inheritdoc IPool
-     */
-    function delegationRegistry() external view returns (address) {
-        return address(_delegateRegistryV1);
     }
 
     /**
@@ -847,7 +832,6 @@ abstract contract Pool is
             _getDelegateStorage(),
             collateralToken,
             collateralTokenId,
-            _delegateRegistryV1,
             _delegateRegistryV2,
             options
         );
@@ -882,7 +866,6 @@ abstract contract Pool is
             _getDelegateStorage(),
             loanReceipt.collateralToken,
             loanReceipt.collateralTokenId,
-            _delegateRegistryV1,
             _delegateRegistryV2
         );
 
@@ -994,7 +977,6 @@ abstract contract Pool is
             _getDelegateStorage(),
             loanReceipt.collateralToken,
             loanReceipt.collateralTokenId,
-            _delegateRegistryV1,
             _delegateRegistryV2
         );
 

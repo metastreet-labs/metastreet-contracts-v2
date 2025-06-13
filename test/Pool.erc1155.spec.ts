@@ -108,7 +108,6 @@ describe("Pool ERC1155", function () {
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       await collateralLiquidator.getAddress(),
-      await delegateRegistryV1.getAddress(),
       await delegateRegistryV2.getAddress(),
       await erc20DepositTokenImpl.getAddress(),
       [await erc1155CollateralWrapper.getAddress()]
@@ -198,7 +197,6 @@ describe("Pool ERC1155", function () {
       await expect(
         poolImplFactory.deploy(
           await collateralLiquidator.getAddress(),
-          await delegateRegistryV1.getAddress(),
           await delegateRegistryV2.getAddress(),
           await erc20DepositTokenImpl.getAddress(),
           []
@@ -209,7 +207,6 @@ describe("Pool ERC1155", function () {
       await expect(
         poolImplFactory.deploy(
           await collateralLiquidator.getAddress(),
-          await delegateRegistryV1.getAddress(),
           await delegateRegistryV2.getAddress(),
           await erc20DepositTokenImpl.getAddress(),
           [await erc1155CollateralWrapper.getAddress(), await erc1155CollateralWrapper.getAddress()]
@@ -220,7 +217,6 @@ describe("Pool ERC1155", function () {
       await expect(
         poolImplFactory.deploy(
           await collateralLiquidator.getAddress(),
-          await delegateRegistryV1.getAddress(),
           await delegateRegistryV2.getAddress(),
           await erc20DepositTokenImpl.getAddress(),
           [await collateralLiquidator.getAddress()]
@@ -573,115 +569,6 @@ describe("Pool ERC1155", function () {
       await pool
         .connect(accountBorrower)
         .borrow(FixedPoint.from("25"), 7 * 86400, await nft1.getAddress(), 123, FixedPoint.from("26"), ticks, "0x");
-    });
-
-    it("originates loan with v1 delegation", async function () {
-      /* Quote repayment */
-      const repayment = await pool.quote(
-        FixedPoint.from("25"),
-        30 * 86400,
-        await nft1.getAddress(),
-        123,
-        await sourceLiquidity(FixedPoint.from("25")),
-        "0x"
-      );
-
-      /* Simulate borrow */
-      const simulatedRepayment = await pool
-        .connect(accountBorrower)
-        .borrow.staticCall(
-          FixedPoint.from("25"),
-          30 * 86400,
-          await nft1.getAddress(),
-          123,
-          FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25")),
-          ethers.solidityPacked(["uint16", "uint16", "bytes20"], [3, 20, await accountBorrower.getAddress()])
-        );
-
-      /* Borrow */
-      const borrowTx = await pool
-        .connect(accountBorrower)
-        .borrow(
-          FixedPoint.from("25"),
-          30 * 86400,
-          await nft1.getAddress(),
-          123,
-          FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25")),
-          ethers.solidityPacked(["uint16", "uint16", "bytes20"], [3, 20, await accountBorrower.getAddress()])
-        );
-
-      /* Validate return value from borrow() */
-      expect(simulatedRepayment).to.equal(repayment);
-
-      /* Validate events */
-      await expectEvent(borrowTx, nft1, "TransferSingle", {
-        from: await accountBorrower.getAddress(),
-        to: await pool.getAddress(),
-        id: 123,
-        value: 1,
-      });
-
-      await expectEvent(borrowTx, tok1, "Transfer", {
-        from: await pool.getAddress(),
-        to: await accountBorrower.getAddress(),
-        value: FixedPoint.from("25"),
-      });
-
-      await expect(borrowTx).to.emit(pool, "LoanOriginated");
-
-      await expectEvent(borrowTx, delegateRegistryV1, "DelegateForToken", {
-        vault: await pool.getAddress(),
-        delegate: await accountBorrower.getAddress(),
-        contract_: await nft1.getAddress(),
-        tokenId: 123,
-        value: true,
-      });
-
-      /* Extract loan receipt */
-      const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
-      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-
-      /* Validate hash */
-      expect(loanReceiptHash).to.equal(await loanReceiptLib.hash(loanReceipt));
-
-      /* Validate loan receipt */
-      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      expect(decodedLoanReceipt.version).to.equal(2);
-      expect(decodedLoanReceipt.borrower).to.equal(await accountBorrower.getAddress());
-      expect(decodedLoanReceipt.maturity).to.equal(
-        (await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp + 30 * 86400
-      );
-      expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
-      expect(decodedLoanReceipt.collateralToken).to.equal(await nft1.getAddress());
-      expect(decodedLoanReceipt.collateralTokenId).to.equal(123);
-      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(16);
-
-      /* Sum used and pending totals from node receipts */
-      let totalUsed = 0n;
-      let totalPending = 0n;
-      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
-        totalUsed = totalUsed + nodeReceipt.used;
-        totalPending = totalPending + nodeReceipt.pending;
-      }
-
-      /* Validate used and pending totals */
-      expect(totalUsed).to.equal(FixedPoint.from("25"));
-      expect(totalPending).to.equal(repayment);
-
-      /* Validate loan state */
-      expect(await pool.loans(loanReceiptHash)).to.equal(1);
-
-      /* Validate delegation */
-      expect(
-        await delegateRegistryV1.checkDelegateForToken(
-          await accountBorrower.getAddress(),
-          await pool.getAddress(),
-          await nft1.getAddress(),
-          123
-        )
-      ).to.equal(true);
     });
 
     it("originates loan with v2 delegation", async function () {
@@ -1258,58 +1145,6 @@ describe("Pool ERC1155", function () {
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
     });
 
-    it("repays removes v1 delegation", async function () {
-      /* Borrow */
-      const borrowTx = await pool
-        .connect(accountBorrower)
-        .borrow(
-          FixedPoint.from("25"),
-          30 * 86400,
-          await nft1.getAddress(),
-          124,
-          FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25")),
-          ethers.solidityPacked(["uint16", "uint16", "bytes20"], [3, 20, await accountBorrower.getAddress()])
-        );
-
-      /* Validate events */
-      await expectEvent(borrowTx, delegateRegistryV1, "DelegateForToken", {
-        vault: await pool.getAddress(),
-        delegate: await accountBorrower.getAddress(),
-        contract_: await nft1.getAddress(),
-        tokenId: 124,
-        value: true,
-      });
-
-      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-      const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
-      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-
-      /* Repay */
-      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity);
-      const repayTx = await pool.connect(accountBorrower).repay(loanReceipt);
-
-      /* Validate events */
-      await expectEvent(repayTx, delegateRegistryV1, "DelegateForToken", {
-        vault: await pool.getAddress(),
-        delegate: await accountBorrower.getAddress(),
-        contract_: await nft1.getAddress(),
-        tokenId: 124,
-        value: false,
-      });
-
-      /* Validate loan state */
-      expect(await pool.loans(loanReceiptHash)).to.equal(2);
-      expect(
-        await delegateRegistryV1.checkDelegateForToken(
-          await accountBorrower.getAddress(),
-          await pool.getAddress(),
-          await nft1.getAddress(),
-          124
-        )
-      ).to.equal(false);
-    });
-
     it("repays removes v2 delegation", async function () {
       /* Borrow */
       const borrowTx = await pool
@@ -1459,11 +1294,12 @@ describe("Pool ERC1155", function () {
       /* Validate loan state */
       expect(await pool.loans(loanReceiptHash)).to.equal(2);
       expect(
-        await delegateRegistryV1.checkDelegateForToken(
+        await delegateRegistryV2.checkDelegateForERC721(
           await accountBorrower.getAddress(),
           await pool.getAddress(),
           await nft1.getAddress(),
-          124
+          124,
+          ethers.ZeroHash
         )
       ).to.equal(false);
     });

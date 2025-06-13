@@ -106,7 +106,6 @@ describe("Pool ERC1155 Collateral Wrapper Set Collection", function () {
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       await collateralLiquidator.getAddress(),
-      await delegateRegistryV1.getAddress(),
       await delegateRegistryV2.getAddress(),
       await erc20DepositTokenImpl.getAddress(),
       [await ERC1155CollateralWrapper.getAddress()]
@@ -228,10 +227,6 @@ describe("Pool ERC1155 Collateral Wrapper Set Collection", function () {
 
     it("returns expected collateral liquidator", async function () {
       expect(await pool.collateralLiquidator()).to.equal(await collateralLiquidator.getAddress());
-    });
-
-    it("returns expected delegation registry v1", async function () {
-      expect(await pool.delegationRegistry()).to.equal(await delegateRegistryV1.getAddress());
     });
 
     it("returns expected delegation registry v2", async function () {
@@ -395,7 +390,7 @@ describe("Pool ERC1155 Collateral Wrapper Set Collection", function () {
       /* Compute borrow options */
       const borrowOptions = ethers.solidityPacked(
         ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes20"],
-        [1, ethers.dataLength(ERC1155WrapperData), ERC1155WrapperData, 3, 20, await accountBorrower.getAddress()]
+        [1, ethers.dataLength(ERC1155WrapperData), ERC1155WrapperData, 4, 20, await accountBorrower.getAddress()]
       );
 
       /* Quote repayment */
@@ -450,12 +445,13 @@ describe("Pool ERC1155 Collateral Wrapper Set Collection", function () {
         value: FixedPoint.from("25"),
       });
 
-      await expectEvent(borrowTx, delegateRegistryV1, "DelegateForToken", {
-        vault: await pool.getAddress(),
-        delegate: await accountBorrower.getAddress(),
+      await expectEvent(borrowTx, delegateRegistryV2, "DelegateERC721", {
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
         contract_: await ERC1155CollateralWrapper.getAddress(),
         tokenId: ERC1155WrapperTokenId,
-        value: true,
+        rights: ethers.ZeroHash,
+        enable: true,
       });
 
       await expect(borrowTx).to.emit(pool, "LoanOriginated");

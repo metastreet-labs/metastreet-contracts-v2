@@ -112,7 +112,6 @@ describe("Pool Bundle Merkle", function () {
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       await collateralLiquidator.getAddress(),
-      await delegateRegistryV1.getAddress(),
       await delegateRegistryV2.getAddress(),
       await erc20DepositTokenImpl.getAddress(),
       [await bundleCollateralWrapper.getAddress()]
@@ -227,10 +226,6 @@ describe("Pool Bundle Merkle", function () {
 
     it("returns expected collateral liquidator", async function () {
       expect(await pool.collateralLiquidator()).to.equal(await collateralLiquidator.getAddress());
-    });
-
-    it("returns expected delegation registry v1", async function () {
-      expect(await pool.delegationRegistry()).to.equal(await delegateRegistryV1.getAddress());
     });
 
     it("returns expected delegation registry v2", async function () {
@@ -416,7 +411,7 @@ describe("Pool Bundle Merkle", function () {
           2,
           ethers.dataLength(merkleProofs),
           merkleProofs,
-          3,
+          4,
           20,
           await accountBorrower.getAddress(),
         ]
@@ -470,12 +465,13 @@ describe("Pool Bundle Merkle", function () {
         value: FixedPoint.from("25"),
       });
 
-      await expectEvent(borrowTx, delegateRegistryV1, "DelegateForToken", {
-        vault: await pool.getAddress(),
-        delegate: await accountBorrower.getAddress(),
-        contract_: await bundleCollateralWrapper.getAddress(),
-        tokenId: bundleTokenId,
-        value: true,
+      await expectEvent(borrowTx, delegateRegistryV2, "DelegateERC721", {
+        from: await pool.getAddress(),
+        to: await accountBorrower.getAddress(),
+        contract_:await bundleCollateralWrapper.getAddress(),
+        tokenId:  bundleTokenId,
+        rights: ethers.ZeroHash,
+        enable: true,
       });
 
       await expect(borrowTx).to.emit(pool, "LoanOriginated");

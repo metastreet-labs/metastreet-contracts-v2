@@ -110,7 +110,6 @@ describe("Pool Gas", function () {
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       await externalCollateralLiquidator.getAddress(),
-      await delegateRegistryV1.getAddress(),
       await delegateRegistryV2.getAddress(),
       await erc20DepositTokenImpl.getAddress(),
       [await bundleCollateralWrapper.getAddress()]
@@ -1029,7 +1028,6 @@ describe("Pool Gas", function () {
         poolEACLImpl = (await poolImplFactory.deploy(
           await englishAuctionCollateralLiquidator.getAddress(),
           ethers.ZeroAddress,
-          ethers.ZeroAddress,
           await erc20DepositTokenImpl.getAddress(),
           [await bundleCollateralWrapper.getAddress()]
         )) as Pool;
@@ -1301,7 +1299,6 @@ describe("Pool Gas", function () {
       poolImpl = (await poolImplFactory.deploy(
         await collateralLiquidator.getAddress(),
         ethers.ZeroAddress,
-        ethers.ZeroAddress,
         await erc20DepositTokenImpl.getAddress(),
         []
       )) as Pool;
@@ -1449,7 +1446,6 @@ describe("Pool Gas", function () {
       /* Deploy pool implementation */
       poolImpl = (await poolImplFactory.deploy(
         await collateralLiquidator.getAddress(),
-        ethers.ZeroAddress,
         ethers.ZeroAddress,
         await erc20DepositTokenImpl.getAddress(),
         [await ERC1155CollateralWrapper.getAddress()]
