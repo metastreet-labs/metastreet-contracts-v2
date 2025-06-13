@@ -119,6 +119,14 @@ abstract contract Pool is
     }
 
     /**
+     * @custom:storage-location pool.isOperator
+     * @param isOperator Mapping of operator to address to bool
+     */
+    struct IsOperator {
+        mapping(address => mapping(address => bool)) isOperator;
+    }
+
+    /**
      * @notice Loan status
      */
     enum LoanStatus {
@@ -190,6 +198,13 @@ abstract contract Pool is
      */
     bytes32 internal constant FEE_SHARE_STORAGE_LOCATION =
         0x1004a5c92d0898c7512a97f012b3e1b4d5140998c1fd26690d21ba53eace8b00;
+
+    /**
+     * @notice Is operator storage location
+     * @dev keccak256(abi.encode(uint256(keccak256("pool.isOperator")) - 1)) & ~bytes32(uint256(0xff));
+     */
+    bytes32 internal constant IS_OPERATOR_STORAGE_LOCATION =
+        0x2238ec624576eef852e6ebed14501363a23c56f177f20e71e723435422b4d900;
 
     /**************************************************************************/
     /* State */
@@ -404,6 +419,13 @@ abstract contract Pool is
     }
 
     /**
+     * @inheritdoc IPool
+     */
+    function isOperator(address account, address operator) external view returns (bool) {
+        return _getIsOperatorStorage().isOperator[account][operator];
+    }
+
+    /**
      * @notice Get deposit
      * @param account Account
      * @param tick Tick
@@ -557,6 +579,16 @@ abstract contract Pool is
     function _getFeeShareStorage() private pure returns (FeeShareStorage storage $) {
         assembly {
             $.slot := FEE_SHARE_STORAGE_LOCATION
+        }
+    }
+
+    /**
+     * @notice Get reference to ERC-7201 is operator storage
+     * @return $ Reference to is operator storage
+     */
+    function _getIsOperatorStorage() internal pure returns (IsOperator storage $) {
+        assembly {
+            $.slot := IS_OPERATOR_STORAGE_LOCATION
         }
     }
 
@@ -797,6 +829,7 @@ abstract contract Pool is
         /* Handle borrow accounting */
         (bytes memory encodedLoanReceipt, bytes32 loanReceiptHash) = BorrowLogic._borrow(
             _storage,
+            msg.sender,
             scaledPrincipal,
             duration,
             collateralToken,
@@ -841,7 +874,7 @@ abstract contract Pool is
             uint256 feeShareAmount,
             LoanReceipt.LoanReceiptV2 memory loanReceipt,
             bytes32 loanReceiptHash
-        ) = BorrowLogic._repay(_storage, _getFeeShareStorage(), encodedLoanReceipt, gracePeriodRate());
+        ) = BorrowLogic._repay(_storage, _getFeeShareStorage(), _getIsOperatorStorage(), encodedLoanReceipt, gracePeriodRate());
         uint256 unscaledRepayment = _unscale(repayment, true);
 
         /* Revoke delegates */
@@ -854,7 +887,7 @@ abstract contract Pool is
         );
 
         /* Transfer repayment from borrower to pool */
-        _storage.currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), unscaledRepayment);
+        _storage.currencyToken.safeTransferFrom(msg.sender, address(this), unscaledRepayment);
 
         /* Transfer collateral from pool to borrower */
         _transferCollateral(
@@ -892,7 +925,7 @@ abstract contract Pool is
             uint256 feeShareAmount,
             LoanReceipt.LoanReceiptV2 memory loanReceipt,
             bytes32 loanReceiptHash
-        ) = BorrowLogic._repay(_storage, _getFeeShareStorage(), encodedLoanReceipt, gracePeriodRate());
+        ) = BorrowLogic._repay(_storage, _getFeeShareStorage(), _getIsOperatorStorage(), encodedLoanReceipt, gracePeriodRate());
         uint256 unscaledRepayment = _unscale(repayment, true);
 
         /* Quote new repayment, admin fee, and liquidity nodes */
@@ -911,6 +944,7 @@ abstract contract Pool is
         /* Handle borrow accounting */
         (bytes memory newEncodedLoanReceipt, bytes32 newLoanReceiptHash) = BorrowLogic._borrow(
             _storage,
+            loanReceipt.borrower,
             scaledPrincipal,
             duration,
             loanReceipt.collateralToken,
@@ -925,11 +959,11 @@ abstract contract Pool is
 
         /* Determine transfer direction */
         if (principal < unscaledRepayment) {
-            /* Transfer prorated repayment less principal from borrower to pool */
-            _storage.currencyToken.safeTransferFrom(loanReceipt.borrower, address(this), unscaledRepayment - principal);
+            /* Transfer prorated repayment less principal from caller to pool */
+            _storage.currencyToken.safeTransferFrom(msg.sender, address(this), unscaledRepayment - principal);
         } else {
             /* Transfer principal less prorated repayment from pool to borrower */
-            _storage.currencyToken.safeTransfer(msg.sender, principal - unscaledRepayment);
+            _storage.currencyToken.safeTransfer(loanReceipt.borrower, principal - unscaledRepayment);
         }
 
         /* Transfer currency token to fee share recipient */
@@ -974,6 +1008,22 @@ abstract contract Pool is
 
         /* Emit Loan Liquidated */
         emit LoanLiquidated(loanReceiptHash);
+    }
+
+    /**
+     * @notice Set operator
+     *
+     * @param operator Operator
+     * @param approved Approved
+     */
+    function setOperator(
+        address operator,
+        bool approved
+    ) external nonReentrant {
+        BorrowLogic._setOperator(_getIsOperatorStorage(), operator, approved);
+
+        /* Emit OperatorSet */
+        emit OperatorSet(msg.sender, operator, approved);
     }
 
     /**************************************************************************/

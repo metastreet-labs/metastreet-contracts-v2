@@ -3090,6 +3090,49 @@ describe("Pool Basic", function () {
       });
     }
 
+    it("approved operator can repay", async function () {
+      const [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
+
+      /* Wait for expiration */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+      const repayment = decodedLoanReceipt.repayment;
+
+      /* Set operator */
+      await pool.connect(accountBorrower).setOperator(await accountLiquidator.getAddress(), true);
+
+      /* Approve */
+      await tok1.connect(accountLiquidator).approve(await pool.getAddress(), repayment);
+
+      await helpers.time.increaseTo(decodedLoanReceipt.maturity + 1n);
+
+      const repayTx = await pool.connect(accountLiquidator).repay(loanReceipt);
+
+      /* Validate events */
+      await expectEvent(repayTx, pool, "LoanRepaid", {
+        loanReceiptHash,
+        repayment,
+      });
+
+      /* Validate ticks and liquidity statistics */
+      let totalPending = 0n;
+      let totalUsed = 0n;
+      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
+        const node = await pool.liquidityNode(nodeReceipt.tick);
+        const value = FixedPoint.from("25") + nodeReceipt.pending - nodeReceipt.used;
+        expect(node.value).to.equal(value);
+        expect(node.available).to.equal(value);
+        expect(node.pending).to.equal(0n);
+        totalPending = totalPending + nodeReceipt.pending;
+        totalUsed = totalUsed + nodeReceipt.used;
+      }
+
+      /* Validate loan state */
+      expect(await pool.loans(loanReceiptHash)).to.equal(2);
+
+      /* Validate NFT ownership */
+      expect(await nft1.ownerOf(123)).to.equal(await accountBorrower.getAddress());
+    });
+
     it("can repay after expiration and prior to liquidation", async function () {
       const [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
 
@@ -3308,6 +3351,83 @@ describe("Pool Basic", function () {
       /* Validate events */
       await expectEvent(refinanceTx, tok1, "Transfer", {
         from: await accountBorrower.getAddress(),
+        to: await pool.getAddress(),
+        value: decodedLoanReceipt.repayment - decodedLoanReceipt.principal,
+      });
+
+      await expectEvent(refinanceTx, pool, "LoanRepaid", {
+        loanReceiptHash,
+        repayment: decodedLoanReceipt.repayment,
+      });
+
+      await expectEvent(refinanceTx, pool, "AdminFeeShareTransferred", {
+        feeShareRecipient: accounts[2].address,
+        feeShareAmount: adminFee / 2n,
+      });
+
+      await expect(refinanceTx).to.emit(pool, "LoanOriginated");
+
+      /* Validate state */
+      expect(await pool.loans(loanReceiptHash)).to.equal(2);
+      expect(await pool.loans(newLoanReceiptHash)).to.equal(1);
+      expect(await pool.adminFeeBalance()).to.closeTo(adminFee / 2n, "1");
+    });
+
+    it("approved operator refinance loan at maturity with admin fee and same principal", async function () {
+      /* Set Admin Fee */
+      await pool.setAdminFee(4400, accounts[2].address, 5000);
+
+      /* Create Loan */
+      [loanReceipt, loanReceiptHash] = await createActiveLoan(FixedPoint.from("25"));
+
+      /* Set operator */
+      await pool.connect(accountBorrower).setOperator(await accountLiquidator.getAddress(), true);
+
+      /* Get decoded receipt */
+      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
+
+      /* Approve */
+      await tok1.connect(accountLiquidator).approve(await pool.getAddress(), decodedLoanReceipt.repayment);
+
+      /* Refinance */
+      await helpers.time.setNextBlockTimestamp(decodedLoanReceipt.maturity);
+      const refinanceTx = await pool
+        .connect(accountLiquidator)
+        .refinance(
+          loanReceipt,
+          decodedLoanReceipt.principal,
+          15 * 86400,
+          FixedPoint.from("26"),
+          await sourceLiquidity(FixedPoint.from("25")),
+          "0x"
+        );
+      const newLoanReceipt = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceipt;
+      const newLoanReceiptHash = (await extractEvent(refinanceTx, pool, "LoanOriginated")).args.loanReceiptHash;
+
+      /* Calculate admin fee */
+      const adminFee =
+        (BigInt(await pool.adminFeeRate()) * (decodedLoanReceipt.repayment - FixedPoint.from("25"))) / 10000n;
+
+      /* Validate hash */
+      expect(loanReceiptHash).to.equal(await loanReceiptLib.hash(loanReceipt));
+
+      /* Validate loan receipt */
+      const decodedNewLoanReceipt = await loanReceiptLib.decode(newLoanReceipt);
+      expect(decodedNewLoanReceipt.version).to.equal(2);
+      expect(decodedNewLoanReceipt.borrower).to.equal(await accountBorrower.getAddress());
+      expect(decodedNewLoanReceipt.maturity).to.equal(
+        BigInt((await ethers.provider.getBlock(refinanceTx.blockHash!)).timestamp) + 15n * 86400n
+      );
+      expect(decodedNewLoanReceipt.duration).to.equal(15 * 86400);
+      expect(decodedNewLoanReceipt.collateralToken).to.equal(await nft1.getAddress());
+      expect(decodedNewLoanReceipt.collateralTokenId).to.equal(123);
+      expect(decodedNewLoanReceipt.nodeReceipts.length).to.equal(16);
+
+      console.log("decodedLoanReceipt.repayment - decodedLoanReceipt.principal:", decodedLoanReceipt.repayment - decodedLoanReceipt.principal);
+
+      /* Validate events */
+      await expectEvent(refinanceTx, tok1, "Transfer", {
+        from: await accountLiquidator.getAddress(),
         to: await pool.getAddress(),
         value: decodedLoanReceipt.repayment - decodedLoanReceipt.principal,
       });

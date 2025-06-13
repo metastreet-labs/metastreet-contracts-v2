@@ -246,6 +246,7 @@ library BorrowLogic {
     /**
      * @dev Helper function to handle borrow accounting
      * @param self Pool storage
+     * @param borrower Borrower address
      * @param principal Principal amount in currency tokens
      * @param duration Duration in seconds
      * @param collateralToken Collateral token address
@@ -260,6 +261,7 @@ library BorrowLogic {
      */
     function _borrow(
         Pool.PoolStorage storage self,
+        address borrower,
         uint256 principal,
         uint64 duration,
         address collateralToken,
@@ -286,7 +288,7 @@ library BorrowLogic {
             principal: principal,
             repayment: repayment,
             adminFee: adminFee,
-            borrower: msg.sender,
+            borrower: borrower,
             maturity: (block.timestamp + duration).toUint64(),
             duration: duration,
             collateralToken: collateralToken,
@@ -326,6 +328,7 @@ library BorrowLogic {
      * @dev Helper function to handle repay accounting
      * @param self Pool storage
      * @param feeShareStorage Fee share storage
+     * @param isOperatorStorage Is operator storage
      * @param encodedLoanReceipt Encoded loan receipt
      * @param gracePeriodRate Grace period interest rate per second
      * @return Repayment amount in currency tokens, fee share amount in
@@ -334,6 +337,7 @@ library BorrowLogic {
     function _repay(
         Pool.PoolStorage storage self,
         Pool.FeeShareStorage storage feeShareStorage,
+        Pool.IsOperator storage isOperatorStorage,
         bytes calldata encodedLoanReceipt,
         uint256 gracePeriodRate
     ) external returns (uint256, uint256, LoanReceipt.LoanReceiptV2 memory, bytes32) {
@@ -349,8 +353,8 @@ library BorrowLogic {
         /* Validate borrow and repay is not in same block */
         if (loanReceipt.maturity - loanReceipt.duration == block.timestamp) revert IPool.InvalidLoanReceipt();
 
-        /* Validate caller is borrower */
-        if (msg.sender != loanReceipt.borrower) revert IPool.InvalidCaller();
+        /* Validate caller is borrower or approved operator */
+        if (msg.sender != loanReceipt.borrower && !isOperatorStorage.isOperator[loanReceipt.borrower][msg.sender]) revert IPool.InvalidCaller();
 
         /* Compute prorated repayment using prorated interest, prorated admin fee and proration */
         (uint256 repayment, uint256 gracePeriodInterest, uint256 adminFee, uint256 proration) = _prorateRepayment(
@@ -428,6 +432,24 @@ library BorrowLogic {
         self.loans[loanReceiptHash] = Pool.LoanStatus.Liquidated;
 
         return (loanReceipt, loanReceiptHash);
+    }
+
+    /**
+     * @dev Helper function to set operator
+     * @param isOperatorStorage Is operator storage
+     * @param operator Operator
+     * @param approved Approved
+     */
+    function _setOperator(
+        Pool.IsOperator storage isOperatorStorage,
+        address operator,
+        bool approved
+    ) external {
+        /* Validate operator */
+        if (operator == msg.sender || operator == address(0)) revert IPool.InvalidParameters();
+
+        /* Set operator */
+        isOperatorStorage.isOperator[msg.sender][operator] = approved;
     }
 
     /**

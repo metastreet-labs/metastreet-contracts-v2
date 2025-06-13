@@ -164,6 +164,14 @@ interface IPool {
      */
     event RatesUpdated(uint64[] rates);
 
+    /**
+     * @notice Emitted when operator is set
+     * @param controller Controller
+     * @param operator Operator
+     * @param approved Approved
+     */
+    event OperatorSet(address indexed controller, address indexed operator, bool approved);
+
     /**************************************************************************/
     /* Getters */
     /**************************************************************************/
@@ -239,6 +247,14 @@ interface IPool {
      * @return Grace period interest rate per second
      */
     function gracePeriodRate() external view returns (uint256);
+
+    /**
+     * @notice Get operator
+     * @param account Account
+     * @param operator Operator
+     * @return Whether the operator is approved
+     */
+    function isOperator(address account, address operator) external view returns (bool);
 
     /**************************************************************************/
     /* Deposit API */
