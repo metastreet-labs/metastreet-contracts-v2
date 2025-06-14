@@ -38,6 +38,18 @@ export function handlePoolCreated(event: PoolCreatedEvent): void {
   poolEntity.delegationRegistry = poolContract.delegationRegistry();
   const externalPriceOracle = ExternalPriceOracle.bind(poolAddress).try_priceOracle();
   poolEntity.externalPriceOracle = !externalPriceOracle.reverted ? externalPriceOracle.value : null;
+  const gracePeriodDuration = poolContract.try_gracePeriodDuration();
+  poolEntity.gracePeriodDuration = gracePeriodDuration.reverted
+    ? null
+    : gracePeriodDuration.value.isZero()
+      ? null
+      : gracePeriodDuration.value;
+  const gracePeriodRate = poolContract.try_gracePeriodRate();
+  poolEntity.gracePeriodRate = gracePeriodRate.reverted
+    ? null
+    : gracePeriodRate.value.isZero()
+      ? null
+      : gracePeriodRate.value;
 
   // Derived properties
   const maxBorrows: BigInt[] = [];
