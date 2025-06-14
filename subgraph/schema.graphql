@@ -18,6 +18,8 @@ type Pool @entity {
   collateralLiquidator: Bytes! # address
   delegationRegistry: Bytes! # address
   externalPriceOracle: Bytes # address
+  gracePeriodDuration: BigInt # uint256
+  gracePeriodRate: BigInt # uint256
   # Collateral Filter
   tokenIdRange: [BigInt!]
   tokenIdSet: [BigInt!]
