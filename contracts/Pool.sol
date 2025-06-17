@@ -715,6 +715,9 @@ abstract contract Pool is
      * @param feeShareAmount Fee share amount
      */
     function _transferFeeShare(address feeShareRecipient, uint256 feeShareAmount) internal {
+        /* If no fee share amount, return */
+        if (feeShareAmount == 0) return;
+
         /* Transfer currency token to fee share recipient */
         uint256 unscaledFeeShareAmount = _unscale(feeShareAmount, false);
 
@@ -881,7 +884,7 @@ abstract contract Pool is
         );
 
         /* Transfer currency token to fee share recipient */
-        if (feeShareAmount != 0) _transferFeeShare(_getFeeShareStorage().recipient, feeShareAmount);
+        _transferFeeShare(_getFeeShareStorage().recipient, feeShareAmount);
 
         /* Emit Loan Repaid */
         emit LoanRepaid(loanReceiptHash, unscaledRepayment);
@@ -950,7 +953,7 @@ abstract contract Pool is
         }
 
         /* Transfer currency token to fee share recipient */
-        if (feeShareAmount != 0) _transferFeeShare(_getFeeShareStorage().recipient, feeShareAmount);
+        _transferFeeShare(_getFeeShareStorage().recipient, feeShareAmount);
 
         /* Emit Loan Repaid */
         emit LoanRepaid(loanReceiptHash, unscaledRepayment);
