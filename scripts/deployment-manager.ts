@@ -767,8 +767,9 @@ async function erc20DepositTokenImplementationDeploy(deployment: Deployment) {
 /* Price Oracle Commands */
 /******************************************************************************/
 
-async function priceOracleDeploy(contractName: string, owner: string, args: string[]) {
+async function priceOracleDeploy(contractName: string, args: string[]) {
   const priceOracleFactory = await hre.ethers.getContractFactory(contractName, signer);
+  const proxyAdminFactory = await hre.ethers.getContractFactory("ProxyAdmin", signer);
   const transparentUpgradeableProxyFactory = await hre.ethers.getContractFactory("TransparentUpgradeableProxy", signer);
 
   /* Deploy implementation contract */
@@ -776,11 +777,14 @@ async function priceOracleDeploy(contractName: string, owner: string, args: stri
   await priceOracleImpl.waitForDeployment();
   console.log(`${contractName} Implementation: ${await priceOracleImpl.getAddress()}`);
 
+  /* Deploy proxy admin */
+  const proxyAdmin = await proxyAdminFactory.deploy();
+
   /* Deploy transparent proxy */
   const priceOracle = await transparentUpgradeableProxyFactory.deploy(
     await priceOracleImpl.getAddress(),
-    await signer!.getAddress(),
-    priceOracleImpl.interface.encodeFunctionData("initialize", [owner])
+    await proxyAdmin.getAddress(),
+    priceOracleImpl.interface.encodeFunctionData("initialize", [await signer!.getAddress()])
   );
   await priceOracle.waitForDeployment();
   console.log(`${contractName} Proxy:          ${await priceOracle.getAddress()}`);
@@ -1032,9 +1036,8 @@ async function main() {
     .command("price-oracle-deploy")
     .description("Deploy Price Oracle")
     .argument("contract", "Price oracle contract name")
-    .argument("owner", "Price oracle owner")
     .argument("[args...]", "Arguments")
-    .action((contract, owner, args) => priceOracleDeploy(contract, owner, args));
+    .action((contract, args) => priceOracleDeploy(contract, args));
   program
     .command("price-oracle-upgrade")
     .description("Upgrade Price Oracle")
