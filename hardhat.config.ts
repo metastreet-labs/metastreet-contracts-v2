@@ -40,7 +40,7 @@ const config: HardhatUserConfig = {
             viaIR: true,
             optimizer: {
               enabled: true,
-              runs: 100,
+              runs: 149,
             },
             debug: {
               revertStrings: "strip",
