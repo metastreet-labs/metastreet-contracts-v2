@@ -57,8 +57,7 @@ contract WeightedRateERC1155CollectionPool is
         ExternalPriceOracle()
     {
         /* Validate collateral wrappers */
-        if (collateralWrappers.length != 1) revert InvalidParameters();
-        if (
+        if (collateralWrappers.length != 1 || 
             keccak256(abi.encodePacked(ICollateralWrapper(collateralWrappers[0]).name())) !=
             keccak256("MetaStreet ERC1155 Collateral Wrapper")
         ) revert InvalidParameters();
@@ -191,9 +190,7 @@ contract WeightedRateERC1155CollectionPool is
     /**
      * @inheritdoc Pool
      */
-    function IMPLEMENTATION_NAME() external pure override returns (string memory) {
-        return "WeightedRateERC1155CollectionPool";
-    }
+    string public constant override IMPLEMENTATION_NAME = "WeightedRateERC1155CollectionPool";
 
     /**************************************************************************/
     /* ERC1155Holder */
