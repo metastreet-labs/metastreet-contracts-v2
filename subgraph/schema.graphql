@@ -247,6 +247,7 @@ type LoanOriginated @entity(immutable: true) {
 type LoanRepaid @entity(immutable: true) {
   id: Bytes! # <pool><tx hash>
   loan: Loan!
+  repayment: BigInt! # uint256
 }
 
 type LoanLiquidated @entity(immutable: true) {
