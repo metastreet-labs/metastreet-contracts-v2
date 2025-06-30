@@ -26,7 +26,6 @@ import { IERC165 } from "../generated/templates/Pool/IERC165";
 import { ICollateralWrapper } from "../generated/templates/Pool/ICollateralWrapper";
 import {
   AdminFeeUpdated as AdminFeeUpdatedEvent,
-  RatesUpdated as RatesUpdatedEvent,
   CollateralLiquidated as CollateralLiquidatedEvent,
   Deposited as DepositedEvent,
   Pool__liquidityNodeResultValue0Struct as LiquidityNode,
@@ -35,6 +34,7 @@ import {
   LoanRepaid as LoanRepaidEvent,
   Pool__decodeLoanReceiptResultValue0NodeReceiptsStruct as NodeReceipt,
   Pool as PoolContract,
+  RatesUpdated as RatesUpdatedEvent,
   Redeemed as RedeemedEvent,
   TokenCreated as TokenCreatedEvent,
   Transferred as TransferredEvent,
@@ -499,7 +499,6 @@ function _handleRedeemed(
   redemptionId: BigInt,
   shares: BigInt
 ): void {
-  const currencyTokenEntity = loadCurrencyTokenOrThrow();
   const oldTickEntity = loadTickOrThrow(tick);
 
   updatePoolEntity(event);
@@ -667,8 +666,6 @@ export function handleLoanRepaid(event: LoanRepaidEvent): void {
 }
 
 export function handleLoanLiquidated(event: LoanLiquidatedEvent): void {
-  const currencyTokenEntity = loadCurrencyTokenOrThrow();
-
   const loanEntity = LoanEntity.load(event.params.loanReceiptHash);
   if (!loanEntity) throw new Error("Loan entity not found");
   loanEntity.status = LoanStatus.Liquidated;
@@ -768,7 +765,6 @@ export function handleTokenCreated(event: TokenCreatedEvent): void {
 }
 
 export function handleTransferred(event: TransferredEvent): void {
-  const currencyTokenEntity = loadCurrencyTokenOrThrow();
   const tick = loadTickOrThrow(event.params.tick);
 
   // this is just to make the compiler happy, should always be true
