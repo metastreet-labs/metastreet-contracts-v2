@@ -112,7 +112,18 @@ describe("Pool Basic Grace Period", function () {
       await poolImpl.getAddress(),
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.AbiCoder.defaultAbiCoder().encode(
-          ["address", "uint256", "uint256", "address", "address", "uint64[]", "uint64[]", "uint256", "uint256"],
+          [
+            "address",
+            "uint256",
+            "uint256",
+            "address",
+            "address",
+            "uint64[]",
+            "uint64[]",
+            "uint256",
+            "uint256",
+            "address",
+          ],
           [
             await nft1.getAddress(),
             0,
@@ -123,6 +134,7 @@ describe("Pool Basic Grace Period", function () {
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
             30 * 86400,
             FixedPoint.normalizeRate("0.05"),
+            await accounts[0].getAddress(),
           ]
         ),
       ])
@@ -213,19 +225,36 @@ describe("Pool Basic Grace Period", function () {
     const NUM_LIMITS = 35;
     const TICK_LIMIT_SPACING_BASIS_POINTS = await pool.ABSOLUTE_TICK_LIMIT_SPACING_BASIS_POINTS();
 
+    const pool_ = (await ethers.getContractAt(
+      "WeightedRateGracePeriodRangedCollectionPool",
+      await pool.getAddress()
+    )) as WeightedRateGracePeriodRangedCollectionPool;
+
     let limit = FixedPoint.from("6.5");
     for (let i = 0; i < NUM_LIMITS; i++) {
+      await pool_.setDepositWhitelist(Tick.encode(limit), accountDepositors[0], true);
       await pool.connect(accountDepositors[0]).deposit(Tick.encode(limit), FixedPoint.from("25"), 0);
       limit = (limit * (TICK_LIMIT_SPACING_BASIS_POINTS + 10000n)) / 10000n;
     }
   }
 
   async function amendLiquidity(ticks: bigint[]): Promise<bigint[]> {
+    const pool_ = (await ethers.getContractAt(
+      "WeightedRateGracePeriodRangedCollectionPool",
+      await pool.getAddress()
+    )) as WeightedRateGracePeriodRangedCollectionPool;
+
     /* Replace four ticks with alternate duration and rates */
     ticks[3] = Tick.encode(Tick.decode(ticks[3]).limit, 2, 0);
     ticks[5] = Tick.encode(Tick.decode(ticks[5]).limit, 1, 1);
     ticks[7] = Tick.encode(Tick.decode(ticks[7]).limit, 1, 1);
     ticks[9] = Tick.encode(Tick.decode(ticks[9]).limit, 0, 2);
+
+    await pool_.setDepositWhitelist(ticks[3], accountDepositors[0], true);
+    await pool_.setDepositWhitelist(ticks[5], accountDepositors[0], true);
+    await pool_.setDepositWhitelist(ticks[7], accountDepositors[0], true);
+    await pool_.setDepositWhitelist(ticks[9], accountDepositors[0], true);
+
     await pool.connect(accountDepositors[0]).deposit(ticks[3], FixedPoint.from("25"), 0);
     await pool.connect(accountDepositors[0]).deposit(ticks[5], FixedPoint.from("25"), 0);
     await pool.connect(accountDepositors[0]).deposit(ticks[7], FixedPoint.from("25"), 0);
@@ -260,6 +289,15 @@ describe("Pool Basic Grace Period", function () {
   }
 
   async function setupImpairedTick(): Promise<void> {
+    /* Get pool contract */
+    const pool_ = (await ethers.getContractAt(
+      "WeightedRateGracePeriodRangedCollectionPool",
+      await pool.getAddress()
+    )) as WeightedRateGracePeriodRangedCollectionPool;
+
+    /* Set deposit whitelist */
+    await pool_.setDepositWhitelist(Tick.encode("10"), accountDepositors[0], true);
+
     /* Create deposit at 10 ETH tick */
     await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("5"), 0);
 
@@ -298,6 +336,17 @@ describe("Pool Basic Grace Period", function () {
   }
 
   async function setupInsolventTick(): Promise<void> {
+    /* Get pool contract */
+    const pool_ = (await ethers.getContractAt(
+      "WeightedRateGracePeriodRangedCollectionPool",
+      await pool.getAddress()
+    )) as WeightedRateGracePeriodRangedCollectionPool;
+
+    /* Set deposit whitelist */
+    await pool_.setDepositWhitelist(Tick.encode("5"), accountDepositors[0], true);
+    await pool_.setDepositWhitelist(Tick.encode("10"), accountDepositors[0], true);
+    await pool_.setDepositWhitelist(Tick.encode("15"), accountDepositors[0], true);
+
     /* Create deposits at 5 ETH, 10 ETH, and 15 ETH ticks */
     await pool.connect(accountDepositors[0]).deposit(Tick.encode("5"), FixedPoint.from("5"), 0);
     await pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("5"), 0);
@@ -387,6 +436,18 @@ describe("Pool Basic Grace Period", function () {
 
     return [loanReceipt, loanReceiptHash];
   }
+
+  /****************************************************************************/
+  /* Deposit API */
+  /****************************************************************************/
+
+  describe("#deposit", async function () {
+    it("deposits reverts if not whitelisted", async function () {
+      await expect(
+        pool.connect(accountDepositors[0]).deposit(Tick.encode("10"), FixedPoint.from("25"), 0)
+      ).to.be.revertedWithCustomError(pool, "InvalidCaller");
+    });
+  });
 
   /****************************************************************************/
   /* Lend API */
@@ -951,6 +1012,24 @@ describe("Pool Basic Grace Period", function () {
       /* Validate rate was successfully set */
       expect(await pool.gracePeriodDuration()).to.equal(30 * 86400);
       expect(await pool.gracePeriodRate()).to.equal(FixedPoint.normalizeRate("0.05"));
+    });
+  });
+
+  /****************************************************************************/
+  /* Admin Deposit Whitelist API */
+  /****************************************************************************/
+
+  describe("#setDepositWhitelist", async function () {
+    it("admin set deposit whitelist successfully", async function () {
+      const pool_ = (await ethers.getContractAt(
+        "WeightedRateGracePeriodRangedCollectionPool",
+        await pool.getAddress()
+      )) as WeightedRateGracePeriodRangedCollectionPool;
+      const tx = await pool_.setDepositWhitelist(1, accountDepositors[0], true);
+
+      /* Validate rate was successfully set */
+      expect(await pool_.isDepositWhitelisted(accountDepositors[0], 1)).to.equal(true);
+      expect(await pool_.isDepositWhitelisted(accountDepositors[1], 1)).to.equal(false);
     });
   });
 });
