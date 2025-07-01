@@ -91,9 +91,7 @@ contract MerkleCollectionCollateralFilter is CollateralFilter {
     /**
      * @inheritdoc CollateralFilter
      */
-    function COLLATERAL_FILTER_NAME() external pure override returns (string memory) {
-        return "MerkleCollectionCollateralFilter";
-    }
+    string public constant override COLLATERAL_FILTER_NAME = "MerkleCollectionCollateralFilter";
 
     /**
      * @inheritdoc CollateralFilter
