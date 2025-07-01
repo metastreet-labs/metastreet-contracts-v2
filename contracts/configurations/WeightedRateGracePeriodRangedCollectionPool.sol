@@ -22,6 +22,29 @@ contract WeightedRateGracePeriodRangedCollectionPool is
     ExternalPriceOracle
 {
     /**************************************************************************/
+    /* Constants */
+    /**************************************************************************/
+
+    /**
+     * @notice Deposit whitelist storage location
+     * @dev keccak256(abi.encode(uint256(keccak256("weightedRateGracePeriodRangedCollectionPool.depositWhitelist")) - 1)) & ~bytes32(uint256(0xff));
+     */
+    bytes32 internal constant DEPOSIT_WHITELIST_STORAGE_LOCATION =
+        0xb3daf58d5c92be151ade1dcf694b7f8486281fd452dbd0443558efdfe1579600;
+
+    /**************************************************************************/
+    /* Structures */
+    /**************************************************************************/
+
+    /**
+     * @notice Deposit whitelist
+     * @param whitelist Mapping of tick to address to bool
+     */
+    struct DepositWhitelist {
+        mapping(uint128 => mapping(address => bool)) whitelist;
+    }
+
+    /**************************************************************************/
     /* Events */
     /**************************************************************************/
 
@@ -31,6 +54,14 @@ contract WeightedRateGracePeriodRangedCollectionPool is
      * @param gracePeriodRate Grace period interest rate per second
      */
     event GracePeriodUpdated(uint256 gracePeriodDuration, uint256 gracePeriodRate);
+
+    /**
+     * @notice Deposit whitelist set
+     * @param tick Tick
+     * @param account Account
+     * @param isWhitelisted Whether account is whitelisted for deposit at tick
+     */
+    event DepositWhitelistSet(uint128 indexed tick, address indexed account, bool isWhitelisted);
 
     /**************************************************************************/
     /* State */
@@ -53,19 +84,17 @@ contract WeightedRateGracePeriodRangedCollectionPool is
     /**
      * @notice Pool constructor
      * @param collateralLiquidator Collateral liquidator
-     * @param delegateRegistryV1 Delegation registry v1 contract
      * @param delegateRegistryV2 Delegation registry v2 contract
      * @param erc20DepositTokenImplementation ERC20 Deposit Token implementation address
      * @param collateralWrappers Collateral wrappers
      */
     constructor(
         address collateralLiquidator,
-        address delegateRegistryV1,
         address delegateRegistryV2,
         address erc20DepositTokenImplementation,
         address[] memory collateralWrappers
     )
-        Pool(collateralLiquidator, delegateRegistryV1, delegateRegistryV2, collateralWrappers)
+        Pool(collateralLiquidator, delegateRegistryV2, collateralWrappers)
         WeightedInterestRateModel()
         ERC20DepositToken(erc20DepositTokenImplementation)
         ExternalPriceOracle()
@@ -131,6 +160,27 @@ contract WeightedRateGracePeriodRangedCollectionPool is
         return _gracePeriodRate;
     }
 
+    /**
+     * @inheritdoc Pool
+     */
+    function isDepositWhitelisted(address account, uint128 tick ) public view override returns (bool) {
+        return _getDepositWhitelistStorage().whitelist[tick][account];
+    }
+
+    /**************************************************************************/
+    /* Helper */
+    /**************************************************************************/
+
+    /**
+     * @notice Get reference to deposit whitelist storage
+     * @return $ Reference to deposit whitelist storage
+     */
+    function _getDepositWhitelistStorage() internal pure returns (DepositWhitelist storage $) {
+        assembly {
+            $.slot := DEPOSIT_WHITELIST_STORAGE_LOCATION
+        }
+    }
+
     /**************************************************************************/
     /* Name */
     /**************************************************************************/
@@ -161,5 +211,33 @@ contract WeightedRateGracePeriodRangedCollectionPool is
 
         /* Emit Grace Period Updated */
         emit GracePeriodUpdated(gracePeriodDuration_, gracePeriodRate_);
+    }
+
+    /**
+     * @notice Set deposit whitelist
+     *
+     * @param tick Tick
+     * @param account Account
+     * @param isWhitelisted Whether account is whitelisted for deposit at tick
+     */
+    function setDepositWhitelist(
+        uint128 tick,
+        address account,
+        bool isWhitelisted
+    ) external nonReentrant {
+        /* Validate caller is pool admin */
+        if (msg.sender != _storage.admin) revert IPool.InvalidCaller();
+
+        /* Validate account is not zero address */
+        if (account == address(0)) revert IPool.InvalidParameters();
+
+        /* Validate tick is valid */
+        if (tick == 0) revert IPool.InvalidParameters();
+
+        /* Set deposit whitelist */
+        _getDepositWhitelistStorage().whitelist[tick][account] = isWhitelisted;
+
+        /* Emit DepositWhitelistSet */
+        emit DepositWhitelistSet(tick, account, isWhitelisted);
     }
 }

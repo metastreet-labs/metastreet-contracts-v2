@@ -28,19 +28,17 @@ contract WeightedRateCollectionPool is
     /**
      * @notice Pool constructor
      * @param collateralLiquidator Collateral liquidator
-     * @param delegateRegistryV1 Delegation registry v1 contract
      * @param delegateRegistryV2 Delegation registry v2 contract
      * @param erc20DepositTokenImplementation ERC20 Deposit Token implementation address
      * @param collateralWrappers Collateral wrappers
      */
     constructor(
         address collateralLiquidator,
-        address delegateRegistryV1,
         address delegateRegistryV2,
         address erc20DepositTokenImplementation,
         address[] memory collateralWrappers
     )
-        Pool(collateralLiquidator, delegateRegistryV1, delegateRegistryV2, collateralWrappers)
+        Pool(collateralLiquidator, delegateRegistryV2, collateralWrappers)
         WeightedInterestRateModel()
         ERC20DepositToken(erc20DepositTokenImplementation)
         ExternalPriceOracle()

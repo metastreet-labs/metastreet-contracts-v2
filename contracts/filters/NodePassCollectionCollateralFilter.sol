@@ -105,9 +105,7 @@ contract NodePassCollectionCollateralFilter is CollateralFilter {
     /**
      * @inheritdoc CollateralFilter
      */
-    function COLLATERAL_FILTER_NAME() external pure override returns (string memory) {
-        return "NodePassCollectionCollateralFilter";
-    }
+    string public constant override COLLATERAL_FILTER_NAME = "NodePassCollectionCollateralFilter";
 
     /**
      * @inheritdoc CollateralFilter

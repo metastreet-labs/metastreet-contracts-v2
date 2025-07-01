@@ -164,6 +164,14 @@ interface IPool {
      */
     event RatesUpdated(uint64[] rates);
 
+    /**
+     * @notice Emitted when operator is set
+     * @param controller Controller
+     * @param operator Operator
+     * @param approved Approved
+     */
+    event OperatorSet(address indexed controller, address indexed operator, bool approved);
+
     /**************************************************************************/
     /* Getters */
     /**************************************************************************/
@@ -217,12 +225,6 @@ interface IPool {
     function collateralLiquidator() external view returns (address);
 
     /**
-     * @notice Get delegation registry v1 contract
-     * @return Delegation registry contract
-     */
-    function delegationRegistry() external view returns (address);
-
-    /**
      * @notice Get delegation registry v2 contract
      * @return Delegation registry contract
      */
@@ -239,6 +241,22 @@ interface IPool {
      * @return Grace period interest rate per second
      */
     function gracePeriodRate() external view returns (uint256);
+
+    /**
+     * @notice Get operator
+     * @param account Account
+     * @param operator Operator
+     * @return Whether the operator is approved
+     */
+    function isOperator(address account, address operator) external view returns (bool);
+
+    /**
+     * @notice Get deposit whitelist
+     * @param account Account
+     * @param tick Tick
+     * @return isWhitelisted Whether account is whitelisted for deposit at tick
+     */
+    function isDepositWhitelisted(address account, uint128 tick ) external view returns (bool);
 
     /**************************************************************************/
     /* Deposit API */

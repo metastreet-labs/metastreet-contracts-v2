@@ -51,11 +51,6 @@ contract MerkleCollectionCollateralFilter is CollateralFilter {
      * @notice MerkleCollectionCollateralFilter initializer
      */
     function _initialize(address token, bytes32 root, uint32 nodeCount, string memory metadataURI_) internal {
-        /* Validate root */
-        if (root == bytes32(0)) revert InvalidCollateralFilterParameters();
-        /* Validate node count */
-        if (nodeCount == 0) revert InvalidCollateralFilterParameters();
-
         _token = token;
         _root = root;
         _proofLength = nodeCount * 32;
@@ -96,9 +91,7 @@ contract MerkleCollectionCollateralFilter is CollateralFilter {
     /**
      * @inheritdoc CollateralFilter
      */
-    function COLLATERAL_FILTER_NAME() external pure override returns (string memory) {
-        return "MerkleCollectionCollateralFilter";
-    }
+    string public constant override COLLATERAL_FILTER_NAME = "MerkleCollectionCollateralFilter";
 
     /**
      * @inheritdoc CollateralFilter

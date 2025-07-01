@@ -28,7 +28,6 @@ contract WeightedRateNodePassCollectionPool is
     /**
      * @notice Pool constructor
      * @param collateralLiquidator Collateral liquidator
-     * @param delegateRegistryV1 Delegation registry v1 contract
      * @param delegateRegistryV2 Delegation registry v2 contract
      * @param yieldPassFactory Yield pass factory
      * @param erc20DepositTokenImplementation ERC20 Deposit Token implementation address
@@ -36,13 +35,12 @@ contract WeightedRateNodePassCollectionPool is
      */
     constructor(
         address collateralLiquidator,
-        address delegateRegistryV1,
         address delegateRegistryV2,
         address yieldPassFactory,
         address erc20DepositTokenImplementation,
         address[] memory collateralWrappers
     )
-        Pool(collateralLiquidator, delegateRegistryV1, delegateRegistryV2, collateralWrappers)
+        Pool(collateralLiquidator, delegateRegistryV2, collateralWrappers)
         WeightedInterestRateModel()
         NodePassCollectionCollateralFilter(yieldPassFactory)
         ERC20DepositToken(erc20DepositTokenImplementation)

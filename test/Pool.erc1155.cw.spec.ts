@@ -105,7 +105,6 @@ describe("Pool ERC1155 Collateral Wrapper", function () {
     /* Deploy pool implementation */
     poolImpl = (await poolImplFactory.deploy(
       await collateralLiquidator.getAddress(),
-      await delegateRegistryV1.getAddress(),
       await delegateRegistryV2.getAddress(),
       await erc20DepositTokenImpl.getAddress(),
       [await ERC1155CollateralWrapper.getAddress()]
@@ -214,10 +213,6 @@ describe("Pool ERC1155 Collateral Wrapper", function () {
 
     it("returns expected collateral liquidator", async function () {
       expect(await pool.collateralLiquidator()).to.equal(await collateralLiquidator.getAddress());
-    });
-
-    it("returns expected delegation registry v1", async function () {
-      expect(await pool.delegationRegistry()).to.equal(await delegateRegistryV1.getAddress());
     });
 
     it("returns expected delegation registry v2", async function () {
@@ -463,131 +458,6 @@ describe("Pool ERC1155 Collateral Wrapper", function () {
         from: await pool.getAddress(),
         to: await accountBorrower.getAddress(),
         value: FixedPoint.from("25"),
-      });
-
-      await expect(borrowTx).to.emit(pool, "LoanOriginated");
-
-      /* Extract loan receipt */
-      const loanReceiptHash = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceiptHash;
-      const loanReceipt = (await extractEvent(borrowTx, pool, "LoanOriginated")).args.loanReceipt;
-
-      /* Validate hash */
-      expect(loanReceiptHash).to.equal(await loanReceiptLib.hash(loanReceipt));
-
-      /* Validate loan receipt */
-      const decodedLoanReceipt = await loanReceiptLib.decode(loanReceipt);
-      expect(decodedLoanReceipt.version).to.equal(2);
-      expect(decodedLoanReceipt.borrower).to.equal(await accountBorrower.getAddress());
-      expect(decodedLoanReceipt.maturity).to.equal(
-        BigInt((await ethers.provider.getBlock(borrowTx.blockHash!)).timestamp) + 30n * 86400n
-      );
-      expect(decodedLoanReceipt.duration).to.equal(30 * 86400);
-      expect(decodedLoanReceipt.collateralToken).to.equal(await ERC1155CollateralWrapper.getAddress());
-      expect(decodedLoanReceipt.collateralTokenId).to.equal(ERC1155WrapperTokenId);
-      expect(decodedLoanReceipt.collateralWrapperContextLen).to.equal(ethers.dataLength(ERC1155WrapperData));
-      expect(decodedLoanReceipt.collateralWrapperContext).to.equal(ERC1155WrapperData);
-      expect(decodedLoanReceipt.nodeReceipts.length).to.equal(1);
-
-      /* Sum used and pending totals from node receipts */
-      let totalUsed = 0n;
-      let totalPending = 0n;
-      for (const nodeReceipt of decodedLoanReceipt.nodeReceipts) {
-        totalUsed = totalUsed + nodeReceipt.used;
-        totalPending = totalPending + nodeReceipt.pending;
-      }
-
-      /* Validate used and pending totals */
-      expect(totalUsed).to.equal(FixedPoint.from("25"));
-      expect(totalPending).to.equal(repayment);
-
-      /* Validate loan state */
-      expect(await pool.loans(loanReceiptHash)).to.equal(1);
-    });
-
-    it("originates erc1155 loan with delegation", async function () {
-      /* Mint ERC1155Wrapper */
-      const mintTx = await ERC1155CollateralWrapper.connect(accountBorrower).mint(
-        await nft1.getAddress(),
-        [123, 124, 125],
-        [1, 2, 3]
-      );
-      const ERC1155WrapperTokenId = (await extractEvent(mintTx, ERC1155CollateralWrapper, "BatchMinted")).args.tokenId;
-      const ERC1155WrapperData = (await extractEvent(mintTx, ERC1155CollateralWrapper, "BatchMinted")).args
-        .encodedBatch;
-
-      /* Quote repayment */
-      const repayment = await pool.quote(
-        FixedPoint.from("25"),
-        30 * 86400,
-        await ERC1155CollateralWrapper.getAddress(),
-        ERC1155WrapperTokenId,
-        await sourceLiquidity(FixedPoint.from("25")),
-        ethers.solidityPacked(
-          ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes20"],
-          [1, ethers.dataLength(ERC1155WrapperData), ERC1155WrapperData, 3, 20, await accountBorrower.getAddress()]
-        )
-      );
-
-      /* Simulate borrow */
-      const simulatedRepayment = await pool
-        .connect(accountBorrower)
-        .borrow.staticCall(
-          FixedPoint.from("25"),
-          30 * 86400,
-          await ERC1155CollateralWrapper.getAddress(),
-          ERC1155WrapperTokenId,
-          FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"), 6n),
-          ethers.solidityPacked(
-            ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes20"],
-            [1, ethers.dataLength(ERC1155WrapperData), ERC1155WrapperData, 3, 20, await accountBorrower.getAddress()]
-          )
-        );
-
-      /* Borrow */
-      const borrowTx = await pool
-        .connect(accountBorrower)
-        .borrow(
-          FixedPoint.from("25"),
-          30 * 86400,
-          await ERC1155CollateralWrapper.getAddress(),
-          ERC1155WrapperTokenId,
-          FixedPoint.from("26"),
-          await sourceLiquidity(FixedPoint.from("25"), 6n),
-          ethers.solidityPacked(
-            ["uint16", "uint16", "bytes", "uint16", "uint16", "bytes20"],
-            [1, ethers.dataLength(ERC1155WrapperData), ERC1155WrapperData, 3, 20, await accountBorrower.getAddress()]
-          )
-        );
-
-      /* Validate return value from borrow() */
-      expect(simulatedRepayment).to.equal(repayment);
-
-      /* Validate events */
-      await expectEvent(mintTx, ERC1155CollateralWrapper, "Transfer", {
-        from: ethers.ZeroAddress,
-        to: await accountBorrower.getAddress(),
-        tokenId: ERC1155WrapperTokenId,
-      });
-
-      await expectEvent(borrowTx, ERC1155CollateralWrapper, "Transfer", {
-        from: await accountBorrower.getAddress(),
-        to: await pool.getAddress(),
-        tokenId: ERC1155WrapperTokenId,
-      });
-
-      await expectEvent(borrowTx, tok1, "Transfer", {
-        from: await pool.getAddress(),
-        to: await accountBorrower.getAddress(),
-        value: FixedPoint.from("25"),
-      });
-
-      await expectEvent(borrowTx, delegateRegistryV1, "DelegateForToken", {
-        vault: await pool.getAddress(),
-        delegate: await accountBorrower.getAddress(),
-        contract_: await ERC1155CollateralWrapper.getAddress(),
-        tokenId: ERC1155WrapperTokenId,
-        value: true,
       });
 
       await expect(borrowTx).to.emit(pool, "LoanOriginated");
