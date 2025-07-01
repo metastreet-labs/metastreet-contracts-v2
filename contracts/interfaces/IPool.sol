@@ -250,6 +250,14 @@ interface IPool {
      */
     function isOperator(address account, address operator) external view returns (bool);
 
+    /**
+     * @notice Get deposit whitelist
+     * @param account Account
+     * @param tick Tick
+     * @return isWhitelisted Whether account is whitelisted for deposit at tick
+     */
+    function isDepositWhitelisted(address account, uint128 tick ) external view returns (bool);
+
     /**************************************************************************/
     /* Deposit API */
     /**************************************************************************/

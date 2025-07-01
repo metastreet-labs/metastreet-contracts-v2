@@ -3259,8 +3259,6 @@ describe("Pool Basic", function () {
       expect(decodedNewLoanReceipt.collateralTokenId).to.equal(123);
       expect(decodedNewLoanReceipt.nodeReceipts.length).to.equal(16);
 
-      console.log("decodedLoanReceipt.repayment - decodedLoanReceipt.principal:", decodedLoanReceipt.repayment - decodedLoanReceipt.principal);
-
       /* Validate events */
       await expectEvent(refinanceTx, tok1, "Transfer", {
         from: await accountLiquidator.getAddress(),

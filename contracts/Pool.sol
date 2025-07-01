@@ -411,6 +411,13 @@ abstract contract Pool is
     }
 
     /**
+     * @inheritdoc IPool
+     */
+    function isDepositWhitelisted(address, uint128) public view virtual returns (bool) {
+        return true;
+    }
+
+    /**
      * @notice Get deposit
      * @param account Account
      * @param tick Tick
@@ -1043,6 +1050,9 @@ abstract contract Pool is
      * @inheritdoc IPool
      */
     function deposit(uint128 tick, uint256 amount, uint256 minShares) external nonReentrant returns (uint256) {
+        /* Validate caller is whitelisted for deposit at tick */
+        if (!isDepositWhitelisted(msg.sender, tick)) revert IPool.InvalidCaller();
+
         /* Handle deposit accounting and compute shares */
         uint128 shares = DepositLogic._deposit(_storage, tick, _scale(amount).toUint128(), minShares.toUint128());
 
@@ -1119,6 +1129,9 @@ abstract contract Pool is
         uint128 redemptionId,
         uint256 minShares
     ) external nonReentrant returns (uint256, uint256, uint256) {
+        /* Validate caller is whitelisted for deposit at dstTick */
+        if (!isDepositWhitelisted(msg.sender, dstTick)) revert InvalidCaller();
+
         /* Handle withdraw accounting and compute both shares and amount */
         (uint128 oldShares, uint128 amount) = DepositLogic._withdraw(_storage, srcTick, redemptionId);
 
