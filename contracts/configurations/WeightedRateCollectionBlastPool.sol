@@ -108,9 +108,7 @@ contract WeightedRateCollectionBlastPool is
     /**
      * @inheritdoc Pool
      */
-    function IMPLEMENTATION_NAME() external pure override returns (string memory) {
-        return "WeightedRateCollectionBlastPool";
-    }
+    string public constant override IMPLEMENTATION_NAME = "WeightedRateCollectionBlastPool";
 
     /**************************************************************************/
     /* Helpers */
