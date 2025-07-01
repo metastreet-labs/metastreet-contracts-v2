@@ -85,7 +85,5 @@ contract WeightedRateMerkleCollectionPool is
     /**
      * @inheritdoc Pool
      */
-    function IMPLEMENTATION_NAME() external pure override returns (string memory) {
-        return "WeightedRateMerkleCollectionPool";
-    }
+    string public constant override IMPLEMENTATION_NAME = "WeightedRateMerkleCollectionPool";
 }
