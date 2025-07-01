@@ -22,6 +22,29 @@ contract WeightedRateGracePeriodRangedCollectionPool is
     ExternalPriceOracle
 {
     /**************************************************************************/
+    /* Constants */
+    /**************************************************************************/
+
+    /**
+     * @notice Deposit whitelist storage location
+     * @dev keccak256(abi.encode(uint256(keccak256("weightedRateGracePeriodRangedCollectionPool.depositWhitelist")) - 1)) & ~bytes32(uint256(0xff));
+     */
+    bytes32 internal constant DEPOSIT_WHITELIST_STORAGE_LOCATION =
+        0xb3daf58d5c92be151ade1dcf694b7f8486281fd452dbd0443558efdfe1579600;
+
+    /**************************************************************************/
+    /* Structures */
+    /**************************************************************************/
+
+    /**
+     * @notice Deposit whitelist
+     * @param whitelist Mapping of tick to address to bool
+     */
+    struct DepositWhitelist {
+        mapping(uint128 => mapping(address => bool)) whitelist;
+    }
+
+    /**************************************************************************/
     /* Events */
     /**************************************************************************/
 
@@ -31,6 +54,14 @@ contract WeightedRateGracePeriodRangedCollectionPool is
      * @param gracePeriodRate Grace period interest rate per second
      */
     event GracePeriodUpdated(uint256 gracePeriodDuration, uint256 gracePeriodRate);
+
+    /**
+     * @notice Deposit whitelist set
+     * @param tick Tick
+     * @param account Account
+     * @param isWhitelisted Whether account is whitelisted for deposit at tick
+     */
+    event DepositWhitelistSet(uint128 indexed tick, address indexed account, bool isWhitelisted);
 
     /**************************************************************************/
     /* State */
@@ -131,6 +162,59 @@ contract WeightedRateGracePeriodRangedCollectionPool is
         return _gracePeriodRate;
     }
 
+    /**
+     * @inheritdoc Pool
+     */
+    function deposit(uint128 tick, uint256 amount, uint256 minShares) public override returns (uint256) {
+        /* Validate caller is whitelisted for deposit at tick */
+        if (!isDepositWhitelisted(msg.sender, tick)) revert IPool.InvalidCaller();
+
+        return super.deposit(tick, amount, minShares);
+    }
+
+    /**
+     * @inheritdoc Pool
+     */
+    function rebalance(
+        uint128 srcTick,
+        uint128 dstTick,
+        uint128 redemptionId,
+        uint256 minShares
+    ) public override returns (uint256, uint256, uint256) {
+        /* Validate caller is whitelisted for deposit at tick */
+        if (!isDepositWhitelisted(msg.sender, dstTick)) revert IPool.InvalidCaller();
+
+        return super.rebalance(srcTick, dstTick, redemptionId, minShares);
+    }
+
+    /**************************************************************************/
+    /* Getters */
+    /**************************************************************************/
+
+    /**
+     * @notice Check if account is whitelisted for deposit at tick
+     * @param account Account
+     * @param tick Tick
+     * @return Whether account is whitelisted for deposit at tick
+     */
+    function isDepositWhitelisted(address account, uint128 tick ) public view returns (bool) {
+        return _getDepositWhitelistStorage().whitelist[tick][account];
+    }
+
+    /**************************************************************************/
+    /* Helper */
+    /**************************************************************************/
+
+    /**
+     * @notice Get reference to deposit whitelist storage
+     * @return $ Reference to deposit whitelist storage
+     */
+    function _getDepositWhitelistStorage() internal pure returns (DepositWhitelist storage $) {
+        assembly {
+            $.slot := DEPOSIT_WHITELIST_STORAGE_LOCATION
+        }
+    }
+
     /**************************************************************************/
     /* Name */
     /**************************************************************************/
@@ -161,5 +245,33 @@ contract WeightedRateGracePeriodRangedCollectionPool is
 
         /* Emit Grace Period Updated */
         emit GracePeriodUpdated(gracePeriodDuration_, gracePeriodRate_);
+    }
+
+    /**
+     * @notice Set deposit whitelist
+     *
+     * @param tick Tick
+     * @param account Account
+     * @param isWhitelisted Whether account is whitelisted for deposit at tick
+     */
+    function setDepositWhitelist(
+        uint128 tick,
+        address account,
+        bool isWhitelisted
+    ) external nonReentrant {
+        /* Validate caller is pool admin */
+        if (msg.sender != _storage.admin) revert IPool.InvalidCaller();
+
+        /* Validate account is not zero address */
+        if (account == address(0)) revert IPool.InvalidParameters();
+
+        /* Validate tick is valid */
+        if (tick == 0) revert IPool.InvalidParameters();
+
+        /* Set deposit whitelist */
+        _getDepositWhitelistStorage().whitelist[tick][account] = isWhitelisted;
+
+        /* Emit DepositWhitelistSet */
+        emit DepositWhitelistSet(tick, account, isWhitelisted);
     }
 }

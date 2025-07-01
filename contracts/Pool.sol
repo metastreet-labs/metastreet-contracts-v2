@@ -1007,7 +1007,7 @@ abstract contract Pool is
     /**
      * @inheritdoc IPool
      */
-    function deposit(uint128 tick, uint256 amount, uint256 minShares) external nonReentrant returns (uint256) {
+    function deposit(uint128 tick, uint256 amount, uint256 minShares) public nonReentrant virtual returns (uint256) {
         /* Handle deposit accounting and compute shares */
         uint128 shares = DepositLogic._deposit(_storage, tick, _scale(amount).toUint128(), minShares.toUint128());
 
@@ -1083,7 +1083,7 @@ abstract contract Pool is
         uint128 dstTick,
         uint128 redemptionId,
         uint256 minShares
-    ) external nonReentrant returns (uint256, uint256, uint256) {
+    ) public nonReentrant virtual returns (uint256, uint256, uint256) {
         /* Handle withdraw accounting and compute both shares and amount */
         (uint128 oldShares, uint128 amount) = DepositLogic._withdraw(_storage, srcTick, redemptionId);
 
