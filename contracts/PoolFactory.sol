@@ -161,49 +161,14 @@ contract PoolFactory is Ownable, ERC1967Upgrade, IPoolFactory {
     /**************************************************************************/
 
     /**
-     * @notice Set pool admin fee
+     * @notice Call arbitrary admin function on a pool
      * @param pool Pool address
-     * @param rate Admin fee rate in basis points
-     * @param feeShareRecipient Recipient of fee share
-     * @param feeShareSplit Fee share split in basis points
+     * @param data ABI-encoded calldata
      */
-    function setAdminFee(
-        address pool,
-        uint32 rate,
-        address feeShareRecipient,
-        uint16 feeShareSplit
-    ) external onlyOwner {
-        /* Validate pool */
+    function adminCall(address pool, bytes calldata data) external onlyOwner {
         if (!isPool(pool)) revert InvalidPool();
 
-        Address.functionCall(
-            pool,
-            abi.encodeWithSignature("setAdminFee(uint32,address,uint16)", rate, feeShareRecipient, feeShareSplit)
-        );
-    }
-
-    /**
-     * @notice Withdraw admin fees
-     * @param pool Pool address
-     * @param recipient Recipient of admin fees (less fee share)
-     */
-    function withdrawAdminFees(address pool, address recipient) external onlyOwner {
-        /* Validate pool */
-        if (!isPool(pool)) revert InvalidPool();
-
-        Address.functionCall(pool, abi.encodeWithSignature("withdrawAdminFees(address)", recipient));
-    }
-
-    /**
-     * @notice Set pool rates
-     * @param pool Pool address
-     * @param rates List of rates in interest per second
-     */
-    function setRates(address pool, uint64[] memory rates) external onlyOwner {
-        /* Validate pool */
-        if (!isPool(pool)) revert InvalidPool();
-
-        Address.functionCall(pool, abi.encodeWithSignature("setRates(uint64[])", rates));
+        Address.functionCall(pool, data);
     }
 
     /**
