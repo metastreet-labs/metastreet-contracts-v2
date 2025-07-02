@@ -389,11 +389,13 @@ async function poolFactorySetAdminFee(
 
   const poolFactory = (await hre.ethers.getContractAt("PoolFactory", deployment.poolFactory, signer)) as PoolFactory;
 
+  const iface = new ethers.Interface(["function setAdminFee(uint32,address,uint16)"]);
+  const data = iface.encodeFunctionData("setAdminFee", [rate, feeShareRecipient, feeShareSplit]);
+
   if ((await signer!.getAddress()) === (await getOwner(await poolFactory.getAddress()))) {
-    await poolFactory.setAdminFee(pool, rate, feeShareRecipient, feeShareSplit);
+    await poolFactory.adminCall(pool, data);
   } else {
-    const calldata = (await poolFactory.setAdminFee.populateTransaction(pool, rate, feeShareRecipient, feeShareSplit))
-      .data;
+    const calldata = (await poolFactory.adminCall.populateTransaction(pool, data)).data;
     console.log(`Set Admin Fee Calldata`);
     console.log(`  Target:   ${await poolFactory.getAddress()}`);
     console.log(`  Calldata: ${calldata}`);

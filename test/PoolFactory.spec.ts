@@ -39,6 +39,12 @@ describe("PoolFactory", function () {
   let bundleCollateralWrapper: BundleCollateralWrapper;
   let erc20DepositTokenImpl: ERC20DepositTokenImplementation;
 
+  const iface = new ethers.Interface([
+    "function setRates(uint64[])",
+    "function setAdminFee(uint32,address,uint16)",
+    "function withdrawAdminFees(address)",
+  ]);
+
   before("deploy fixture", async () => {
     accounts = await ethers.getSigners();
 
@@ -561,9 +567,12 @@ describe("PoolFactory", function () {
       expect(await pool1.adminFeeRate()).to.equal(0);
       expect(await pool2.adminFeeRate()).to.equal(0);
 
+      const data1 = iface.encodeFunctionData("setAdminFee", [500, ethers.ZeroAddress, 0]);
+      const data2 = iface.encodeFunctionData("setAdminFee", [700, accounts[2].address, 500]);
+
       /* Set admin fee rate */
-      const setAdminFeeRateTx1 = await poolFactory.setAdminFee(await pool1.getAddress(), 500, ethers.ZeroAddress, 0);
-      const setAdminFeeRateTx2 = await poolFactory.setAdminFee(await pool2.getAddress(), 700, accounts[2].address, 500);
+      const setAdminFeeRateTx1 = await poolFactory.adminCall(await pool1.getAddress(), data1);
+      const setAdminFeeRateTx2 = await poolFactory.adminCall(await pool2.getAddress(), data2);
 
       /* Validate events */
       await expectEvent(setAdminFeeRateTx1, pool1, "AdminFeeUpdated", {
@@ -581,8 +590,10 @@ describe("PoolFactory", function () {
       expect(await pool1.adminFeeRate()).to.equal(500);
       expect(await pool2.adminFeeRate()).to.equal(700);
 
+      const data3 = iface.encodeFunctionData("setAdminFee", [0, ethers.ZeroAddress, 0]);
+
       /* Set admin fee rate */
-      const setAdminFeeRateTx3 = await poolFactory.setAdminFee(await pool1.getAddress(), 0, ethers.ZeroAddress, 0);
+      const setAdminFeeRateTx3 = await poolFactory.adminCall(await pool1.getAddress(), data3);
 
       /* Validate events */
       await expectEvent(setAdminFeeRateTx3, pool1, "AdminFeeUpdated", {
@@ -596,24 +607,32 @@ describe("PoolFactory", function () {
     });
 
     it("fails on invalid pool address", async function () {
-      await expect(
-        poolFactory.setAdminFee(await poolFactory.getAddress(), 700, ethers.ZeroAddress, 0)
-      ).to.be.revertedWithCustomError(poolFactory, "InvalidPool");
+      const data = iface.encodeFunctionData("setAdminFee", [700, ethers.ZeroAddress, 0]);
+      await expect(poolFactory.adminCall(await poolFactory.getAddress(), data)).to.be.revertedWithCustomError(
+        poolFactory,
+        "InvalidPool"
+      );
     });
 
     it("fails on invalid caller", async function () {
-      await expect(
-        poolFactory.connect(accounts[1]).setAdminFee(await pool2.getAddress(), 700, ethers.ZeroAddress, 0)
-      ).to.be.revertedWith("Ownable: caller is not the owner");
+      const data = iface.encodeFunctionData("setAdminFee", [700, ethers.ZeroAddress, 0]);
+      await expect(poolFactory.connect(accounts[1]).adminCall(await pool2.getAddress(), data)).to.be.revertedWith(
+        "Ownable: caller is not the owner"
+      );
     });
 
     it("fails on invalid rate", async function () {
-      await expect(
-        poolFactory.setAdminFee(await pool2.getAddress(), 10000, ethers.ZeroAddress, 0)
-      ).to.be.revertedWithCustomError(pool2, "InvalidParameters");
-      await expect(
-        poolFactory.setAdminFee(await pool2.getAddress(), 500, ethers.ZeroAddress, 10001)
-      ).to.be.revertedWithCustomError(pool2, "InvalidParameters");
+      const data1 = iface.encodeFunctionData("setAdminFee", [10000, ethers.ZeroAddress, 0]);
+      await expect(poolFactory.adminCall(await pool2.getAddress(), data1)).to.be.revertedWithCustomError(
+        pool2,
+        "InvalidParameters"
+      );
+
+      const data2 = iface.encodeFunctionData("setAdminFee", [500, ethers.ZeroAddress, 10001]);
+      await expect(poolFactory.adminCall(await pool2.getAddress(), data2)).to.be.revertedWithCustomError(
+        pool2,
+        "InvalidParameters"
+      );
     });
   });
 
@@ -628,9 +647,12 @@ describe("PoolFactory", function () {
       pool1 = (await ethers.getContractAt("Pool", await createPool())) as Pool;
       pool2 = (await ethers.getContractAt("Pool", await createPool())) as Pool;
 
+      const data1 = iface.encodeFunctionData("setAdminFee", [500, ethers.ZeroAddress, 0]);
+      const data2 = iface.encodeFunctionData("setAdminFee", [700, accounts[2].address, 500]);
+
       /* Set admin fee rate */
-      await poolFactory.setAdminFee(await pool1.getAddress(), 500, ethers.ZeroAddress, 0);
-      await poolFactory.setAdminFee(await pool2.getAddress(), 700, accounts[2].address, 500);
+      await poolFactory.adminCall(await pool1.getAddress(), data1);
+      await poolFactory.adminCall(await pool2.getAddress(), data2);
 
       /* Approve pools to transfer NFT */
       await nft1.connect(accountBorrower).setApprovalForAll(await pool1.getAddress(), true);
@@ -646,9 +668,12 @@ describe("PoolFactory", function () {
       await pool1.connect(accountDepositor).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
       await pool2.connect(accountDepositor).deposit(Tick.encode("10"), FixedPoint.from("10"), 0);
 
+      const data3 = iface.encodeFunctionData("setAdminFee", [500, ethers.ZeroAddress, 0]);
+      const data4 = iface.encodeFunctionData("setAdminFee", [700, accounts[2].address, 500]);
+
       /* Set admin fee rate */
-      await poolFactory.setAdminFee(await pool1.getAddress(), 500, ethers.ZeroAddress, 0);
-      await poolFactory.setAdminFee(await pool2.getAddress(), 700, accounts[2].address, 500);
+      await poolFactory.adminCall(await pool1.getAddress(), data3);
+      await poolFactory.adminCall(await pool2.getAddress(), data4);
 
       /* Borrow */
       const borrowTx1 = await pool1
@@ -703,25 +728,31 @@ describe("PoolFactory", function () {
 
       const startingBalance = await tok1.balanceOf(accounts[2].address);
 
-      await poolFactory.withdrawAdminFees(await pool1.getAddress(), accounts[2].address);
+      const data1 = iface.encodeFunctionData("withdrawAdminFees", [accounts[2].address]);
+      const data2 = iface.encodeFunctionData("withdrawAdminFees", [accounts[2].address]);
+
+      await poolFactory.adminCall(await pool1.getAddress(), data1);
 
       expect(await tok1.balanceOf(accounts[2].address)).to.equal(startingBalance + adminFees1);
 
-      await poolFactory.withdrawAdminFees(await pool2.getAddress(), accounts[2].address);
+      await poolFactory.adminCall(await pool2.getAddress(), data2);
 
       expect(await tok1.balanceOf(accounts[2].address)).to.equal(startingBalance + adminFees1 + adminFees2);
     });
 
     it("fails on invalid pool address", async function () {
-      await expect(
-        poolFactory.withdrawAdminFees(await poolFactory.getAddress(), accounts[2].address)
-      ).to.be.revertedWithCustomError(poolFactory, "InvalidPool");
+      const data = iface.encodeFunctionData("withdrawAdminFees", [accounts[2].address]);
+      await expect(poolFactory.adminCall(await poolFactory.getAddress(), data)).to.be.revertedWithCustomError(
+        poolFactory,
+        "InvalidPool"
+      );
     });
 
     it("fails on invalid caller", async function () {
-      await expect(
-        poolFactory.connect(accounts[1]).withdrawAdminFees(await pool1.getAddress(), accounts[2].address)
-      ).to.be.revertedWith("Ownable: caller is not the owner");
+      const data = iface.encodeFunctionData("withdrawAdminFees", [accounts[2].address]);
+      await expect(poolFactory.connect(accounts[1]).adminCall(await pool1.getAddress(), data)).to.be.revertedWith(
+        "Ownable: caller is not the owner"
+      );
     });
   });
 
@@ -750,9 +781,12 @@ describe("PoolFactory", function () {
         FixedPoint.normalizeRate("0.25"),
       ];
 
+      const data1 = iface.encodeFunctionData("setRates", [rates1]);
+      const data2 = iface.encodeFunctionData("setRates", [rates2]);
+
       /* Set admin fee rate */
-      const setRatesTx1 = await poolFactory.setRates(await pool1.getAddress(), rates1);
-      const setRatesTx2 = await poolFactory.setRates(await pool2.getAddress(), rates2);
+      const setRatesTx1 = await poolFactory.adminCall(await pool1.getAddress(), data1);
+      const setRatesTx2 = await poolFactory.adminCall(await pool2.getAddress(), data2);
 
       /* Validate events */
       const rates1_ = (await extractEvent(setRatesTx1, pool1, "RatesUpdated")).args.rates;
@@ -772,7 +806,9 @@ describe("PoolFactory", function () {
         FixedPoint.normalizeRate("0.25"),
       ];
 
-      await expect(poolFactory.setRates(await poolFactory.getAddress(), rates)).to.be.revertedWithCustomError(
+      const data = iface.encodeFunctionData("setRates", [rates]);
+
+      await expect(poolFactory.adminCall(await poolFactory.getAddress(), data)).to.be.revertedWithCustomError(
         poolFactory,
         "InvalidPool"
       );
@@ -785,7 +821,9 @@ describe("PoolFactory", function () {
         FixedPoint.normalizeRate("0.25"),
       ];
 
-      await expect(poolFactory.connect(accounts[1]).setRates(await pool2.getAddress(), rates)).to.be.revertedWith(
+      const data = iface.encodeFunctionData("setRates", [rates]);
+
+      await expect(poolFactory.connect(accounts[1]).adminCall(await pool2.getAddress(), data)).to.be.revertedWith(
         "Ownable: caller is not the owner"
       );
     });
@@ -807,11 +845,15 @@ describe("PoolFactory", function () {
         FixedPoint.normalizeRate("0.4"),
         FixedPoint.normalizeRate("0.45"),
       ];
-      await expect(poolFactory.setRates(await pool2.getAddress(), rates1)).to.be.revertedWithCustomError(
+
+      const data1 = iface.encodeFunctionData("setRates", [rates1]);
+      await expect(poolFactory.adminCall(await pool2.getAddress(), data1)).to.be.revertedWithCustomError(
         pool2,
         "InvalidParameters"
       );
-      await expect(poolFactory.setRates(await pool2.getAddress(), rates2)).to.be.revertedWithCustomError(
+
+      const data2 = iface.encodeFunctionData("setRates", [rates2]);
+      await expect(poolFactory.adminCall(await pool2.getAddress(), data2)).to.be.revertedWithCustomError(
         pool2,
         "InvalidParameters"
       );
