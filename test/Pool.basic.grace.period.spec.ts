@@ -1032,4 +1032,45 @@ describe("Pool Basic Grace Period", function () {
       expect(await pool_.isDepositWhitelisted(accountDepositors[1], 1)).to.equal(false);
     });
   });
+
+  describe("#setDepositWhitelistAdmin", async function () {
+    it("admin can change deposit whitelist successfully", async function () {
+      const pool_ = (await ethers.getContractAt(
+        "WeightedRateGracePeriodRangedCollectionPool",
+        await pool.getAddress()
+      )) as WeightedRateGracePeriodRangedCollectionPool;
+
+      /* Change admin */
+      expect(await pool_.isDepositWhitelistAdmin(accounts[0].address)).to.equal(true);
+      await pool_.setDepositWhitelistAdmin(accounts[1].address, true);
+      await pool_.setDepositWhitelistAdmin(accounts[0].address, false);
+      expect(await pool_.isDepositWhitelistAdmin(accounts[0].address)).to.equal(false);
+      expect(await pool_.isDepositWhitelistAdmin(accounts[1].address)).to.equal(true);
+
+      /* Try to set deposit whitelist from old admin */
+      await expect(pool_.setDepositWhitelist(1, accountDepositors[0], true)).to.be.revertedWithCustomError(
+        pool,
+        "InvalidCaller"
+      );
+
+      /* Try to set deposit whitelist from new admin */
+      await pool_.connect(accounts[1]).setDepositWhitelist(1, accountDepositors[0], true);
+    });
+
+    it("pool admin can set deposit whitelist successfully", async function () {
+      const pool_ = (await ethers.getContractAt(
+        "WeightedRateGracePeriodRangedCollectionPool",
+        await pool.getAddress()
+      )) as WeightedRateGracePeriodRangedCollectionPool;
+
+      /* Revoke deposit whitelist admin */
+      expect(await pool_.isDepositWhitelistAdmin(accounts[0].address)).to.equal(true);
+      await pool_.setDepositWhitelistAdmin(accounts[0].address, false);
+      expect(await pool_.isDepositWhitelistAdmin(accounts[1].address)).to.equal(false);
+
+      /* Set deposit whitelist admin (accounts[0] is also pool admin) */
+      await pool_.setDepositWhitelistAdmin(accounts[1].address, true);
+      expect(await pool_.isDepositWhitelistAdmin(accounts[1].address)).to.equal(true);
+    });
+  });
 });

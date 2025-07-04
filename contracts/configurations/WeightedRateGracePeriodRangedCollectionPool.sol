@@ -40,11 +40,11 @@ contract WeightedRateGracePeriodRangedCollectionPool is
      * @notice Deposit whitelist
      * @custom:storage-location erc7201:weightedRateGracePeriodRangedCollectionPool.depositWhitelist
      * @param whitelist Mapping of tick to address to bool
-     * @param depositAdmin Address of the deposit admin
+     * @param admins Set of whitelist admins
      */
     struct DepositWhitelist {
         mapping(uint128 => mapping(address => bool)) whitelist;
-        address depositAdmin;
+        mapping(address => bool) admins;
     }
 
     /**************************************************************************/
@@ -65,6 +65,13 @@ contract WeightedRateGracePeriodRangedCollectionPool is
      * @param isWhitelisted True if account is whitelisted for tick
      */
     event DepositWhitelistUpdated(uint128 indexed tick, address indexed account, bool isWhitelisted);
+
+    /**
+     * @notice Deposit whitelist admin updated
+     * @param account Account
+     * @param isAdmin True if account is whitelist admin
+     */
+    event DepositWhitelistAdminUpdated(address indexed account, bool isAdmin);
 
     /**************************************************************************/
     /* State */
@@ -131,7 +138,7 @@ contract WeightedRateGracePeriodRangedCollectionPool is
             uint64[] memory rates_,
             uint256 gracePeriodDuration_,
             uint256 gracePeriodRate_,
-            address depositAdmin_
+            address depositWhitelistAdmin_
         ) = abi.decode(
                 params,
                 (address, uint256, uint256, address, address, uint64[], uint64[], uint256, uint256, address)
@@ -150,8 +157,8 @@ contract WeightedRateGracePeriodRangedCollectionPool is
         _gracePeriodDuration = gracePeriodDuration_;
         _gracePeriodRate = gracePeriodRate_;
 
-        /* Set deposit admin */
-        _getDepositWhitelistStorage().depositAdmin = depositAdmin_;
+        /* Set initial deposit whitelist admin */
+        _getDepositWhitelistStorage().admins[depositWhitelistAdmin_] = true;
     }
 
     /**************************************************************************/
@@ -222,6 +229,15 @@ contract WeightedRateGracePeriodRangedCollectionPool is
         return _getDepositWhitelistStorage().whitelist[tick][account];
     }
 
+    /**
+     * @notice Check if account is deposit whitelist admin
+     * @param account Account
+     * @return True if account is deposit whitelist admin, otherwise false
+     */
+    function isDepositWhitelistAdmin(address account) external view returns (bool) {
+        return _getDepositWhitelistStorage().admins[account];
+    }
+
     /**************************************************************************/
     /* Storage Helper */
     /**************************************************************************/
@@ -264,11 +280,8 @@ contract WeightedRateGracePeriodRangedCollectionPool is
      * @param isWhitelisted Whether account is whitelisted for deposit at tick
      */
     function setDepositWhitelist(uint128 tick, address account, bool isWhitelisted) external {
-        /* Validate caller is deposit admin */
-        if (msg.sender != _getDepositWhitelistStorage().depositAdmin) revert IPool.InvalidCaller();
-
-        /* Validate account is not zero address */
-        if (account == address(0)) revert IPool.InvalidParameters();
+        /* Validate caller is deposit whitelist admin */
+        if (!_getDepositWhitelistStorage().admins[msg.sender]) revert IPool.InvalidCaller();
 
         /* Validate tick is valid */
         if (tick == 0) revert IPool.InvalidParameters();
@@ -278,5 +291,22 @@ contract WeightedRateGracePeriodRangedCollectionPool is
 
         /* Emit DepositWhitelistUpdated */
         emit DepositWhitelistUpdated(tick, account, isWhitelisted);
+    }
+
+    /**
+     * @notice Set deposit whitelist admin
+     * @param account Account
+     * @param isAdmin Whether account is deposit whitelist admin
+     */
+    function setDepositWhitelistAdmin(address account, bool isAdmin) external {
+        /* Validate caller is a deposit whitelist admin or pool admin */
+        if (!_getDepositWhitelistStorage().admins[msg.sender] && msg.sender != _storage.admin)
+            revert IPool.InvalidCaller();
+
+        /* Set deposit whitelist admin */
+        _getDepositWhitelistStorage().admins[account] = isAdmin;
+
+        /* Emit DepositWhitelistAdminUpdated */
+        emit DepositWhitelistAdminUpdated(account, isAdmin);
     }
 }
