@@ -1,3 +1,7 @@
+* PoolFactory v1.5 - 07/04/2025
+    * Replace `setAdminFee()`, `setRates()`, and `withdrawAdminFees()` admin
+      APIs with generic `adminCall()`.
+
 * Pool v2.16 - 07/04/2025
     * Add vesting of lender surplus to ticks in collateral liquidation.
     * Add support for grace period repayment with additional interest.
