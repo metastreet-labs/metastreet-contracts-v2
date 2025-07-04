@@ -37,11 +37,13 @@ contract WeightedRateGracePeriodRangedCollectionPool is
     /**************************************************************************/
 
     /**
-     * @notice Deposit whitelist
+     * @custom:storage-location erc7201:weightedRateGracePeriodRangedCollectionPool.depositWhitelist
      * @param whitelist Mapping of tick to address to bool
+     * @param depositAdmin Address of the deposit admin
      */
     struct DepositWhitelist {
         mapping(uint128 => mapping(address => bool)) whitelist;
+        address depositAdmin;
     }
 
     /**************************************************************************/
@@ -127,8 +129,9 @@ contract WeightedRateGracePeriodRangedCollectionPool is
             uint64[] memory durations_,
             uint64[] memory rates_,
             uint256 gracePeriodDuration_,
-            uint256 gracePeriodRate_
-        ) = abi.decode(params, (address, uint256, uint256, address, address, uint64[], uint64[], uint256, uint256));
+            uint256 gracePeriodRate_,
+            address depositAdmin_
+        ) = abi.decode(params, (address, uint256, uint256, address, address, uint64[], uint64[], uint256, uint256, address));
 
         /* Initialize Collateral Filter */
         RangedCollectionCollateralFilter._initialize(collateralToken_, startTokenId_, endTokenId_);
@@ -142,6 +145,9 @@ contract WeightedRateGracePeriodRangedCollectionPool is
         /* Set grace period */
         _gracePeriodDuration = gracePeriodDuration_;
         _gracePeriodRate = gracePeriodRate_;
+
+        /* Set deposit admin */
+        _getDepositWhitelistStorage().depositAdmin = depositAdmin_;
     }
 
     /**************************************************************************/
@@ -249,14 +255,13 @@ contract WeightedRateGracePeriodRangedCollectionPool is
 
     /**
      * @notice Set deposit whitelist
-     *
      * @param tick Tick
      * @param account Account
      * @param isWhitelisted Whether account is whitelisted for deposit at tick
      */
-    function setDepositWhitelist(uint128 tick, address account, bool isWhitelisted) external nonReentrant {
-        /* Validate caller is pool admin */
-        if (msg.sender != _storage.admin) revert IPool.InvalidCaller();
+    function setDepositWhitelist(uint128 tick, address account, bool isWhitelisted) external {
+        /* Validate caller is deposit admin */
+        if (msg.sender != _getDepositWhitelistStorage().depositAdmin) revert IPool.InvalidCaller();
 
         /* Validate account is not zero address */
         if (account == address(0)) revert IPool.InvalidParameters();

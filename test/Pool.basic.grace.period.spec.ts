@@ -112,7 +112,7 @@ describe("Pool Basic Grace Period", function () {
       await poolImpl.getAddress(),
       poolImpl.interface.encodeFunctionData("initialize", [
         ethers.AbiCoder.defaultAbiCoder().encode(
-          ["address", "uint256", "uint256", "address", "address", "uint64[]", "uint64[]", "uint256", "uint256"],
+          ["address", "uint256", "uint256", "address", "address", "uint64[]", "uint64[]", "uint256", "uint256", "address"],
           [
             await nft1.getAddress(),
             0,
@@ -123,6 +123,7 @@ describe("Pool Basic Grace Period", function () {
             [FixedPoint.normalizeRate("0.10"), FixedPoint.normalizeRate("0.30"), FixedPoint.normalizeRate("0.50")],
             30 * 86400,
             FixedPoint.normalizeRate("0.05"),
+            await accounts[0].getAddress()
           ]
         ),
       ])
