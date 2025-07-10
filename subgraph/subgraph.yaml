@@ -171,6 +171,8 @@ templates:
           file: ../artifacts/contracts/Pool.sol/Pool.json
         - name: ICollateralWrapper
           file: ../artifacts/contracts/interfaces/ICollateralWrapper.sol/ICollateralWrapper.json
+        - name: IERC165
+          file: ../artifacts/@openzeppelin/contracts/utils/introspection/IERC165.sol/IERC165.json
         - name: ERC721
           file: ../artifacts/@openzeppelin/contracts/token/ERC721/ERC721.sol/ERC721.json
       eventHandlers:
